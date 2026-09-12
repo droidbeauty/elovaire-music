@@ -294,7 +294,6 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
@@ -394,6 +393,8 @@ internal fun HomeScreen(
     val language = LocalAppLanguage.current
     val homeCopy = remember(language) { homeCopy(language) }
     val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
+    val motionTransitions = rememberMotionTransitions()
     var revealModules by rememberSaveable(playInitialReveal) { mutableStateOf(!playInitialReveal) }
     LaunchedEffect(resetScrollOnColdStart) {
         if (resetScrollOnColdStart) {
@@ -442,14 +443,17 @@ internal fun HomeScreen(
             },
             transitionSpec = {
                 if (targetState == HomeScreenState.Loading) {
-                    fadeIn(animationSpec = ElovaireMotion.fadeMedium()) togetherWith
-                        fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
+                    fadeIn(animationSpec = motionSpecs.fadeIn()) togetherWith
+                        fadeOut(animationSpec = motionSpecs.fadeOut())
                 } else {
-                    (fadeIn(animationSpec = ElovaireMotion.fadeSlow(delayMillis = 40)) +
+                    (fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.Spacious, delayMillis = 40)) +
                         slideInVertically(
-                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Screen),
+                            animationSpec = motionSpecs.tween(
+                                durationMillis = MotionDuration.Screen,
+                                easing = MotionEasing.SoftOut,
+                            ),
                             initialOffsetY = { -it / 14 },
-                        )) togetherWith fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
+                        )) togetherWith fadeOut(animationSpec = motionSpecs.fadeOut())
                 }
             },
             label = "HomeLoadingTransition",
@@ -528,12 +532,15 @@ internal fun HomeScreen(
                 HomeScreenState.Content -> {
                 ElovaireAnimatedVisibility(
                     visible = revealModules,
-                    enter = fadeIn(animationSpec = ElovaireMotion.fadeSlow()) +
+                    enter = fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.Spacious)) +
                         slideInVertically(
-                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = 320),
+                            animationSpec = motionSpecs.tween(
+                                durationMillis = MotionDuration.Standard,
+                                easing = MotionEasing.SoftOut,
+                            ),
                             initialOffsetY = { -it / 18 },
                         ),
-                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                    exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
                     label = "HomeFirstLaunchModulesReveal",
                 ) {
                     LazyColumn(
@@ -1102,6 +1109,7 @@ private fun AlbumCollectionContent(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var selectedAlbumIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
@@ -1129,7 +1137,7 @@ private fun AlbumCollectionContent(
     }
     val selectionTopInset by animateDpAsState(
         targetValue = if (selectionModeActive) 50.dp else 0.dp,
-        animationSpec = ElovaireMotion.sizeSoft(),
+        animationSpec = motionSpecs.contentSize(),
         label = "album_selection_top_inset",
     )
     BackHandler(enabled = selectionModeActive) {
@@ -1192,7 +1200,7 @@ private fun AlbumCollectionContent(
                             album = album,
                             modifier = Modifier
                                 .animateItem(
-                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                    placementSpec = motionSpecs.listPlacement(),
                                 )
                                 .elovaireListReveal(
                                     itemKey = album.id,
@@ -1278,7 +1286,7 @@ private fun AlbumCollectionContent(
                             album = album,
                             modifier = Modifier
                                 .animateItem(
-                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                    placementSpec = motionSpecs.listPlacement(),
                                 )
                                 .elovaireListReveal(
                                     itemKey = album.id,
@@ -1359,7 +1367,7 @@ private fun AlbumCollectionContent(
                         Box(
                             modifier = Modifier
                                 .animateItem(
-                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                    placementSpec = motionSpecs.listPlacement(),
                                 )
                                 .elovaireListReveal(
                                     itemKey = album.id,
@@ -1450,38 +1458,37 @@ private fun AlbumCollectionContent(
             )
         }
     }
-    if (showPlaylistPicker && selectionModeActive) {
-        val language = LocalAppLanguage.current
-        PlaylistSelectionDialog(
-            title = uiPhrase(language, UiPhrase.AddToPlaylist),
-            subtitle = when (selectedAlbums.size) {
-                1 -> selectedAlbums.first().title
-                else -> "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedAlbumSongs.size, "song", language)}"
-            },
-            playlists = playlists.filterNot { it.isSystem },
-            playlistSongsById = playlistSongsById,
-            onDismiss = { showPlaylistPicker = false },
-            onPlaylistSelected = { playlistId ->
-                val songs = selectedAlbums.flatMap(Album::songs).distinctBy(Song::id)
-                val combinedAlbum = Album(
-                    id = -1L,
-                    title = "",
-                    artist = "",
-                    artUri = null,
-                    songCount = songs.size,
-                    durationMs = songs.sumOf(Song::durationMs),
-                    songs = songs,
-                )
-                val result = onAddAlbumToPlaylist(playlistId, combinedAlbum).await()
-                if (result is PlaylistMutationResult.Success) {
-                    showPlaylistPicker = false
-                    selectedAlbumIds = emptySet()
-                }
-                result
-            },
-            onCreatePlaylist = onCreatePlaylist,
-        )
-    }
+    val language = LocalAppLanguage.current
+    PlaylistSelectionDialog(
+        visible = showPlaylistPicker && selectionModeActive,
+        title = uiPhrase(language, UiPhrase.AddToPlaylist),
+        subtitle = when (selectedAlbums.size) {
+            1 -> selectedAlbums.first().title
+            else -> "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedAlbumSongs.size, "song", language)}"
+        },
+        playlists = playlists.filterNot { it.isSystem },
+        playlistSongsById = playlistSongsById,
+        onDismiss = { showPlaylistPicker = false },
+        onPlaylistSelected = { playlistId ->
+            val songs = selectedAlbums.flatMap(Album::songs).distinctBy(Song::id)
+            val combinedAlbum = Album(
+                id = -1L,
+                title = "",
+                artist = "",
+                artUri = null,
+                songCount = songs.size,
+                durationMs = songs.sumOf(Song::durationMs),
+                songs = songs,
+            )
+            val result = onAddAlbumToPlaylist(playlistId, combinedAlbum).await()
+            if (result is PlaylistMutationResult.Success) {
+                showPlaylistPicker = false
+                selectedAlbumIds = emptySet()
+            }
+            result
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
 }
 
 @Composable
@@ -2025,6 +2032,7 @@ private fun SongCollectionScreen(
     onToggleFavorite: (Long) -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
+    val motionSpecs = rememberMotionSpecs()
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
@@ -2093,7 +2101,7 @@ private fun SongCollectionScreen(
                     showDivider = index != sortedSongs.lastIndex,
                     modifier = Modifier
                         .animateItem(
-                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                            placementSpec = motionSpecs.listPlacement(),
                         )
                         .elovaireListReveal(
                             itemKey = song.id,
@@ -2647,11 +2655,12 @@ private fun ArtistHeroBackdrop(
     image: ImageBitmap?,
     gradient: List<Color>,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     AnimatedContent(
         targetState = image,
         transitionSpec = {
-            fadeIn(animationSpec = ElovaireMotion.fadeMedium()) togetherWith
-                fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
+            fadeIn(animationSpec = motionSpecs.fadeIn()) togetherWith
+                fadeOut(animationSpec = motionSpecs.fadeOut())
         },
         label = "artist_splash_artwork",
     ) { backdrop ->
@@ -2684,9 +2693,13 @@ private fun ArtistHeroBackdrop(
 @Composable
 private fun rememberAnimatedArtistPaletteAccent(uri: Uri?): Color {
     val paletteAccent = rememberArtworkPaletteAccent(uri).value ?: MaterialTheme.colorScheme.primary
+    val motionSpecs = rememberMotionSpecs()
     return animateColorAsState(
         targetValue = paletteAccent,
-        animationSpec = ElovaireMotion.colorFadeSpec(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.SoftOut,
+        ),
         label = "artist_splash_palette_accent",
     ).value
 }
@@ -3700,6 +3713,7 @@ private fun AlbumGridCard(
 }
 
 @Composable
+@Suppress("LongMethod")
 internal fun CompactAlbumRow(
     album: Album,
     selectionMode: Boolean = false,
@@ -3717,6 +3731,7 @@ internal fun CompactAlbumRow(
     onLongPress: (() -> Unit)? = null,
 ) {
     val screenSizePx = screenContainerSizePx()
+    val motionSpecs = rememberMotionSpecs()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val sharedSourceToken = remember { AlbumSharedTransitionToken.next() }
     val sharedTransitionController = LocalAlbumSharedTransitionController.current
@@ -3805,8 +3820,8 @@ internal fun CompactAlbumRow(
             } else if (showFavoriteButton && onToggleFavorite != null) {
                 AnimatedVisibility(
                     visible = !selectionMode,
-                    enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                    enter = fadeIn(animationSpec = motionSpecs.fadeIn()),
+                    exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
                 ) {
                     Row(
                         modifier = Modifier.padding(end = 10.dp),

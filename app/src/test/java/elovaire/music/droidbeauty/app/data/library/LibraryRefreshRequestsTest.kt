@@ -164,6 +164,25 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun safProviderRetryAttempt_keepsHighestAttemptWhenRequestsCoalesce() {
+        val merged = LibraryRefreshRequest(
+            targetedSafTreeIds = setOf("provider|tree/a"),
+            targetedNetworkSourceIds = emptySet(),
+            reuseLocalState = true,
+            safProviderRetryAttempt = 1,
+        ).mergedWith(
+            LibraryRefreshRequest(
+                targetedSafTreeIds = setOf("provider|tree/b"),
+                targetedNetworkSourceIds = emptySet(),
+                reuseLocalState = true,
+                safProviderRetryAttempt = 3,
+            ),
+        )
+
+        assertEquals(3, merged.safProviderRetryAttempt)
+    }
+
+    @Test
     fun targetedSafRefresh_reusesPublishedMediaStoreState() {
         assertTrue(
             shouldReusePublishedMediaStoreState(

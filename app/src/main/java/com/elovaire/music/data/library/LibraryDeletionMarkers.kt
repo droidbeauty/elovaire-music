@@ -24,15 +24,28 @@ internal class LibraryDeletionMarkers {
         if (ids.isNotEmpty()) pendingAlbumIds.update { it - ids.toSet() }
     }
 
-    fun suppressingSongIds(): Set<Long> = pendingSongIds.value + confirmedSongIds.value
+    fun suppressingSongIds(): Set<Long> {
+        val pending = pendingSongIds.value
+        val confirmed = confirmedSongIds.value
+        return when {
+            pending.isEmpty() -> confirmed
+            confirmed.isEmpty() -> pending
+            else -> pending + confirmed
+        }
+    }
 
     fun confirmDeletedSongs(ids: Collection<Long>) {
         if (ids.isNotEmpty()) confirmedSongIds.update { it + ids }
     }
 
     fun retainConfirmedSongsStillIn(scannedSongIds: Set<Long>) {
+        if (confirmedSongIds.value.isEmpty()) return
         confirmedSongIds.update { tombstones ->
-            tombstones.filterTo(linkedSetOf()) { it in scannedSongIds }
+            if (tombstones.all(scannedSongIds::contains)) {
+                tombstones
+            } else {
+                tombstones.filterTo(linkedSetOf(), scannedSongIds::contains)
+            }
         }
     }
 

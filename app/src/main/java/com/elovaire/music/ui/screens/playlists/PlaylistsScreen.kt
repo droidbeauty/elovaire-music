@@ -62,7 +62,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.playlistMainCopy
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSortLabel
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 
@@ -80,6 +80,7 @@ internal fun PlaylistsScreen(
     onOpenSmartPlaylist: (SmartPlaylistSummary, ExpandOrigin) -> Unit,
 ) {
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val scope = rememberCoroutineScope()
     var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
@@ -93,7 +94,7 @@ internal fun PlaylistsScreen(
     val editMode = selectedPlaylistIds.isNotEmpty()
     val selectionTopInset by animateDpAsState(
         targetValue = if (editMode) 50.dp else 0.dp,
-        animationSpec = ElovaireMotion.sizeSoft(),
+        animationSpec = motionSpecs.contentSize(),
         label = "playlist_selection_top_inset",
     )
     BackHandler(enabled = editMode) {
@@ -251,23 +252,25 @@ internal fun PlaylistsScreen(
             )
         }
 
-        playlistBeingRenamed?.let { playlist ->
-            val copy = rootUiCopy(LocalAppLanguage.current)
-            PlaylistNameDialog(
-                title = copy.renamePlaylistTitle,
-                confirmLabel = copy.save,
-                initialName = playlist.name,
-                onDismiss = { playlistBeingRenamed = null },
-                onConfirm = { name ->
+        val playlistToRename = playlistBeingRenamed
+        val copy = rootUiCopy(LocalAppLanguage.current)
+        PlaylistNameDialog(
+            visible = playlistToRename != null,
+            title = copy.renamePlaylistTitle,
+            confirmLabel = copy.save,
+            initialName = playlistToRename?.name.orEmpty(),
+            onDismiss = { playlistBeingRenamed = null },
+            onConfirm = { name ->
+                playlistToRename?.let { playlist ->
                     scope.launch {
                         if (onRenamePlaylist(playlist.id, name).await() is PlaylistMutationResult.Success) {
                             playlistBeingRenamed = null
                             selectedPlaylistIds = emptySet()
                         }
                     }
-                },
-            )
-        }
+                }
+            },
+        )
     }
 }
 

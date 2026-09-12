@@ -456,6 +456,15 @@ class LibraryRepository internal constructor(
             if (pendingRequest != null && _scanState.value.permissionGranted) {
                 if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
                     holdDeferredRefresh(pendingRequest)
+                } else if (pendingRequest.safProviderRetryAttempt > 0) {
+                    refreshDebounceJob?.cancel()
+                    refreshDebounceJob = scope.launch {
+                        delay(SAF_PROVIDER_RETRY_DELAY_MS)
+                        refreshDebounceJob = null
+                        if (!released.get() && scanJob == null && _scanState.value.permissionGranted) {
+                            startRefresh(pendingRequest, showLoadingIndicator = false)
+                        }
+                    }
                 } else {
                     startRefresh(pendingRequest, showLoadingIndicator = false)
                 }
@@ -514,7 +523,19 @@ class LibraryRepository internal constructor(
                 song.genre.isBlank() ||
                 song.genre == "Unknown Genre"
         }
-        if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
+        val retrySafProviderLoading =
+            scanResult.retryableSafTreeIds.isNotEmpty() &&
+            refreshRequest.safProviderRetryAttempt < MAX_SAF_PROVIDER_LOADING_RETRIES
+        if (retrySafProviderLoading) {
+            refreshRequests.enqueue(
+                LibraryRefreshRequest(
+                    targetedSafTreeIds = scanResult.retryableSafTreeIds,
+                    targetedNetworkSourceIds = emptySet(),
+                    reuseLocalState = true,
+                    safProviderRetryAttempt = refreshRequest.safProviderRetryAttempt + 1,
+                ),
+            )
+        } else if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
             refreshRequests.enqueue(enrichMetadata = true)
         }
         backendEventSink.emitLazy {
@@ -548,7 +569,7 @@ class LibraryRepository internal constructor(
         val scannedSongIds = songs.mapTo(hashSetOf(), Song::id)
         deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
         var suppressedSongIds = deletionMarkers.suppressingSongIds()
-        var visibleSongs = songs.filterNot { it.id in suppressedSongIds }
+        var visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
         var preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content") {
             withContext(defaultDispatcher) {
                 snapshotPublisher.prepareSongs(visibleSongs)
@@ -557,7 +578,7 @@ class LibraryRepository internal constructor(
         val latestSuppressedSongIds = deletionMarkers.suppressingSongIds()
         if (latestSuppressedSongIds != suppressedSongIds) {
             suppressedSongIds = latestSuppressedSongIds
-            visibleSongs = songs.filterNot { it.id in suppressedSongIds }
+            visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
             preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content_refresh") {
                 withContext(defaultDispatcher) {
                     snapshotPublisher.prepareSongs(visibleSongs)
@@ -984,6 +1005,8 @@ class LibraryRepository internal constructor(
         const val DELETE_OBSERVER_SUPPRESSION_MS = 1_200L
         const val DELETE_CONFIRMATION_POLL_MS = 100L
         const val DELETE_CONFIRMATION_MAX_POLLS = 5
+        const val MAX_SAF_PROVIDER_LOADING_RETRIES = 3
+        const val SAF_PROVIDER_RETRY_DELAY_MS = 100L
     }
 
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
@@ -1008,6 +1031,15 @@ class LibraryRepository internal constructor(
         }
     }
 
+}
+
+private fun songsVisibleAfterDeletionMarkers(
+    songs: List<Song>,
+    suppressedSongIds: Set<Long>,
+): List<Song> = if (suppressedSongIds.isEmpty()) {
+    songs
+} else {
+    songs.filterNot { it.id in suppressedSongIds }
 }
 
 private class LibraryScanProgressThrottler(

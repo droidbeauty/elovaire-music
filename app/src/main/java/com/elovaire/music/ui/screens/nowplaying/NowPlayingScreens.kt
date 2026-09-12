@@ -289,7 +289,6 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
@@ -953,12 +952,15 @@ internal fun NowPlayingScreen(
                                     modifier = Modifier
                                         .align(Alignment.CenterStart)
                                         .padding(start = compactContentStart, end = 2.dp),
-                                    enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                                    enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
                                         slideInVertically(
-                                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                            animationSpec = motionSpecs.tween(
+                                                durationMillis = MotionDuration.Standard,
+                                                easing = MotionEasing.SoftOut,
+                                            ),
                                             initialOffsetY = { it / 5 },
                                         ),
-                                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()),
+                                    exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
                                 ) {
                                     Column(
                                         modifier = Modifier.fillMaxWidth(),
@@ -1008,22 +1010,34 @@ internal fun NowPlayingScreen(
                             }
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = showQueueSheet,
-                                enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                                enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
                                     expandVertically(
                                         expandFrom = Alignment.Top,
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = MotionDuration.Standard,
+                                            easing = MotionEasing.SoftOut,
+                                        ),
                                     ) +
                                     slideInVertically(
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = MotionDuration.Standard,
+                                            easing = MotionEasing.SoftOut,
+                                        ),
                                         initialOffsetY = { it },
                                     ),
-                                exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) +
+                                exit = fadeOut(animationSpec = motionSpecs.fadeOut()) +
                                     shrinkVertically(
                                         shrinkTowards = Alignment.Top,
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = MotionDuration.Standard,
+                                            easing = MotionEasing.SoftOut,
+                                        ),
                                     ) +
                                     slideOutVertically(
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = MotionDuration.Standard,
+                                            easing = MotionEasing.SoftOut,
+                                        ),
                                         targetOffsetY = { it },
                                     ),
                             ) {
@@ -1438,23 +1452,23 @@ internal fun NowPlayingScreen(
         AnimatedVisibility(
             modifier = Modifier.fillMaxSize(),
             visible = showLyricsSheet,
-            enter = fadeIn(animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Standard, easing = LinearOutSlowInEasing)) +
+            enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = LinearOutSlowInEasing)) +
                 slideInVertically(
-                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                    animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                     initialOffsetY = { it / 12 },
                 ) +
                 scaleIn(
-                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                    animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                     initialScale = 0.985f,
                     transformOrigin = TransformOrigin(0.5f, 1f),
                 ),
-            exit = fadeOut(animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Quick, easing = FastOutLinearInEasing)) +
+            exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = FastOutLinearInEasing)) +
                 slideOutVertically(
-                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Quick, easing = FastOutSlowInEasing),
+                    animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = FastOutSlowInEasing),
                     targetOffsetY = { it / 18 },
                 ) +
                 scaleOut(
-                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Quick, easing = FastOutLinearInEasing),
+                    animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = FastOutLinearInEasing),
                     targetScale = 0.992f,
                     transformOrigin = TransformOrigin(0.5f, 1f),
                 ),
@@ -1473,19 +1487,18 @@ internal fun NowPlayingScreen(
                 onClearLyricsEditorError = onClearLyricsEditorError,
             )
         }
-        if (showAddToPlaylistDialog) {
-            AddToPlaylistPickerDialog(
-                playlists = playlists,
-                playlistSongsById = enrichedSongsById,
-                hazeState = playerHazeState,
-                onDismiss = { showAddToPlaylistDialog = false },
-                onPlaylistSelected = { playlistId ->
-                    currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it).await() }
-                        ?: PlaylistMutationResult.InvalidInput
-                },
-                onCreatePlaylist = onCreatePlaylist,
-            )
-        }
+        AddToPlaylistPickerDialog(
+            visible = showAddToPlaylistDialog,
+            playlists = playlists,
+            playlistSongsById = enrichedSongsById,
+            hazeState = playerHazeState,
+            onDismiss = { showAddToPlaylistDialog = false },
+            onPlaylistSelected = { playlistId ->
+                currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it).await() }
+                    ?: PlaylistMutationResult.InvalidInput
+            },
+            onCreatePlaylist = onCreatePlaylist,
+        )
         ElovaireAnimatedVisibility(
             visible = showSleepTimerDialog,
             modifier = Modifier
@@ -1677,11 +1690,12 @@ private fun QueueSheet(
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
     val queueEdgeHazeState = rememberHazeState()
+    val motionSpecs = rememberMotionSpecs()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
         targetValue = if (footerExpanded) 76.dp else 46.dp,
-        animationSpec = ElovaireMotion.queueMenuEnterSpec(),
+        animationSpec = motionSpecs.contentSize(),
         label = "queue_footer_height",
     )
     LaunchedEffect(currentIndex, queue.size) {
@@ -1742,17 +1756,18 @@ private fun QueueSheet(
             )
         }
     }
-    playlistTargetSong?.let { song ->
-        AddToPlaylistPickerDialog(
-            playlists = playlists,
-            playlistSongsById = playlistSongsById,
-            onDismiss = { playlistTargetSong = null },
-            onPlaylistSelected = { playlistId ->
-                onAddSongToPlaylist(playlistId, song).await()
-            },
-            onCreatePlaylist = onCreatePlaylist,
-        )
-    }
+    val targetSong = playlistTargetSong
+    AddToPlaylistPickerDialog(
+        visible = targetSong != null,
+        playlists = playlists,
+        playlistSongsById = playlistSongsById,
+        onDismiss = { playlistTargetSong = null },
+        onPlaylistSelected = { playlistId ->
+            targetSong?.let { onAddSongToPlaylist(playlistId, it).await() }
+                ?: PlaylistMutationResult.InvalidInput
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
 }
 
 @Composable
@@ -1850,16 +1865,20 @@ private fun QueueSheetFooter(
     shuffleEnabled: Boolean,
     onToggleShuffle: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     Box(modifier = modifier) {
         AnimatedContent(
             targetState = statusText,
             transitionSpec = {
-                fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                fadeIn(animationSpec = motionSpecs.fadeIn()) +
                     slideInVertically(
-                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = MotionDuration.Standard,
+                            easing = MotionEasing.SoftOut,
+                        ),
                         initialOffsetY = { it / 5 },
                     ) togetherWith
-                    fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
+                    fadeOut(animationSpec = motionSpecs.fadeOut())
             },
             label = "queue_status_text",
             modifier = Modifier
@@ -1952,6 +1971,15 @@ private fun QueueSongList(
     onQueueItemRemoved: (Int) -> Unit,
     onAddToPlaylist: (Song) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
+    val queueKeys = remember(queue) {
+        val occurrences = mutableMapOf<Long, Int>()
+        queue.map { song ->
+            val occurrence = occurrences[song.id] ?: 0
+            occurrences[song.id] = occurrence + 1
+            song.id to occurrence
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1969,16 +1997,19 @@ private fun QueueSongList(
         ) {
             itemsIndexed(
                 items = queue,
-                key = { index, song -> "${song.id}_$index" },
+                key = { index, _ -> queueKeys[index] },
                 contentType = { _, _ -> "queue-song" },
             ) { index, song ->
                 Box(
                     modifier = Modifier
                         .animateItem(
-                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                            placementSpec = motionSpecs.tween(
+                                durationMillis = MotionDuration.ListPlacement,
+                                easing = MotionEasing.RefinedDecelerate,
+                            ),
                         )
                         .elovaireListReveal(
-                            itemKey = "${song.id}_$index",
+                            itemKey = queueKeys[index],
                             index = index,
                             registry = revealRegistry,
                         ),
@@ -2113,6 +2144,7 @@ internal fun SleepTimerDialog(
 ) {
     val language = LocalAppLanguage.current
     val copy = remember(language) { sleepTimerCopy(language) }
+    val motionSpecs = rememberMotionSpecs()
     var selectedMinutes by remember(selectedOption) {
         mutableFloatStateOf(
             selectedOption.durationMs?.div(60_000L)?.toFloat() ?: 30f,
@@ -2208,23 +2240,32 @@ internal fun SleepTimerDialog(
                         transitionSpec = {
                             val direction = if (targetState >= initialState) 1 else -1
                             (
-                                fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                                fadeIn(animationSpec = motionSpecs.fadeIn()) +
                                     slideInVertically(
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = MotionDuration.Standard,
+                                            easing = MotionEasing.SoftOut,
+                                        ),
                                         initialOffsetY = { direction * it },
                                     ) +
                                     scaleIn(
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = MotionDuration.Standard,
+                                            easing = MotionEasing.SoftOut,
+                                        ),
                                         initialScale = 0.88f,
                                     )
                                 ) togetherWith (
-                                    fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                    fadeOut(animationSpec = motionSpecs.fadeOut()) +
                                         slideOutVertically(
-                                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                            animationSpec = motionSpecs.tween(
+                                                durationMillis = MotionDuration.Standard,
+                                                easing = MotionEasing.SoftOut,
+                                            ),
                                             targetOffsetY = { -direction * it },
                                         ) +
                                         scaleOut(
-                                            animationSpec = ElovaireMotion.fadeFast(),
+                                            animationSpec = motionSpecs.fadeOut(),
                                             targetScale = 1.08f,
                                         )
                                     )
@@ -2325,17 +2366,22 @@ private fun SleepTimerSlider(
     onValueChange: (Float) -> Unit,
 ) {
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val fraction = when (val minutes = value.coerceIn(10f, 60f)) {
-        in 10f..30f -> (minutes - 10f) / 40f
-        else -> 0.5f + ((minutes - 30f) / 60f)
-    }.coerceIn(0f, 1f)
+    val fraction = sleepTimerFractionForMinutes(value)
     val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
         Color.White
     }
     val barCount = 41
-    val activeBarIndex = (fraction * (barCount - 1)).roundToInt()
+    val motionSpecs = rememberMotionSpecs()
+    val animatedBarPosition by animateFloatAsState(
+        targetValue = fraction * (barCount - 1),
+        animationSpec = motionSpecs.tween(
+            durationMillis = 220,
+            easing = FastOutSlowInEasing,
+        ),
+        label = "sleep_timer_slider_position",
+    )
 
     BoxWithConstraints(
         modifier = Modifier
@@ -2346,12 +2392,7 @@ private fun SleepTimerSlider(
         val maxWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.coerceAtLeast(1f)
         val updateFromX: (Float) -> Unit = { xPosition ->
             val normalized = (xPosition / maxWidthPx).coerceIn(0f, 1f)
-            val minutes = if (normalized <= 0.5f) {
-                10f + (normalized * 40f)
-            } else {
-                30f + ((normalized - 0.5f) * 60f)
-            }
-            currentOnValueChange((minutes / 5f).roundToInt() * 5f)
+            currentOnValueChange(sleepTimerMinutesForFraction(normalized))
         }
 
         Box(
@@ -2370,45 +2411,52 @@ private fun SleepTimerSlider(
                     )
                 },
         ) {
-            Row(
+            Canvas(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .align(Alignment.BottomCenter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
             ) {
+                val barWidth = 3.dp.toPx()
+                val availableWidth = (size.width - barWidth).coerceAtLeast(0f)
+                val inactiveHeight = 13.dp.toPx()
+                val activeHeight = 22.dp.toPx()
                 repeat(barCount) { index ->
-                    val active = index <= activeBarIndex
-                    val waveDelay = (kotlin.math.abs(index - activeBarIndex) * 7).coerceAtMost(140)
-                    val animatedHeight by animateDpAsState(
-                        targetValue = if (active) 22.dp else 13.dp,
-                        animationSpec = ElovaireMotion.standardTween(
-                            durationMillis = 220,
-                            delayMillis = waveDelay,
-                            easing = FastOutSlowInEasing,
+                    val distance = animatedBarPosition - index
+                    val thresholdFill = ((distance + 0.5f) / 1f).coerceIn(0f, 1f)
+                    val waveFill = ((1f - (kotlin.math.abs(distance) / 2.75f)).coerceIn(0f, 1f)) * 0.16f
+                    val fill = (thresholdFill + waveFill).coerceIn(0f, 1f)
+                    val height = inactiveHeight + ((activeHeight - inactiveHeight) * fill)
+                    val alpha = 0.3f + (0.7f * fill)
+                    drawRoundRect(
+                        color = lineColor.copy(alpha = alpha),
+                        topLeft = Offset(
+                            x = (availableWidth * index / (barCount - 1)) ,
+                            y = size.height - height,
                         ),
-                        label = "sleep_timer_bar_height_$index",
-                    )
-                    val animatedAlpha by animateFloatAsState(
-                        targetValue = if (active) 1f else 0.3f,
-                        animationSpec = ElovaireMotion.standardTween(
-                            durationMillis = 180,
-                            delayMillis = waveDelay,
-                            easing = LinearOutSlowInEasing,
-                        ),
-                        label = "sleep_timer_bar_alpha_$index",
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(3.dp)
-                            .height(animatedHeight)
-                            .clip(RoundedCornerShape(percent = 50))
-                            .background(lineColor.copy(alpha = animatedAlpha)),
+                        size = Size(barWidth, height),
+                        cornerRadius = CornerRadius(barWidth / 2f),
                     )
                 }
             }
         }
     }
+}
+
+internal fun sleepTimerFractionForMinutes(value: Float): Float {
+    return when (val minutes = value.coerceIn(10f, 60f)) {
+        in 10f..30f -> (minutes - 10f) / 40f
+        else -> 0.5f + ((minutes - 30f) / 60f)
+    }.coerceIn(0f, 1f)
+}
+
+internal fun sleepTimerMinutesForFraction(fraction: Float): Float {
+    val normalized = fraction.coerceIn(0f, 1f)
+    val minutes = if (normalized <= 0.5f) {
+        10f + (normalized * 40f)
+    } else {
+        30f + ((normalized - 0.5f) * 60f)
+    }
+    return (minutes / 5f).roundToInt() * 5f
 }
 
 @Composable
@@ -2565,6 +2613,7 @@ private fun QueueSongOverflowMenuButton(
     onRemoveFromQueue: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val motionSpecs = rememberMotionSpecs()
     var expanded by remember { mutableStateOf(false) }
     var shouldRenderMenu by remember { mutableStateOf(false) }
     val interactionSource = rememberElovaireInteractionSource()
@@ -2580,7 +2629,10 @@ private fun QueueSongOverflowMenuButton(
                 .size(24.dp)
                 .elovairePressScale(
                     pressedScale = 0.88f,
-                    animationSpec = ElovaireMotion.softPressReturnSpec(),
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.Standard,
+                        easing = MotionEasing.RefinedDecelerate,
+                    ),
                     interactionSource = interactionSource,
                     label = "queue_song_overflow_scale",
                 )
@@ -2695,12 +2747,16 @@ private fun PlayerTransportButton(
     onClick: () -> Unit,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
+    val motionSpecs = rememberMotionSpecs()
     Box(
         modifier = Modifier
             .size(72.dp)
             .elovairePressScale(
                 pressedScale = 0.9f,
-                animationSpec = ElovaireMotion.softPressReturnSpec(),
+                animationSpec = motionSpecs.tween(
+                    durationMillis = MotionDuration.Standard,
+                    easing = MotionEasing.RefinedDecelerate,
+                ),
                 interactionSource = interactionSource,
                 label = "${contentDescription}_transport_scale",
             )
@@ -2716,20 +2772,23 @@ private fun PlayerTransportButton(
             targetState = iconResId,
             transitionSpec = {
                 (
-                    fadeIn(animationSpec = ElovaireMotion.iconSwapInSpec()) +
-                        scaleIn(
-                            initialScale = 0.9f,
-                            animationSpec = ElovaireMotion.releaseSpringSpec(
+                        fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade)) +
+                            scaleIn(
+                                initialScale = 0.9f,
+                            animationSpec = motionSpecs.spring(
                                 dampingRatio = 0.8f,
                                 stiffness = 520f,
                             ),
                         )
                     ) togetherWith
                     (
-                        fadeOut(animationSpec = ElovaireMotion.iconSwapOutSpec()) +
+                        fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
                             scaleOut(
                                 targetScale = 1.04f,
-                                animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                animationSpec = motionSpecs.tween(
+                                    durationMillis = MotionDuration.Quick,
+                                    easing = MotionEasing.RefinedAccelerate,
+                                ),
                             )
                         )
             },
@@ -2753,9 +2812,10 @@ private fun QueueMenuButton(
     onClick: () -> Unit,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
+    val motionSpecs = rememberMotionSpecs()
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (active) 0.2f else 0f,
-        animationSpec = ElovaireMotion.contentFadeInSpec(),
+        animationSpec = motionSpecs.fadeIn(),
         label = "queue_button_alpha",
     )
     Box(
@@ -2763,7 +2823,7 @@ private fun QueueMenuButton(
             .size(40.dp)
             .elovairePressScale(
                 pressedScale = 0.9f,
-                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                animationSpec = motionSpecs.chromeRelease(),
                 interactionSource = interactionSource,
                 label = "queue_button_scale",
             )
@@ -2797,6 +2857,7 @@ internal fun FavoriteSongButton(
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
@@ -2814,9 +2875,9 @@ internal fun FavoriteSongButton(
             else -> 0.96f
         },
         animationSpec = if (shouldBounce) {
-            ElovaireMotion.bounceSpringSpec()
+            motionSpecs.spring(dampingRatio = 0.68f, stiffness = 420f)
         } else {
-            ElovaireMotion.releaseSpringSpec(
+            motionSpecs.spring(
                 dampingRatio = 0.8f,
                 stiffness = 520f,
             )
@@ -2870,17 +2931,17 @@ internal fun FavoriteSongButton(
             targetState = isFavorite,
             transitionSpec = {
                 (
-                    fadeIn(animationSpec = ElovaireMotion.iconSwapInSpec()) +
+                    fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade)) +
                         scaleIn(
                             initialScale = 0.88f,
-                            animationSpec = ElovaireMotion.releaseSpringSpec(),
+                            animationSpec = motionSpecs.spring(dampingRatio = 0.82f, stiffness = 560f),
                         )
                     ) togetherWith
                     (
-                        fadeOut(animationSpec = ElovaireMotion.iconSwapOutSpec()) +
+                        fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
                             scaleOut(
                                 targetScale = 1.04f,
-                                animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                animationSpec = motionSpecs.fadeOut(MotionDuration.Quick),
                             )
                         )
             },
@@ -2989,6 +3050,7 @@ internal fun InlineFavoriteSongButton(
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
@@ -3006,9 +3068,9 @@ internal fun InlineFavoriteSongButton(
             else -> 0.96f
         },
         animationSpec = if (shouldBounce) {
-            ElovaireMotion.bounceSpringSpec()
+            motionSpecs.spring(dampingRatio = 0.68f, stiffness = 420f)
         } else {
-            ElovaireMotion.releaseSpringSpec(
+            motionSpecs.spring(
                 dampingRatio = 0.8f,
                 stiffness = 520f,
             )
@@ -3035,17 +3097,17 @@ internal fun InlineFavoriteSongButton(
             targetState = isFavorite,
             transitionSpec = {
                 (
-                    fadeIn(animationSpec = ElovaireMotion.iconSwapInSpec()) +
+                    fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade)) +
                         scaleIn(
                             initialScale = 0.88f,
-                            animationSpec = ElovaireMotion.releaseSpringSpec(),
+                            animationSpec = motionSpecs.spring(dampingRatio = 0.82f, stiffness = 560f),
                         )
                     ) togetherWith
                     (
-                        fadeOut(animationSpec = ElovaireMotion.iconSwapOutSpec()) +
+                        fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
                             scaleOut(
                                 targetScale = 1.04f,
-                                animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                animationSpec = motionSpecs.fadeOut(MotionDuration.Quick),
                             )
                         )
             },
@@ -3201,17 +3263,16 @@ internal fun AlbumOverflowMenuButton(
         }
     }
 
-    if (showPlaylistDialog) {
-        AddToPlaylistPickerDialog(
-            playlists = playlists,
-            playlistSongsById = playlistSongsById,
-            onDismiss = { showPlaylistDialog = false },
-            onPlaylistSelected = { playlistId ->
-                onAddToPlaylist(playlistId).await()
-            },
-            onCreatePlaylist = onCreatePlaylist,
-        )
-    }
+    AddToPlaylistPickerDialog(
+        visible = showPlaylistDialog,
+        playlists = playlists,
+        playlistSongsById = playlistSongsById,
+        onDismiss = { showPlaylistDialog = false },
+        onPlaylistSelected = { playlistId ->
+            onAddToPlaylist(playlistId).await()
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
 }
 
 @Composable
@@ -3313,17 +3374,16 @@ internal fun SongOverflowMenuButton(
         }
     }
 
-    if (showPlaylistDialog) {
-        AddToPlaylistPickerDialog(
-            playlists = actions.playlists,
-            playlistSongsById = actions.songsById,
-            onDismiss = { showPlaylistDialog = false },
-            onPlaylistSelected = { playlistId ->
-                actions.onAddToPlaylist(playlistId, song).await()
-            },
-            onCreatePlaylist = actions.onCreatePlaylist,
-        )
-    }
+    AddToPlaylistPickerDialog(
+        visible = showPlaylistDialog,
+        playlists = actions.playlists,
+        playlistSongsById = actions.songsById,
+        onDismiss = { showPlaylistDialog = false },
+        onPlaylistSelected = { playlistId ->
+            actions.onAddToPlaylist(playlistId, song).await()
+        },
+        onCreatePlaylist = actions.onCreatePlaylist,
+    )
 }
 
 @Composable
@@ -3446,13 +3506,17 @@ private fun SongContextMenuItem(
     onClick: () -> Unit,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
+    val motionSpecs = rememberMotionSpecs()
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = 10.dp, top = topPadding, end = 10.dp, bottom = bottomPadding)
             .elovairePressScale(
                 pressedScale = 0.985f,
-                animationSpec = ElovaireMotion.softPressReturnSpec(),
+                animationSpec = motionSpecs.tween(
+                    durationMillis = MotionDuration.Standard,
+                    easing = MotionEasing.RefinedDecelerate,
+                ),
                 interactionSource = interactionSource,
                 label = "${text}_context_menu_scale",
             )

@@ -13,6 +13,8 @@ internal data class LibraryRefreshRequest(
     val mediaStoreGenerationFloor: Long? = null,
     /** Reuse unaffected local sources while a targeted SAF source is being discovered. */
     val reuseLocalState: Boolean = false,
+    /** Number of automatic retries after a provider reports that its result is still loading. */
+    val safProviderRetryAttempt: Int = 0,
 ) {
     fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
         val force = forceMediaIndex || other.forceMediaIndex
@@ -35,6 +37,7 @@ internal data class LibraryRefreshRequest(
             else -> targetedSafTreeIds + other.targetedSafTreeIds
         }
         val reuseLocalState = reuseLocalState && other.reuseLocalState && !force
+        val safProviderRetryAttempt = maxOf(safProviderRetryAttempt, other.safProviderRetryAttempt)
         val mergedGenerationFloor = if (
             force ||
                 mergedPaths.isNotEmpty() ||
@@ -56,6 +59,7 @@ internal data class LibraryRefreshRequest(
                 targetedSafTreeIds = null,
                 targetedNetworkSourceIds = mergedNetworkSourceIds,
                 reuseLocalState = false,
+                safProviderRetryAttempt = safProviderRetryAttempt,
             )
         }
         return LibraryRefreshRequest(
@@ -66,6 +70,7 @@ internal data class LibraryRefreshRequest(
             targetedNetworkSourceIds = mergedNetworkSourceIds,
             mediaStoreGenerationFloor = mergedGenerationFloor,
             reuseLocalState = reuseLocalState,
+            safProviderRetryAttempt = safProviderRetryAttempt,
         )
     }
 
@@ -109,6 +114,7 @@ internal data class LibraryRefreshRequest(
                         targetedNetworkSourceIds.isNullOrEmpty()
                 },
             reuseLocalState = reuseLocalState && !forceMediaIndex,
+            safProviderRetryAttempt = safProviderRetryAttempt.coerceAtLeast(0),
         )
     }
 

@@ -290,7 +290,6 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
@@ -382,6 +381,7 @@ internal fun AlbumScreen(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     LaunchedEffect(album?.id) {
         if (album == null) {
             onBack()
@@ -730,7 +730,7 @@ internal fun AlbumScreen(
                     Box(
                         modifier = Modifier
                             .animateItem(
-                                placementSpec = ElovaireMotion.listPlacementSpec(),
+                                placementSpec = motionSpecs.listPlacement(),
                             )
                             .elovaireListReveal(
                                 itemKey = song.id,
@@ -834,25 +834,23 @@ internal fun AlbumScreen(
         }
     }
 
-    if (showPlaylistPicker && selectionModeActive) {
-        val language = LocalAppLanguage.current
-        PlaylistSelectionDialog(
-            title = uiPhrase(language, UiPhrase.AddToPlaylist),
-            subtitle = "${localizedCountLabel(selectedSongs.size, "song", language)} ${miscPhrase(language, MiscPhrase.Selected)}",
-            playlists = playlists.filterNot { it.isSystem },
-            playlistSongsById = playlistSongsById,
-            onDismiss = { showPlaylistPicker = false },
-            onPlaylistSelected = { playlistId ->
-                val result = onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id)).await()
-                if (result is PlaylistMutationResult.Success) {
-                    selectedSongIds = emptySet()
-                    showPlaylistPicker = false
-                }
-                result
-            },
-            onCreatePlaylist = onCreatePlaylist,
-        )
-    }
+    PlaylistSelectionDialog(
+        visible = showPlaylistPicker && selectionModeActive,
+        title = uiPhrase(language, UiPhrase.AddToPlaylist),
+        subtitle = "${localizedCountLabel(selectedSongs.size, "song", language)} ${miscPhrase(language, MiscPhrase.Selected)}",
+        playlists = playlists.filterNot { it.isSystem },
+        playlistSongsById = playlistSongsById,
+        onDismiss = { showPlaylistPicker = false },
+        onPlaylistSelected = { playlistId ->
+            val result = onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id)).await()
+            if (result is PlaylistMutationResult.Success) {
+                selectedSongIds = emptySet()
+                showPlaylistPicker = false
+            }
+            result
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
 }
 
 @Composable
@@ -942,15 +940,16 @@ internal fun PlaybackActiveArtworkOverlay(
     val artworkShape = RoundedCornerShape(ElovaireRadii.artworkSmall)
     val artworkBitmap = rememberArtworkBitmap(uri = uri, size = 256).value
     val artworkKey = remember(uri, title) { PlaybackArtworkKey(uri, title) }
+    val motionSpecs = rememberMotionSpecs()
     var entered by remember(artworkKey) { mutableStateOf(false) }
     val blurRadius by animateDpAsState(
         targetValue = if (entered) 18.dp else 0.dp,
-        animationSpec = ElovaireMotion.sizeSoft(),
+        animationSpec = motionSpecs.contentSize(),
         label = "active_artwork_blur_radius",
     )
     val surfaceAlpha by animateFloatAsState(
         targetValue = if (entered) 1f else 0f,
-        animationSpec = ElovaireMotion.contentFadeInSpec(),
+        animationSpec = motionSpecs.fadeIn(),
         label = "active_artwork_blur_alpha",
     )
     LaunchedEffect(artworkKey) {
@@ -1388,14 +1387,14 @@ internal fun AddSongsToPlaylistOverlay(
                     trailingIcon = {
                         androidx.compose.animation.AnimatedVisibility(
                             visible = trimmedQuery.isNotBlank(),
-                            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                            enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
                                 scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    animationSpec = motionSpecs.tween(easing = MotionEasing.SoftOut),
                                     initialScale = 0.92f,
                                 ),
-                            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                            exit = fadeOut(animationSpec = motionSpecs.fadeOut()) +
                                 scaleOut(
-                                    animationSpec = ElovaireMotion.fadeFast(),
+                                    animationSpec = motionSpecs.fadeOut(),
                                     targetScale = 0.92f,
                                 ),
                         ) {

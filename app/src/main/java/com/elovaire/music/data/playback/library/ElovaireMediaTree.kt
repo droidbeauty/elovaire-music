@@ -256,9 +256,7 @@ internal class ElovaireMediaTree(
             is ElovaireMediaId.Song -> {
                 val song = snapshot.playableSong(parsed.songId) ?: return null
                 if (song.mediaKind == AudioMediaKind.Audiobook) {
-                    val book = snapshot.audiobooks.firstOrNull { book ->
-                        book.parts.any { part -> part.song.id == song.id }
-                    } ?: return null
+                    val book = snapshot.audiobookContainingSong(song.id) ?: return null
                     return ResolvedPlayableQueue(
                         startSong = song,
                         queue = book.parts.map(AudiobookPart::song),
@@ -485,8 +483,7 @@ internal class ElovaireMediaTree(
             snapshot.playableSong(songId)
         } ?: return null
         if (recentSong.mediaKind == AudioMediaKind.Audiobook) {
-            val book = snapshot.audiobooks.firstOrNull { it.parts.any { part -> part.song.id == recentSong.id } }
-                ?: return null
+            val book = snapshot.audiobookContainingSong(recentSong.id) ?: return null
             return audiobookQueue(book, recentSong)
         }
         return when (snapshot.lastPlayedCollectionKind) {
@@ -714,6 +711,18 @@ internal class ElovaireMediaTree(
                 .flatMap { it.parts.asSequence().map(AudiobookPart::song) }
                 .associateBy(Song::id)
         }
+        private val audiobooksByStableKey by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            buildMap<String, Audiobook> {
+                audiobooks.forEach { book -> putIfAbsent(book.stableKey, book) }
+            }
+        }
+        private val audiobooksBySongId by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            buildMap<Long, Audiobook> {
+                audiobooks.forEach { book ->
+                    book.parts.forEach { part -> putIfAbsent(part.song.id, book) }
+                }
+            }
+        }
         private val albumsById by lazy(LazyThreadSafetyMode.PUBLICATION) { albums.associateBy(Album::id) }
         private val playlistsById by lazy(LazyThreadSafetyMode.PUBLICATION) { playlists.associateBy(Playlist::id) }
         private val searchableSongs by lazy(LazyThreadSafetyMode.PUBLICATION) { songs.map(Song::toSearchableSong) }
@@ -773,7 +782,8 @@ internal class ElovaireMediaTree(
         fun song(id: Long): Song? = songsById[id]
         fun playableSong(id: Long): Song? = songsById[id] ?: audiobookSongsById[id]
         fun album(id: Long): Album? = albumsById[id]
-        fun audiobook(stableKey: String): Audiobook? = audiobooks.firstOrNull { it.stableKey == stableKey }
+        fun audiobook(stableKey: String): Audiobook? = audiobooksByStableKey[stableKey]
+        fun audiobookContainingSong(songId: Long): Audiobook? = audiobooksBySongId[songId]
         fun playlist(id: Long): Playlist? = playlistsById[id]
         fun mediaItem(song: Song): MediaItem = if (song.mediaKind == AudioMediaKind.Audiobook) {
             ElovaireMediaItems.audiobookPart(song)

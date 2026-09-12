@@ -674,6 +674,7 @@ internal class RoomUserDataStore(
     }
 
     private fun publishSnapshot(snapshot: UserDataSnapshot) {
+        if (_userDataSnapshot.value == snapshot) return
         _userDataSnapshot.value = snapshot
         publishPlaylists(snapshot.playlists)
         publishSmartPlaylists(snapshot.smartPlaylists)

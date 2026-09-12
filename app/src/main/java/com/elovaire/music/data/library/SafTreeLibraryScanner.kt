@@ -360,7 +360,7 @@ internal class SafTreeLibraryScanner(
             }
         }
         if (providerLoading && resolvedIncompleteReason == null) {
-            resolvedIncompleteReason = "provider still loading"
+            resolvedIncompleteReason = SAF_PROVIDER_LOADING_REASON
         }
         if (resolvedIncompleteReason == null && hasPendingDirectories) {
             resolvedIncompleteReason = "directory traversal budget exceeded"

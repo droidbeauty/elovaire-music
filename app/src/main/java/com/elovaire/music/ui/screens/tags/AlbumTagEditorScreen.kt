@@ -68,7 +68,8 @@ import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -128,6 +129,7 @@ internal fun AlbumTagEditorScreen(
     }
 
     val copy = remember(appLanguage) { tagEditorCopy(appLanguage) }
+    val motionSpecs = rememberMotionSpecs()
 
     Box(
         modifier = Modifier
@@ -331,8 +333,8 @@ internal fun AlbumTagEditorScreen(
             item {
                 AnimatedVisibility(
                     visible = !state.statusMessage.isNullOrBlank(),
-                    enter = fadeIn(animationSpec = ElovaireMotion.standardTween(durationMillis = 120)),
-                    exit = fadeOut(animationSpec = ElovaireMotion.standardTween(durationMillis = 120)),
+                    enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Fast, easing = MotionEasing.FadeIn)),
+                    exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Fast, easing = MotionEasing.FadeOut)),
                 ) {
                     Text(
                         text = state.statusMessage.orEmpty(),
@@ -497,13 +499,14 @@ private fun EditorTopBarIconButton(
     loading: Boolean = false,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
+    val motionSpecs = rememberMotionSpecs()
     Box(
         modifier = Modifier
             .size(40.dp)
             .elovairePressScale(
                 enabled = enabled && !loading,
                 pressedScale = 0.88f,
-                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                animationSpec = motionSpecs.chromeRelease(),
                 interactionSource = interactionSource,
                 label = "editorTopBarActionScale",
             )

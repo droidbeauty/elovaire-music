@@ -46,9 +46,9 @@ import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -87,6 +87,7 @@ internal fun RecentlyAddedAlbumsScreen(
     }
     val listState = rememberElovaireLazyListState("recently_added_albums_list")
     val revealRegistry = rememberMotionRevealRegistry()
+    val motionSpecs = rememberMotionSpecs()
     val searchBarAreaHeight = 96.dp
     val contentTopInset = detailTopBarOccupiedHeight() + searchBarAreaHeight
     val searchBarHazeState = rememberHazeState()
@@ -128,7 +129,7 @@ internal fun RecentlyAddedAlbumsScreen(
                     ) { index, album ->
                         Box(
                             modifier = Modifier
-                                .animateItem(placementSpec = ElovaireMotion.listPlacementSpec())
+                                .animateItem(placementSpec = motionSpecs.listPlacement())
                                 .elovaireListReveal(
                                     itemKey = album.id,
                                     index = index,

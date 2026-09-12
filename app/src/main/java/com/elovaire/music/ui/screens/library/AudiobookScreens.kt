@@ -77,6 +77,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
@@ -227,10 +228,11 @@ internal fun AudiobooksScreen(
         selectedAudiobookSongs(books, selectedBookKeys)
     }
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val selectionHazeState = rememberHazeState()
     val selectionTopInset by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (selectionModeActive) 50.dp else 0.dp,
-        animationSpec = elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion.sizeSoft(),
+        animationSpec = motionSpecs.contentSize(),
         label = "audiobook_selection_top_inset",
     )
     LaunchedEffect(books.map(Audiobook::stableKey)) {
@@ -292,24 +294,23 @@ internal fun AudiobooksScreen(
             },
         )
     }
-    if (showPlaylistPicker && selectionModeActive) {
-        PlaylistSelectionDialog(
-            title = uiPhrase(LocalAppLanguage.current, UiPhrase.AddToPlaylist),
-            subtitle = selectedBooks.joinToString(" • ") { it.title },
-            playlists = playlists.filterNot(Playlist::isSystem),
-            playlistSongsById = playlistSongsById,
-            onDismiss = { showPlaylistPicker = false },
-            onPlaylistSelected = { playlistId ->
-                val result = onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id)).await()
-                if (result is PlaylistMutationResult.Success) {
-                    showPlaylistPicker = false
-                    selectedBookKeys = emptySet()
-                }
-                result
-            },
-            onCreatePlaylist = onCreatePlaylist,
-        )
-    }
+    PlaylistSelectionDialog(
+        visible = showPlaylistPicker && selectionModeActive,
+        title = uiPhrase(LocalAppLanguage.current, UiPhrase.AddToPlaylist),
+        subtitle = selectedBooks.joinToString(" • ") { it.title },
+        playlists = playlists.filterNot(Playlist::isSystem),
+        playlistSongsById = playlistSongsById,
+        onDismiss = { showPlaylistPicker = false },
+        onPlaylistSelected = { playlistId ->
+            val result = onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id)).await()
+            if (result is PlaylistMutationResult.Success) {
+                showPlaylistPicker = false
+                selectedBookKeys = emptySet()
+            }
+            result
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
 }
 
 @Composable

@@ -16,6 +16,7 @@ data class CompactBarGestureActions(
     val onTap: () -> Unit,
     val onSwipePrevious: () -> Unit,
     val onSwipeNext: () -> Unit,
+    val onDragStarted: () -> Unit = {},
     val onDragDelta: (Float) -> Unit = {},
     val onGestureFinished: () -> Unit = {},
 )
@@ -41,6 +42,7 @@ fun Modifier.compactBarGestures(
 
                 if (!isDragging && abs(totalDx) > slop) {
                     isDragging = true
+                    latestActions.onDragStarted()
                 }
 
                 if (isDragging) {

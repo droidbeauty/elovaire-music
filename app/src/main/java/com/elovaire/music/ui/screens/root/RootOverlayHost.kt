@@ -74,23 +74,22 @@ internal fun BoxScope.RootOverlayHost(
             onDismiss = onDismissChangelogSheet,
         )
     }
-    if (showPlaylistCreateDialog) {
-        PlaylistNameDialog(
-            onDismiss = onDismissPlaylistCreateDialog,
-            onConfirm = { name ->
-                if (!isCreatingPlaylist) {
-                    isCreatingPlaylist = true
-                    scope.launch {
-                        when (onCreatePlaylist(name).await()) {
-                            is PlaylistMutationResult.Success -> onDismissPlaylistCreateDialog()
-                            else -> isCreatingPlaylist = false
-                        }
-                        if (isCreatingPlaylist) isCreatingPlaylist = false
+    PlaylistNameDialog(
+        visible = showPlaylistCreateDialog,
+        onDismiss = onDismissPlaylistCreateDialog,
+        onConfirm = { name ->
+            if (!isCreatingPlaylist) {
+                isCreatingPlaylist = true
+                scope.launch {
+                    when (onCreatePlaylist(name).await()) {
+                        is PlaylistMutationResult.Success -> onDismissPlaylistCreateDialog()
+                        else -> isCreatingPlaylist = false
                     }
+                    if (isCreatingPlaylist) isCreatingPlaylist = false
                 }
-            },
-        )
-    }
+            }
+        },
+    )
     if (updateController.isSupported) {
         MotionVisibilityHost(
             visible = updateState.availableRelease != null,

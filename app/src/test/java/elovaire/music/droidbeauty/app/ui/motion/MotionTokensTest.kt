@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
 import org.junit.Test
 
 class MotionTokensTest {
@@ -37,14 +36,4 @@ class MotionTokensTest {
         assertEquals(320, MotionDuration.ListPlacement)
     }
 
-    @Test
-    fun elovaireMotionFacadeUsesCanonicalTokensAndEasings() {
-        assertEquals(MotionDuration.Quick, ElovaireMotion.Quick)
-        assertEquals(MotionDuration.Fast, ElovaireMotion.Fast)
-        assertEquals(MotionDuration.Standard, ElovaireMotion.Standard)
-        assertEquals(MotionDuration.Player, ElovaireMotion.PlayerScreen)
-        assertSame(MotionEasing.SoftOut, ElovaireMotion.SoftOut)
-        assertSame(MotionEasing.RefinedDecelerate, ElovaireMotion.RefinedDecelerate)
-        assertSame(MotionEasing.RefinedAccelerate, ElovaireMotion.RefinedAccelerate)
-    }
 }

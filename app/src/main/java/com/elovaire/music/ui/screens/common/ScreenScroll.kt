@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.interaction.InteractionCriticalWindow
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -465,10 +464,11 @@ private fun Modifier.kuperRubberBand(
     canScrollBackward: () -> Boolean,
     canScrollForward: () -> Boolean,
 ): Modifier = composed {
+    val motionSpecs = rememberMotionSpecs()
     var translationTarget by remember { mutableFloatStateOf(0f) }
     val translation by animateFloatAsState(
         targetValue = translationTarget,
-        animationSpec = ElovaireMotion.overscrollSpringSpec(),
+        animationSpec = motionSpecs.spring(dampingRatio = 0.9f, stiffness = 680f),
         label = "list_rubber_band_translation",
     )
     val maxTranslationPx = with(LocalDensity.current) { 11.dp.toPx() }

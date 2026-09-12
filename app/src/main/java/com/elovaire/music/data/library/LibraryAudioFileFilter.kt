@@ -112,9 +112,10 @@ internal class LibraryAudioFileFilter(
             return AudioFileFilterDecision.Exclude("Excluded name")
         }
 
+        val mediaKind = candidate.mediaKind()
         if (
             candidate.isMusic == false &&
-            candidate.mediaKind() != AudioMediaKind.Audiobook &&
+            mediaKind != AudioMediaKind.Audiobook &&
             !isExplicitCustomFolder &&
             folderMatch != FolderMatch.DefaultRoot
         ) {
@@ -124,7 +125,7 @@ internal class LibraryAudioFileFilter(
         if (
             capability.playbackSupport == PlaybackSupport.PlatformDependent &&
             candidate.isMusic != true &&
-            candidate.mediaKind() != AudioMediaKind.Audiobook &&
+            mediaKind != AudioMediaKind.Audiobook &&
             !isExplicitCustomFolder
         ) {
             return AudioFileFilterDecision.Exclude("Platform-dependent non-music audio")

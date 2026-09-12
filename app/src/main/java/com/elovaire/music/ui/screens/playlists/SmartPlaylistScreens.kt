@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -172,19 +173,18 @@ internal fun SmartPlaylistDetailScreen(
             topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
             bottomInset = bottomPadding + 16.dp,
         )
-        if (showDeleteConfirm) {
-            SimpleConfirmDialog(
-                title = "Delete smart playlist?",
-                body = "This removes only the saved rules.",
-                confirmLabel = "Delete",
-                onDismiss = { showDeleteConfirm = false },
-                onConfirm = {
-                    showDeleteConfirm = false
-                    onDelete(playlist.id)
-                    onBack()
-                },
-            )
-        }
+        SimpleConfirmDialog(
+            visible = showDeleteConfirm,
+            title = "Delete smart playlist?",
+            body = "This removes only the saved rules.",
+            confirmLabel = "Delete",
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete(playlist.id)
+                onBack()
+            },
+        )
     }
 }
 
@@ -592,19 +592,26 @@ private fun SmartEditorChoiceRow(
 
 @Composable
 private fun SimpleConfirmDialog(
+    visible: Boolean,
     title: String,
     body: String,
     confirmLabel: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    var mounted by remember { mutableStateOf(visible) }
+    LaunchedEffect(visible) {
+        if (visible) mounted = true
+    }
+    if (!mounted) return
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
-                visible = true,
+                visible = visible,
+                onExitFinished = { if (!visible) mounted = false },
                 modifier = Modifier.padding(horizontal = 20.dp),
             ) {
                 Surface(

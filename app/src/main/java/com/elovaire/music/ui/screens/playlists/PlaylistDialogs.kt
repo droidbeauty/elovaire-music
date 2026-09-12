@@ -84,10 +84,12 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -201,6 +203,7 @@ internal fun PlaylistArtworkPreview(
 
 @Composable
 internal fun PlaylistNameDialog(
+    visible: Boolean,
     title: String = rootUiCopy(AppLanguage.English).newPlaylist,
     confirmLabel: String = uiPhrase(AppLanguage.English, UiPhrase.Create),
     initialName: String = "",
@@ -221,7 +224,11 @@ internal fun PlaylistNameDialog(
         -> uiPhrase(language, UiPhrase.Create)
         else -> confirmLabel
     }
-    Dialog(onDismissRequest = onDismiss) {
+    var mounted by remember { mutableStateOf(visible) }
+    LaunchedEffect(visible) {
+        if (visible) mounted = true
+    }
+    if (mounted) Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -231,7 +238,8 @@ internal fun PlaylistNameDialog(
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
-                visible = true,
+                visible = visible,
+                onExitFinished = { mounted = false },
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = (-20).dp)
@@ -328,9 +336,10 @@ internal fun PlaylistNameInputField(
     val contentColor = MaterialTheme.colorScheme.onSurface
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val motionSpecs = rememberMotionSpecs()
     val leadingIconAlpha by animateFloatAsState(
         targetValue = 0.5f,
-        animationSpec = ElovaireMotion.standardTween(durationMillis = 80),
+        animationSpec = motionSpecs.tween(durationMillis = MotionDuration.Micro),
         label = "playlist_name_icon_alpha",
     )
     LaunchedEffect(requestFocusOnStart) {
@@ -365,14 +374,14 @@ internal fun PlaylistNameInputField(
         trailingIcon = {
             AnimatedVisibility(
                 visible = value.isNotEmpty(),
-                enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
                     scaleIn(
-                        animationSpec = ElovaireMotion.scaleSoft(),
+                        animationSpec = motionSpecs.tween(easing = MotionEasing.SoftOut),
                         initialScale = 0.92f,
                     ),
-                exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                exit = fadeOut(animationSpec = motionSpecs.fadeOut()) +
                     scaleOut(
-                        animationSpec = ElovaireMotion.fadeFast(),
+                        animationSpec = motionSpecs.fadeOut(),
                         targetScale = 0.92f,
                     ),
             ) {
@@ -427,6 +436,7 @@ internal fun AddAlbumToPlaylistDialog(
 ) {
     val language = LocalAppLanguage.current
     PlaylistSelectionDialog(
+        visible = true,
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
         subtitle = album.title,
         playlists = playlists,
@@ -439,6 +449,7 @@ internal fun AddAlbumToPlaylistDialog(
 
 @Composable
 internal fun PlaylistSelectionDialog(
+    visible: Boolean,
     title: String,
     subtitle: String?,
     playlists: List<Playlist>,
@@ -450,6 +461,7 @@ internal fun PlaylistSelectionDialog(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
+    val motionSpecs = rememberMotionSpecs()
     val listState = rememberElovaireLazyListState(title, subtitle, "playlist_picker")
     var draftPlaylistName by rememberSaveable(title, subtitle) { mutableStateOf("") }
     var showInlineCreator by rememberSaveable(title, subtitle) { mutableStateOf(false) }
@@ -476,7 +488,11 @@ internal fun PlaylistSelectionDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    var mounted by remember { mutableStateOf(visible) }
+    LaunchedEffect(visible) {
+        if (visible) mounted = true
+    }
+    if (mounted) Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -486,7 +502,8 @@ internal fun PlaylistSelectionDialog(
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
-                visible = true,
+                visible = visible,
+                onExitFinished = { mounted = false },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
@@ -503,7 +520,7 @@ internal fun PlaylistSelectionDialog(
                 Column(
                     modifier = Modifier
                         .padding(horizontal = 20.dp, vertical = 20.dp)
-                        .animateContentSize(animationSpec = ElovaireMotion.sizeSoft()),
+                        .animateContentSize(animationSpec = motionSpecs.contentSize()),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Row(
@@ -722,9 +739,13 @@ internal fun PlaylistPickerRow(
 ) {
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
+    val motionSpecs = rememberMotionSpecs()
     val highlightColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
-        animationSpec = ElovaireMotion.colorFadeSpec(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.SoftOut,
+        ),
         label = "playlist_picker_row_highlight",
     )
     Box(
@@ -864,6 +885,7 @@ internal fun InlinePlaylistCreatorRow(
 
 @Composable
 internal fun AddToPlaylistPickerDialog(
+    visible: Boolean,
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
@@ -873,6 +895,7 @@ internal fun AddToPlaylistPickerDialog(
 ) {
     val language = LocalAppLanguage.current
     PlaylistSelectionDialog(
+        visible = visible,
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
         subtitle = null,
         playlists = playlists,

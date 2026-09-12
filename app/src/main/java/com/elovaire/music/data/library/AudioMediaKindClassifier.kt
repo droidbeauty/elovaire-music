@@ -14,7 +14,11 @@ internal object AudioMediaKindClassifier {
     ): AudioMediaKind {
         if (isAudiobook == true) return AudioMediaKind.Audiobook
         if (extension.normalizeExtension() == "m4b") return AudioMediaKind.Audiobook
-        return if (listOf(relativePath, absolutePath, sourcePath).any(::isAudiobooksPath)) {
+        return if (
+            isAudiobooksPath(relativePath) ||
+            isAudiobooksPath(absolutePath) ||
+            isAudiobooksPath(sourcePath)
+        ) {
             AudioMediaKind.Audiobook
         } else {
             AudioMediaKind.Music
@@ -27,8 +31,25 @@ internal object AudioMediaKindClassifier {
             ?.trim('/')
             ?.lowercase(Locale.ROOT)
             ?: return false
-        return normalized.split('/').any { it == "audiobooks" }
+        var segmentStart = 0
+        while (segmentStart < normalized.length) {
+            val segmentEnd = normalized.indexOf('/', segmentStart).let { separator ->
+                if (separator == -1) normalized.length else separator
+            }
+            if (
+                segmentEnd - segmentStart == AUDIOBOOKS_SEGMENT_LENGTH &&
+                normalized.regionMatches(segmentStart, AUDIOBOOKS_SEGMENT, 0, AUDIOBOOKS_SEGMENT_LENGTH)
+            ) {
+                return true
+            }
+            if (segmentEnd == normalized.length) return false
+            segmentStart = segmentEnd + 1
+        }
+        return false
     }
+
+    private const val AUDIOBOOKS_SEGMENT = "audiobooks"
+    private const val AUDIOBOOKS_SEGMENT_LENGTH = 10
 
     private fun String?.normalizeExtension(): String? = this
         ?.trim()

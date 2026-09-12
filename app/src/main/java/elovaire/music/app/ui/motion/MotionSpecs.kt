@@ -96,6 +96,11 @@ class MotionSpecs internal constructor(
         easing = MotionEasing.RefinedDecelerate,
     )
 
+    fun <T> listPlacement(): FiniteAnimationSpec<T> = tween(
+        durationMillis = MotionDuration.ListPlacement,
+        easing = MotionEasing.RefinedDecelerate,
+    )
+
     fun listRevealDelay(index: Int): Int {
         return runtime.delay((index.coerceAtLeast(0) * 12).coerceAtMost(72))
     }

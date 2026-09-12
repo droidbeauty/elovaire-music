@@ -74,8 +74,8 @@ internal class RoomPlaybackHistoryStore(
         collectionKind: PlaybackCollectionKind?,
         collectionId: Long?,
     ) {
-        _songPlayCounts.value = songCounts
-        _albumPlayCounts.value = albumCounts
+        if (_songPlayCounts.value != songCounts) _songPlayCounts.value = songCounts
+        if (_albumPlayCounts.value != albumCounts) _albumPlayCounts.value = albumCounts
         publish(songIds, albumIds, collectionKind, collectionId)
     }
 
@@ -85,10 +85,12 @@ internal class RoomPlaybackHistoryStore(
         collectionKind: PlaybackCollectionKind?,
         collectionId: Long?,
     ) {
-        _recentSongIds.value = songIds
-        _recentAlbumIds.value = albumIds
-        _lastPlayedCollectionKind.value = collectionKind
-        _lastPlayedCollectionId.value = collectionId
+        if (_recentSongIds.value != songIds) _recentSongIds.value = songIds
+        if (_recentAlbumIds.value != albumIds) _recentAlbumIds.value = albumIds
+        if (_lastPlayedCollectionKind.value != collectionKind) {
+            _lastPlayedCollectionKind.value = collectionKind
+        }
+        if (_lastPlayedCollectionId.value != collectionId) _lastPlayedCollectionId.value = collectionId
     }
 
     fun relocateSongIds(replacements: Map<Long, Long>) {
@@ -379,7 +381,7 @@ internal class RoomSearchHistoryStore(
             pendingHistory = null
             pendingWriteScheduled = false
         }
-        _searchHistory.value = entries
+        if (_searchHistory.value != entries) _searchHistory.value = entries
     }
 
     private fun historyAfterAdding(

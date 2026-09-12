@@ -291,7 +291,6 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
@@ -436,6 +435,8 @@ private fun SearchScreen(
     onResetSearchUi: () -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
+    val motionSpecs = rememberMotionSpecs()
+    val motionTransitions = rememberMotionTransitions()
     val language = LocalAppLanguage.current
     val copy = searchCopy(language)
     val listState = rememberElovaireLazyListState("search_screen")
@@ -617,18 +618,14 @@ private fun SearchScreen(
             transitionSpec = {
                 when {
                     !initialState && targetState -> {
-                        ElovaireMotion.fullScreenForwardEnter(
-                            initialOffsetX = { it / 10 },
-                        ) togetherWith ElovaireMotion.fullScreenForwardExit()
+                        motionTransitions.fullScreenForwardEnter() togetherWith motionTransitions.fullScreenForwardExit()
                     }
 
                     initialState && !targetState -> {
-                        ElovaireMotion.fullScreenBackEnter() togetherWith ElovaireMotion.fullScreenBackExit(
-                            targetOffsetX = { it / 10 },
-                        )
+                        motionTransitions.fullScreenBackEnter() togetherWith motionTransitions.fullScreenBackExit()
                     }
 
-                    else -> ElovaireMotion.softContentTransform()
+                    else -> motionTransitions.softContentTransform()
                 }
             },
             label = "SearchScreenContent",
@@ -694,7 +691,7 @@ private fun SearchScreen(
                             Box(
                                 modifier = Modifier
                                     .animateItem(
-                                        placementSpec = ElovaireMotion.listPlacementSpec(),
+                                        placementSpec = motionSpecs.listPlacement(),
                                     )
                                     .elovaireListReveal(
                                         itemKey = song.id,

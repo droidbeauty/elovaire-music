@@ -77,7 +77,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
@@ -108,6 +109,7 @@ internal fun PlaylistDetailScreen(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val detailState = remember(playlist, songsById) {
         buildPlaylistDetailState(playlist, songsById)
     }
@@ -197,7 +199,7 @@ internal fun PlaylistDetailScreen(
     val detailTopPadding = detailTopBarOccupiedHeight()
     val editMenuTopInset by animateDpAsState(
         targetValue = if (editMode && showEditModeMenu) 50.dp else 0.dp,
-        animationSpec = ElovaireMotion.sizeSoft(),
+        animationSpec = motionSpecs.contentSize(),
         label = "playlist_edit_menu_top_inset",
     )
     val topBarActions = remember(
@@ -400,7 +402,7 @@ internal fun PlaylistDetailScreen(
                             lastIndex = playlistSongs.lastIndex,
                             modifier = Modifier
                                 .animateItem(
-                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                    placementSpec = motionSpecs.listPlacement(),
                                 )
                                 .elovaireListReveal(
                                     itemKey = "${song.id}_$index",
@@ -550,21 +552,20 @@ internal fun PlaylistDetailScreen(
             },
         )
     }
-    if (showRenameDialog && !playlistState.isSystem) {
-        PlaylistNameDialog(
-            title = rootUiCopy(LocalAppLanguage.current).renamePlaylistTitle,
-            confirmLabel = rootUiCopy(LocalAppLanguage.current).save,
-            initialName = playlistState.name,
-            onDismiss = { showRenameDialog = false },
-            onConfirm = { name ->
-                scope.launch {
-                    if (onRenamePlaylist(playlistState.id, name).await() is PlaylistMutationResult.Success) {
-                        showRenameDialog = false
-                    }
+    PlaylistNameDialog(
+        visible = showRenameDialog && !playlistState.isSystem,
+        title = rootUiCopy(LocalAppLanguage.current).renamePlaylistTitle,
+        confirmLabel = rootUiCopy(LocalAppLanguage.current).save,
+        initialName = playlistState.name,
+        onDismiss = { showRenameDialog = false },
+        onConfirm = { name ->
+            scope.launch {
+                if (onRenamePlaylist(playlistState.id, name).await() is PlaylistMutationResult.Success) {
+                    showRenameDialog = false
                 }
-            },
-        )
-    }
+            }
+        },
+    )
 }
 
 @Composable
@@ -598,12 +599,15 @@ internal fun PlaylistSongRow(
         } else {
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         },
-        animationSpec = ElovaireMotion.colorFadeSpec(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.SoftOut,
+        ),
         label = "playlist_reorder_handle_tint",
     )
     val handleScale by animateFloatAsState(
         targetValue = if (handleDragActive) 1.1f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(),
+        animationSpec = motionSpecs.spring(dampingRatio = 0.82f, stiffness = 560f),
         label = "playlist_reorder_handle_scale",
     )
     val rowScale by animateFloatAsState(
@@ -614,7 +618,7 @@ internal fun PlaylistSongRow(
                 stiffness = 210f,
             )
         } else {
-            ElovaireMotion.releaseSpringSpec()
+            motionSpecs.spring(dampingRatio = 0.82f, stiffness = 560f)
         },
         label = "playlist_drag_row_scale",
     )
@@ -632,7 +636,10 @@ internal fun PlaylistSongRow(
         } else {
             Color.Transparent
         },
-        animationSpec = ElovaireMotion.colorFadeSpec(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.SoftOut,
+        ),
         label = "playlist_reorder_drag_highlight",
     )
     val rowInteractionModifier = if (editMode) {
@@ -663,15 +670,21 @@ internal fun PlaylistSongRow(
         ) {
             ElovaireAnimatedVisibility(
                 visible = editMode,
-                enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
                     slideInHorizontally(
                         initialOffsetX = { -it / 2 },
-                        animationSpec = ElovaireMotion.offsetSoft(),
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = MotionDuration.ScreenSlide,
+                            easing = MotionEasing.SoftOut,
+                        ),
                     ),
-                exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                exit = fadeOut(animationSpec = motionSpecs.fadeOut()) +
                     slideOutHorizontally(
                         targetOffsetX = { -it / 3 },
-                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = 80),
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = MotionDuration.Micro,
+                            easing = MotionEasing.SoftOut,
+                        ),
                     ),
                 label = "playlist_song_reorder_handle",
             ) {
@@ -780,8 +793,8 @@ internal fun PlaylistSongRow(
             ) {
                 ElovaireAnimatedVisibility(
                     visible = !editMode,
-                    enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                    enter = fadeIn(animationSpec = motionSpecs.fadeIn()),
+                    exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
                     label = "playlist_song_metadata_visibility",
                 ) {
                     Row(
@@ -811,15 +824,15 @@ internal fun PlaylistSongRow(
                 }
                 ElovaireAnimatedVisibility(
                     visible = editMode,
-                    enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                    enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
                         scaleIn(
                             initialScale = 0.92f,
-                            animationSpec = ElovaireMotion.scaleSoft(),
+                            animationSpec = motionSpecs.tween(easing = MotionEasing.SoftOut),
                         ),
-                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                    exit = fadeOut(animationSpec = motionSpecs.fadeOut()) +
                         scaleOut(
                             targetScale = 0.92f,
-                            animationSpec = ElovaireMotion.fadeFast(),
+                            animationSpec = motionSpecs.fadeOut(),
                         ),
                     label = "playlist_song_remove_toggle",
                 ) {

@@ -88,7 +88,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
@@ -496,6 +497,7 @@ private fun LanguageSelectionDialog(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
+    val motionSpecs = rememberMotionSpecs()
     val copy = remember(selectedLanguage) { rootUiCopy(selectedLanguage) }
     val languages = remember {
         AppLanguage.entries.sortedBy { it.englishName }
@@ -550,7 +552,7 @@ private fun LanguageSelectionDialog(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(start = 20.dp, top = 18.dp, end = 16.dp, bottom = 18.dp)
-                            .animateContentSize(animationSpec = ElovaireMotion.sizeSoft()),
+                            .animateContentSize(animationSpec = motionSpecs.contentSize()),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                             Row(
@@ -613,7 +615,7 @@ private fun LanguageSelectionDialog(
                                     selected = language == pendingLanguage,
                                     modifier = Modifier
                                         .animateItem(
-                                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                                            placementSpec = motionSpecs.listPlacement(),
                                         )
                                         .elovaireListReveal(
                                             itemKey = language.name,
@@ -669,13 +671,17 @@ private fun LanguagePickerOptionRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val highlightColor by animateColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         } else {
             Color.Transparent
         },
-        animationSpec = ElovaireMotion.colorFadeSpec(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.SoftOut,
+        ),
         label = "language_picker_row_highlight",
     )
     Box(

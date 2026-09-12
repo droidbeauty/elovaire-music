@@ -83,8 +83,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -113,6 +113,7 @@ internal fun LibraryFoldersScreen(
     val context = LocalContext.current
     val copy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val networkCopy = remember(appLanguage) { networkSourcesCopy(appLanguage) }
+    val motionSpecs = rememberMotionSpecs()
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val sourceChooserHazeState = rememberHazeState()
     val songCountsByFolder = remember(folders, songs) {
@@ -265,8 +266,8 @@ internal fun LibraryFoldersScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
-                enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-                exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                enter = fadeIn(animationSpec = motionSpecs.fadeIn()),
+                exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
             ) {
                 AddFolderPill(
                     text = networkCopy.addSource,
@@ -333,57 +334,16 @@ internal fun LibraryFoldersScreen(
                     showNetworkEditor = true
                 },
             )
-            pendingNetworkRemoval?.let { source ->
-                Dialog(onDismissRequest = { pendingNetworkRemoval = null }) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PopupCardMotionHost(
-                            visible = true,
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                        ) {
-                            DynamicBackdropSurface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(ElovaireRadii.card),
-                                overlayAlpha = 0.6f,
-                                borderColor = blurSurfaceBorderColor(),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(20.dp),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                                ) {
-                                    Text(
-                                        text = networkCopy.removeTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                                    )
-                                    Text(
-                                        text = networkCopy.removeMessage,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = readableSecondaryTextColor(),
-                                    )
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End,
-                                    ) {
-                                        TextButton(onClick = { pendingNetworkRemoval = null }) {
-                                            Text(uiPhrase(appLanguage, UiPhrase.Cancel))
-                                        }
-                                        TextButton(
-                                            onClick = {
-                                                pendingNetworkRemoval = null
-                                                onRemoveNetworkSource(source)
-                                            },
-                                        ) {
-                                            Text(networkCopy.remove, color = DestructiveRed)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            NetworkSourceRemovalDialog(
+                source = pendingNetworkRemoval,
+                copy = networkCopy,
+                cancelLabel = uiPhrase(appLanguage, UiPhrase.Cancel),
+                onDismiss = { pendingNetworkRemoval = null },
+                onConfirm = { source ->
+                    pendingNetworkRemoval = null
+                    onRemoveNetworkSource(source)
+                },
+            )
         } else {
             NetworkSourceEditorScreen(
                 source = editingNetworkSource,
@@ -442,6 +402,72 @@ private fun AddFolderPill(
 }
 
 @Composable
+private fun NetworkSourceRemovalDialog(
+    source: NetworkLibrarySource?,
+    copy: NetworkSourcesCopy,
+    cancelLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (NetworkLibrarySource) -> Unit,
+) {
+    var mounted by remember { mutableStateOf(false) }
+    var displayedSource by remember { mutableStateOf<NetworkLibrarySource?>(null) }
+    LaunchedEffect(source) {
+        if (source != null) {
+            displayedSource = source
+            mounted = true
+        }
+    }
+    if (!mounted) return
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            PopupCardMotionHost(
+                visible = source != null,
+                onExitFinished = { if (source == null) mounted = false },
+                modifier = Modifier.padding(horizontal = 20.dp),
+            ) {
+                DynamicBackdropSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(ElovaireRadii.card),
+                    overlayAlpha = 0.6f,
+                    borderColor = blurSurfaceBorderColor(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Text(
+                            text = copy.removeTitle,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                        )
+                        Text(
+                            text = copy.removeMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = readableSecondaryTextColor(),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(onClick = onDismiss) {
+                                Text(cancelLabel)
+                            }
+                            TextButton(
+                                onClick = { displayedSource?.let(onConfirm) },
+                            ) {
+                                Text(copy.remove, color = DestructiveRed)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 @Suppress("LongMethod")
 private fun LibrarySourceChooserSheet(
     visible: Boolean,
@@ -452,6 +478,7 @@ private fun LibrarySourceChooserSheet(
     onAddFolder: () -> Unit,
     onAddNetwork: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -460,8 +487,8 @@ private fun LibrarySourceChooserSheet(
         AnimatedVisibility(
             visible = visible,
             modifier = Modifier.matchParentSize(),
-            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+            enter = fadeIn(animationSpec = motionSpecs.fadeIn()),
+            exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
         ) {
             Box(
                 modifier = Modifier

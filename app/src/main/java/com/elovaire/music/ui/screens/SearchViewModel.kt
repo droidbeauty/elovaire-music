@@ -114,6 +114,9 @@ internal class SearchViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val searchIndex = libraryRepository.contentState
+        .distinctUntilChangedBy { content ->
+            content.contentRevision.takeIf(String::isNotBlank) ?: content
+        }
         .map { content ->
             SearchLibrarySnapshot(
                 songs = content.songs.filter { it.mediaKind == AudioMediaKind.Music },
@@ -123,7 +126,6 @@ internal class SearchViewModel(
             )
         }
         .map { snapshot -> snapshot to snapshot.signature() }
-        .distinctUntilChangedBy { (_, revision) -> revision }
         .transformLatest { (snapshot, revision) ->
             val coroutineContext = currentCoroutineContext()
             emit(

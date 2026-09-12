@@ -23,6 +23,8 @@ internal class SafScanIncompleteException(
     val reason: String,
 ) : RuntimeException("SAF scan incomplete: $reason")
 
+internal const val SAF_PROVIDER_LOADING_REASON = "provider still loading"
+
 internal fun LibraryFailure.toUserMessage(): String = when (this) {
     LibraryFailure.PermissionMissing -> "Music access is required to scan the library."
     LibraryFailure.MediaStoreUnavailable -> "The device media library is unavailable."

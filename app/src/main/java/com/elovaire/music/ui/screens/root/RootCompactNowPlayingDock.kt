@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -77,6 +78,11 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import kotlinx.coroutines.delay
+
+private data class PlayerArtworkFrame(
+    val songId: Long,
+    val bitmap: ImageBitmap?,
+)
 
 @Composable
 internal fun CompactNowPlayingDockHost(
@@ -344,7 +350,8 @@ private fun CompactNowPlayingBar(
                             contentAlignment = Alignment.Center,
                         ) {
                             AnimatedContent(
-                                targetState = artwork.value,
+                                targetState = PlayerArtworkFrame(song.id, artwork.value),
+                                contentKey = { it.songId },
                                 transitionSpec = {
                                     (
                                         fadeIn(
@@ -378,7 +385,8 @@ private fun CompactNowPlayingBar(
                                         )
                                 },
                                 label = "compact_player_artwork_transition",
-                            ) { artworkBitmap ->
+                            ) { frame ->
+                                val artworkBitmap = frame.bitmap
                                 if (artworkBitmap != null) {
                                     Image(
                                         bitmap = artworkBitmap,
@@ -504,10 +512,11 @@ private fun NowPlayingBar(
     val compactControlBackground = controlIconTint.copy(alpha = 0.2f)
     val interactionSource = rememberElovaireInteractionSource()
     var dragOffsetX by remember(song.id) { mutableFloatStateOf(0f) }
+    var isDragging by remember(song.id) { mutableStateOf(false) }
     var barBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var artworkBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val animatedDragOffsetX by animateFloatAsState(
-        targetValue = dragOffsetX,
+        targetValue = if (isDragging) dragOffsetX else 0f,
         animationSpec = motionSpecs.spring(
             dampingRatio = 0.82f,
             stiffness = 380f,
@@ -552,10 +561,14 @@ private fun NowPlayingBar(
                         },
                         onSwipePrevious = onSkipPrevious,
                         onSwipeNext = onSkipNext,
+                        onDragStarted = {
+                            isDragging = true
+                        },
                         onDragDelta = { delta ->
                             dragOffsetX = (dragOffsetX + delta).coerceIn(-160f, 160f)
                         },
                         onGestureFinished = {
+                            isDragging = false
                             dragOffsetX = 0f
                         },
                     ),
@@ -569,9 +582,11 @@ private fun NowPlayingBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .graphicsLayer { translationX = animatedDragOffsetX * 0.18f },
+                    modifier = Modifier
+                        .weight(1f)
+                    .graphicsLayer {
+                        translationX = (if (isDragging) dragOffsetX else animatedDragOffsetX) * 0.18f
+                    },
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -584,7 +599,8 @@ private fun NowPlayingBar(
                     contentAlignment = Alignment.Center,
                 ) {
                     AnimatedContent(
-                        targetState = artwork.value,
+                        targetState = PlayerArtworkFrame(song.id, artwork.value),
+                        contentKey = { it.songId },
                         transitionSpec = {
                             (
                                 fadeIn(
@@ -618,7 +634,8 @@ private fun NowPlayingBar(
                                 )
                         },
                         label = "mini_player_artwork_transition",
-                    ) { artworkBitmap ->
+                    ) { frame ->
+                        val artworkBitmap = frame.bitmap
                         if (artworkBitmap != null) {
                             Image(
                                 bitmap = artworkBitmap,

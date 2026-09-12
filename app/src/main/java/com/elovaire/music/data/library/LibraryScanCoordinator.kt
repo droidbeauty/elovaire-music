@@ -141,6 +141,7 @@ internal class LibraryScanCoordinator(
             !enrichMetadata
         var isComplete = true
         var incompleteMessage: String? = null
+        var retryableSafTreeIds = emptySet<String>()
         val localSongs = if (canReuseLocalState) {
             baseSources.nonNetworkSongs
         } else {
@@ -156,6 +157,7 @@ internal class LibraryScanCoordinator(
             )
             isComplete = localResult.isComplete
             incompleteMessage = localResult.incompleteMessage
+            retryableSafTreeIds = localResult.retryableSafTreeIds
             localResult.songs
         }
         if (networkSources.none(NetworkLibrarySource::enabled)) {
@@ -163,6 +165,7 @@ internal class LibraryScanCoordinator(
                 snapshot = assembleFinalLibrarySnapshot(localSongs),
                 isComplete = isComplete,
                 incompleteMessage = incompleteMessage,
+                retryableSafTreeIds = retryableSafTreeIds,
             )
         }
 
@@ -200,6 +203,7 @@ internal class LibraryScanCoordinator(
             snapshot = assembleFinalLibrarySnapshot(localSongs + networkSongsBySource.values.flatten()),
             isComplete = isComplete,
             incompleteMessage = incompleteMessage,
+            retryableSafTreeIds = retryableSafTreeIds,
         )
     }
 
@@ -242,6 +246,14 @@ internal class LibraryScanCoordinator(
         }
         val safResults = safScanner.scanByTree(safSelections)
         val safIncomplete = safResults.any { it !is SafTreeScanResult.Complete }
+        val retryableSafTreeIds = safResults
+            .asSequence()
+            .filter { result ->
+                result is SafTreeScanResult.Incomplete &&
+                    result.failure.reason == SAF_PROVIDER_LOADING_REASON
+            }
+            .mapNotNull { result -> safTreeIdentity(result.selection.uri) }
+            .toSet()
         val currentMediaStoreVolumes = localScanner.currentSyncState()?.volumes
             ?.mapTo(hashSetOf(), LibraryMediaStoreVolumeSyncState::volumeName)
         val preservedDetachedMediaStoreSongs = if (currentMediaStoreVolumes == null) {
@@ -265,7 +277,9 @@ internal class LibraryScanCoordinator(
             .filter { it !is SafTreeScanResult.Complete }
             .mapNotNull { safTreeIdentity(it.selection.uri) }
             .toSet()
-        val preservedSafTreeIds = failedSafTreeIds + configuredSafTreeIds - scannedSafTreeIds
+        // An incomplete provider result can contain only the rows available so far. Preserve
+        // the last known rows and retry the provider instead of publishing a transient removal.
+        val preservedSafTreeIds = failedSafTreeIds + (configuredSafTreeIds - scannedSafTreeIds)
         val preservedSafSongs = baseSources.safSongsByTree
             .filterKeys(preservedSafTreeIds::contains)
             .values
@@ -284,7 +298,7 @@ internal class LibraryScanCoordinator(
             discoveredSongCount = safSongs.size,
             incompleteTreeCount = safResults.count { it !is SafTreeScanResult.Complete },
             providerLoadingTreeCount = safResults.count { result ->
-                result is SafTreeScanResult.Incomplete && result.failure.reason == "provider still loading"
+                result is SafTreeScanResult.Incomplete && result.failure.reason == SAF_PROVIDER_LOADING_REASON
             },
             providerErrorTreeCount = safResults.count { result ->
                 when (result) {
@@ -308,6 +322,7 @@ internal class LibraryScanCoordinator(
                 ).toUserMessage()
                 else -> null
             },
+            retryableSafTreeIds = retryableSafTreeIds,
         )
     }
 
@@ -346,6 +361,7 @@ internal data class CoordinatedLibraryScan(
     val snapshot: LibrarySnapshot,
     val isComplete: Boolean,
     val incompleteMessage: String? = null,
+    val retryableSafTreeIds: Set<String> = emptySet(),
 )
 
 internal fun shouldReusePublishedMediaStoreState(
@@ -362,6 +378,7 @@ private data class LocalSourceScanResult(
     val songs: List<Song>,
     val isComplete: Boolean,
     val incompleteMessage: String?,
+    val retryableSafTreeIds: Set<String> = emptySet(),
 )
 
 private data class BaseSnapshotSources(
