@@ -14,11 +14,9 @@ import elovaire.music.droidbeauty.app.R
 
 // Primary font family used throughout the app.
 private val GeistFamily = FontFamily(
-    Font(R.font.geist_light, FontWeight.Light),
     Font(R.font.geist_regular, FontWeight.Normal),
     Font(R.font.geist_medium, FontWeight.Medium),
     Font(R.font.geist_semibold, FontWeight.SemiBold),
-    Font(R.font.geist_bold, FontWeight.Bold),
 )
 
 // Base typography tokens before the user text-size multiplier is applied.

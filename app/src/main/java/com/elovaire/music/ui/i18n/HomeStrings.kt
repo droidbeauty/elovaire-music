@@ -926,12 +926,16 @@ internal fun localizedCountLabel(
         AppLanguage.Albanian -> when (noun) {
             "song" -> "këngë" to "këngë"
             "track" -> "këngë" to "këngë"
+            "audiobook" -> "libër audio" to "libra audio"
             "album" -> "album" to "albume"
             "artist" -> "artist" to "artistë"
             "genre" -> "zhanër" to "zhanre"
             else -> noun to "${noun}e"
         }
-        AppLanguage.ChineseSimplified -> noun to noun
+        AppLanguage.ChineseSimplified -> when (noun) {
+            "audiobook" -> "有声书" to "有声书"
+            else -> noun to noun
+        }
         AppLanguage.Croatian -> when (noun) {
             "song" -> "pjesma" to "pjesme"
             "track" -> "pjesma" to "pjesme"
@@ -951,6 +955,7 @@ internal fun localizedCountLabel(
         AppLanguage.Danish -> when (noun) {
             "song" -> "sang" to "sange"
             "track" -> "nummer" to "numre"
+            "audiobook" -> "lydbog" to "lydbøger"
             "album" -> "album" to "albummer"
             "artist" -> "kunstner" to "kunstnere"
             "genre" -> "genre" to "genrer"
@@ -959,6 +964,7 @@ internal fun localizedCountLabel(
         AppLanguage.Dutch -> when (noun) {
             "song" -> "nummer" to "nummers"
             "track" -> "track" to "tracks"
+            "audiobook" -> "luisterboek" to "luisterboeken"
             "album" -> "album" to "albums"
             "artist" -> "artiest" to "artiesten"
             "genre" -> "genre" to "genres"
@@ -967,6 +973,7 @@ internal fun localizedCountLabel(
         AppLanguage.Estonian -> when (noun) {
             "song" -> "lugu" to "lugu"
             "track" -> "lugu" to "lugu"
+            "audiobook" -> "audioraamat" to "audioraamatut"
             "album" -> "album" to "albumit"
             "artist" -> "artist" to "artisti"
             "genre" -> "žanr" to "žanri"
@@ -975,6 +982,7 @@ internal fun localizedCountLabel(
         AppLanguage.French -> when (noun) {
             "song" -> "morceau" to "morceaux"
             "track" -> "piste" to "pistes"
+            "audiobook" -> "livre audio" to "livres audio"
             "album" -> "album" to "albums"
             "artist" -> "artiste" to "artistes"
             "genre" -> "genre" to "genres"
@@ -983,6 +991,7 @@ internal fun localizedCountLabel(
         AppLanguage.German -> when (noun) {
             "song" -> "Titel" to "Titel"
             "track" -> "Track" to "Tracks"
+            "audiobook" -> "Hörbuch" to "Hörbücher"
             "album" -> "Album" to "Alben"
             "artist" -> "Künstler" to "Künstler"
             "genre" -> "Genre" to "Genres"
@@ -991,6 +1000,7 @@ internal fun localizedCountLabel(
         AppLanguage.Greek -> when (noun) {
             "song" -> "τραγούδι" to "τραγούδια"
             "track" -> "κομμάτι" to "κομμάτια"
+            "audiobook" -> "ηχητικό βιβλίο" to "ηχητικά βιβλία"
             "album" -> "άλμπουμ" to "άλμπουμ"
             "artist" -> "καλλιτέχνης" to "καλλιτέχνες"
             "genre" -> "είδος" to "είδη"
@@ -999,6 +1009,7 @@ internal fun localizedCountLabel(
         AppLanguage.Hindi -> when (noun) {
             "song" -> "गाना" to "गाने"
             "track" -> "ट्रैक" to "ट्रैक"
+            "audiobook" -> "ऑडियोबुक" to "ऑडियोबुक"
             "album" -> "एल्बम" to "एल्बम"
             "artist" -> "कलाकार" to "कलाकार"
             "genre" -> "शैली" to "शैलियाँ"
@@ -1007,6 +1018,7 @@ internal fun localizedCountLabel(
         AppLanguage.Hungarian -> when (noun) {
             "song" -> "dal" to "dal"
             "track" -> "szám" to "szám"
+            "audiobook" -> "hangoskönyv" to "hangoskönyv"
             "album" -> "album" to "album"
             "artist" -> "előadó" to "előadó"
             "genre" -> "műfaj" to "műfaj"
@@ -1015,15 +1027,20 @@ internal fun localizedCountLabel(
         AppLanguage.Italian -> when (noun) {
             "song" -> "brano" to "brani"
             "track" -> "traccia" to "tracce"
+            "audiobook" -> "audiolibro" to "audiolibri"
             "album" -> "album" to "album"
             "artist" -> "artista" to "artisti"
             "genre" -> "genere" to "generi"
             else -> noun to "${noun}i"
         }
-        AppLanguage.Japanese -> noun to noun
+        AppLanguage.Japanese -> when (noun) {
+            "audiobook" -> "オーディオブック" to "オーディオブック"
+            else -> noun to noun
+        }
         AppLanguage.Latin -> when (noun) {
             "song" -> "cantus" to "cantus"
             "track" -> "cantus" to "cantus"
+            "audiobook" -> "liber audio" to "libri audio"
             "album" -> "album" to "albuma"
             "artist" -> "artifex" to "artifices"
             "genre" -> "genus" to "genera"
@@ -1048,6 +1065,7 @@ internal fun localizedCountLabel(
         AppLanguage.Macedonian -> when (noun) {
             "song" -> "песна" to "песни"
             "track" -> "нумера" to "нумери"
+            "audiobook" -> "аудиокнига" to "аудиокниги"
             "album" -> "албум" to "албуми"
             "artist" -> "артист" to "артисти"
             "genre" -> "жанр" to "жанрови"
@@ -1056,6 +1074,7 @@ internal fun localizedCountLabel(
         AppLanguage.Norwegian -> when (noun) {
             "song" -> "sang" to "sanger"
             "track" -> "spor" to "spor"
+            "audiobook" -> "lydbok" to "lydbøker"
             "album" -> "album" to "album"
             "artist" -> "artist" to "artister"
             "genre" -> "sjanger" to "sjangre"
@@ -1080,6 +1099,7 @@ internal fun localizedCountLabel(
         AppLanguage.Portuguese -> when (noun) {
             "song" -> "música" to "músicas"
             "track" -> "faixa" to "faixas"
+            "audiobook" -> "audiolivro" to "audiolivros"
             "album" -> "álbum" to "álbuns"
             "artist" -> "artista" to "artistas"
             "genre" -> "género" to "géneros"
@@ -1104,6 +1124,7 @@ internal fun localizedCountLabel(
         AppLanguage.Spanish -> when (noun) {
             "song" -> "canción" to "canciones"
             "track" -> "pista" to "pistas"
+            "audiobook" -> "audiolibro" to "audiolibros"
             "album" -> "álbum" to "álbumes"
             "artist" -> "artista" to "artistas"
             "genre" -> "género" to "géneros"
@@ -1112,15 +1133,20 @@ internal fun localizedCountLabel(
         AppLanguage.Swedish -> when (noun) {
             "song" -> "låt" to "låtar"
             "track" -> "spår" to "spår"
+            "audiobook" -> "ljudbok" to "ljudböcker"
             "album" -> "album" to "album"
             "artist" -> "artist" to "artister"
             "genre" -> "genre" to "genrer"
             else -> noun to noun
         }
-        AppLanguage.Korean -> noun to noun
+        AppLanguage.Korean -> when (noun) {
+            "audiobook" -> "오디오북" to "오디오북"
+            else -> noun to noun
+        }
         AppLanguage.Malay -> when (noun) {
             "song" -> "lagu" to "lagu"
             "track" -> "runut" to "runut"
+            "audiobook" -> "buku audio" to "buku audio"
             "album" -> "album" to "album"
             "artist" -> "artis" to "artis"
             "genre" -> "genre" to "genre"
@@ -1129,6 +1155,7 @@ internal fun localizedCountLabel(
         AppLanguage.Thai -> when (noun) {
             "song" -> "เพลง" to "เพลง"
             "track" -> "แทร็ก" to "แทร็ก"
+            "audiobook" -> "หนังสือเสียง" to "หนังสือเสียง"
             "album" -> "อัลบั้ม" to "อัลบั้ม"
             "artist" -> "ศิลปิน" to "ศิลปิน"
             "genre" -> "แนวเพลง" to "แนวเพลง"
@@ -1137,6 +1164,7 @@ internal fun localizedCountLabel(
         AppLanguage.Bengali -> when (noun) {
             "song" -> "গান" to "গান"
             "track" -> "ট্র্যাক" to "ট্র্যাক"
+            "audiobook" -> "অডিওবুক" to "অডিওবুক"
             "album" -> "অ্যালবাম" to "অ্যালবাম"
             "artist" -> "শিল্পী" to "শিল্পী"
             "genre" -> "ধরন" to "ধরন"
@@ -1145,6 +1173,7 @@ internal fun localizedCountLabel(
         AppLanguage.Ukrainian -> when (noun) {
             "song" -> "пісня" to "пісні"
             "track" -> "трек" to "треки"
+            "audiobook" -> "аудіокнига" to "аудіокниги"
             "album" -> "альбом" to "альбоми"
             "artist" -> "виконавець" to "виконавці"
             "genre" -> "жанр" to "жанри"
@@ -1153,6 +1182,7 @@ internal fun localizedCountLabel(
         AppLanguage.Urdu -> when (noun) {
             "song" -> "گانا" to "گانے"
             "track" -> "ٹریک" to "ٹریک"
+            "audiobook" -> "آڈیو بک" to "آڈیو بکس"
             "album" -> "البم" to "البمز"
             "artist" -> "آرٹسٹ" to "آرٹسٹس"
             "genre" -> "صنف" to "اصناف"
@@ -1161,6 +1191,7 @@ internal fun localizedCountLabel(
         AppLanguage.English -> when (noun) {
             "song" -> "song" to "songs"
             "track" -> "track" to "tracks"
+            "audiobook" -> "audiobook" to "audiobooks"
             "album" -> "album" to "albums"
             "artist" -> "artist" to "artists"
             "genre" -> "genre" to "genres"
@@ -1258,6 +1289,7 @@ private fun localizedComplexCountLabel(
     val forms = when (language) {
         AppLanguage.Croatian -> when (noun) {
             "song", "track" -> Triple("pjesma", "pjesme", "pjesama")
+            "audiobook" -> Triple("audioknjiga", "audioknjige", "audioknjiga")
             "album" -> Triple("album", "albuma", "albuma")
             "artist" -> Triple("izvođač", "izvođača", "izvođača")
             "genre" -> Triple("žanr", "žanra", "žanrova")
@@ -1265,6 +1297,7 @@ private fun localizedComplexCountLabel(
         }
         AppLanguage.Czech -> when (noun) {
             "song", "track" -> Triple("skladba", "skladby", "skladeb")
+            "audiobook" -> Triple("audiokniha", "audioknihy", "audioknih")
             "album" -> Triple("album", "alba", "albumů")
             "artist" -> Triple("umělec", "umělci", "umělců")
             "genre" -> Triple("žánr", "žánry", "žánrů")
@@ -1273,6 +1306,7 @@ private fun localizedComplexCountLabel(
         AppLanguage.Latvian -> when (noun) {
             "song" -> Triple("dziesma", "dziesmas", "dziesmu")
             "track" -> Triple("ieraksts", "ieraksti", "ierakstu")
+            "audiobook" -> Triple("audiogrāmata", "audiogrāmatas", "audiogrāmatu")
             "album" -> Triple("albums", "albumi", "albumu")
             "artist" -> Triple("mākslinieks", "mākslinieki", "mākslinieku")
             "genre" -> Triple("žanrs", "žanri", "žanru")
@@ -1281,6 +1315,7 @@ private fun localizedComplexCountLabel(
         AppLanguage.Lithuanian -> when (noun) {
             "song" -> Triple("daina", "dainos", "dainų")
             "track" -> Triple("takelis", "takeliai", "takelių")
+            "audiobook" -> Triple("audioknyga", "audioknygos", "audioknygų")
             "album" -> Triple("albumas", "albumai", "albumų")
             "artist" -> Triple("atlikėjas", "atlikėjai", "atlikėjų")
             "genre" -> Triple("žanras", "žanrai", "žanrų")
@@ -1288,6 +1323,7 @@ private fun localizedComplexCountLabel(
         }
         AppLanguage.Polish -> when (noun) {
             "song", "track" -> Triple("utwór", "utwory", "utworów")
+            "audiobook" -> Triple("audiobook", "audiobooki", "audiobooków")
             "album" -> Triple("album", "albumy", "albumów")
             "artist" -> Triple("artysta", "artyści", "artystów")
             "genre" -> Triple("gatunek", "gatunki", "gatunków")
@@ -1296,6 +1332,7 @@ private fun localizedComplexCountLabel(
         AppLanguage.Russian -> when (noun) {
             "song" -> Triple("песня", "песни", "песен")
             "track" -> Triple("трек", "трека", "треков")
+            "audiobook" -> Triple("аудиокнига", "аудиокниги", "аудиокниг")
             "album" -> Triple("альбом", "альбома", "альбомов")
             "artist" -> Triple("исполнитель", "исполнителя", "исполнителей")
             "genre" -> Triple("жанр", "жанра", "жанров")
@@ -1304,6 +1341,7 @@ private fun localizedComplexCountLabel(
         AppLanguage.Serbian -> when (noun) {
             "song" -> Triple("песма", "песме", "песама")
             "track" -> Triple("нумера", "нумере", "нумера")
+            "audiobook" -> Triple("аудиокњига", "аудиокњиге", "аудиокњига")
             "album" -> Triple("албум", "албуми", "албума")
             "artist" -> Triple("извођач", "извођачи", "извођача")
             "genre" -> Triple("жанр", "жанрови", "жанрова")
@@ -1311,6 +1349,7 @@ private fun localizedComplexCountLabel(
         }
         AppLanguage.Slovak -> when (noun) {
             "song", "track" -> Triple("skladba", "skladby", "skladieb")
+            "audiobook" -> Triple("audiokniha", "audioknihy", "audiokníh")
             "album" -> Triple("album", "albumy", "albumov")
             "artist" -> Triple("interpret", "interpreti", "interpretov")
             "genre" -> Triple("žáner", "žánre", "žánrov")
@@ -1319,6 +1358,7 @@ private fun localizedComplexCountLabel(
         AppLanguage.Ukrainian -> when (noun) {
             "song" -> Triple("пісня", "пісні", "пісень")
             "track" -> Triple("трек", "треки", "треків")
+            "audiobook" -> Triple("аудіокнига", "аудіокниги", "аудіокниг")
             "album" -> Triple("альбом", "альбоми", "альбомів")
             "artist" -> Triple("виконавець", "виконавці", "виконавців")
             "genre" -> Triple("жанр", "жанри", "жанрів")
@@ -1339,4 +1379,3 @@ private fun localizedComplexCountLabel(
     }
     return "$count $label"
 }
-

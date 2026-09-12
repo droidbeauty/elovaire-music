@@ -1,5 +1,6 @@
 import java.io.File
 import java.net.URI
+import java.security.MessageDigest
 import javax.xml.parsers.DocumentBuilderFactory
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -39,10 +40,14 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
             }
             if (file.extension == "xml") validateXml(file, violations)
         }
+        validateDuplicateResources(packagedFiles, violations)
         val inspectedFiles = packagedFiles + sourceFiles.files.filter { it.isFile }
         inspectedFiles.forEach { file ->
             if (file.extension in TEXT_EXTENSIONS) {
                 val text = file.readText()
+                if (file.extension in SOURCE_EXTENSIONS && "getIdentifier(" in text) {
+                    violations += "Resource lookup must use typed references instead of getIdentifier(): ${file.invariantSeparatorsPath}"
+                }
                 FORBIDDEN_RELEASE_CONTENT.firstOrNull(text::contains)
                     ?.takeUnless { marker -> file.name == "LrclibClient.kt" && marker == "lrclib.net" }
                     ?.let { marker ->
@@ -56,6 +61,19 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
         }
         validateProfiles(violations)
         if (violations.isNotEmpty()) throw GradleException(violations.joinToString(separator = "\n"))
+    }
+
+    private fun validateDuplicateResources(files: Collection<File>, violations: MutableList<String>) {
+        files.asSequence()
+            .filter { it.isFile && it.extension in STATIC_RESOURCE_EXTENSIONS }
+            .mapNotNull { file -> normalizedResourceSignature(file)?.let { signature -> signature to file } }
+            .groupBy({ it.first }, { it.second })
+            .values
+            .filter { it.size > 1 }
+            .filterNot { files -> files.mapTo(mutableSetOf(), File::getName) in ALLOWED_DUPLICATE_RESOURCE_GROUPS }
+            .forEach { files ->
+                violations += "Duplicate packaged resource content: ${files.joinToString { it.invariantSeparatorsPath }}"
+            }
     }
 
     private fun validateXml(file: File, violations: MutableList<String>) {
@@ -124,6 +142,11 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
         )
         val PROFILE_CLASS = Regex("""^L([^;]+);""")
         val TEXT_EXTENSIONS = setOf("kt", "kts", "xml", "txt", "json", "properties")
+        val SOURCE_EXTENSIONS = setOf("kt", "kts", "java")
+        val STATIC_RESOURCE_EXTENSIONS = setOf("xml", "png", "webp", "jpg", "jpeg", "gif", "ttf", "otf")
+        val ALLOWED_DUPLICATE_RESOURCE_GROUPS = setOf(
+            setOf("ic_launcher.xml", "ic_launcher_round.xml"),
+        )
         val REQUIRED_LICENSE_FILES = setOf(
             "APACHE-2.0.txt",
             "GEIST_LICENSE.txt",
@@ -164,6 +187,48 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
             "CoverArtArchiveProvider",
             "FingerprintAlbumTagMatcher",
         )
+    }
+}
+
+internal fun normalizedResourceSignature(file: File): String? {
+    val canonicalBytes = if (file.extension == "xml") {
+        runCatching {
+            val document = DocumentBuilderFactory.newInstance().apply {
+                isNamespaceAware = true
+                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            }.newDocumentBuilder().parse(file)
+            buildString { appendCanonicalXml(document.documentElement, this) }
+        }.getOrNull()?.toByteArray(Charsets.UTF_8) ?: return null
+    } else {
+        file.readBytes()
+    }
+    return MessageDigest.getInstance("SHA-256")
+        .digest(canonicalBytes)
+        .joinToString("") { byte -> "%02x".format(byte) }
+}
+
+private fun appendCanonicalXml(node: org.w3c.dom.Node, output: StringBuilder) {
+    when (node.nodeType) {
+        org.w3c.dom.Node.ELEMENT_NODE -> {
+            output.append('<').append(node.nodeName)
+            val attributes = node.attributes
+            (0 until attributes.length)
+                .map { attributes.item(it) }
+                .sortedBy { it.nodeName }
+                .forEach { attribute ->
+                    output.append(' ').append(attribute.nodeName).append('=').append(attribute.nodeValue)
+                }
+            output.append('>')
+            val children = node.childNodes
+            for (index in 0 until children.length) {
+                appendCanonicalXml(children.item(index), output)
+            }
+            output.append("</").append(node.nodeName).append('>')
+        }
+
+        org.w3c.dom.Node.TEXT_NODE,
+        org.w3c.dom.Node.CDATA_SECTION_NODE,
+        -> if (!node.nodeValue.isNullOrBlank()) output.append(node.nodeValue)
     }
 }
 

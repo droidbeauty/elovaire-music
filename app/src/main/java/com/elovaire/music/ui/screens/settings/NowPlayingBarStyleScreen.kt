@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingStyleDescription
 import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -69,7 +70,7 @@ internal fun NowPlayingBarStyleScreen(
             item {
                 StyleOptionCard(
                     title = copy.floating,
-                    subtitle = "A floating player above the navigation bar",
+                    subtitle = nowPlayingStyleDescription(LocalAppLanguage.current, compact = false),
                     style = NowPlayingBarStyle.Floating,
                     selectedStyle = selectedStyle,
                     onClick = { onStyleSelected(NowPlayingBarStyle.Floating) },
@@ -78,7 +79,7 @@ internal fun NowPlayingBarStyleScreen(
             item {
                 StyleOptionCard(
                     title = copy.compact,
-                    subtitle = "An edge-to-edge player directly above the navigation bar",
+                    subtitle = nowPlayingStyleDescription(LocalAppLanguage.current, compact = true),
                     style = NowPlayingBarStyle.Compact,
                     selectedStyle = selectedStyle,
                     onClick = { onStyleSelected(NowPlayingBarStyle.Compact) },

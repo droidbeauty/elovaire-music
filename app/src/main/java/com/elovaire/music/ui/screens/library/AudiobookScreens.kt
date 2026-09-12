@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +74,7 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookFinishedLabel
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -629,6 +631,7 @@ private fun AudiobookGridCard(
 internal fun AudiobookDetailScreen(
     book: Audiobook,
     currentSongId: Long?,
+    isPlaying: Boolean,
     progressMs: Long,
     savedProgress: AudiobookProgress?,
     descriptionState: AudiobookDescriptionLoadState,
@@ -658,9 +661,6 @@ internal fun AudiobookDetailScreen(
     }
     val activeSongId = resolvedProgress.songId
     val currentPart = resolvedProgress.partIndex
-    val currentPartDuration = currentPart?.let { book.parts.getOrNull(it)?.durationMs } ?: 0L
-    val elapsedBookMs = resolvedProgress.bookElapsedMs
-    val bookProgress = resolvedProgress.progressFraction
     val isCompleted = resolvedProgress.completed && activeSongId != currentSongId
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -674,7 +674,7 @@ internal fun AudiobookDetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+                    .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -708,40 +708,12 @@ internal fun AudiobookDetailScreen(
                 }
             }
         }
-        item(key = "audiobook_detail_progress") {
-            if (currentPart != null && (currentPartDuration > 0L || book.durationMs > 0L)) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    LinearProgressIndicator(
-                        progress = { bookProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            formatDuration(elapsedBookMs),
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = readableSecondaryTextColor(),
-                        )
-                        Text(
-                            formatDuration((book.durationMs - elapsedBookMs).coerceAtLeast(0L)),
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = readableSecondaryTextColor(),
-                        )
-                    }
-                }
-            }
-        }
         item(key = "audiobook_detail_controls") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(top = 10.dp),
+                    .padding(top = 0.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 AudiobookActionButton(
@@ -836,6 +808,9 @@ internal fun AudiobookDetailScreen(
                 part = part,
                 number = part.number,
                 selected = index == currentPart,
+                progress = audiobookPartProgress(index, part, resolvedProgress, partPrefixDurations),
+                isPlaying = index == currentPart && isPlaying,
+                finishedLabel = audiobookFinishedLabel(LocalAppLanguage.current),
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                 onClick = { onPlay(part, false) },
             )
@@ -1095,6 +1070,9 @@ private fun AudiobookPartRow(
     part: AudiobookPart,
     number: Int,
     selected: Boolean,
+    progress: Float,
+    isPlaying: Boolean,
+    finishedLabel: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1124,8 +1102,49 @@ private fun AudiobookPartRow(
                 color = readableSecondaryTextColor(),
             )
         }
-        if (selected) {
-            Icon(painter = painterResource(R.drawable.ic_lucide_play), contentDescription = null, modifier = Modifier.size(18.dp))
+        when {
+            isPlaying -> AnimatedAudioLinesIcon(
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                animate = true,
+                modifier = Modifier.size(20.dp),
+            )
+            progress >= 1f -> Surface(
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+            ) {
+                Text(
+                    text = finishedLabel.uppercase(),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = readableSecondaryTextColor(),
+                )
+            }
+            else -> CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onSurface,
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            )
         }
+    }
+}
+
+private fun audiobookPartProgress(
+    index: Int,
+    part: AudiobookPart,
+    resolvedProgress: elovaire.music.droidbeauty.app.data.playback.ResolvedAudiobookProgress,
+    partPrefixDurations: LongArray,
+): Float {
+    val durationMs = part.durationMs.coerceAtLeast(0L)
+    if (durationMs == 0L) return 0f
+    val startMs = partPrefixDurations.getOrNull(index) ?: return 0f
+    val elapsedMs = resolvedProgress.bookElapsedMs
+    return when {
+        elapsedMs >= startMs + durationMs -> 1f
+        index == resolvedProgress.partIndex -> {
+            ((elapsedMs - startMs).toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        }
+        else -> 0f
     }
 }

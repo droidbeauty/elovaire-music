@@ -879,7 +879,7 @@ private fun DiscSectionHeader(
 }
 
 @Composable
-private fun AnimatedAudioLinesIcon(
+internal fun AnimatedAudioLinesIcon(
     tint: Color,
     animate: Boolean = true,
     modifier: Modifier = Modifier,

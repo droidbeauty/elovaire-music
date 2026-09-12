@@ -211,7 +211,7 @@ private fun StandaloneNowPlayingDock(
                             .fillMaxWidth()
                             .height(72.dp)
                             .blur(48.dp),
-                        alpha = 0.9f,
+                        alpha = 1f,
                     )
                 }
                 Box(
@@ -294,7 +294,7 @@ private fun CompactNowPlayingBar(
                             .fillMaxWidth()
                             .height(60.dp)
                             .blur(48.dp),
-                        alpha = 0.9f,
+                        alpha = 1f,
                     )
                 }
                 Box(

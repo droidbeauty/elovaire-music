@@ -326,6 +326,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
+import elovaire.music.droidbeauty.app.ui.screens.LocalPlayerHazeState
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
@@ -1689,7 +1690,8 @@ private fun QueueSheet(
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
-    val queueEdgeHazeState = rememberHazeState()
+    val localQueueHazeState = rememberHazeState()
+    val queueEdgeHazeState = LocalPlayerHazeState.current ?: localQueueHazeState
     val motionSpecs = rememberMotionSpecs()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
@@ -1705,7 +1707,14 @@ private fun QueueSheet(
     }
     Box(
         modifier = modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .then(
+                if (LocalPlayerHazeState.current == null) {
+                    Modifier.hazeSource(localQueueHazeState, zIndex = -1f)
+                } else {
+                    Modifier
+                },
+            ),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -1990,7 +1999,6 @@ private fun QueueSongList(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(queueEdgeHazeState)
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -2074,7 +2082,7 @@ internal fun BoxScope.QueueEdgeHaze(
                     startIntensity = startIntensity,
                     endIntensity = endIntensity,
                 )
-                blurRadius = 20.dp
+                blurRadius = 34.dp
                 backgroundColor = surface.copy(alpha = 0.42f)
                 tints = listOf(
                     HazeTint(surface.copy(alpha = 0.12f)),

@@ -167,3 +167,40 @@ internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCo
     AppLanguage.Ukrainian -> NowPlayingBarStyleCopy("Стиль панелі відтворення", "Налаштуйте модуль відтворення", "Плаваючий", "Компактний")
     AppLanguage.Urdu -> NowPlayingBarStyleCopy("اب چلنے والی بار کا انداز", "اب چلنے والے ماڈیول کو حسبِ ضرورت بنائیں", "فلوٹنگ", "کمپیکٹ")
 }
+
+@Suppress("CyclomaticComplexMethod")
+internal fun nowPlayingStyleDescription(language: AppLanguage, compact: Boolean): String = when (language) {
+    AppLanguage.Albanian -> if (compact) "Luajtës nga skaji në skaj direkt mbi shiritin e navigimit" else "Luajtës lundrues mbi shiritin e navigimit"
+    AppLanguage.Bengali -> if (compact) "নেভিগেশন বারের ঠিক উপরে প্রান্ত-থেকে-প্রান্ত প্লেয়ার" else "নেভিগেশন বারের উপরে ভাসমান প্লেয়ার"
+    AppLanguage.ChineseSimplified -> if (compact) "紧贴导航栏上方的全宽播放器" else "位于导航栏上方的浮动播放器"
+    AppLanguage.Croatian -> if (compact) "Player od ruba do ruba izravno iznad navigacijske trake" else "Plutajući player iznad navigacijske trake"
+    AppLanguage.Czech -> if (compact) "Přehrávač přes celou šířku přímo nad navigační lištou" else "Plovoucí přehrávač nad navigační lištou"
+    AppLanguage.Danish -> if (compact) "Kant-til-kant-afspiller lige over navigationslinjen" else "Flydende afspiller over navigationslinjen"
+    AppLanguage.Dutch -> if (compact) "Rand-tot-randspeler direct boven de navigatiebalk" else "Zwevende speler boven de navigatiebalk"
+    AppLanguage.English -> if (compact) "An edge-to-edge player directly above the navigation bar" else "A floating player above the navigation bar"
+    AppLanguage.Estonian -> if (compact) "Servast servani mängija otse navigeerimisriba kohal" else "Hõljuv mängija navigeerimisriba kohal"
+    AppLanguage.French -> if (compact) "Un lecteur bord à bord juste au-dessus de la barre de navigation" else "Un lecteur flottant au-dessus de la barre de navigation"
+    AppLanguage.German -> if (compact) "Ein randloser Player direkt über der Navigationsleiste" else "Ein schwebender Player über der Navigationsleiste"
+    AppLanguage.Greek -> if (compact) "Πρόγραμμα αναπαραγωγής από άκρη σε άκρη ακριβώς πάνω από τη γραμμή πλοήγησης" else "Αιωρούμενο πρόγραμμα αναπαραγωγής πάνω από τη γραμμή πλοήγησης"
+    AppLanguage.Hindi -> if (compact) "नेविगेशन बार के ठीक ऊपर किनारे से किनारे तक प्लेयर" else "नेविगेशन बार के ऊपर फ्लोटिंग प्लेयर"
+    AppLanguage.Hungarian -> if (compact) "Teljes szélességű lejátszó közvetlenül a navigációs sáv felett" else "Lebegő lejátszó a navigációs sáv felett"
+    AppLanguage.Italian -> if (compact) "Un lettore da bordo a bordo direttamente sopra la barra di navigazione" else "Un lettore fluttuante sopra la barra di navigazione"
+    AppLanguage.Japanese -> if (compact) "ナビゲーションバーのすぐ上に表示する全幅プレーヤー" else "ナビゲーションバーの上に浮かぶプレーヤー"
+    AppLanguage.Korean -> if (compact) "내비게이션 바 바로 위에 표시되는 전체 너비 플레이어" else "내비게이션 바 위에 떠 있는 플레이어"
+    AppLanguage.Latin -> if (compact) "Lusor per totam latitudinem directe supra vectem navigationis" else "Lusor fluitans supra vectem navigationis"
+    AppLanguage.Latvian -> if (compact) "No malas līdz malai tieši virs navigācijas joslas" else "Peldošs atskaņotājs virs navigācijas joslas"
+    AppLanguage.Lithuanian -> if (compact) "Per visą plotį iškart virš naršymo juostos" else "Slankusis grotuvas virš naršymo juostos"
+    AppLanguage.Macedonian -> if (compact) "Плеер од раб до раб директно над лентата за навигација" else "Пловечки плеер над лентата за навигација"
+    AppLanguage.Malay -> if (compact) "Pemain dari hujung ke hujung terus di atas bar navigasi" else "Pemain terapung di atas bar navigasi"
+    AppLanguage.Norwegian -> if (compact) "Kant-til-kant-spiller rett over navigasjonslinjen" else "Flytende spiller over navigasjonslinjen"
+    AppLanguage.Polish -> if (compact) "Odtwarzacz od krawędzi do krawędzi bezpośrednio nad paskiem nawigacji" else "Pływający odtwarzacz nad paskiem nawigacji"
+    AppLanguage.Portuguese -> if (compact) "Um leitor de largura total diretamente acima da barra de navegação" else "Um leitor flutuante acima da barra de navegação"
+    AppLanguage.Russian -> if (compact) "Проигрыватель на всю ширину прямо над панелью навигации" else "Плавающий проигрыватель над панелью навигации"
+    AppLanguage.Serbian -> if (compact) "Плејер од ивице до ивице директно изнад траке за навигацију" else "Плутајући плејер изнад траке за навигацију"
+    AppLanguage.Slovak -> if (compact) "Prehrávač cez celú šírku priamo nad navigačnou lištou" else "Plávajúci prehrávač nad navigačnou lištou"
+    AppLanguage.Spanish -> if (compact) "Un reproductor de borde a borde justo encima de la barra de navegación" else "Un reproductor flotante sobre la barra de navegación"
+    AppLanguage.Swedish -> if (compact) "En kant-till-kant-spelare direkt ovanför navigeringsfältet" else "En flytande spelare ovanför navigeringsfältet"
+    AppLanguage.Thai -> if (compact) "เครื่องเล่นเต็มความกว้างที่อยู่เหนือแถบนำทางโดยตรง" else "เครื่องเล่นแบบลอยเหนือแถบนำทาง"
+    AppLanguage.Ukrainian -> if (compact) "Програвач на всю ширину безпосередньо над панеллю навігації" else "Плаваючий програвач над панеллю навігації"
+    AppLanguage.Urdu -> if (compact) "نیویگیشن بار کے بالکل اوپر کنارے سے کنارے تک پلیئر" else "نیویگیشن بار کے اوپر تیرتا ہوا پلیئر"
+}

@@ -150,6 +150,7 @@ internal fun AudiobookDetailRouteHost(
     AudiobookDetailScreen(
         book = displayedBook,
         currentSongId = routeState.playbackState.currentSong?.id,
+        isPlaying = routeState.playbackState.isPlaying,
         progressMs = progress.positionMs,
         savedProgress = savedProgress,
         descriptionState = descriptionState,

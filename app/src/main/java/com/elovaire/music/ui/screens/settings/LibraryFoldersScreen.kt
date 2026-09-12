@@ -73,6 +73,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
 import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
@@ -116,8 +117,8 @@ internal fun LibraryFoldersScreen(
     val motionSpecs = rememberMotionSpecs()
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val sourceChooserHazeState = rememberHazeState()
-    val songCountsByFolder = remember(folders, songs) {
-        folders.associateWith { folder -> songs.countInFolder(folder) }
+    val songsByFolder = remember(folders, songs) {
+        folders.associateWith { folder -> songs.songsInFolder(folder) }
     }
     var editMode by rememberSaveable { mutableStateOf(false) }
     var showSourceChooser by rememberSaveable { mutableStateOf(false) }
@@ -237,6 +238,10 @@ internal fun LibraryFoldersScreen(
                     contentType = { "library-folder-row" },
                 ) { folder ->
                     val unavailable = remember(folder, context) { !folder.isAvailable(context) }
+                    val folderSongs = songsByFolder[folder].orEmpty()
+                    val isAudiobookFolder = folder.displayName.contains("audiobook", ignoreCase = true) ||
+                        folder.path.contains("audiobook", ignoreCase = true) ||
+                        folderSongs.any { it.mediaKind == AudioMediaKind.Audiobook }
                     LibraryFolderListRow(
                         title = folder.displayName,
                         subtitle = if (unavailable) {
@@ -244,7 +249,11 @@ internal fun LibraryFoldersScreen(
                         } else {
                             folder.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath) ?: folder.displayName
                         },
-                        songCountLabel = localizedCountLabel(songCountsByFolder[folder] ?: 0, "song", appLanguage),
+                        songCountLabel = localizedCountLabel(
+                            folderSongs.size,
+                            if (isAudiobookFolder) "audiobook" else "song",
+                            appLanguage,
+                        ),
                         trailingLabel = if (unavailable) copy.unavailable else null,
                         showRemove = editMode,
                         removeLabel = uiPhrase(appLanguage, UiPhrase.Delete),
@@ -1024,7 +1033,7 @@ private fun LibraryFolderListRow(
     )
 }
 
-internal fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int {
+internal fun List<Song>.songsInFolder(folder: LibraryFolderSelection): List<Song> {
     val folderPaths = buildSet<String> {
         folder.uri?.let { add(LibraryFolderSelectionResolver.safSyntheticRoot(it)) }
         folder.path
@@ -1032,14 +1041,16 @@ internal fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int {
             ?.takeIf(String::isNotBlank)
             ?.let { add(LibraryFolderSelectionResolver.normalizedPathKey(it)) }
     }
-    if (folderPaths.isEmpty()) return 0
-    return count { song ->
-        val songPath = song.libraryPath?.let(LibraryFolderSelectionResolver::normalizedPathKey) ?: return@count false
+    if (folderPaths.isEmpty()) return emptyList()
+    return filter { song ->
+        val songPath = song.libraryPath?.let(LibraryFolderSelectionResolver::normalizedPathKey) ?: return@filter false
         folderPaths.any { folderPath ->
             songPath == folderPath || songPath.startsWith("$folderPath/")
         }
     }
 }
+
+internal fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int = songsInFolder(folder).size
 
 @Composable
 internal fun SettingNavigationRow(

@@ -864,7 +864,7 @@ private fun AboutEntryLogo(
         if (title == "Droid Beauty") {
             R.drawable.droid_beauty_logo
         } else {
-            context.resolveAboutLogoDrawableRes(logoUri)
+            resolveAboutLogoDrawableRes(logoUri)
         }
     }
     val logoBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
@@ -1089,7 +1089,7 @@ private fun Context.openAboutLink(url: String) {
 private const val ABOUT_LOGO_TARGET_PX = 320
 private val aboutLogoImageCache = android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(8)
 
-private fun Context.resolveAboutLogoDrawableRes(logoUri: String?): Int? {
+private fun resolveAboutLogoDrawableRes(logoUri: String?): Int? {
     val source = logoUri?.trim()?.takeIf { it.isNotBlank() } ?: return null
     val drawableName = when {
         source.startsWith("@drawable/") -> source.substringAfter("@drawable/")
@@ -1102,8 +1102,7 @@ private fun Context.resolveAboutLogoDrawableRes(logoUri: String?): Int? {
         ?.trim()
         ?.takeIf { it.isNotBlank() }
         ?: return null
-    return resources.getIdentifier(drawableName, "drawable", packageName)
-        .takeIf { it != 0 }
+    return if (drawableName == "droid_beauty_logo") R.drawable.droid_beauty_logo else null
 }
 
 @Composable

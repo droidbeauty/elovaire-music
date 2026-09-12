@@ -35,6 +35,7 @@ import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistDescription
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
@@ -217,7 +218,7 @@ internal fun SmartPlaylistSettingsScreen(
             modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
-                top = topBarOccupiedHeight() + 8.dp,
+                top = topBarOccupiedHeight() + 20.dp,
                 end = 18.dp,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
@@ -225,12 +226,12 @@ internal fun SmartPlaylistSettingsScreen(
         ) {
             item {
                 ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionTitleRow(title = copy.availableMixes, compact = true)
                         BuiltInSmartPlaylistType.entries.forEach { type ->
                             SettingToggleRow(
                                 title = builtInSmartPlaylistTitle(type, language),
-                                subtitle = copy.availableMixes,
+                                subtitle = smartPlaylistDescription(type, language),
                                 enabled = type in enabledTypes,
                                 onEnabledChanged = { enabled -> onTypeEnabledChanged(type, enabled) },
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
@@ -242,12 +243,17 @@ internal fun SmartPlaylistSettingsScreen(
             item {
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        SectionTitleRow(title = copy.maximumSongs, compact = true)
-                        Text(
-                            text = copy.maximumSongsSubtitle,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+                            Text(
+                                text = copy.maximumSongs,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                text = copy.maximumSongsSubtitle,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,
