@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
@@ -82,6 +83,7 @@ internal class MediaMutationJournal(
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : Closeable {
     private val transitionMutex = Mutex()
     private val closed = AtomicBoolean(false)
@@ -270,19 +272,19 @@ internal class MediaMutationJournal(
         }
     }
 
+    private fun updateActiveMutationResource() {
+        resourceTracker.set(
+            BackendResourceKind.ActiveMutation,
+            activeMutationOwners.count { (mutationId, owner) ->
+                val journal = owner.get()
+                journal != null && !journal.closed.get() &&
+                    journal.ownedMutationIds.contains(mutationId)
+            },
+        )
+    }
+
     private companion object {
         val activeMutationOwners = ConcurrentHashMap<String, WeakReference<MediaMutationJournal>>()
-
-        fun updateActiveMutationResource() {
-            BackendResourceRegistry.set(
-                BackendResourceKind.ActiveMutation,
-                activeMutationOwners.count { (mutationId, owner) ->
-                    val journal = owner.get()
-                    journal != null && !journal.closed.get() &&
-                        journal.ownedMutationIds.contains(mutationId)
-                },
-            )
-        }
     }
 }
 

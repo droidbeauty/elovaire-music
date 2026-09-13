@@ -25,13 +25,13 @@ internal class PlaybackSessionStore(
     private val committedPreferences = allowStrictModeDiskReads {
         context.applicationContext.getSharedPreferences(COMMITTED_FILE_NAME, Context.MODE_PRIVATE)
     }
-    private val structurePreferences = allowStrictModeDiskReads {
+    private val structurePreferences by lazy(LazyThreadSafetyMode.NONE) {
         context.applicationContext.getSharedPreferences(STRUCTURE_FILE_NAME, Context.MODE_PRIVATE)
     }
-    private val recoveryPreferences = allowStrictModeDiskReads {
+    private val recoveryPreferences by lazy(LazyThreadSafetyMode.NONE) {
         context.applicationContext.getSharedPreferences(RECOVERY_FILE_NAME, Context.MODE_PRIVATE)
     }
-    private val legacyPreferences = allowStrictModeDiskReads {
+    private val legacyPreferences by lazy(LazyThreadSafetyMode.NONE) {
         context.applicationContext.getSharedPreferences(LEGACY_FILE_NAME, Context.MODE_PRIVATE)
     }
     private var lastSavedSession: PersistedPlaybackSession? = null

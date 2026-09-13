@@ -31,13 +31,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
+private val remoteArtworkTransport = BoundedHttpTransport(
+    connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
+    readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
+)
+
 internal data class ArtworkRequestKey(
     val uri: Uri,
     val targetPx: Int,
     val purpose: ArtworkPurpose,
 ) {
-    val cacheKey: String
-        get() = "$uri|$targetPx|${purpose.name}"
+    val cacheKey: String = "$uri|$targetPx|${artworkDecodeProfile(uri, purpose)}"
 }
 
 internal enum class ArtworkPurpose {
@@ -93,6 +97,15 @@ internal fun shouldUseContentResolverThumbnail(
     purpose: ArtworkPurpose,
 ): Boolean {
     return purpose != ArtworkPurpose.Notification && !isLikelyAudioMediaUri(uri)
+}
+
+private fun artworkDecodeProfile(uri: Uri, purpose: ArtworkPurpose): String {
+    val config = when (bitmapConfigForPurpose(purpose)) {
+        Bitmap.Config.RGB_565 -> "rgb565"
+        else -> "argb8888"
+    }
+    val source = if (shouldUseContentResolverThumbnail(uri, purpose)) "thumbnail" else "stream"
+    return "$config-$source"
 }
 
 internal fun loadArtworkBitmap(
@@ -229,10 +242,7 @@ private fun decodeBitmapStream(
 private fun downloadRemoteArtwork(uri: Uri): ByteArray? {
     val response = ElovaireTrace.section("artwork_remote_fetch") {
         runCatching {
-            BoundedHttpTransport(
-                connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
-                readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
-            ).getBlocking(
+            remoteArtworkTransport.getBlocking(
                 rawUrl = uri.toString(),
                 headers = mapOf("Accept" to "image/*"),
                 maxBytes = MAX_REMOTE_ARTWORK_BYTES,
@@ -408,7 +418,7 @@ internal object ArtworkBitmapCache {
         requestedSize: Int,
         purpose: ArtworkPurpose,
     ): Bitmap? {
-        val sizes = indexedBitmaps["$uri|${purpose.name}"] ?: return null
+        val sizes = indexedBitmaps["$uri|${artworkDecodeProfile(uri, purpose)}"] ?: return null
         return sizes.ceilingEntry(requestedSize)?.value ?: sizes.lastEntry()?.value
     }
 
@@ -418,14 +428,7 @@ internal object ArtworkBitmapCache {
         requestedSize: Int,
         purpose: ArtworkPurpose,
     ): Bitmap? {
-        val config = bitmapConfigForPurpose(purpose)
-        val usesThumbnail = shouldUseContentResolverThumbnail(uri, purpose)
-        for (candidate in ArtworkPurpose.entries) {
-            if (candidate == purpose || bitmapConfigForPurpose(candidate) != config) continue
-            if (shouldUseContentResolverThumbnail(uri, candidate) != usesThumbnail) continue
-            indexedBitmaps["$uri|${candidate.name}"]?.get(requestedSize)?.let { return it }
-        }
-        return null
+        return indexedBitmaps["$uri|${artworkDecodeProfile(uri, purpose)}"]?.get(requestedSize)
     }
 
     fun put(key: String, bitmap: Bitmap) {

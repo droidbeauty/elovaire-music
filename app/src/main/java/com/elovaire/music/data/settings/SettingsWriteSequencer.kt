@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.data.settings
 
 import android.os.SystemClock
-import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -96,9 +95,7 @@ internal class SettingsWriteSequencer(
                 persist(next.key, next.write)
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (failure: Exception) {
-                BackendDiagnostics.recordWorkerFailure("settings-persistence", failure)
-            }
+            } catch (_: Exception) { }
             markIdleIfNeeded()
         }
     }

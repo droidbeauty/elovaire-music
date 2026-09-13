@@ -4,6 +4,9 @@ import android.content.Context
 import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -23,10 +26,11 @@ internal class MediaStoreScanner(
     private val context: Context,
     indexRefresher: MediaStoreIndexRefresher? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
-    private val localMetadataReader = LocalAudioMetadataReader(context)
+    private val localMetadataReader = LocalAudioMetadataReader(context, resourceTracker)
     private val scanRoots = LibraryScanRoots()
     private val mediaStoreIndexer = indexRefresher ?: MediaStoreIndexer(
         context = context,

@@ -39,7 +39,8 @@ class SearchViewModelTest {
             val handle = SavedStateHandle()
             val firstViewModel = SearchViewModel(
                 libraryRepository = library,
-                preferenceStore = settings,
+                playbackHistory = settings,
+                searchHistory = settings,
                 playbackReader = FakePlaybackReader(),
                 defaultDispatcher = mainDispatcherRule.dispatcher,
                 savedStateHandle = handle,
@@ -56,7 +57,8 @@ class SearchViewModelTest {
 
             val recreatedViewModel = SearchViewModel(
                 libraryRepository = library,
-                preferenceStore = settings,
+                playbackHistory = settings,
+                searchHistory = settings,
                 playbackReader = FakePlaybackReader(),
                 defaultDispatcher = mainDispatcherRule.dispatcher,
                 savedStateHandle = handle,

@@ -18,12 +18,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.LibraryActionDependencies
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.library.DeviceDeletePlan
+import elovaire.music.droidbeauty.app.data.library.DeviceDeleteHandler
 import elovaire.music.droidbeauty.app.data.library.LibraryActionController
 import elovaire.music.droidbeauty.app.data.library.LibraryRefreshIntent
 import elovaire.music.droidbeauty.app.data.library.LibraryRefreshReason
@@ -60,12 +61,12 @@ internal class RootPermissionController internal constructor(
 
 @Composable
 internal fun rememberRootPermissionController(
-    container: AppContainer,
+    libraryActionDependencies: LibraryActionDependencies,
     libraryState: LibraryUiState,
 ): RootPermissionController {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val networkSources by container.libraryActionDependencies.networkSources.collectAsStateWithLifecycle()
+    val networkSources by libraryActionDependencies.networkSources.collectAsStateWithLifecycle()
     var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
     var hasLocalPermission by remember { mutableStateOf(context.hasLocalNetworkPermission()) }
     var localPermissionRequested by rememberSaveable { mutableStateOf(false) }
@@ -77,7 +78,7 @@ internal fun rememberRootPermissionController(
         hasPermission = granted
         if (syncedAudioPermission != granted) {
             syncedAudioPermission = granted
-            container.libraryActionDependencies.libraryController.onPermissionChanged(granted)
+            libraryActionDependencies.libraryController.onPermissionChanged(granted)
         }
     }
 
@@ -97,7 +98,7 @@ internal fun rememberRootPermissionController(
     ) { granted ->
         localPermissionRequested = true
         if (syncLocalNetworkPermission(granted) && hasPermission) {
-            requestPermissionReconciliation(container.libraryActionDependencies.libraryController)
+            requestPermissionReconciliation(libraryActionDependencies.libraryController)
         }
     }
 
@@ -115,7 +116,7 @@ internal fun rememberRootPermissionController(
                 }
                 val localPermissionChanged = syncLocalNetworkPermission(refreshedLocalPermission)
                 if (refreshedAudioPermission && localPermissionChanged) {
-                    requestPermissionReconciliation(container.libraryActionDependencies.libraryController)
+                    requestPermissionReconciliation(libraryActionDependencies.libraryController)
                 }
             }
         }
@@ -220,11 +221,10 @@ internal class RootDeleteController internal constructor(
 
 @Composable
 internal fun rememberRootDeleteController(
-    container: AppContainer,
+    deleteCoordinator: DeviceDeleteHandler,
 ): RootDeleteController {
     val context = LocalContext.current
     val rootScope = androidx.compose.runtime.rememberCoroutineScope()
-    val deleteCoordinator = container.rootDeleteDependencies.deleteHandler
     var pendingSongDeletion by remember { mutableStateOf<DeviceDeletePlan?>(null) }
     var pendingDeleteStateLoaded by remember { mutableStateOf(false) }
 
@@ -258,7 +258,7 @@ internal fun rememberRootDeleteController(
         }
     }
 
-    return remember(container, context, deleteSongLauncher) {
+    return remember(deleteCoordinator, context, deleteSongLauncher) {
         RootDeleteController(
             deleteSongsAction = deleteSongsCallback,
             deleteAlbumAction = { album ->

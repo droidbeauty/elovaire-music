@@ -26,7 +26,6 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCommand
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCommandOrigin
 import elovaire.music.droidbeauty.app.data.playback.pendingMediaButtonResumption
@@ -36,15 +35,17 @@ import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 
 @OptIn(UnstableApi::class)
 internal class ElovaireMediaLibrarySessionCallback(
-    private val browser: MediaLibraryBrowser,
-    private val commandResolver: MediaLibraryCommandResolver,
-    private val playbackManager: PlaybackManager,
+    private val catalog: MediaCatalogPort,
+    private val playback: MediaPlaybackPort,
     private val readExecutor: MediaLibraryReadExecutor = MediaLibraryReadExecutor(),
-    private val startupReady: ListenableFuture<Unit> = Futures.immediateFuture(Unit),
-    private val startupOperational: () -> Boolean = { true },
+    private val readiness: MediaLibraryReadinessPort = StartupReadinessPort(),
 ) : MediaLibrarySession.Callback {
     private val queueResolutionGeneration = AtomicLong(0L)
     private val searchResults = MediaLibrarySearchCache()
+    private val playerHandler = android.os.Handler(playback.applicationLooper)
+    private val playerExecutor = Executor { command ->
+        if (!playerHandler.post(command)) throw RejectedExecutionException("Player looper is unavailable")
+    }
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -67,7 +68,7 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return submitRead {
-            LibraryResult.ofItemList(browser.childrenOfPage(parsed, page, pageSize), params)
+            LibraryResult.ofItemList(catalog.childrenOfPage(parsed, page, pageSize), params)
         }
     }
 
@@ -77,7 +78,7 @@ internal class ElovaireMediaLibrarySessionCallback(
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
         return submitRead {
-            val item = browser.item(mediaId)
+            val item = catalog.item(mediaId)
                 ?: return@submitRead LibraryResult.ofError(invalidMediaIdError())
             LibraryResult.ofItem(item, null)
         }
@@ -93,11 +94,11 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         val count = submitRead {
-            searchResults.getCount(browser, query, this.browser.searchRevision()) {
-                this.browser.searchCount(query)
+            searchResults.getCount(browser, query, catalog.searchRevision()) {
+                catalog.searchCount(query)
             }
         }
-        return transformOnPlayerLooper(session, count) { itemCount ->
+        return transformOnPlayerLooper(count) { itemCount ->
             session.notifySearchResultChanged(browser, query, itemCount, params)
             LibraryResult.ofVoid(params)
         }
@@ -125,11 +126,11 @@ internal class ElovaireMediaLibrarySessionCallback(
             val items = searchResults.getPage(
                 controller = controller,
                 query = query,
-                revision = this.browser.searchRevision(),
+                revision = catalog.searchRevision(),
                 offset = offset.toInt(),
                 limit = pageSize,
             ) {
-                this.browser.searchPage(query, offset.toInt(), pageSize)
+                catalog.searchPage(query, offset.toInt(), pageSize)
             }
             LibraryResult.ofItemList(
                 ImmutableList.copyOf(items),
@@ -152,27 +153,21 @@ internal class ElovaireMediaLibrarySessionCallback(
         val requestGeneration = queueResolutionGeneration.incrementAndGet()
         val resolved = submitRead {
             requested?.let {
-                commandResolver.resolvePlayableQueue(it.mediaId)
-                    ?: it.requestMetadata.searchQuery?.let(commandResolver::resolveSearchQueue)
-                    ?: commandResolver.defaultPlayableQueue().takeIf { _ ->
+                catalog.resolvePlayableQueue(it.mediaId)
+                    ?: it.requestMetadata.searchQuery?.let(catalog::resolveSearchQueue)
+                    ?: catalog.defaultPlayableQueue().takeIf { _ ->
                         it.mediaId.isBlank() && it.requestMetadata.searchQuery.isNullOrBlank()
                     }
-            } ?: commandResolver.defaultPlayableQueue().takeIf { requested == null }
+            } ?: catalog.defaultPlayableQueue().takeIf { requested == null }
         }
-        return transformOnPlayerLooper(mediaSession, resolved) { queue ->
+        return transformOnPlayerLooper(resolved) { queue ->
             if (requestGeneration != queueResolutionGeneration.get()) {
                 return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
             }
             if (queue == null) return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
             val result = queue.toMediaItemsWithStartPosition(startPositionMs)
             // MediaSession applies these items and dispatches prepare/play after this callback returns.
-            playbackManager.stageExternalQueue(
-                songs = queue.queue,
-                startIndex = result.startIndex,
-                sourceLabel = queue.sourceLabel,
-                sourcePlaylistId = queue.sourcePlaylistId,
-                audiobookContext = queue.audiobookContext,
-            )
+            playback.stageExternalQueue(queue, result.startIndex)
             result
         }
     }
@@ -184,8 +179,8 @@ internal class ElovaireMediaLibrarySessionCallback(
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val pending = pendingMediaButtonResumption(consume = isForPlayback)
         val requestGeneration = queueResolutionGeneration.incrementAndGet()
-        val resolved = submitRead { pending?.queue ?: commandResolver.resumptionQueue() }
-        return transformOnPlayerLooper(mediaSession, resolved) { queue ->
+        val resolved = submitRead { pending?.queue ?: catalog.resumptionQueue() }
+        return transformOnPlayerLooper(resolved) { queue ->
             if (requestGeneration != queueResolutionGeneration.get()) {
                 return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
             }
@@ -196,13 +191,7 @@ internal class ElovaireMediaLibrarySessionCallback(
                     mediaSession.player.repeatMode = pending.persisted.repeatMode.toPlayerRepeatMode()
                     mediaSession.player.shuffleModeEnabled = pending.persisted.shuffleEnabled
                 }
-                playbackManager.stageExternalQueue(
-                    songs = queue.queue,
-                    startIndex = result.startIndex,
-                    sourceLabel = queue.sourceLabel,
-                    sourcePlaylistId = queue.sourcePlaylistId,
-                    audiobookContext = queue.audiobookContext,
-                )
+                playback.stageExternalQueue(queue, result.startIndex)
             }
             result
         }
@@ -222,12 +211,12 @@ internal class ElovaireMediaLibrarySessionCallback(
         ) {
             return false
         }
-        if (!startupReady.completedSuccessfully() || !startupOperational()) return false
+        if (!readiness.ready.completedSuccessfully() || !readiness.isOperational()) return false
         val pending = pendingMediaButtonResumption(consume = true) ?: return false
         val startIndex = pending.queue.queue.indexOfFirst { it.id == pending.queue.startSong.id }
             .coerceAtLeast(0)
-        playbackManager.restoreSession(pending.queue.queue, startIndex, pending.persisted)
-        playbackManager.dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.ExternalController)
+        playback.restoreSession(pending.queue.queue, startIndex, pending.persisted)
+        playback.dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.ExternalController)
         return true
     }
 
@@ -248,7 +237,7 @@ internal class ElovaireMediaLibrarySessionCallback(
 
     private fun <T> submitRead(task: () -> T): ListenableFuture<T> {
         return Futures.transformAsync(
-            startupReady,
+            readiness.ready,
             { submitReadDirect(task) },
             MoreExecutors.directExecutor(),
         )
@@ -263,14 +252,9 @@ internal class ElovaireMediaLibrarySessionCallback(
     }
 
     private fun <T, R> transformOnPlayerLooper(
-        mediaSession: MediaSession,
         source: ListenableFuture<T>,
         transform: (T) -> R,
     ): ListenableFuture<R> {
-        val playerHandler = android.os.Handler(mediaSession.player.applicationLooper)
-        val playerExecutor = Executor { command ->
-            if (!playerHandler.post(command)) throw RejectedExecutionException("Player looper is unavailable")
-        }
         return Futures.transform(source, transform, playerExecutor)
     }
 
@@ -293,6 +277,7 @@ internal fun ListenableFuture<*>.completedSuccessfully(): Boolean {
 }
 
 private class MediaLibrarySearchCache {
+    private var activeRevision: String? = null
     private val counts = object : LinkedHashMap<SearchKey, Int>(8, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<SearchKey, Int>): Boolean =
             size > MAX_COUNT_ENTRIES
@@ -309,9 +294,13 @@ private class MediaLibrarySearchCache {
         loader: () -> Int,
     ): Int {
         val key = SearchKey(controller, NormalizedSearchQuery.from(query).value, revision)
-        synchronized(this) { counts[key] }?.let { return it }
+        synchronized(this) {
+            prepareRevisionLocked(revision)
+            counts[key]
+        }?.let { return it }
         val loaded = loader()
         synchronized(this) {
+            if (activeRevision != revision) return loaded
             return counts[key] ?: loaded.also { counts[key] = it }
         }
     }
@@ -325,11 +314,22 @@ private class MediaLibrarySearchCache {
         loader: () -> List<MediaItem>,
     ): List<MediaItem> {
         val key = PageKey(controller, NormalizedSearchQuery.from(query).value, revision, offset, limit)
-        synchronized(this) { pages[key] }?.let { return it }
+        synchronized(this) {
+            prepareRevisionLocked(revision)
+            pages[key]
+        }?.let { return it }
         val loaded = loader().toList()
         synchronized(this) {
+            if (activeRevision != revision) return loaded
             return pages[key] ?: loaded.also { pages[key] = it }
         }
+    }
+
+    private fun prepareRevisionLocked(revision: String) {
+        if (activeRevision == revision) return
+        activeRevision = revision
+        counts.clear()
+        pages.clear()
     }
 
     private data class SearchKey(

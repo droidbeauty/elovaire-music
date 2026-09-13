@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.library.db.AlbumPlayCountEntity
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
@@ -83,6 +84,7 @@ internal class RoomUserDataStore(
     private val recoverySnapshot: UserDataRecoverySnapshot? = null,
     ownerScope: CoroutineScope? = null,
     private val database: ElovaireDatabase? = null,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : CollectionSettingsStore, MediaLibraryUserDataReader, PlaylistStore, FavoritesStore, PlaybackHistoryStore,
     SearchHistoryStore {
     private val preferences = allowStrictModeDiskReads {
@@ -128,8 +130,8 @@ internal class RoomUserDataStore(
     private val _smartPlaylists = MutableStateFlow(SmartPlaylistDefaults.builtIns())
     override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
 
-    private val _favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())
-    override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
+    private val favoriteStore = RoomFavoritesStore(dao, ::enqueueMutation)
+    override val favoriteSongIds: StateFlow<List<Long>> = favoriteStore.favoriteSongIds
 
     private val _userDataReadiness = MutableStateFlow(UserDataReadiness.Initializing)
     override val userDataReadiness: StateFlow<UserDataReadiness> = _userDataReadiness.asStateFlow()
@@ -384,47 +386,11 @@ internal class RoomUserDataStore(
     }
 
     override fun toggleFavoriteSong(songId: Long): Deferred<PlaylistMutationResult> {
-        if (songId == 0L) return CompletableDeferred(PlaylistMutationResult.InvalidInput)
-        return enqueueMutation("favorite.toggle") {
-            if (songId in _favoriteSongIds.value) {
-                dao.removeFavorites(setOf(songId))
-                publishFavorites(_favoriteSongIds.value.filterNot { it == songId })
-                PlaylistMutationResult.Success(changed = true)
-            } else {
-                val position = dao.lastFavoritePosition() + 1
-                if (dao.insertFavorite(FavoriteSongEntity(songId, position)) != -1L) {
-                    publishFavorites(_favoriteSongIds.value + songId)
-                    PlaylistMutationResult.Success(changed = true)
-                } else {
-                    PlaylistMutationResult.Success(changed = false)
-                }
-            }
-        }
+        return favoriteStore.toggleFavoriteSong(songId)
     }
 
     override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean): Deferred<PlaylistMutationResult> {
-        val normalized = normalizeFavoriteSongIds(songIds)
-        if (normalized.isEmpty()) return CompletableDeferred(PlaylistMutationResult.InvalidInput)
-        return enqueueMutation("favorite.set") {
-            if (favorite) {
-                val current = _favoriteSongIds.value.toMutableList()
-                val currentIds = current.toHashSet()
-                val additions = normalized.filterNot(currentIds::contains)
-                if (additions.isEmpty()) return@enqueueMutation PlaylistMutationResult.Success(changed = false)
-                val firstPosition = dao.lastFavoritePosition() + 1
-                dao.insertFavorites(additions.mapIndexed { index, songId ->
-                    FavoriteSongEntity(songId, firstPosition + index)
-                })
-                current += additions
-                publishFavorites(current)
-                PlaylistMutationResult.Success(changed = true)
-            } else {
-                val ids = normalized.toSet()
-                dao.removeFavorites(ids)
-                publishFavorites(_favoriteSongIds.value.filterNot(ids::contains))
-                PlaylistMutationResult.Success(changed = true)
-            }
-        }
+        return favoriteStore.setFavoriteSongs(songIds, favorite)
     }
 
     override fun removeSongReferences(songIds: Set<Long>): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.remove_song_references") {
@@ -434,7 +400,7 @@ internal class RoomUserDataStore(
             val playlists = removeSongReferencesFromPlaylists(_userPlaylists.value, songIds)
                 ?: _userPlaylists.value
             publishPlaylists(playlists)
-            publishFavorites(_favoriteSongIds.value.filterNot(songIds::contains))
+            favoriteStore.removeSongIds(songIds)
         }
         PlaylistMutationResult.Success(changed = true)
     }
@@ -455,11 +421,7 @@ internal class RoomUserDataStore(
                 )
             }
             publishPlaylists(playlists)
-            publishFavorites(
-                _favoriteSongIds.value
-                    .map { resolveRelocatedSongId(it, normalized) }
-                    .distinct(),
-            )
+            favoriteStore.relocate(normalized)
             playbackHistoryStore.relocateSongIds(normalized)
             PlaylistMutationResult.Success(changed = true)
         }
@@ -551,10 +513,11 @@ internal class RoomUserDataStore(
     }
 
     private suspend fun initialize() {
-        val legacy = readLegacyUserData(preferences)
         var migrationRequired = false
+        var legacy = UserDataSnapshot()
         try {
             migrationRequired = !dao.migrationComplete(MIGRATION_ID)
+            legacy = if (migrationRequired) readLegacyUserData(preferences) else UserDataSnapshot()
             if (migrationRequired) {
                 dao.migrateLegacy(
                     playlists = legacy.playlists.map(Playlist::toEntity),
@@ -679,7 +642,7 @@ internal class RoomUserDataStore(
         _userDataSnapshot.value = snapshot
         publishPlaylists(snapshot.playlists)
         publishSmartPlaylists(snapshot.smartPlaylists)
-        publishFavorites(snapshot.favoriteSongIds)
+        favoriteStore.publish(snapshot.favoriteSongIds)
         playbackHistoryStore.publish(
             songCounts = snapshot.songPlayCounts,
             albumCounts = snapshot.albumPlayCounts,
@@ -793,18 +756,12 @@ internal class RoomUserDataStore(
         _smartPlaylists.value = SmartPlaylistDefaults.builtIns() + playlists
     }
 
-    private fun publishFavorites(songIds: List<Long>) {
-        val normalized = normalizeFavoriteSongIds(songIds)
-        if (_favoriteSongIds.value != normalized) _favoriteSongIds.value = normalized
-    }
 
     private fun enqueueCoalesced(name: String, operation: suspend () -> Boolean) {
-        val changed = AtomicBoolean(false)
         tryEnqueue(
             RoomOperation(
                 name = name,
-                block = { changed.set(operation()) },
-                resultProvider = { PlaylistMutationResult.Success(changed = changed.get()) },
+                execute = { PlaylistMutationResult.Success(changed = operation()) },
                 advancesUserDataRevision = true,
             ),
             coalescible = true,
@@ -824,15 +781,11 @@ internal class RoomUserDataStore(
     ): Deferred<PlaylistMutationResult> {
         schedulePendingCoalescedWrites()
         val completion = CompletableDeferred<PlaylistMutationResult>()
-        val mutationResult = AtomicReference<PlaylistMutationResult?>(null)
         val accepted = tryEnqueue(
             RoomOperation(
                 name = name,
-                block = { mutationResult.set(operation()) },
+                execute = operation,
                 completion = completion,
-                resultProvider = {
-                    mutationResult.get() ?: PlaylistMutationResult.Failure("Mutation did not produce a result.")
-                },
                 advancesUserDataRevision = true,
             ),
         )
@@ -897,9 +850,10 @@ internal class RoomUserDataStore(
         var committed = false
         try {
             var revisionToPublish: Long? = null
+            var operationResult: PlaylistMutationResult? = null
             val execute = suspend {
-                operation.block()
-                val result = operation.resultProvider?.invoke()
+                val result = operation.execute()
+                operationResult = result
                 if (operation.advancesUserDataRevision && shouldAdvanceRevision(result)) {
                     val nextRevision = nextUserDataRevision()
                     revisionToPublish = nextRevision
@@ -918,7 +872,7 @@ internal class RoomUserDataStore(
             publishSnapshot(snapshot)
             persistRecoverySnapshot(snapshot)
             operation.completion?.complete(
-                operation.resultProvider?.invoke()
+                operationResult
                     ?: PlaylistMutationResult.Failure("Mutation did not produce a result."),
             )
         } catch (failure: CancellationException) {
@@ -947,7 +901,7 @@ internal class RoomUserDataStore(
     private fun currentSnapshot(): UserDataSnapshot = UserDataSnapshot(
         playlists = _userPlaylists.value,
         smartPlaylists = _userSmartPlaylists.value,
-        favoriteSongIds = _favoriteSongIds.value,
+        favoriteSongIds = favoriteStore.favoriteSongIds.value,
         songPlayCounts = playbackHistoryStore.songPlayCounts.value,
         albumPlayCounts = playbackHistoryStore.albumPlayCounts.value,
         recentSongIds = playbackHistoryStore.recentSongIds.value,
@@ -988,7 +942,7 @@ internal class RoomUserDataStore(
     }
 
     private fun updatePendingOperationResourceLocked() {
-        BackendResourceRegistry.set(
+        resourceTracker.set(
             BackendResourceKind.PendingRoomOperation,
             queueDepth.get() + coalescedOperations.size,
         )
@@ -1064,9 +1018,8 @@ enum class UserDataReadiness {
 
 private data class RoomOperation(
     val name: String,
-    val block: suspend () -> Unit,
+    val execute: suspend () -> PlaylistMutationResult,
     val completion: CompletableDeferred<PlaylistMutationResult>? = null,
-    val resultProvider: (() -> PlaylistMutationResult)? = null,
     val advancesUserDataRevision: Boolean = false,
 )
 

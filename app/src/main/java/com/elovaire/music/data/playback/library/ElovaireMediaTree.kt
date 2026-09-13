@@ -69,7 +69,7 @@ internal interface MediaLibraryCommandResolver {
 internal class ElovaireMediaTree(
     private val libraryRepository: LibraryReader,
     private val preferenceStore: MediaLibraryUserDataReader,
-) : MediaLibraryBrowser, MediaLibraryCommandResolver {
+) : MediaCatalogPort {
     private val snapshotCache = MediaTreeSnapshotCache()
 
     fun onMemoryPressure(pressure: MemoryPressure) {

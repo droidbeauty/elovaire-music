@@ -6,7 +6,8 @@ import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
-import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
+import elovaire.music.droidbeauty.app.data.settings.PlaybackHistoryStore
+import elovaire.music.droidbeauty.app.data.settings.SearchHistoryStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
@@ -96,7 +97,8 @@ internal data class SearchResultKey(
 
 internal class SearchViewModel(
     libraryRepository: LibraryReader,
-    private val preferenceStore: SearchSettingsStore,
+    private val playbackHistory: PlaybackHistoryStore,
+    private val searchHistory: SearchHistoryStore,
     playbackReader: PlaybackReader,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
@@ -230,7 +232,7 @@ internal class SearchViewModel(
 
     private val suggestedAlbums = combine(
         searchIndex,
-        preferenceStore.albumPlayCounts,
+        playbackHistory.albumPlayCounts,
         playbackReader.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
         searchUiConfig.map { it.query }.distinctUntilChanged(),
     ) { index, albumPlayCounts, recentAlbumIds, query ->
@@ -248,7 +250,7 @@ internal class SearchViewModel(
         .flowOn(defaultDispatcher)
 
     private val recentSearches = combine(
-        preferenceStore.searchHistory,
+        searchHistory.searchHistory,
         searchIndex,
     ) { history, index ->
         sanitizeSearchHistory(
@@ -340,15 +342,15 @@ internal class SearchViewModel(
     }
 
     fun clearSearchHistory() {
-        preferenceStore.clearSearchHistory()
+        searchHistory.clearSearchHistoryEntries()
     }
 
     fun rememberAlbumSearch(album: Album) {
-        preferenceStore.addSearchHistoryEntry(albumSearchHistoryEntry(album))
+        searchHistory.addSearchHistoryEntry(albumSearchHistoryEntry(album))
     }
 
     fun rememberArtistSearch(song: Song) {
-        preferenceStore.addSearchHistoryEntry(artistSearchHistoryEntry(song))
+        searchHistory.addSearchHistoryEntry(artistSearchHistoryEntry(song))
     }
 
     fun playbackSourceLabelFor(queue: List<Song>, fallbackAlbum: String): String {

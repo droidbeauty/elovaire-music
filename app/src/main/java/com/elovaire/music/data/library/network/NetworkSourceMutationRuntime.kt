@@ -7,11 +7,12 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import elovaire.music.droidbeauty.app.core.backend.BackendFailure
 import elovaire.music.droidbeauty.app.core.backend.BackendFailureDisposition
 import elovaire.music.droidbeauty.app.core.backend.classifyBackendFailure
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
 
 /** Owns the lifetime and stale-result handling for asynchronous source mutations. */
 @Suppress("TooGenericExceptionCaught")
@@ -24,6 +25,7 @@ internal class NetworkSourceMutationRuntime(
     private val released = AtomicBoolean(false)
     private val stateLock = Any()
     private val active = mutableMapOf<String, MutationToken>()
+    private val sourceSlots = mutableMapOf<String, SourceSlot>()
 
     fun save(source: NetworkLibrarySource, credentials: NetworkCredentials) {
         if (released.get()) return
@@ -33,7 +35,7 @@ internal class NetworkSourceMutationRuntime(
                     onResult(NetworkSourceMutationResult.Checking(source.id))
                 }) return@launch
                 val outcome = try {
-                    coordinator.save(source, credentials)
+                    token.slot.mutex.withLock { coordinator.save(source, credentials) }
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (failure: Exception) {
@@ -59,7 +61,7 @@ internal class NetworkSourceMutationRuntime(
         launch(source.id) { token ->
             try {
                 try {
-                    coordinator.remove(source)
+                    token.slot.mutex.withLock { coordinator.remove(source) }
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (failure: Exception) {
@@ -77,27 +79,21 @@ internal class NetworkSourceMutationRuntime(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        val (jobs, tokens) = synchronized(stateLock) {
+        val jobs = synchronized(stateLock) {
             val pending = active.values.mapNotNull { it.job }
-            val tokens = active.values.toList()
             active.clear()
-            pending to tokens
+            sourceSlots.clear()
+            pending
         }
         jobs.forEach(Job::cancel)
-        tokens.forEach { token ->
-            token.callbackLock.lock()
-            token.callbackLock.unlock()
-        }
     }
 
     private fun launch(
         sourceId: String,
         operation: suspend (MutationToken) -> Unit,
     ): Boolean {
-        val token = MutationToken()
-        val job = scope.launch(ioDispatcher, start = CoroutineStart.LAZY) {
-            operation(token)
-        }
+        lateinit var token: MutationToken
+        lateinit var job: Job
         val accepted: Boolean
         val previous: MutationToken?
         synchronized(stateLock) {
@@ -106,17 +102,20 @@ internal class NetworkSourceMutationRuntime(
                 previous = null
             } else {
                 accepted = true
+                val slot = sourceSlots.getOrPut(sourceId) { SourceSlot() }
+                slot.users += 1
+                token = MutationToken(slot)
                 previous = active.put(sourceId, token)
+                job = scope.launch(ioDispatcher, start = CoroutineStart.LAZY) {
+                    operation(token)
+                }
                 token.job = job
             }
         }
         if (!accepted) {
-            job.cancel()
             return false
         }
         previous?.job?.cancel()
-        previous?.callbackLock?.lock()
-        previous?.callbackLock?.unlock()
         job.start()
         return true
     }
@@ -126,19 +125,10 @@ internal class NetworkSourceMutationRuntime(
         token: MutationToken,
         action: () -> Unit,
     ): Boolean {
-        token.callbackLock.lock()
-        return try {
-            val current = synchronized(stateLock) {
-                !released.get() && active[sourceId] === token
-            }
-            if (!current) {
-                false
-            } else {
-                action()
-                true
-            }
-        } finally {
-            token.callbackLock.unlock()
+        synchronized(stateLock) {
+            if (released.get() || active[sourceId] !== token) return false
+            action()
+            return true
         }
     }
 
@@ -166,12 +156,22 @@ internal class NetworkSourceMutationRuntime(
     private fun clearToken(sourceId: String, token: MutationToken) {
         synchronized(stateLock) {
             if (active[sourceId] === token) active.remove(sourceId)
+            token.slot.users -= 1
+            if (token.slot.users == 0 && sourceSlots[sourceId] === token.slot) {
+                sourceSlots.remove(sourceId)
+            }
         }
     }
 
-    private class MutationToken {
+    private class SourceSlot {
+        val mutex = Mutex()
+        var users: Int = 0
+    }
+
+    private class MutationToken(
+        val slot: SourceSlot,
+    ) {
         var job: Job? = null
-        val callbackLock = ReentrantLock()
     }
 }
 

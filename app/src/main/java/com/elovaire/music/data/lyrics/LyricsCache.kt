@@ -19,9 +19,11 @@ internal class LyricsCache(
     }
     private val atomicFile = AtomicFile(cacheFile)
     private val cacheLock = Any()
+    private val persistLock = Any()
     private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>(16, 0.75f, true)
     private var cacheLoaded = false
     private var expiredEntriesPending = false
+    private var cacheGeneration = 0L
 
     fun get(
         identity: LyricsIdentity,
@@ -46,6 +48,7 @@ internal class LyricsCache(
                 // Expired entries are already invisible to callers. Defer the full-file
                 // rewrite until the next durable cache mutation or explicit prune.
                 expiredEntriesPending = true
+                cacheGeneration++
             }
             when {
                 entry == null -> null
@@ -59,37 +62,45 @@ internal class LyricsCache(
     fun put(
         identity: LyricsIdentity,
         entry: LyricsCacheEntry,
-    ) = synchronized(cacheLock) {
-        ensureLoadedLocked()
-        var changed = false
-        identity.cacheKeys.forEach { key ->
-            if (cacheEntries[key] != entry) {
-                cacheEntries[key] = entry
-                changed = true
+    ) {
+        val shouldPersist = synchronized(cacheLock) {
+            ensureLoadedLocked()
+            var changed = false
+            identity.cacheKeys.forEach { key ->
+                if (cacheEntries[key] != entry) {
+                    cacheEntries[key] = entry
+                    changed = true
+                }
             }
+            if (trimLocked()) changed = true
+            if (changed) cacheGeneration++
+            changed || expiredEntriesPending
         }
-        if (trimLocked()) changed = true
-        if (changed || expiredEntriesPending) persistLocked()
+        if (shouldPersist) persistSnapshot()
     }
 
-    fun clearExpired() = synchronized(cacheLock) {
-        ensureLoadedLocked()
-        val now = clock.wallTimeMs()
-        val removed = cacheEntries.entries.removeIf { (_, entry) -> entry.isExpired(now) }
-        if (removed || expiredEntriesPending) {
-            persistLocked()
+    fun clearExpired() {
+        val shouldPersist = synchronized(cacheLock) {
+            ensureLoadedLocked()
+            val now = clock.wallTimeMs()
+            val removed = cacheEntries.entries.removeIf { (_, entry) -> entry.isExpired(now) }
+            if (removed) cacheGeneration++
+            removed || expiredEntriesPending
         }
+        if (shouldPersist) persistSnapshot()
     }
 
-    fun remove(identity: LyricsIdentity) = synchronized(cacheLock) {
-        ensureLoadedLocked()
-        var removed = false
-        identity.cacheKeys.forEach { key ->
-            removed = cacheEntries.remove(key) != null || removed
+    fun remove(identity: LyricsIdentity) {
+        val shouldPersist = synchronized(cacheLock) {
+            ensureLoadedLocked()
+            var removed = false
+            identity.cacheKeys.forEach { key ->
+                removed = cacheEntries.remove(key) != null || removed
+            }
+            if (removed) cacheGeneration++
+            removed || expiredEntriesPending
         }
-        if (removed || expiredEntriesPending) {
-            persistLocked()
-        }
+        if (shouldPersist) persistSnapshot()
     }
 
     private fun ensureLoadedLocked() {
@@ -133,15 +144,19 @@ internal class LyricsCache(
         }
     }
 
-    private fun persistLocked() {
-        ElovaireTrace.section("lyrics_cache_write") {
-            runCatching {
+    private fun persistSnapshot() {
+        synchronized(persistLock) {
+            val snapshot = synchronized(cacheLock) { cacheGeneration to cacheEntries.toMap() }
+            val generation = snapshot.first
+            val entries = snapshot.second
+            val persisted = ElovaireTrace.section("lyrics_cache_write") {
+                runCatching {
                 val root = JSONObject().apply {
                 put("version", CACHE_VERSION)
                 put(
                     "entries",
                     JSONArray().apply {
-                        cacheEntries.forEach { (key, entry) ->
+                        entries.forEach { (key, entry) ->
                             val resultJson = when (val result = entry.result) {
                                 is LyricsResult.Found -> JSONObject().apply {
                                     put("result", RESULT_FOUND)
@@ -172,9 +187,14 @@ internal class LyricsCache(
                     output.flush()
                     atomicFile.finishWrite(output)
                     committed = true
-                    expiredEntriesPending = false
                 } finally {
                     if (!committed) atomicFile.failWrite(output)
+                }
+                }.isSuccess
+            }
+            if (persisted) {
+                synchronized(cacheLock) {
+                    if (cacheGeneration == generation) expiredEntriesPending = false
                 }
             }
         }

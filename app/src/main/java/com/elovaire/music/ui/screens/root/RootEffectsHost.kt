@@ -21,13 +21,13 @@ internal fun RootEffectsHost(
     val currentComposition by rememberUpdatedState(composition)
     val currentDerivedState by rememberUpdatedState(derivedState)
     val currentUiRuntime by rememberUpdatedState(uiRuntime)
-    LaunchedEffect(composition.container) {
-        composition.container.openNowPlayingCommands.collect {
+    LaunchedEffect(composition.openNowPlayingCommands) {
+        composition.openNowPlayingCommands.collect {
             currentPlayerLayerController.requestOpen(null)
         }
     }
-    LaunchedEffect(composition.container) {
-        composition.container.appShortcutCommands.collect { command ->
+    LaunchedEffect(composition.appShortcutCommands) {
+        composition.appShortcutCommands.collect { command ->
             when (command) {
                 AppShortcutCommand.LastPlayed -> {
                     launch {
@@ -47,7 +47,7 @@ internal fun RootEffectsHost(
                                 .orEmpty()
                         when {
                             playlist != null && playlistSongs.isNotEmpty() -> {
-                                current.container.playbackActionDependencies.playback.playSong(
+                                current.playback.playSong(
                                     song = playlistSongs.first(),
                                     collection = playlistSongs,
                                     sourceLabel = playlist.name,
@@ -55,7 +55,7 @@ internal fun RootEffectsHost(
                                 )
                             }
                             lastPlayedAlbum != null -> {
-                                current.container.playbackActionDependencies.playback.playAlbum(
+                                current.playback.playAlbum(
                                     album = lastPlayedAlbum,
                                     startSongId = null,
                                     sourceLabel = lastPlayedAlbum.title,

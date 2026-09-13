@@ -103,7 +103,10 @@ internal fun stripCommentsPreservingLiterals(source: String): String {
 }
 
 internal fun stripCommentsAndStringLiterals(source: String): String {
-    val withoutComments = stripCommentsPreservingLiterals(source)
+    return stripStringLiterals(stripCommentsPreservingLiterals(source))
+}
+
+internal fun stripStringLiterals(withoutComments: String): String {
     val result = StringBuilder(withoutComments.length)
     var quoted = false
     var character = false

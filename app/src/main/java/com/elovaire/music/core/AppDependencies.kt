@@ -31,21 +31,13 @@ internal class AppDependencies(
                 context = applicationContext,
                 libraryRepository = services.libraryRepository,
                 playbackManager = services.playbackManager,
-                preferenceStore = services.preferenceStore,
+                userDataStore = services.userDataStore,
                 invalidateArtwork = artworkInvalidator::invalidate,
                 ioDispatcher = appDispatchers.io,
             )
         }
     }
 
-    val rootReadDependencies: RootReadDependencies = object : RootReadDependencies {
-        override val libraryReader get() = services.libraryRepository
-        override val rootSettingsReader get() = services.preferenceStore
-        override val playbackReader get() = services.playbackManager
-    }
-    val playbackActionDependencies: PlaybackActionDependencies = object : PlaybackActionDependencies {
-        override val playback get() = services.playbackManager
-    }
     val libraryActionDependencies: LibraryActionDependencies = object : LibraryActionDependencies {
         override val libraryController: LibraryActionController = object : LibraryActionController {
             override fun onPermissionChanged(granted: Boolean) {
@@ -76,20 +68,18 @@ internal class AppDependencies(
         override val librarySettings get() = services.preferenceStore
         override val playbackSettings get() = services.preferenceStore
     }
-    val playlistActionDependencies: PlaylistActionDependencies = object : PlaylistActionDependencies {
-        override val playlistStore get() = services.preferenceStore
-        override val favoritesStore get() = services.preferenceStore
-    }
     val viewModelDependencies: ElovaireViewModelDependencies = object : ElovaireViewModelDependencies {
         override val dispatchers = appDispatchers
         override val root: RootViewModelDependencies = object : RootViewModelDependencies {
             override val libraryReader get() = services.libraryRepository
-            override val rootSettingsReader get() = services.preferenceStore
+            override val appearanceSettings get() = services.preferenceStore
+            override val userData get() = services.userDataStore
             override val playbackState get() = services.playbackManager.state
         }
         override val search: SearchViewModelDependencies = object : SearchViewModelDependencies {
             override val libraryReader get() = services.libraryRepository
-            override val searchSettings get() = services.preferenceStore
+            override val playbackHistory get() = services.userDataStore
+            override val searchHistory get() = services.userDataStore
             override val playbackReader get() = services.playbackManager
         }
         override val nowPlaying: NowPlayingViewModelDependencies = object : NowPlayingViewModelDependencies {

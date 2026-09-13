@@ -7,14 +7,84 @@ import elovaire.music.droidbeauty.app.data.library.db.RecentPlaybackEntity
 import elovaire.music.droidbeauty.app.data.library.db.SearchHistoryDao
 import elovaire.music.droidbeauty.app.data.library.db.SearchHistoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserDataDao
+import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
 import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+/** Owns favorite policy/state while all writes still run through RoomUserDataStore's actor. */
+internal class RoomFavoritesStore(
+    private val dao: UserDataDao,
+    private val enqueue: (String, suspend () -> PlaylistMutationResult) -> Deferred<PlaylistMutationResult>,
+) : FavoritesStore {
+    private val _favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())
+    val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
+
+    override fun toggleFavoriteSong(songId: Long): Deferred<PlaylistMutationResult> {
+        if (songId == 0L) return CompletableDeferred(PlaylistMutationResult.InvalidInput)
+        return enqueue("favorite.toggle") {
+            if (songId in _favoriteSongIds.value) {
+                dao.removeFavorites(setOf(songId))
+                publish(_favoriteSongIds.value.filterNot { it == songId })
+                PlaylistMutationResult.Success(changed = true)
+            } else {
+                val position = dao.lastFavoritePosition() + 1
+                if (dao.insertFavorite(FavoriteSongEntity(songId, position)) != -1L) {
+                    publish(_favoriteSongIds.value + songId)
+                    PlaylistMutationResult.Success(changed = true)
+                } else {
+                    PlaylistMutationResult.Success(changed = false)
+                }
+            }
+        }
+    }
+
+    override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean): Deferred<PlaylistMutationResult> {
+        val normalized = normalizeFavoriteSongIds(songIds)
+        if (normalized.isEmpty()) return CompletableDeferred(PlaylistMutationResult.InvalidInput)
+        return enqueue("favorite.set") {
+            if (favorite) {
+                val current = _favoriteSongIds.value.toMutableList()
+                val additions = normalized.filterNot(current.toHashSet()::contains)
+                if (additions.isEmpty()) return@enqueue PlaylistMutationResult.Success(changed = false)
+                val firstPosition = dao.lastFavoritePosition() + 1
+                dao.insertFavorites(additions.mapIndexed { index, id ->
+                    FavoriteSongEntity(id, firstPosition + index)
+                })
+                current += additions
+                publish(current)
+                PlaylistMutationResult.Success(changed = true)
+            } else {
+                val ids = normalized.toSet()
+                dao.removeFavorites(ids)
+                publish(_favoriteSongIds.value.filterNot(ids::contains))
+                PlaylistMutationResult.Success(changed = true)
+            }
+        }
+    }
+
+    fun publish(songIds: List<Long>) {
+        val normalized = normalizeFavoriteSongIds(songIds)
+        if (_favoriteSongIds.value != normalized) _favoriteSongIds.value = normalized
+    }
+
+    fun removeSongIds(songIds: Set<Long>) {
+        if (songIds.isEmpty()) return
+        publish(_favoriteSongIds.value.filterNot(songIds::contains))
+    }
+
+    fun relocate(replacements: Map<Long, Long>) {
+        if (replacements.isEmpty()) return
+        publish(_favoriteSongIds.value.map { resolveRelocatedSongId(it, replacements) }.distinct())
+    }
+}
 
 internal class RoomPlaybackHistoryStore(
     private val dao: PlaybackHistoryDao,

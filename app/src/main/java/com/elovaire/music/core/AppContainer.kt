@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
@@ -31,12 +32,16 @@ class AppContainer(
     appContext: Context,
 ) {
     private val applicationContext = appContext.applicationContext
+    private val backendDiagnostics = BackendDiagnosticsRuntime()
     private val appForegroundTracker = ElovaireTrace.section("app_foreground_tracker_init") {
-        AppForegroundTracker(applicationContext as Application)
+        AppForegroundTracker(
+            application = applicationContext as Application,
+            resourceTracker = backendDiagnostics.resources,
+        )
     }
     private val backgroundWorkPolicy = AppBackgroundWorkPolicy(appForegroundTracker.isForeground)
     private val appDispatchers = AppDispatchers.production()
-    private val appRuntimeScope = AppRuntimeScope()
+    private val appRuntimeScope = AppRuntimeScope(backendDiagnostics)
     private val appScope = appRuntimeScope.scope
     private val portableSettingsBackup = ElovaireTrace.section("portable_settings_init") {
         PortableSettingsBackup(
@@ -53,9 +58,15 @@ class AppContainer(
             appDispatchers = appDispatchers,
             backgroundWorkPolicy = backgroundWorkPolicy,
             portableSettingsBackup = portableSettingsBackup,
+            backendDiagnostics = backendDiagnostics,
         )
     }
-    private val bridgeCoordinator = AppBridgeCoordinator(appScope, services, appDispatchers.io)
+    private val bridgeCoordinator = AppBridgeCoordinator(
+        scope = appScope,
+        services = services,
+        ioDispatcher = appDispatchers.io,
+        diagnostics = backendDiagnostics,
+    )
     private val dependencies = AppDependencies(
         applicationContext = applicationContext,
         services = services,
@@ -74,12 +85,13 @@ class AppContainer(
     internal val interactionWorkPolicy get() = backgroundWorkPolicy
     internal val dispatchers: AppDispatchers get() = appDispatchers
     internal val playbackResumptionGateway get() = services.playbackResumptionGateway
-    internal val rootReadDependencies get() = dependencies.rootReadDependencies
+    internal val rootLibraryReader get() = services.libraryRepository
+    internal val rootSettingsReader get() = services.preferenceStore
     internal val rootDeleteDependencies get() = dependencies.rootDeleteDependencies
-    internal val playbackActionDependencies get() = dependencies.playbackActionDependencies
     internal val libraryActionDependencies get() = dependencies.libraryActionDependencies
     internal val settingsActionDependencies get() = dependencies.settingsActionDependencies
-    internal val playlistActionDependencies get() = dependencies.playlistActionDependencies
+    internal val playlistStore get() = services.userDataStore
+    internal val favoritesStore get() = services.userDataStore
     internal val viewModelDependencies get() = dependencies.viewModelDependencies
     internal fun exportPortableUserData(): ByteArray = services.exportPortableUserData()
     internal fun importPortableUserData(bytes: ByteArray): Deferred<PlaylistMutationResult> =
@@ -118,6 +130,7 @@ class AppContainer(
                 { services.release() },
                 { appRuntimeScope.close() },
                 { appForegroundTracker.close() },
+                { backendDiagnostics.close() },
             )
         },
     )
@@ -149,7 +162,7 @@ class AppContainer(
     }
 
     fun scheduleDeferredStartupWork() {
-        bridgeCoordinator.scheduleDeferredStartupWork()
+        runtimeCoordinator.scheduleDeferredStartupWork(bridgeCoordinator::scheduleDeferredStartupWork)
     }
 
     internal fun onMemoryPressure(pressure: MemoryPressure) {

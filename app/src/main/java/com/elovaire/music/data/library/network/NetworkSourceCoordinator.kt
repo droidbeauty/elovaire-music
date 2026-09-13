@@ -1,8 +1,5 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-
 internal data class NetworkSourceMutationOutcome(
     val probeResult: NetworkProbeResult,
     val refreshRequired: Boolean,
@@ -17,7 +14,7 @@ internal interface NetworkSourceMutationBackend {
     suspend fun remove(source: NetworkLibrarySource)
 }
 
-/** Serializes each source independently so late probes cannot publish obsolete state. */
+/** Applies one already-serialized source mutation while preserving journal ordering. */
 internal class NetworkSourceCoordinator(
     private val sourceStore: NetworkLibrarySourceStore,
     private val credentialStoreProvider: () -> NetworkCredentialStore,
@@ -25,30 +22,12 @@ internal class NetworkSourceCoordinator(
     private val inventoryStore: NetworkInventoryStore,
     private val mutationJournal: NetworkSourceMutationJournal,
 ) : NetworkSourceMutationBackend {
-    private val mutationLockRegistry = Any()
-    private val mutationLocks = mutableMapOf<String, MutationLock>()
-
-    private suspend fun <T> withSourceLock(sourceId: String, block: suspend () -> T): T {
-        val entry = synchronized(mutationLockRegistry) {
-            mutationLocks.getOrPut(sourceId) { MutationLock() }.also { it.users += 1 }
-        }
-        return try {
-            entry.mutex.withLock { block() }
-        } finally {
-            synchronized(mutationLockRegistry) {
-                entry.users -= 1
-                if (entry.users == 0 && mutationLocks[sourceId] === entry) {
-                    mutationLocks.remove(sourceId)
-                }
-            }
-        }
-    }
 
     @Suppress("TooGenericExceptionCaught")
     override suspend fun save(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
-    ): NetworkSourceMutationOutcome = withSourceLock(source.id) {
+    ): NetworkSourceMutationOutcome {
         val credentialStore = credentialStoreProvider()
         val previousSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         val previousResult = credentialStore.read(
@@ -119,10 +98,10 @@ internal class NetworkSourceCoordinator(
             refreshRequired = previousSource != normalized || previous != effectiveCredentials,
         )
         mutationJournal.clear(normalized.id)
-        outcome
+        return outcome
     }
 
-    override suspend fun remove(source: NetworkLibrarySource) = withSourceLock(source.id) {
+    override suspend fun remove(source: NetworkLibrarySource) {
         val currentSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         mutationJournal.prepareRemove(currentSource ?: source)
         registryProvider().invalidate(source.id)
@@ -138,10 +117,5 @@ internal class NetworkSourceCoordinator(
             }
         }
         mutationJournal.clear(source.id)
-    }
-
-    private class MutationLock {
-        val mutex = Mutex()
-        var users: Int = 0
     }
 }

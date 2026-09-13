@@ -4,10 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
-import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
@@ -25,65 +25,55 @@ import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
-import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsPolicy
-import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.coroutines.EmptyCoroutineContext
 
 @Suppress("TooManyFunctions")
 class PreferenceStore internal constructor(
     context: Context,
-    private val userDataStore: RoomUserDataStore,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ownerScope: CoroutineScope? = null,
     private val initialSettings: SettingsSnapshot = SettingsSnapshot(emptyMap<String, Any?>()),
     private val portableSettingsBackup: PortableSettingsBackup? = null,
+    private val diagnostics: BackendDiagnosticsRuntime? = null,
 ) :
-    RootSettingsReader,
+    AppearanceSettingsStore,
     AppearanceSettingsWriter,
     LibrarySettingsWriter,
     PlaybackSettingsWriter,
     EqualizerSettingsStore,
     NowPlayingSettingsStore,
-    SearchSettingsStore,
     UpdatePreferencesStore,
-    PlaybackIntegrationSettings,
-    PlaylistStore by userDataStore,
-    FavoritesStore by userDataStore {
+    PlaybackIntegrationSettings {
     private val appContext = context.applicationContext
-    private val settingsDataStore: DataStore<Preferences> = appContext.elovaireSettingsDataStore()
-    private var preferences = initialSettings
+    private val persistenceRuntime = SettingsPersistenceRuntime(
+        context = appContext,
+        ownerScope = ownerScope,
+        ioDispatcher = ioDispatcher,
+        initialSettings = initialSettings,
+        portableSettingsBackup = portableSettingsBackup,
+        diagnostics = diagnostics,
+    )
+    private val settingsDataStore get() = persistenceRuntime.dataStore
+    private var preferences: SettingsSnapshot
+        get() = persistenceRuntime.snapshot
+        set(value) = persistenceRuntime.replaceSnapshot(value)
+    private val settingsWriteSequencer get() = persistenceRuntime.writeSequencer
+    private val bootSettingsInitialized: Boolean
+        get() = persistenceRuntime.isBootSettingsInitialized()
     private val legacyPreferences: SharedPreferences = allowStrictModeDiskReads {
         PreferenceStorage(appContext).preferences
     }
-    private val preferenceScope = CoroutineScope(
-        (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
-            SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
-            ioDispatcher + CoroutineName("settings-persistence-owner"),
-    )
     private var pendingEqSettings: EqSettings? = null
     private var pendingCrossfadeDurationMs: Long? = null
     private var pendingCrossfadeSilenceThresholdDb: Float? = null
-    private val settingsWriteSequencer = SettingsWriteSequencer(
-        ownerScope = preferenceScope,
-        dispatcher = ioDispatcher,
-        persist = ::persistSettings,
-    )
 
     private val _dismissedUpdateVersion = MutableStateFlow(
         preferences.getString(KEY_DISMISSED_UPDATE_VERSION, null)
@@ -159,37 +149,16 @@ class PreferenceStore internal constructor(
     private val _libraryFolders = MutableStateFlow(loadLibraryFolders())
     override val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
 
-    override val searchHistory get() = userDataStore.searchHistory
-    override val userDataReadiness get() = userDataStore.userDataReadiness
-    override val userDataSnapshot get() = userDataStore.userDataSnapshot
-    override val albumPlayCounts get() = userDataStore.albumPlayCounts
-    override val songPlayCounts get() = userDataStore.songPlayCounts
-    override val recentSongIds get() = userDataStore.recentSongIds
-    override val recentAlbumIds get() = userDataStore.recentAlbumIds
-    override val lastPlayedCollectionKind get() = userDataStore.lastPlayedCollectionKind
-    override val lastPlayedCollectionId get() = userDataStore.lastPlayedCollectionId
-    private val _smartPlaylists = MutableStateFlow(configuredSmartPlaylists(userDataStore.smartPlaylists.value))
-    override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
-    override val favoriteSongIds get() = userDataStore.favoriteSongIds
-    override val playlists get() = userDataStore.playlists
-
     init {
         migrateLegacyUpdatePreferencesIfNeeded()
-        preferenceScope.launch {
-            settingsDataStore.data.collect(::applyDataStoreSettings)
-        }
-        preferenceScope.launch {
-            userDataStore.smartPlaylists.collect { playlists ->
-                _smartPlaylists.value = configuredSmartPlaylists(playlists)
-            }
-        }
+        persistenceRuntime.observe(::applyDataStoreSettings)
     }
 
     override fun setDismissedUpdateVersion(versionName: String?) {
         val normalized = versionName?.trim()?.takeIf { it.isNotBlank() }
         if (_dismissedUpdateVersion.value == normalized) return
         _dismissedUpdateVersion.value = normalized
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_DISMISSED_UPDATE_VERSION to normalized)
         enqueueSettingsWrite {
             settingsDataStore.editSettings {
                 remove(KEY_DISMISSED_UPDATE_VERSION)
@@ -203,7 +172,7 @@ class PreferenceStore internal constructor(
     override fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long) {
         val normalized = timestampMs.coerceAtLeast(0L)
         lastUpdateCheckAtMs.set(normalized)
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS to normalized)
         enqueueSettingsWrite {
             settingsDataStore.editSettings {
                 putLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, normalized)
@@ -212,56 +181,27 @@ class PreferenceStore internal constructor(
     }
 
     override fun setThemeMode(themeMode: ThemeMode) {
-        updateStateAndPreference(_themeMode, themeMode) {
+        updateStateAndPreference(_themeMode, themeMode, KEY_THEME_MODE to themeMode.name) {
             putString(KEY_THEME_MODE, themeMode.name)
         }
     }
 
     override fun setTextSizePreset(textSizePreset: TextSizePreset) {
-        updateStateAndPreference(_textSizePreset, textSizePreset) {
+        updateStateAndPreference(_textSizePreset, textSizePreset, KEY_TEXT_SIZE_PRESET to textSizePreset.name) {
             putString(KEY_TEXT_SIZE_PRESET, textSizePreset.name)
         }
     }
 
     override fun setAppLanguage(language: AppLanguage) {
-        updateStateAndPreference(_appLanguage, language) {
+        updateStateAndPreference(_appLanguage, language, KEY_APP_LANGUAGE to language.name) {
             putString(KEY_APP_LANGUAGE, language.name)
         }
     }
 
     override fun setNowPlayingBarStyle(style: NowPlayingBarStyle) {
-        updateStateAndPreference(_nowPlayingBarStyle, style) {
+        updateStateAndPreference(_nowPlayingBarStyle, style, KEY_NOW_PLAYING_BAR_STYLE to style.name) {
             putString(KEY_NOW_PLAYING_BAR_STYLE, style.name)
         }
-    }
-
-    override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
-        userDataStore.addSearchHistoryEntry(entry)
-    }
-
-    override fun clearSearchHistory() {
-        userDataStore.clearSearchHistoryEntries()
-    }
-
-    override fun recordPlaybackTransition(
-        songId: Long?,
-        albumId: Long?,
-    ) {
-        userDataStore.recordPlaybackTransition(songId, albumId)
-    }
-
-    fun setRecentPlaybackIds(
-        songIds: List<Long>,
-        albumIds: List<Long>,
-        lastPlayedCollectionKind: PlaybackCollectionKind?,
-        lastPlayedCollectionId: Long?,
-    ) {
-        userDataStore.setRecentPlaybackIds(
-            songIds,
-            albumIds,
-            lastPlayedCollectionKind,
-            lastPlayedCollectionId,
-        )
     }
 
     fun updateBand(index: Int, value: Float) {
@@ -341,13 +281,13 @@ class PreferenceStore internal constructor(
 
     override fun setPlaybackVolume(value: Float) {
         val volume = value.coerceIn(0f, 1f)
-        updateStateAndPreference(_playbackVolume, volume) {
+        updateStateAndPreference(_playbackVolume, volume, KEY_PLAYBACK_VOLUME to volume) {
             putFloat(KEY_PLAYBACK_VOLUME, volume)
         }
     }
 
     override fun setCrossfadeEnabled(enabled: Boolean) {
-        updateStateAndPreference(_crossfadeEnabled, enabled) {
+        updateStateAndPreference(_crossfadeEnabled, enabled, KEY_CROSSFADE_ENABLED to enabled) {
             putBoolean(KEY_CROSSFADE_ENABLED, enabled)
             remove(KEY_GAPLESS_PLAYBACK_ENABLED)
         }
@@ -358,7 +298,7 @@ class PreferenceStore internal constructor(
         if (_crossfadeDurationMs.value == durationMs && pendingCrossfadeDurationMs == null) return
         _crossfadeDurationMs.value = durationMs
         pendingCrossfadeDurationMs = durationMs
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_CROSSFADE_DURATION_MS to durationMs)
         scheduleCrossfadePersistence()
     }
 
@@ -367,7 +307,7 @@ class PreferenceStore internal constructor(
         if (_crossfadeSilenceThresholdDb.value == thresholdDb && pendingCrossfadeSilenceThresholdDb == null) return
         _crossfadeSilenceThresholdDb.value = thresholdDb
         pendingCrossfadeSilenceThresholdDb = thresholdDb
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_CROSSFADE_SILENCE_THRESHOLD_DB to thresholdDb)
         scheduleCrossfadePersistence()
     }
 
@@ -389,30 +329,34 @@ class PreferenceStore internal constructor(
         }.toSet()
         if (_smartPlaylistEnabledTypes.value == next) return
         _smartPlaylistEnabledTypes.value = next
-        checkpointBootSettings()
+        checkpointBootSettings(
+            KEY_SMART_PLAYLIST_ENABLED_TYPES to next.joinToString(",") { it.name },
+        )
         enqueueSettingsEdit {
             putString(KEY_SMART_PLAYLIST_ENABLED_TYPES, next.joinToString(",") { it.name })
         }
-        _smartPlaylists.value = configuredSmartPlaylists(userDataStore.smartPlaylists.value)
     }
 
     override fun setSmartPlaylistMaxSongs(value: Int) {
         val next = SmartPlaylistSettingsPolicy.sanitizeSongLimit(value)
         if (_smartPlaylistMaxSongs.value == next) return
         _smartPlaylistMaxSongs.value = next
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_SMART_PLAYLIST_MAX_SONGS to next)
         enqueueSettingsEdit { putInt(KEY_SMART_PLAYLIST_MAX_SONGS, next) }
-        _smartPlaylists.value = configuredSmartPlaylists(userDataStore.smartPlaylists.value)
     }
 
     override fun setVolumeNormalizationEnabled(enabled: Boolean) {
-        updateStateAndPreference(_volumeNormalizationEnabled, enabled) {
+        updateStateAndPreference(
+            _volumeNormalizationEnabled,
+            enabled,
+            KEY_VOLUME_NORMALIZATION_ENABLED to enabled,
+        ) {
             putBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, enabled)
         }
     }
 
     override fun setOnlineLyricsEnabled(enabled: Boolean) {
-        updateStateAndPreference(_onlineLyricsEnabled, enabled) {
+        updateStateAndPreference(_onlineLyricsEnabled, enabled, KEY_ONLINE_LYRICS_ENABLED to enabled) {
             putBoolean(KEY_ONLINE_LYRICS_ENABLED, enabled)
         }
     }
@@ -425,11 +369,14 @@ class PreferenceStore internal constructor(
             putBoolean(KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED, true)
         }
         _albumCollectionLayoutMode.value = normalizedMode
-        checkpointBootSettings()
+        checkpointBootSettings(
+            KEY_ALBUM_COLLECTION_LAYOUT_MODE to normalizedMode,
+            KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED to true,
+        )
     }
 
     override fun setSongCollectionGridEnabled(enabled: Boolean) {
-        updateStateAndPreference(_songCollectionGridEnabled, enabled) {
+        updateStateAndPreference(_songCollectionGridEnabled, enabled, KEY_SONG_COLLECTION_GRID_ENABLED to enabled) {
             putBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, enabled)
         }
     }
@@ -441,7 +388,7 @@ class PreferenceStore internal constructor(
             putString(KEY_ALBUM_COLLECTION_SORT_MODE, normalizedSortMode)
         }
         _albumCollectionSortMode.value = normalizedSortMode
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_ALBUM_COLLECTION_SORT_MODE to normalizedSortMode)
     }
 
     override fun setSongCollectionSortMode(sortMode: String) {
@@ -451,7 +398,7 @@ class PreferenceStore internal constructor(
             putString(KEY_SONG_COLLECTION_SORT_MODE, normalizedSortMode)
         }
         _songCollectionSortMode.value = normalizedSortMode
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_SONG_COLLECTION_SORT_MODE to normalizedSortMode)
     }
 
     override fun addLibraryFolder(selection: LibraryFolderSelection) {
@@ -481,7 +428,9 @@ class PreferenceStore internal constructor(
             )
         }
         _libraryFolders.value = normalized
-        checkpointBootSettings()
+        checkpointBootSettings(KEY_LIBRARY_FOLDERS to normalized.joinToString(
+            PreferenceCollectionCodec.RECORD_SEPARATOR,
+        ) { PreferenceCollectionCodec.serializeLibraryFolder(it) })
     }
 
     override fun restoreDefaultLibraryFolderIfEmpty() {
@@ -489,39 +438,8 @@ class PreferenceStore internal constructor(
         setLibraryFolders(listOf(LibraryFolderSelectionResolver.defaultMusicFolder()))
     }
 
-    fun release(onUserDataDrained: () -> Unit = {}) {
-        runBlocking(ioDispatcher) {
-            settingsWriteSequencer.flush()
-        }
-        settingsWriteSequencer.close()
-        userDataStore.release(onUserDataDrained)
-        preferenceScope.cancel()
-    }
-
-    internal fun persistPendingDeviceDelete(operationId: String, serializedPlan: String): Boolean {
-        return synchronized(legacyPreferences) {
-            legacyPreferences.edit()
-                .putString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, operationId)
-                .putString(KEY_PENDING_DEVICE_DELETE_PLAN, serializedPlan)
-                .commit()
-        }
-    }
-
-    internal fun readPendingDeviceDelete(): String? = synchronized(legacyPreferences) {
-        legacyPreferences.getString(KEY_PENDING_DEVICE_DELETE_PLAN, null)
-    }
-
-    internal fun clearPendingDeviceDelete(operationId: String): Boolean {
-        return synchronized(legacyPreferences) {
-            if (legacyPreferences.getString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, null) != operationId) {
-                true
-            } else {
-                legacyPreferences.edit()
-                    .remove(KEY_PENDING_DEVICE_DELETE_OPERATION_ID)
-                    .remove(KEY_PENDING_DEVICE_DELETE_PLAN)
-                    .commit()
-            }
-        }
+    fun release() {
+        persistenceRuntime.release(ioDispatcher)
     }
 
     private fun persistEqSettings(
@@ -532,7 +450,16 @@ class PreferenceStore internal constructor(
         if (_eqSettings.value == normalizedSettings && pendingEqSettings == normalizedSettings) return
         if (_eqSettings.value == normalizedSettings && pendingEqSettings == null) return
         _eqSettings.value = normalizedSettings
-        checkpointBootSettings()
+        checkpointBootSettings(
+            KEY_BANDS to normalizedSettings.bands.joinToString(","),
+            KEY_BASS to normalizedSettings.bass,
+            KEY_MIDRANGE to normalizedSettings.midrange,
+            KEY_TREBLE to normalizedSettings.treble,
+            KEY_SPACIOUSNESS to normalizedSettings.spaciousness,
+            KEY_SPACIOUSNESS_MODE to normalizedSettings.spaciousnessMode.name,
+            KEY_REVERB_DURATION_MS to normalizedSettings.reverbDurationMs,
+            KEY_REVERB_PROFILE to normalizedSettings.reverbProfile.name,
+        )
         if (immediate) {
             pendingEqSettings = null
             settingsWriteSequencer.replaceLatest("equalizer", write = { writeEqSettings(normalizedSettings) })
@@ -590,11 +517,12 @@ class PreferenceStore internal constructor(
     private inline fun <T> updateStateAndPreference(
         state: MutableStateFlow<T>,
         value: T,
+        vararg bootChanges: Pair<String, Any?>,
         crossinline write: MutablePreferences.() -> Unit,
     ) {
         if (state.value == value) return
         state.value = value
-        checkpointBootSettings()
+        checkpointBootSettings(*bootChanges)
         enqueueSettingsWrite {
             settingsDataStore.editSettings { write() }
         }
@@ -642,14 +570,20 @@ class PreferenceStore internal constructor(
         _albumCollectionSortMode.value = loadAlbumCollectionSortMode()
         _songCollectionSortMode.value = loadSongCollectionSortMode()
         _libraryFolders.value = loadLibraryFolders()
-        _smartPlaylists.value = configuredSmartPlaylists(userDataStore.smartPlaylists.value)
         portableSettingsBackup?.checkpointBootSettings(currentSettingsValues())
     }
 
-    private fun checkpointBootSettings() {
-        val values = currentSettingsValues()
-        preferences = SettingsSnapshot(values)
-        portableSettingsBackup?.checkpointBootSettings(values)
+    private fun checkpointBootSettings(vararg changes: Pair<String, Any?>) {
+        val values = if (!bootSettingsInitialized || changes.isEmpty()) {
+            currentSettingsValues()
+        } else {
+            preferences.asMap().toMutableMap().apply {
+                changes.forEach { (key, value) ->
+                    if (value == null) remove(key) else this[key] = value
+                }
+            }.filterKeys { it in settingsPreferenceKeys }
+        }
+        persistenceRuntime.checkpoint(values)
     }
 
     private fun currentSettingsValues(): Map<String, Any?> {
@@ -730,21 +664,6 @@ class PreferenceStore internal constructor(
                     .remove(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS)
                     .commit(),
             ) { "Unable to retire legacy update preferences." }
-        }
-    }
-
-    private suspend fun persistSettings(
-        kind: String,
-        write: suspend () -> Unit,
-    ) {
-        try {
-            write()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: IOException) {
-            Log.w(TAG, "Unable to persist $kind settings.", failure)
-        } catch (failure: IllegalStateException) {
-            Log.w(TAG, "Unable to persist $kind settings.", failure)
         }
     }
 
@@ -892,25 +811,16 @@ class PreferenceStore internal constructor(
             rewindSeconds = settings.rewindSeconds.sanitizeAudiobookSeekSeconds(),
             forwardSeconds = settings.forwardSeconds.sanitizeAudiobookSeekSeconds(),
         )
-        updateStateAndPreference(_audiobookSettings, normalized) {
+        updateStateAndPreference(
+            _audiobookSettings,
+            normalized,
+            KEY_AUDIOBOOK_REWIND_SECONDS to normalized.rewindSeconds,
+            KEY_AUDIOBOOK_FORWARD_SECONDS to normalized.forwardSeconds,
+            KEY_AUDIOBOOK_RESUME_PLAYBACK to normalized.resumePlayback,
+        ) {
             putInt(KEY_AUDIOBOOK_REWIND_SECONDS, normalized.rewindSeconds)
             putInt(KEY_AUDIOBOOK_FORWARD_SECONDS, normalized.forwardSeconds)
             putBoolean(KEY_AUDIOBOOK_RESUME_PLAYBACK, normalized.resumePlayback)
-        }
-    }
-
-    private fun configuredSmartPlaylists(playlists: List<SmartPlaylist>): List<SmartPlaylist> {
-        val enabled = _smartPlaylistEnabledTypes.value
-        val limit = _smartPlaylistMaxSongs.value
-        return playlists.mapNotNull { playlist ->
-            val type = playlist.builtInType
-            if (type != null && type !in enabled) {
-                null
-            } else if (type != null) {
-                playlist.copy(limit = limit)
-            } else {
-                playlist
-            }
         }
     }
 
@@ -1042,8 +952,6 @@ class PreferenceStore internal constructor(
         const val KEY_REVERB_PROFILE = "eq_reverb_profile"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         const val KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS = "last_automatic_update_check_at_ms"
-        const val KEY_PENDING_DEVICE_DELETE_OPERATION_ID = "pending_device_delete_operation_id"
-        const val KEY_PENDING_DEVICE_DELETE_PLAN = "pending_device_delete_plan"
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"

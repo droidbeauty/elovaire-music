@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import elovaire.music.droidbeauty.app.core.LibraryActionDependencies
-import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
@@ -16,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
+import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.data.update.UpdateController
@@ -28,7 +28,7 @@ internal class RootRouteActions(
     private val context: Context,
     private val libraryDependencies: LibraryActionDependencies,
     private val librarySettings: LibrarySettingsWriter,
-    private val playlistDependencies: PlaylistActionDependencies,
+    private val playlistStore: PlaylistStore,
     settingsDependencies: SettingsActionDependencies,
     private val navController: NavHostController,
     private val navigationState: RootNavigationState,
@@ -189,29 +189,29 @@ internal class RootRouteActions(
     fun renamePlaylist(
         playlistId: Long,
         name: String,
-    ): PlaylistMutationRequest = playlistDependencies.playlistStore.renamePlaylist(playlistId, name)
+    ): PlaylistMutationRequest = playlistStore.renamePlaylist(playlistId, name)
 
     fun deletePlaylists(playlistIds: Set<Long>): PlaylistMutationRequest =
-        playlistDependencies.playlistStore.deletePlaylists(playlistIds)
+        playlistStore.deletePlaylists(playlistIds)
 
     fun updatePlaylistSongOrder(
         playlistId: Long,
         songIds: List<Long>,
-    ): PlaylistMutationRequest = playlistDependencies.playlistStore.updatePlaylistSongIds(playlistId, songIds)
+    ): PlaylistMutationRequest = playlistStore.updatePlaylistSongIds(playlistId, songIds)
 
     fun importPlaylists(playlists: List<Playlist>): PlaylistMutationRequest =
-        playlistDependencies.playlistStore.importPlaylists(playlists)
+        playlistStore.importPlaylists(playlists)
 
-    fun createSmartPlaylist(name: String): PlaylistMutationRequest = playlistDependencies.playlistStore.createSmartPlaylist(name)
+    fun createSmartPlaylist(name: String): PlaylistMutationRequest = playlistStore.createSmartPlaylist(name)
 
     fun createSmartPlaylist(playlist: SmartPlaylist): PlaylistMutationRequest =
-        playlistDependencies.playlistStore.createSmartPlaylist(playlist)
+        playlistStore.createSmartPlaylist(playlist)
 
     fun updateSmartPlaylist(playlist: SmartPlaylist): PlaylistMutationRequest =
-        playlistDependencies.playlistStore.updateSmartPlaylist(playlist)
+        playlistStore.updateSmartPlaylist(playlist)
 
     fun deleteSmartPlaylist(playlistId: Long): PlaylistMutationRequest =
-        playlistDependencies.playlistStore.deleteSmartPlaylists(setOf(playlistId))
+        playlistStore.deleteSmartPlaylists(setOf(playlistId))
 
     fun removeLibraryFolder(selection: LibraryFolderSelection) {
         librarySettings.removeLibraryFolder(selection)
@@ -325,7 +325,7 @@ internal fun rememberRootRouteActions(
     context: Context,
     libraryDependencies: LibraryActionDependencies,
     settingsDependencies: SettingsActionDependencies,
-    playlistDependencies: PlaylistActionDependencies,
+    playlistStore: PlaylistStore,
     navController: NavHostController,
     navigationState: RootNavigationState,
     playbackActions: RootPlaybackActions,
@@ -341,7 +341,7 @@ internal fun rememberRootRouteActions(
         context,
         libraryDependencies,
         settingsDependencies,
-        playlistDependencies,
+        playlistStore,
         navController,
         navigationState,
         playbackActions,
@@ -357,7 +357,7 @@ internal fun rememberRootRouteActions(
             context = context,
             libraryDependencies = libraryDependencies,
             librarySettings = settingsDependencies.librarySettings,
-            playlistDependencies = playlistDependencies,
+            playlistStore = playlistStore,
             settingsDependencies = settingsDependencies,
             navController = navController,
             navigationState = navigationState,

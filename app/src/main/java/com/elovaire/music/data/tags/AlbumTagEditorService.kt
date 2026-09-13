@@ -14,7 +14,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
-import elovaire.music.droidbeauty.app.data.mutation.MediaMutationCoordinator
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRuntime
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationFaultInjector
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationTransactionPhase
@@ -119,6 +119,7 @@ internal sealed interface TagEditFailureCause {
 internal class AlbumTagEditorService(
     context: Context,
     private val mediaMutationJournal: MediaMutationJournal? = null,
+    mediaMutationRuntime: MediaMutationRuntime? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
 ) : AlbumTagEditor, TagMutationEditor {
@@ -132,6 +133,7 @@ internal class AlbumTagEditorService(
         mediaMutationJournal = mediaMutationJournal,
         faultInjector = faultInjector,
     )
+    private val mutationRuntime = mediaMutationRuntime ?: MediaMutationRuntime()
     override suspend fun applyEdits(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean,
@@ -141,7 +143,7 @@ internal class AlbumTagEditorService(
         request: TagMutationRequest,
         writeConsentGranted: Boolean,
     ): TagEditApplyResult = withContext(ioDispatcher) {
-        MediaMutationCoordinator.withTargets(request.songs.map(Song::uri)) {
+        mutationRuntime.withTargets(request.songs.map(Song::uri)) {
         logDebug("Applying tag edit songs=${request.songs.size} tracks=${request.tracks.size}")
         val plans = TagEditPlanner.plansFor(request)
         TagEditPlanner.validationFailure(request)?.let { validationFailure ->

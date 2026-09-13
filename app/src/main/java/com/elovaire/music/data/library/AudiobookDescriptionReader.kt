@@ -7,6 +7,9 @@ import java.net.URLEncoder
 import java.util.LinkedHashMap
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -21,17 +24,62 @@ internal class GoogleBooksAudiobookDescriptionReader(
         readTimeoutMs = 8_000,
     ),
 ) : AudiobookDescriptionReader {
+    private sealed interface DescriptionClaim {
+        data class Cached(val value: String?) : DescriptionClaim
+        data class Await(val deferred: CompletableDeferred<String?>) : DescriptionClaim
+        data class Owner(val deferred: CompletableDeferred<String?>) : DescriptionClaim
+    }
+
     private val cacheLock = Any()
     private val descriptionCache = LinkedHashMap<String, String?>(CACHE_CAPACITY, 0.75f, true)
+    private val inFlight = mutableMapOf<String, CompletableDeferred<String?>>()
 
     override suspend fun description(book: Audiobook): String? {
         val title = book.title.trim()
         val author = book.author.trim()
         val key = descriptionKey(title, author)
-        synchronized(cacheLock) {
-            if (descriptionCache.containsKey(key)) return descriptionCache[key]
+        val claim = synchronized(cacheLock) {
+            if (descriptionCache.containsKey(key)) {
+                DescriptionClaim.Cached(descriptionCache[key])
+            } else {
+                inFlight[key]?.let(DescriptionClaim::Await)
+                    ?: CompletableDeferred<String?>().let { deferred ->
+                        inFlight[key] = deferred
+                        DescriptionClaim.Owner(deferred)
+                    }
+            }
         }
-        val result = try {
+        when (claim) {
+            is DescriptionClaim.Cached -> return claim.value
+            is DescriptionClaim.Await -> return claim.deferred.await()
+            is DescriptionClaim.Owner -> Unit
+        }
+        val deferred = claim.deferred
+        currentCoroutineContext()[Job]?.invokeOnCompletion { cause ->
+            if (cause == null) return@invokeOnCompletion
+            synchronized(cacheLock) { if (inFlight[key] === deferred) inFlight.remove(key) }
+            if (cause is CancellationException) deferred.cancel(cause) else deferred.completeExceptionally(cause)
+        }
+        return try {
+            val result = fetchDescription(title, author)
+            synchronized(cacheLock) {
+                descriptionCache[key] = result
+                while (descriptionCache.size > CACHE_CAPACITY) {
+                    val oldestKey = descriptionCache.entries.iterator().next().key
+                    descriptionCache.remove(oldestKey)
+                }
+                if (inFlight[key] === deferred) inFlight.remove(key)
+            }
+            deferred.complete(result)
+            result
+        } finally {
+            synchronized(cacheLock) { if (inFlight[key] === deferred) inFlight.remove(key) }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun fetchDescription(title: String, author: String): String? {
+        return try {
             val query = buildQuery(title, author)
             val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
             val response = transport.get(
@@ -42,9 +90,7 @@ internal class GoogleBooksAudiobookDescriptionReader(
                 ),
                 maxBytes = MAX_RESPONSE_BYTES,
             )
-            if (response.statusCode !in 200..299) {
-                null
-            } else {
+            if (response.statusCode !in 200..299) null else {
                 parseGoogleBooksDescription(String(response.body, Charsets.UTF_8), title)
             }
         } catch (cancelled: CancellationException) {
@@ -60,14 +106,6 @@ internal class GoogleBooksAudiobookDescriptionReader(
         } catch (_: IllegalStateException) {
             null
         }
-        synchronized(cacheLock) {
-            descriptionCache[key] = result
-            while (descriptionCache.size > CACHE_CAPACITY) {
-                val oldestKey = descriptionCache.entries.iterator().next().key
-                descriptionCache.remove(oldestKey)
-            }
-        }
-        return result
     }
 
     private fun buildQuery(title: String, author: String): String = buildString {

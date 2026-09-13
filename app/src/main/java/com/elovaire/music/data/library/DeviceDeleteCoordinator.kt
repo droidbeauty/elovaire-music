@@ -2,10 +2,12 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
+import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import org.json.JSONArray
@@ -43,11 +45,15 @@ internal class DeviceDeleteCoordinator(
     private val context: Context,
     private val libraryRepository: LibraryRepository,
     private val playbackManager: PlaybackManager,
-    private val preferenceStore: PreferenceStore,
+    private val userDataStore: PlaylistStore,
     private val invalidateArtwork: (Collection<Uri?>) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : DeviceDeleteHandler {
+    private val pendingDeletePreferences = allowStrictModeDiskReads {
+        PreferenceStorage(context.applicationContext).preferences
+    }
+
     override suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan? {
         val uniqueSongs = songs.distinctBy(Song::id)
         if (uniqueSongs.isEmpty()) return null
@@ -82,7 +88,7 @@ internal class DeviceDeleteCoordinator(
         cleanupEmptyDirectories(plan.parentDirectories)
         playbackManager.removeSongsFromQueue(deleteResult.deletedSongIds)
         if (deleteResult.deletedSongIds.isNotEmpty()) {
-            if (preferenceStore.removeSongReferences(deleteResult.deletedSongIds).await() !is
+            if (userDataStore.removeSongReferences(deleteResult.deletedSongIds).await() !is
                 elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult.Success
             ) {
                 return
@@ -96,7 +102,7 @@ internal class DeviceDeleteCoordinator(
     }
 
     override suspend fun clearPendingDelete(operationId: String) = withContext(ioDispatcher) {
-        check(preferenceStore.clearPendingDeviceDelete(operationId)) {
+        check(clearPendingDeleteState(operationId)) {
             "Unable to clear the completed device-delete operation."
         }
     }
@@ -145,12 +151,17 @@ internal class DeviceDeleteCoordinator(
             .put(KEY_FILE_PATHS, filePaths)
             .put(KEY_PARENT_DIRECTORIES, parents)
             .toString()
-        return preferenceStore.persistPendingDeviceDelete(plan.operationId, serializedPlan)
+        return synchronized(pendingDeletePreferences) {
+            pendingDeletePreferences.edit()
+                .putString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, plan.operationId)
+                .putString(KEY_PENDING_DEVICE_DELETE_PLAN, serializedPlan)
+                .commit()
+        }
     }
 
     private fun readPendingDelete(): DeviceDeletePlan? {
         val decoded = runCatching {
-            val root = JSONObject(preferenceStore.readPendingDeviceDelete() ?: return@runCatching null)
+            val root = JSONObject(readPendingDeleteState() ?: return@runCatching null)
             val operationId = root.optString(KEY_OPERATION_ID).takeIf(String::isNotBlank)
                 ?: return@runCatching null
             val array = root.getJSONArray(KEY_TARGETS)
@@ -185,7 +196,7 @@ internal class DeviceDeleteCoordinator(
     }
 
     private fun readStringSet(key: String): Set<String> {
-        val raw = preferenceStore.readPendingDeviceDelete() ?: return emptySet()
+        val raw = readPendingDeleteState() ?: return emptySet()
         return runCatching {
             val array = JSONObject(raw).optJSONArray(key) ?: return@runCatching emptySet()
             buildSet {
@@ -194,6 +205,23 @@ internal class DeviceDeleteCoordinator(
                 }
             }
         }.getOrDefault(emptySet())
+    }
+
+    private fun readPendingDeleteState(): String? = synchronized(pendingDeletePreferences) {
+        pendingDeletePreferences.getString(KEY_PENDING_DEVICE_DELETE_PLAN, null)
+    }
+
+    private fun clearPendingDeleteState(operationId: String): Boolean {
+        return synchronized(pendingDeletePreferences) {
+            if (pendingDeletePreferences.getString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, null) != operationId) {
+                true
+            } else {
+                pendingDeletePreferences.edit()
+                    .remove(KEY_PENDING_DEVICE_DELETE_OPERATION_ID)
+                    .remove(KEY_PENDING_DEVICE_DELETE_PLAN)
+                    .commit()
+            }
+        }
     }
 
     private companion object {
@@ -205,6 +233,8 @@ internal class DeviceDeleteCoordinator(
         const val KEY_ALBUM_ID = "album_id"
         const val KEY_URI = "uri"
         const val KEY_ART_URI = "art_uri"
+        const val KEY_PENDING_DEVICE_DELETE_OPERATION_ID = "pending_device_delete_operation_id"
+        const val KEY_PENDING_DEVICE_DELETE_PLAN = "pending_device_delete_plan"
         const val MAX_PENDING_TARGETS = 10_000
     }
 }

@@ -33,19 +33,23 @@ internal class PortableUserDataBackup(
         }
     }
     private val lock = Any()
+    private var preparedContentRevision: String? = null
+    private var preparedSongIdentities: Map<Long, TrackMatchIdentity>? = null
 
     fun write(
         snapshot: UserDataSnapshot,
         songs: List<Song>,
         appVersion: String = BuildConfig.VERSION_NAME,
         userDataRevision: Long = 0L,
+        contentRevision: String = "",
     ) = synchronized(lock) {
-        val bytes = encodePortableUserData(
+        val bytes = encodeLocked(
             snapshot = snapshot,
             songs = songs,
             createdAtMs = clock.wallTimeMs(),
             appVersion = appVersion,
             userDataRevision = userDataRevision,
+            contentRevision = contentRevision,
         )
         val output = atomicFile.startWrite()
         try {
@@ -56,6 +60,47 @@ internal class PortableUserDataBackup(
             atomicFile.failWrite(output)
             throw failure
         }
+    }
+
+    fun encode(
+        snapshot: UserDataSnapshot,
+        songs: List<Song>,
+        createdAtMs: Long,
+        appVersion: String = BuildConfig.VERSION_NAME,
+        userDataRevision: Long = 0L,
+        contentRevision: String = "",
+    ): ByteArray = synchronized(lock) {
+        encodeLocked(snapshot, songs, createdAtMs, appVersion, userDataRevision, contentRevision)
+    }
+
+    private fun encodeLocked(
+        snapshot: UserDataSnapshot,
+        songs: List<Song>,
+        createdAtMs: Long,
+        appVersion: String,
+        userDataRevision: Long,
+        contentRevision: String,
+    ): ByteArray {
+        val identities = if (contentRevision.isBlank()) {
+            null
+        } else if (preparedContentRevision == contentRevision) {
+            preparedSongIdentities
+        } else {
+            songs.associate { song ->
+                song.id to MediaIdentityResolver.trackMatchIdentity(song).copy(sourceStableKey = null)
+            }.also {
+                preparedContentRevision = contentRevision
+                preparedSongIdentities = it
+            }
+        }
+        return encodePortableUserData(
+            snapshot = snapshot,
+            songs = songs,
+            createdAtMs = createdAtMs,
+            appVersion = appVersion,
+            userDataRevision = userDataRevision,
+            preparedSongIdentities = identities,
+        )
     }
 
     fun readBytes(): ByteArray? = synchronized(lock) {
@@ -105,11 +150,13 @@ internal fun encodePortableUserData(
     createdAtMs: Long,
     appVersion: String,
     userDataRevision: Long = 0L,
+    preparedSongIdentities: Map<Long, TrackMatchIdentity>? = null,
 ): ByteArray {
     require(appVersion.length <= MAX_APP_VERSION_CHARS)
     val songsById = songs.associateBy(Song::id)
     fun reference(songId: Long): TrackMatchIdentity? {
-        return songsById[songId]?.let(MediaIdentityResolver::trackMatchIdentity)?.copy(sourceStableKey = null)
+        return preparedSongIdentities?.get(songId)
+            ?: songsById[songId]?.let(MediaIdentityResolver::trackMatchIdentity)?.copy(sourceStableKey = null)
     }
 
     val root = JSONObject()

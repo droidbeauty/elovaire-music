@@ -18,7 +18,7 @@ fun ElovaireRoot(
 
     CompositionLocalProvider(
         LocalAppLanguage provides appearanceState.appLanguage,
-        LocalInteractionWorkload provides container.interactionWorkPolicy,
+        LocalInteractionWorkload provides composition.interactionWorkPolicy,
     ) {
         RootPermissionGate(
             permissionState = composition.permissionController.state,

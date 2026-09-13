@@ -10,6 +10,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryCallbackRouter
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class PlaybackSessionOwner(
     context: Context,
     initialPlayer: Player,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val callbackRouter = MediaLibraryCallbackRouter()
     private val session = MediaLibrarySession.Builder(context, initialPlayer, callbackRouter)
@@ -33,7 +35,7 @@ internal class PlaybackSessionOwner(
             ),
         )
         .build()
-    private val sessionResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMediaSession)
+    private val sessionResource = resourceTracker.acquire(BackendResourceKind.ActiveMediaSession)
     private val released = AtomicBoolean(false)
 
     val mediaLibrarySession: MediaLibrarySession

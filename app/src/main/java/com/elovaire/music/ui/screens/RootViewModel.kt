@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.RootViewModelDependencies
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
+import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -61,27 +62,27 @@ internal class RootViewModel(
 
     val appearanceState = combine(
         combine(
-            dependencies.rootSettingsReader.themeMode,
-            dependencies.rootSettingsReader.textSizePreset,
-            dependencies.rootSettingsReader.appLanguage,
-            dependencies.rootSettingsReader.nowPlayingBarStyle,
+            dependencies.appearanceSettings.themeMode,
+            dependencies.appearanceSettings.textSizePreset,
+            dependencies.appearanceSettings.appLanguage,
+            dependencies.appearanceSettings.nowPlayingBarStyle,
         ) { theme, textSize, language, nowPlayingBarStyle ->
             AppearanceCore(theme, textSize, language, nowPlayingBarStyle)
         },
         combine(
-            dependencies.rootSettingsReader.albumCollectionLayoutMode,
-            dependencies.rootSettingsReader.songCollectionGridEnabled,
-            dependencies.rootSettingsReader.albumCollectionSortMode,
-            dependencies.rootSettingsReader.songCollectionSortMode,
+            dependencies.appearanceSettings.albumCollectionLayoutMode,
+            dependencies.appearanceSettings.songCollectionGridEnabled,
+            dependencies.appearanceSettings.albumCollectionSortMode,
+            dependencies.appearanceSettings.songCollectionSortMode,
         ) { albumLayout, songGrid, albumSort, songSort ->
             AppearanceLayout(albumLayout, songGrid, albumSort, songSort)
         },
         combine(
-            dependencies.rootSettingsReader.volumeNormalizationEnabled,
-            dependencies.rootSettingsReader.onlineLyricsEnabled,
-            dependencies.rootSettingsReader.audiobookSettings,
-            dependencies.rootSettingsReader.smartPlaylistEnabledTypes,
-            dependencies.rootSettingsReader.smartPlaylistMaxSongs,
+            dependencies.appearanceSettings.volumeNormalizationEnabled,
+            dependencies.appearanceSettings.onlineLyricsEnabled,
+            dependencies.appearanceSettings.audiobookSettings,
+            dependencies.appearanceSettings.smartPlaylistEnabledTypes,
+            dependencies.appearanceSettings.smartPlaylistMaxSongs,
         ) { volumeNormalization, onlineLyrics, audiobookSettings, enabledTypes, maxSongs ->
             AppearancePlayback(
                 volumeNormalizationEnabled = volumeNormalization,
@@ -110,19 +111,19 @@ internal class RootViewModel(
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = rootAppearanceStateOf(dependencies.rootSettingsReader),
+        initialValue = rootAppearanceStateOf(dependencies.appearanceSettings),
     )
 
-    private val favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds
+    private val favoriteSongIds = dependencies.userData.favoriteSongIds
         .map { ids -> ids.toSet() }
         .distinctUntilChanged()
 
     private val collectionState: Flow<RootCollectionState> = combine(
-        dependencies.rootSettingsReader.playlists,
-        dependencies.rootSettingsReader.smartPlaylists,
+        dependencies.userData.playlists,
+        dependencies.userData.smartPlaylists,
         favoriteSongIds,
-        dependencies.rootSettingsReader.albumPlayCounts,
-        dependencies.rootSettingsReader.songPlayCounts,
+        dependencies.userData.albumPlayCounts,
+        dependencies.userData.songPlayCounts,
     ) { playlists, smartPlaylists, favorites, albumCounts, songCounts ->
         RootCollectionState(
             playlists = playlists,
@@ -171,11 +172,11 @@ internal class RootViewModel(
             textSizePreset = appearanceState.value.textSizePreset,
             appLanguage = appearanceState.value.appLanguage,
             nowPlayingBarStyle = appearanceState.value.nowPlayingBarStyle,
-            playlists = dependencies.rootSettingsReader.playlists.value,
-            smartPlaylists = dependencies.rootSettingsReader.smartPlaylists.value,
-            favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds.value.toSet(),
-            albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
-            songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,
+            playlists = dependencies.userData.playlists.value,
+            smartPlaylists = dependencies.userData.smartPlaylists.value,
+            favoriteSongIds = dependencies.userData.favoriteSongIds.value.toSet(),
+            albumPlayCounts = dependencies.userData.albumPlayCounts.value,
+            songPlayCounts = dependencies.userData.songPlayCounts.value,
             albumCollectionLayoutModeName = appearanceState.value.albumCollectionLayoutModeName,
             songCollectionGridEnabled = appearanceState.value.songCollectionGridEnabled,
             albumCollectionSortModeName = appearanceState.value.albumCollectionSortModeName,
@@ -211,7 +212,7 @@ private data class AppearancePlayback(
     val smartPlaylistMaxSongs: Int,
 )
 
-private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.settings.RootSettingsReader) =
+private fun rootAppearanceStateOf(settings: AppearanceSettingsStore) =
     RootAppearanceState(
         themeMode = settings.themeMode.value,
         textSizePreset = settings.textSizePreset.value,

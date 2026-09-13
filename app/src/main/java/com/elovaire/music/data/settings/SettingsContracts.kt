@@ -57,19 +57,12 @@ internal interface MediaLibraryUserDataReader : MediaLibraryInvalidationReader {
     val userDataSnapshot: StateFlow<UserDataSnapshot>
 }
 
-internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore, MediaLibraryUserDataReader
-
 internal interface PlaybackIntegrationSettings {
     val eqSettings: StateFlow<EqSettings>
     val crossfadeEnabled: StateFlow<Boolean>
     val crossfadeDurationMs: StateFlow<Long>
     val crossfadeSilenceThresholdDb: StateFlow<Float>
     val volumeNormalizationEnabled: StateFlow<Boolean>
-    val recentSongIds: StateFlow<List<Long>>
-    val recentAlbumIds: StateFlow<List<Long>>
-    val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?>
-    val lastPlayedCollectionId: StateFlow<Long?>
-    fun recordPlaybackTransition(songId: Long?, albumId: Long?)
 }
 
 /** Settings owned by the equalizer screen and consumed by the playback runtime. */
@@ -85,13 +78,6 @@ internal interface NowPlayingSettingsStore {
 }
 
 /** Read/write settings used only by search discovery. */
-internal interface SearchSettingsStore {
-    val albumPlayCounts: StateFlow<Map<Long, Int>>
-    val searchHistory: StateFlow<List<SearchHistoryEntry>>
-    fun addSearchHistoryEntry(entry: SearchHistoryEntry)
-    fun clearSearchHistory()
-}
-
 internal interface AppearanceSettingsWriter {
     fun setThemeMode(themeMode: ThemeMode)
     fun setTextSizePreset(textSizePreset: TextSizePreset)

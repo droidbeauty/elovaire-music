@@ -14,6 +14,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationMetrics
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
@@ -92,7 +93,7 @@ data class LibraryDeleteFailure(
 )
 
 @Suppress("LargeClass", "TooManyFunctions")
-class LibraryRepository internal constructor(
+internal class LibraryRepository internal constructor(
     appContext: Context,
     private val scanner: LibraryScanCoordinator,
     private val scope: CoroutineScope,
@@ -106,7 +107,8 @@ class LibraryRepository internal constructor(
     },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : LibraryStartupController, LibraryTagUpdateWriter {
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+) : LibraryStartupController, LibraryNetworkController, LibraryTagUpdateWriter {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
@@ -115,7 +117,6 @@ class LibraryRepository internal constructor(
     )
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
-    private var bootstrapJob: Job? = null
     private var refreshDebounceJob: Job? = null
     private var foregroundObserverJob: Job? = null
     private val refreshRequests = LibraryRefreshRequests()
@@ -127,7 +128,6 @@ class LibraryRepository internal constructor(
     private val released = AtomicBoolean(false)
     @Volatile
     private var permissionChangeVersion = 0L
-    private var didBootstrapLibrary = false
     private var needsForegroundReconcile = false
     @Volatile
     private var lastSuccessfulMediaStoreSyncState: LibraryMediaStoreSyncState? = null
@@ -213,12 +213,10 @@ class LibraryRepository internal constructor(
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
         if (granted) {
-            _runtimeState.value = LibraryRuntimeState.Idle
             updateObserverRegistration()
             bootstrapLibrary()
         } else {
             _runtimeState.value = LibraryRuntimeState.NoPermission
-            didBootstrapLibrary = false
             releaseObserversAndJobs(clearPermissionState = false)
             _scanState.value = LibraryScanState(permissionGranted = false)
         }
@@ -227,7 +225,6 @@ class LibraryRepository internal constructor(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         started.set(false)
-        didBootstrapLibrary = false
         needsForegroundReconcile = false
         releaseObserversAndJobs(clearPermissionState = true)
         foregroundObserverJob?.cancel()
@@ -236,11 +233,10 @@ class LibraryRepository internal constructor(
     }
 
     private fun bootstrapLibrary() {
-        if (didBootstrapLibrary) return
-        didBootstrapLibrary = true
+        if (_runtimeState.value !is LibraryRuntimeState.NoPermission) return
         val bootstrapPermissionVersion = permissionChangeVersion
         _runtimeState.value = LibraryRuntimeState.Bootstrapping(bootstrapPermissionVersion)
-        bootstrapJob = scope.launch {
+        scanJob = scope.launch {
             try {
                 val cachedSnapshot = withContext(ioDispatcher) {
                     ElovaireTrace.section("library_snapshot_load") { snapshotStore.load() }
@@ -293,34 +289,37 @@ class LibraryRepository internal constructor(
                         } else {
                             null
                         }
-                        refresh(
-                            forceMediaIndex = false,
-                            enrichMetadata = false,
+                        startRefresh(
+                            request = LibraryRefreshRequest(
+                                forceMediaIndex = false,
+                                enrichMetadata = false,
+                                mediaStoreGenerationFloor = incrementalRequest?.mediaStoreGenerationFloor,
+                                mediaStoreGenerationFloors = incrementalRequest?.mediaStoreGenerationFloors.orEmpty(),
+                            ),
                             showLoadingIndicator = false,
-                            mediaStoreGenerationFloor = incrementalRequest?.mediaStoreGenerationFloor,
-                            mediaStoreGenerationFloors = incrementalRequest?.mediaStoreGenerationFloors.orEmpty(),
                         )
                     } else if (cachedSnapshotNeedsMetadata) {
-                        refresh(
-                            forceMediaIndex = false,
-                            enrichMetadata = true,
+                        startRefresh(
+                            request = LibraryRefreshRequest(enrichMetadata = true),
                             showLoadingIndicator = false,
                         )
                     } else {
                         _scanState.update { it.copy(isAuthoritative = true) }
                     }
                 } else {
-                    refresh(
+                    startRefresh(
+                        request = LibraryRefreshRequest(
                         // MediaStore is the authoritative catalog. A first run must not walk
                         // every file under Music just to read rows the provider already indexes.
-                        forceMediaIndex = false,
-                        enrichMetadata = false,
+                            forceMediaIndex = false,
+                            enrichMetadata = false,
+                        ),
                         showLoadingIndicator = true,
                     )
                 }
             } finally {
-                if (bootstrapJob === currentCoroutineContext()[Job]) {
-                    bootstrapJob = null
+                if (scanJob === currentCoroutineContext()[Job]) {
+                    scanJob = null
                 }
                 if (hasCurrentPermission(bootstrapPermissionVersion) && _runtimeState.value is LibraryRuntimeState.Bootstrapping) {
                     _runtimeState.value = LibraryRuntimeState.Idle
@@ -399,7 +398,7 @@ class LibraryRepository internal constructor(
             _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
-            val scanResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveScan)
+            val scanResource = resourceTracker.acquire(BackendResourceKind.ActiveScan)
             val operation = BackendOperationContext(operationIdGenerator.nextId(), BackendSubsystem.Library, clock.elapsedTimeMs())
             val currentScanJob = currentCoroutineContext()[Job]
             val scanPermissionVersion = permissionChangeVersion
@@ -754,7 +753,7 @@ class LibraryRepository internal constructor(
         scanner.blockNetworkSources(sourceIds)
     }
 
-    internal fun unblockNetworkSource(sourceId: String) {
+    override fun unblockNetworkSource(sourceId: String) {
         scanner.unblockNetworkSource(sourceId)
     }
 
@@ -949,11 +948,11 @@ class LibraryRepository internal constructor(
         }
     }
 
-    internal fun setNetworkSources(
+    override fun setNetworkSources(
         sources: List<NetworkLibrarySource>,
-        enrichMetadata: Boolean = false,
-        showLoadingIndicator: Boolean = true,
-        forceRefreshSourceIds: Set<String> = emptySet(),
+        enrichMetadata: Boolean,
+        showLoadingIndicator: Boolean,
+        forceRefreshSourceIds: Set<String>,
     ) {
         val changedNetworkSourceIds = scanner.networkSourceIdsChanged(sources)
         val changed = scanner.setNetworkSources(sources)
@@ -1129,8 +1128,6 @@ class LibraryRepository internal constructor(
     }
 
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
-        bootstrapJob?.cancel()
-        bootstrapJob = null
         scanJob?.cancel()
         scanJob = null
         refreshDebounceJob?.cancel()

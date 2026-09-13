@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.network
 import android.net.TrafficStats
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -21,6 +22,7 @@ internal class BoundedHttpTransport(
     private val readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS,
     private val maxRedirects: Int = DEFAULT_MAX_REDIRECTS,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     init {
         require(connectTimeoutMs > 0) { "connectTimeoutMs must be positive" }
@@ -34,7 +36,7 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
     ): BoundedHttpResponse {
-        val httpResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveHttpRequest)
+        val httpResource = resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest)
         return try {
             withContext(ioDispatcher) {
                 getBlocking(rawUrl, headers, maxBytes, urlPolicy, cancellationContext = currentCoroutineContext())
@@ -50,7 +52,7 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
     ): BoundedHttpResponse {
-        val httpResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveHttpRequest)
+        val httpResource = resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest)
         return try {
             getBlocking(rawUrl, headers, maxBytes, urlPolicy, cancellationContext = null)
         } finally {
@@ -65,7 +67,7 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
     ): BoundedHttpFileResponse {
-        val httpResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveHttpRequest)
+        val httpResource = resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest)
         return withTrafficStatsTag {
             try {
                 getBlockingToFileTagged(rawUrl, target, headers, maxBytes, urlPolicy)
@@ -106,44 +108,21 @@ internal class BoundedHttpTransport(
         urlPolicy: (URL) -> Boolean,
         cancellationContext: kotlin.coroutines.CoroutineContext?,
     ): BoundedHttpResponse {
-        require(maxBytes > 0) { "maxBytes must be positive" }
-        var currentUrl = URL(rawUrl)
-        repeat(maxRedirects + 1) { redirectAttempt ->
-            require(urlPolicy(currentUrl)) { "HTTP request URL is not allowed" }
-            val connection = (currentUrl.openConnection() as? HttpURLConnection)
-                ?: error("Unsupported HTTP connection")
-            try {
-                connection.requestMethod = "GET"
-                connection.connectTimeout = connectTimeoutMs
-                connection.readTimeout = readTimeoutMs
-                connection.instanceFollowRedirects = false
-                headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
-                connection.connect()
-                val status = connection.responseCode
-                if (status in 300..399) {
-                    if (redirectAttempt == maxRedirects) error("Too many HTTPS redirects")
-                    val location = connection.getHeaderField("Location") ?: error("Redirect has no location")
-                    currentUrl = URL(currentUrl, location)
-                    return@repeat
-                }
-                val contentLength = connection.contentLengthLong
-                if (contentLength > maxBytes) error("HTTP response is too large")
-                val body = if (status in 200..299) {
-                    connection.inputStream.use { it.readBounded(maxBytes, cancellationContext) }
-                } else {
-                    ByteArray(0)
-                }
-                return BoundedHttpResponse(
-                    statusCode = status,
-                    body = body,
-                    retryAfterMs = connection.getHeaderField("Retry-After")?.toRetryAfterMs(),
-                    finalUrl = currentUrl,
-                )
-            } finally {
-                connection.disconnect()
-            }
-        }
-        error("Unable to resolve HTTPS request")
+        val response = executeGet(
+            rawUrl = rawUrl,
+            headers = headers,
+            maxBytes = maxBytes,
+            urlPolicy = urlPolicy,
+            cancellationContext = cancellationContext,
+            readBody = { input -> input.readBounded(maxBytes, cancellationContext) },
+            emptyBody = { ByteArray(0) },
+        )
+        return BoundedHttpResponse(
+            statusCode = response.statusCode,
+            body = response.body,
+            retryAfterMs = response.retryAfterMs,
+            finalUrl = response.finalUrl,
+        )
     }
 
     private fun getBlockingToFileTagged(
@@ -153,6 +132,38 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean,
     ): BoundedHttpFileResponse {
+        val response = executeGet(
+            rawUrl = rawUrl,
+            headers = headers,
+            maxBytes = maxBytes,
+            urlPolicy = urlPolicy,
+            cancellationContext = null,
+            readBody = { input ->
+                FileOutputStream(target).use { output ->
+                    input.copyBoundedTo(output, maxBytes)
+                    output.flush()
+                }
+                Unit
+            },
+            emptyBody = {},
+        )
+        return BoundedHttpFileResponse(
+            statusCode = response.statusCode,
+            bytesWritten = if (response.statusCode in 200..299) target.length() else 0L,
+            retryAfterMs = response.retryAfterMs,
+            finalUrl = response.finalUrl,
+        )
+    }
+
+    private fun <T> executeGet(
+        rawUrl: String,
+        headers: Map<String, String>,
+        maxBytes: Int,
+        urlPolicy: (URL) -> Boolean,
+        cancellationContext: kotlin.coroutines.CoroutineContext?,
+        readBody: (java.io.InputStream) -> T,
+        emptyBody: () -> T,
+    ): GetResponse<T> {
         require(maxBytes > 0) { "maxBytes must be positive" }
         var currentUrl = URL(rawUrl)
         repeat(maxRedirects + 1) { redirectAttempt ->
@@ -173,19 +184,15 @@ internal class BoundedHttpTransport(
                     currentUrl = URL(currentUrl, location)
                     return@repeat
                 }
-                val contentLength = connection.contentLengthLong
-                if (contentLength > maxBytes) error("HTTP response is too large")
-                if (status in 200..299) {
-                    connection.inputStream.use { input ->
-                        FileOutputStream(target).use { output ->
-                            input.copyBoundedTo(output, maxBytes)
-                            output.flush()
-                        }
-                    }
+                if (connection.contentLengthLong > maxBytes) error("HTTP response is too large")
+                val body = if (status in 200..299) {
+                    connection.inputStream.use(readBody)
+                } else {
+                    emptyBody()
                 }
-                return BoundedHttpFileResponse(
+                return GetResponse(
                     statusCode = status,
-                    bytesWritten = if (status in 200..299) target.length() else 0L,
+                    body = body,
                     retryAfterMs = connection.getHeaderField("Retry-After")?.toRetryAfterMs(),
                     finalUrl = currentUrl,
                 )
@@ -205,7 +212,7 @@ internal class BoundedHttpTransport(
     ): BoundedHttpResponse = withContext(ioDispatcher) {
         val cancellationContext = currentCoroutineContext()
         withTrafficStatsTag {
-            val httpResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveHttpRequest)
+        val httpResource = resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest)
             try {
                 require(maxBytes > 0) { "maxBytes must be positive" }
                 val url = URL(rawUrl)
@@ -313,6 +320,13 @@ internal class BoundedHttpTransport(
         const val TRAFFIC_STATS_TAG = 0x454C4F56
     }
 }
+
+private data class GetResponse<T>(
+    val statusCode: Int,
+    val body: T,
+    val retryAfterMs: Long?,
+    val finalUrl: URL,
+)
 
 private fun isHttpsUrl(url: URL): Boolean = url.protocol.equals("https", ignoreCase = true)
 

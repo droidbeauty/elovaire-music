@@ -13,10 +13,11 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.settings.EqualizerSettingsStore
+import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
+import elovaire.music.droidbeauty.app.data.settings.CollectionSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
-import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
-import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
-import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
+import elovaire.music.droidbeauty.app.data.settings.PlaybackHistoryStore
+import elovaire.music.droidbeauty.app.data.settings.SearchHistoryStore
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
@@ -54,15 +55,29 @@ internal class FakePlaybackReader : PlaybackReader {
     override val recentPlaybackState = MutableStateFlow(RecentPlaybackState())
 }
 
-internal class FakeSearchSettingsStore : SearchSettingsStore {
+internal class FakeSearchSettingsStore : PlaybackHistoryStore, SearchHistoryStore {
     override val albumPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    override val songPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    override val recentSongIds = MutableStateFlow<List<Long>>(emptyList())
+    override val recentAlbumIds = MutableStateFlow<List<Long>>(emptyList())
+    override val lastPlayedCollectionKind = MutableStateFlow<PlaybackCollectionKind?>(null)
+    override val lastPlayedCollectionId = MutableStateFlow<Long?>(null)
     override val searchHistory = MutableStateFlow<List<SearchHistoryEntry>>(emptyList())
+
+    override fun recordPlaybackTransition(songId: Long?, albumId: Long?) = Unit
+
+    override fun setRecentPlaybackIds(
+        songIds: List<Long>,
+        albumIds: List<Long>,
+        lastPlayedCollectionKind: PlaybackCollectionKind?,
+        lastPlayedCollectionId: Long?,
+    ) = Unit
 
     override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
         searchHistory.value = listOf(entry) + searchHistory.value
     }
 
-    override fun clearSearchHistory() {
+    override fun clearSearchHistoryEntries() {
         searchHistory.value = emptyList()
     }
 }
@@ -79,7 +94,7 @@ internal class FakeEqualizerSettingsStore(
     }
 }
 
-internal class FakeRootSettingsReader : RootSettingsReader {
+internal class FakeRootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore {
     override val eqSettings = MutableStateFlow(EqSettings())
     override val themeMode = MutableStateFlow(ThemeMode.System)
     override val textSizePreset = MutableStateFlow(TextSizePreset.Default)
@@ -97,7 +112,6 @@ internal class FakeRootSettingsReader : RootSettingsReader {
     override val smartPlaylistEnabledTypes = MutableStateFlow(BuiltInSmartPlaylistType.entries.toSet())
     override val smartPlaylistMaxSongs = MutableStateFlow(20)
     override val userDataReadiness = MutableStateFlow(UserDataReadiness.Ready)
-    override val userDataSnapshot = MutableStateFlow(UserDataSnapshot())
     override val playlists = MutableStateFlow<List<Playlist>>(emptyList())
     override val smartPlaylists = MutableStateFlow<List<SmartPlaylist>>(emptyList())
     override val favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())

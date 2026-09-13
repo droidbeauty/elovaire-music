@@ -74,7 +74,7 @@ class AppExitDiagnosticsTest {
     }
 
     @Test
-    fun previousProcessBreadcrumbIsChecksummedBoundedAndRejectsCorruption() {
+    fun previousProcessBreadcrumbIsBoundedAndRejectsMalformedData() {
         val encoded = encodePreviousProcessBreadcrumb(
             PreviousProcessBreadcrumb(
                 processId = "process",

@@ -98,6 +98,35 @@ class BackendDiagnosticsTest {
         assertEquals(emptyMap<String, Int>(), BackendResourceRegistry.snapshot())
     }
 
+    @Test
+    fun appScopedDiagnosticsDoNotLeakEventsResourcesOrBreadcrumbs() {
+        val first = BackendDiagnosticsRuntime()
+        val second = BackendDiagnosticsRuntime()
+        var firstBreadcrumbs = 0
+        var secondBreadcrumbs = 0
+        first.installBreadcrumbCheckpoint { firstBreadcrumbs += 1 }
+        second.installBreadcrumbCheckpoint { secondBreadcrumbs += 1 }
+
+        val firstLease = first.resources.acquire(BackendResourceKind.ActiveRetriever)
+        second.emit(BackendEvent.WorkerFailed(mapOf("owner" to "second")))
+
+        assertEquals(1, first.resources.snapshot()["active_retrievers"])
+        assertEquals(emptyMap<String, Int>(), second.resources.snapshot())
+        assertTrue(first.snapshot().isEmpty())
+        assertEquals(listOf("WorkerFailed"), second.snapshot().map { it.name })
+        assertEquals(0, firstBreadcrumbs)
+        assertEquals(1, secondBreadcrumbs)
+
+        firstLease.close()
+        first.close()
+        assertEquals(emptyMap<String, Int>(), first.resources.snapshot())
+        assertEquals(listOf("WorkerFailed"), second.snapshot().map { it.name })
+        assertEquals(1, secondBreadcrumbs)
+
+        first.emit(BackendEvent.WorkerFailed(mapOf("owner" to "released")))
+        assertTrue(first.snapshot().isEmpty())
+    }
+
     private class TestClock : AppClock {
         override fun wallTimeMs(): Long = 1_000L
         override fun elapsedTimeMs(): Long = 100L

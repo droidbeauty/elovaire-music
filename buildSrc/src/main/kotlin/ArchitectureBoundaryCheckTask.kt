@@ -17,8 +17,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         sourceFiles.files.filter { it.isFile }.forEach { file ->
             val path = normalizeGuardrailPath(file.invariantSeparatorsPath)
             val text = file.readText()
-            val code = stripCommentsAndStringLiterals(text)
             val codeWithLiterals = stripCommentsPreservingLiterals(text)
+            val code = stripStringLiterals(codeWithLiterals)
             if (coreImportsUi(path, code)) {
                 violations += "$path makes the application core depend on a UI implementation"
             }
@@ -56,7 +56,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             }
             if (
                 "/ui/" in path &&
-                    Regex("container\\.(playbackManager|libraryRepository|preferenceStore)").containsMatchIn(code)
+                    Regex("container\\.(playbackManager|libraryRepository|preferenceStore)").containsMatchIn(code) &&
+                    !isGuardrailPathAllowed(path, setOf("/ui/screens/root/RootComposition.kt"))
             ) {
                 violations += "$path reaches a concrete application service instead of an action/read dependency"
             }

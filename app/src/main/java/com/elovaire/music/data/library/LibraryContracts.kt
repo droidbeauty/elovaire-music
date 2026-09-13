@@ -37,6 +37,18 @@ interface LibraryStartupController : LibraryReader {
     fun blockNetworkSources(sourceIds: Set<String>)
 }
 
+/** Narrow integration edge used by the network-library subsystem. */
+internal interface LibraryNetworkController {
+    fun unblockNetworkSource(sourceId: String)
+
+    fun setNetworkSources(
+        sources: List<elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource>,
+        enrichMetadata: Boolean,
+        showLoadingIndicator: Boolean,
+        forceRefreshSourceIds: Set<String>,
+    )
+}
+
 interface LibraryTagUpdateWriter {
     suspend fun applyVerifiedTagEdits(editedSongs: List<Song>)
 }

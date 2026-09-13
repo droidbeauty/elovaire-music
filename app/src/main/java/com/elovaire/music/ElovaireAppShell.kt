@@ -51,7 +51,7 @@ internal fun ElovaireAppShell(
     val motionRuntime = rememberMotionRuntime()
     MotionRuntimeProvider(runtime = motionRuntime) {
         val motionSpecs = rememberMotionSpecs()
-        val rootSettings = container.rootReadDependencies.rootSettingsReader
+        val rootSettings = container.rootSettingsReader
         val themeMode = rootSettings.themeMode.collectAsStateWithLifecycle()
         val textSizePreset = rootSettings.textSizePreset.collectAsStateWithLifecycle()
         val systemDark = isSystemInDarkTheme()
@@ -61,7 +61,7 @@ internal fun ElovaireAppShell(
         }
         val themeOverlayAlpha = remember { Animatable(0f) }
         var showSplash by remember { mutableStateOf(shouldShowColdStartSplash) }
-        val libraryReader = container.rootReadDependencies.libraryReader
+        val libraryReader = container.rootLibraryReader
         val libraryContentState by libraryReader.contentState.collectAsStateWithLifecycle()
         val libraryScanState by libraryReader.scanState.collectAsStateWithLifecycle()
         ReportDrawnWhen {

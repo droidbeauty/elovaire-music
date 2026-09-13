@@ -5,6 +5,7 @@ import android.app.Application
 import android.os.Bundle
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.Closeable
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal class AppForegroundTracker(
     application: Application,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : Application.ActivityLifecycleCallbacks, Closeable {
     private val application = application
     private val _isForeground = MutableStateFlow(false)
@@ -25,7 +27,7 @@ internal class AppForegroundTracker(
 
     init {
         application.registerActivityLifecycleCallbacks(this)
-        callbackResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRegisteredCallback)
+        callbackResource = resourceTracker.acquire(BackendResourceKind.ActiveRegisteredCallback)
     }
 
     override fun onActivityStarted(activity: Activity) {

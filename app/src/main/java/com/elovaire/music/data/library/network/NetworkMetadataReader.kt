@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
 import elovaire.music.droidbeauty.app.data.library.mediaFailureCategory
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 
@@ -17,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 internal class NetworkMetadataReader(
     private val registry: NetworkFileSystemRegistry,
     private val failureRegistry: MediaFailureRegistry = MediaFailureRegistry(),
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     fun read(source: NetworkLibrarySource, entry: NetworkFileEntry, force: Boolean = false): NetworkMetadataReadResult? {
         val size = entry.sizeBytes ?: return null
@@ -27,7 +29,7 @@ internal class NetworkMetadataReader(
             domain = MediaFailureDomain.Metadata,
         )
         if (failureRegistry.shouldSuppress(failureKey, force)) return null
-        val metadataResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMetadataRead)
+        val metadataResource = resourceTracker.acquire(BackendResourceKind.ActiveMetadataRead)
         return try {
             val retriever = MediaMetadataRetriever()
             try {

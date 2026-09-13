@@ -10,7 +10,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
-import elovaire.music.droidbeauty.app.data.mutation.MediaMutationCoordinator
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRuntime
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
@@ -61,6 +61,7 @@ internal sealed interface EmbeddedLyricsWriteResult {
 internal class EmbeddedLyricsWriter(
     context: Context,
     private val mediaMutationJournal: MediaMutationJournal? = null,
+    mediaMutationRuntime: MediaMutationRuntime? = null,
     private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
 ) {
     private val appContext = context.applicationContext
@@ -71,13 +72,14 @@ internal class EmbeddedLyricsWriter(
         mediaMutationJournal = mediaMutationJournal,
         faultInjector = faultInjector,
     )
+    private val mutationRuntime = mediaMutationRuntime ?: MediaMutationRuntime()
 
     suspend fun write(
         song: Song,
         rawLyrics: String,
         operationId: String? = null,
         approvedMediaUri: Uri? = null,
-    ): EmbeddedLyricsWriteResult = MediaMutationCoordinator.withTarget(song.uri) {
+    ): EmbeddedLyricsWriteResult = mutationRuntime.withTarget(song.uri) {
         writeLocked(song, rawLyrics, operationId, approvedMediaUri)
     }
 

@@ -2,8 +2,6 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import elovaire.music.droidbeauty.app.core.PlaybackActionDependencies
-import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
@@ -14,6 +12,8 @@ import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
+import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 
 internal class RootPlaybackActions internal constructor(
@@ -158,19 +158,20 @@ internal class RootPlaybackActions internal constructor(
 }
 
 internal class RootPlaylistActions internal constructor(
-    private val dependencies: PlaylistActionDependencies,
+    private val playlistStore: PlaylistStore,
+    private val favoritesStore: FavoritesStore,
 ) {
-    fun createPlaylist(name: String): PlaylistMutationRequest = dependencies.playlistStore.createPlaylist(name)
+    fun createPlaylist(name: String): PlaylistMutationRequest = playlistStore.createPlaylist(name)
 
     fun createPlaylistAndAddSongs(
         name: String,
         songIds: List<Long>,
-    ): PlaylistMutationRequest = dependencies.playlistStore.createPlaylistWithSongs(name, songIds)
+    ): PlaylistMutationRequest = playlistStore.createPlaylistWithSongs(name, songIds)
 
     fun addSongsToPlaylist(
         playlistId: Long,
         songIds: List<Long>,
-    ): PlaylistMutationRequest = dependencies.playlistStore.addSongsToPlaylist(playlistId, songIds)
+    ): PlaylistMutationRequest = playlistStore.addSongsToPlaylist(playlistId, songIds)
 
     fun addAlbumToPlaylist(
         playlistId: Long,
@@ -181,25 +182,25 @@ internal class RootPlaylistActions internal constructor(
         songIds: List<Long>,
         favorite: Boolean,
     ) {
-        dependencies.favoritesStore.setFavoriteSongs(songIds, favorite)
+        favoritesStore.setFavoriteSongs(songIds, favorite)
     }
 
     fun toggleFavorite(songId: Long) {
-        dependencies.favoritesStore.toggleFavoriteSong(songId)
+        favoritesStore.toggleFavoriteSong(songId)
     }
 }
 
 @Composable
 internal fun rememberRootPlaybackActions(
-    dependencies: PlaybackActionDependencies,
+    playbackManager: NowPlayingPlayback,
     appLanguage: AppLanguage,
     songsByAlbumId: Map<Long, List<Song>>,
     albumsById: Map<Long, Album>,
     openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ): RootPlaybackActions {
-    return remember(dependencies, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
+    return remember(playbackManager, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
         RootPlaybackActions(
-            playbackManager = dependencies.playback,
+            playbackManager = playbackManager,
             languageProvider = { appLanguage },
             songsByAlbumIdProvider = { songsByAlbumId },
             albumsByIdProvider = { albumsById },
@@ -209,8 +210,11 @@ internal fun rememberRootPlaybackActions(
 }
 
 @Composable
-internal fun rememberRootPlaylistActions(dependencies: PlaylistActionDependencies): RootPlaylistActions {
-    return remember(dependencies) { RootPlaylistActions(dependencies) }
+internal fun rememberRootPlaylistActions(
+    playlistStore: PlaylistStore,
+    favoritesStore: FavoritesStore,
+): RootPlaylistActions {
+    return remember(playlistStore, favoritesStore) { RootPlaylistActions(playlistStore, favoritesStore) }
 }
 
 internal fun List<Song>.playbackSourceLabel(

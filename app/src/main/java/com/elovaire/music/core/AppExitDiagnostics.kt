@@ -7,9 +7,10 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticContext
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import org.json.JSONArray
 import org.json.JSONObject
-import java.security.MessageDigest
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
@@ -52,6 +53,8 @@ internal data class AppExitSnapshot(
 internal class AppExitDiagnostics(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
+    private val diagnostics: BackendDiagnosticsRuntime? = null,
+    private val resources: BackendResourceTracker = diagnostics?.resources ?: BackendResourceRegistry,
 ) {
     private val appContext = context.applicationContext
     private val preferences = allowStrictModeDiskReads {
@@ -62,7 +65,7 @@ internal class AppExitDiagnostics(
     @Volatile private var lastBreadcrumbPayload: String? = null
 
     init {
-        BackendDiagnostics.installBreadcrumbCheckpoint { context ->
+        (diagnostics ?: BackendDiagnostics).installBreadcrumbCheckpoint { context ->
             checkpointRuntime(
                 phase = context.phase ?: context.eventName,
                 backendContext = context,
@@ -99,7 +102,7 @@ internal class AppExitDiagnostics(
 
     fun checkpointRuntime(
         phase: String,
-        backendContext: BackendDiagnosticContext? = BackendDiagnostics.lastContext(),
+        backendContext: BackendDiagnosticContext? = diagnostics?.lastContext() ?: BackendDiagnostics.lastContext(),
         outcome: String? = null,
         force: Boolean = false,
     ) {
@@ -114,7 +117,7 @@ internal class AppExitDiagnostics(
                 subsystem = backendContext?.subsystem?.safeBreadcrumbValue(),
                 operationPhase = backendContext?.phase?.safeBreadcrumbValue(),
                 outcome = outcome?.safeBreadcrumbValue(),
-                resourceCounts = BackendResourceRegistry.snapshot(),
+                resourceCounts = resources.snapshot(),
                 timestampMs = now,
             ),
         )
@@ -122,6 +125,10 @@ internal class AppExitDiagnostics(
         if (!lastBreadcrumbWriteMs.compareAndSet(previous, now)) return
         lastBreadcrumbPayload = payload
         runCatching { preferences.edit().putString(KEY_BREADCRUMB, payload).apply() }
+    }
+
+    fun release() {
+        (diagnostics ?: BackendDiagnostics).clearBreadcrumbCheckpoint()
     }
 
     private fun readStored(): List<AppExitRecord> {
@@ -203,7 +210,7 @@ internal fun encodePreviousProcessBreadcrumb(breadcrumb: PreviousProcessBreadcru
         .sortedBy { it.key }
         .take(MAX_BREADCRUMB_RESOURCES)
         .joinToString(",") { (key, count) ->
-            "${encodeBreadcrumbPart(key.safeBreadcrumbValue())}=${count.coerceAtMost(MAX_RESOURCE_COUNT)}"
+            "${encodeBreadcrumbPart(key)}=${count.coerceAtMost(MAX_RESOURCE_COUNT)}"
         }
     val payload = listOf(
         "1",
@@ -215,18 +222,16 @@ internal fun encodePreviousProcessBreadcrumb(breadcrumb: PreviousProcessBreadcru
         encodeBreadcrumbPart(breadcrumb.outcome.orEmpty()),
         breadcrumb.timestampMs.toString(),
         resources,
+        "end",
     ).joinToString("|")
-    return "$payload|${sha256(payload)}"
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray(Charsets.UTF_8))
 }
 
 internal fun decodePreviousProcessBreadcrumb(encoded: String): PreviousProcessBreadcrumb? {
     return runCatching {
-        val checksumSeparator = encoded.lastIndexOf('|')
-        if (checksumSeparator <= 0) return null
-        val payload = encoded.substring(0, checksumSeparator)
-        if (encoded.substring(checksumSeparator + 1) != sha256(payload)) return null
+        val payload = String(Base64.getUrlDecoder().decode(encoded), Charsets.UTF_8)
         val fields = payload.split('|')
-        if (fields.size != 9 || fields[0] != "1") return null
+        if (fields.size != 10 || fields[0] != "1" || fields[9] != "end") return null
         val resources = buildMap {
             fields[8].takeIf(String::isNotBlank)?.split(',')
                 .orEmpty()
@@ -234,7 +239,7 @@ internal fun decodePreviousProcessBreadcrumb(encoded: String): PreviousProcessBr
                 .forEach { entry ->
                     val separator = entry.lastIndexOf('=')
                     if (separator <= 0) return@forEach
-                    val key = decodeBreadcrumbPart(entry.substring(0, separator))?.take(MAX_BREADCRUMB_VALUE_LENGTH)
+                    val key = decodeBreadcrumbPart(entry.substring(0, separator))
                     val value = entry.substring(separator + 1).toIntOrNull()
                     if (key != null && key.isNotBlank() && value != null && value in 1..MAX_RESOURCE_COUNT) {
                         put(key, value)
@@ -242,16 +247,12 @@ internal fun decodePreviousProcessBreadcrumb(encoded: String): PreviousProcessBr
                 }
         }
         PreviousProcessBreadcrumb(
-            processId = decodeBreadcrumbPart(fields[1])?.take(MAX_BREADCRUMB_VALUE_LENGTH)
-                ?.takeIf(String::isNotBlank) ?: return null,
+            processId = decodeBreadcrumbPart(fields[1])?.takeIf(String::isNotBlank) ?: return null,
             versionCode = fields[2].toIntOrNull() ?: return null,
-            phase = decodeBreadcrumbPart(fields[3])?.take(MAX_BREADCRUMB_VALUE_LENGTH) ?: return null,
-            subsystem = decodeBreadcrumbPart(fields[4])?.take(MAX_BREADCRUMB_VALUE_LENGTH)
-                ?.takeIf(String::isNotBlank),
-            operationPhase = decodeBreadcrumbPart(fields[5])?.take(MAX_BREADCRUMB_VALUE_LENGTH)
-                ?.takeIf(String::isNotBlank),
-            outcome = decodeBreadcrumbPart(fields[6])?.take(MAX_BREADCRUMB_VALUE_LENGTH)
-                ?.takeIf(String::isNotBlank),
+            phase = decodeBreadcrumbPart(fields[3])?.takeIf(String::isNotBlank) ?: return null,
+            subsystem = decodeBreadcrumbPart(fields[4])?.takeIf(String::isNotBlank),
+            operationPhase = decodeBreadcrumbPart(fields[5])?.takeIf(String::isNotBlank),
+            outcome = decodeBreadcrumbPart(fields[6])?.takeIf(String::isNotBlank),
             resourceCounts = resources,
             timestampMs = fields[7].toLongOrNull() ?: return null,
         )
@@ -268,12 +269,6 @@ private fun decodeBreadcrumbPart(value: String): String? = runCatching {
 
 private fun String.safeBreadcrumbValue(): String = filter { it in '\u0020'..'\u007e' }
     .take(MAX_BREADCRUMB_VALUE_LENGTH)
-
-private fun sha256(value: String): String {
-    return MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .joinToString("") { byte -> "%02x".format(byte) }
-}
 
 private const val MAX_BREADCRUMB_RESOURCES = 16
 private const val MAX_RESOURCE_COUNT = 1_000_000

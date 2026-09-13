@@ -14,14 +14,13 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsWriter
+import elovaire.music.droidbeauty.app.data.settings.CollectionSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.EqualizerSettingsStore
-import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.NowPlayingSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.PlaybackSettingsWriter
-import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
-import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
-import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
+import elovaire.music.droidbeauty.app.data.settings.PlaybackHistoryStore
+import elovaire.music.droidbeauty.app.data.settings.SearchHistoryStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditor
 import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditor
 import kotlinx.coroutines.flow.StateFlow
@@ -30,21 +29,17 @@ internal interface RootDeleteDependencies {
     val deleteHandler: DeviceDeleteHandler
 }
 
-internal interface RootReadDependencies {
-    val libraryReader: LibraryReader
-    val rootSettingsReader: RootSettingsReader
-    val playbackReader: PlaybackReader
-}
-
 internal interface RootViewModelDependencies {
     val libraryReader: LibraryReader
-    val rootSettingsReader: RootSettingsReader
+    val appearanceSettings: AppearanceSettingsStore
+    val userData: CollectionSettingsStore
     val playbackState: StateFlow<PlaybackUiState>
 }
 
 internal interface SearchViewModelDependencies {
     val libraryReader: LibraryReader
-    val searchSettings: SearchSettingsStore
+    val playbackHistory: PlaybackHistoryStore
+    val searchHistory: SearchHistoryStore
     val playbackReader: PlaybackReader
 }
 
@@ -82,10 +77,6 @@ internal interface ElovaireViewModelDependencies {
     val audiobookTagEditor: AudiobookTagEditorViewModelDependencies
 }
 
-internal interface PlaybackActionDependencies {
-    val playback: NowPlayingPlayback
-}
-
 internal interface LibraryActionDependencies {
     val libraryController: LibraryActionController
     val networkSources: StateFlow<List<NetworkLibrarySource>>
@@ -99,9 +90,4 @@ internal interface SettingsActionDependencies {
     val appearanceSettingsReader: AppearanceSettingsStore
     val librarySettings: LibrarySettingsWriter
     val playbackSettings: PlaybackSettingsWriter
-}
-
-internal interface PlaylistActionDependencies {
-    val playlistStore: PlaylistStore
-    val favoritesStore: FavoritesStore
 }

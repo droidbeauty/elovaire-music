@@ -12,6 +12,20 @@ import org.junit.Test
 
 class MediaMutationCoordinatorTest {
     @Test
+    fun scopedRuntimesHaveIndependentTargetLockRegistries() {
+        val first = MediaMutationRuntime()
+        val second = MediaMutationRuntime()
+        runBlocking {
+            first.withTarget(android.net.TestUri("file:///music/a.mp3")) { }
+            second.withTarget(android.net.TestUri("file:///music/a.mp3")) { }
+        }
+        assertEquals(0, first.activeTargetLockCount())
+        assertEquals(0, second.activeTargetLockCount())
+        first.close()
+        second.close()
+    }
+
+    @Test
     fun sameTargetIsSerialized() {
         runBlocking {
         val target = android.net.TestUri("file:///music/song.mp3")

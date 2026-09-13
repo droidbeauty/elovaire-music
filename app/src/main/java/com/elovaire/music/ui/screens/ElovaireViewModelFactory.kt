@@ -34,7 +34,8 @@ internal class ElovaireViewModelFactory(
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
                 SearchViewModel(
                     libraryRepository = dependencies.search.libraryReader,
-                    preferenceStore = dependencies.search.searchSettings,
+                    playbackHistory = dependencies.search.playbackHistory,
+                    searchHistory = dependencies.search.searchHistory,
                     playbackReader = dependencies.search.playbackReader,
                     defaultDispatcher = dependencies.dispatchers.default,
                 ) as T

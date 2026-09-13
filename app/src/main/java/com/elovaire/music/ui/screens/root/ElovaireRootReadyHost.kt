@@ -10,7 +10,6 @@ internal fun ElovaireRootReadyHost(
     composition: RootComposition,
     resetHomeScrollOnColdStart: Boolean,
 ) {
-    val container = composition.container
     val appState by composition.rootViewModel.appState.collectAsStateWithLifecycle()
     val derivedState = rememberRootLibraryDerivedState(
         library = appState.library,
@@ -41,7 +40,12 @@ internal fun ElovaireRootReadyHost(
 
     val actionRuntime = rememberRootActionRuntime(
         context = composition.context,
-        container = container,
+        playback = composition.playback,
+        playlistStore = composition.playlistStore,
+        favoritesStore = composition.favoritesStore,
+        libraryDependencies = composition.libraryActionDependencies,
+        settingsDependencies = composition.settingsActionDependencies,
+        updateController = composition.updateController,
         navController = composition.navController,
         appState = appState,
         derivedState = derivedState,
@@ -72,9 +76,9 @@ internal fun ElovaireRootReadyHost(
                 padding = routePadding,
                 searchViewModel = composition.searchViewModel,
                 viewModelFactory = composition.viewModelFactory,
-                artistImageRepository = container.artistImageRepository,
-                audiobookChapterReader = container.audiobookChapterReader,
-                audiobookDescriptionReader = container.audiobookDescriptionReader,
+                artistImageRepository = composition.artistImageRepository,
+                audiobookChapterReader = composition.audiobookChapterReader,
+                audiobookDescriptionReader = composition.audiobookDescriptionReader,
                 modifier = modifier,
             )
         },
@@ -100,13 +104,13 @@ internal fun ElovaireRootReadyHost(
                 topBarMenuActions = uiRuntime.topBarMenuActions,
                 playlistActions = actionRuntime.playlistActions,
                 permissionController = composition.permissionController,
-                updateController = container.updateController,
+                updateController = composition.updateController,
                 motionTransitions = composition.motionTransitions,
             )
         },
         playerLayerHost = {
             RootPlayerLayerSlot(
-                playback = container.playbackActionDependencies.playback,
+                playback = composition.playback,
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playerLayerState = playerLayerController.state,
                 playerLayerController = playerLayerController,

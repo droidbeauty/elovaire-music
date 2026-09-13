@@ -9,12 +9,15 @@ import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
 /** Durable, source-scoped listing state. A committed generation is authoritative only after listing succeeds. */
 internal class NetworkInventoryStore(
     context: Context,
     private val dao: NetworkInventoryDao,
+    private val sourceStore: NetworkLibrarySourceStore? = null,
 ) {
     private val appContext = context.applicationContext
     private val legacyCacheFile by lazy(LazyThreadSafetyMode.NONE) {
@@ -22,6 +25,7 @@ internal class NetworkInventoryStore(
     }
     private var legacyRootLoaded = false
     private var legacyRoot: JSONObject? = null
+    private val legacyMigrationLock = Mutex()
 
     suspend fun load(source: NetworkLibrarySource): List<NetworkInventoryEntry> {
         migrateLegacyCache(source)
@@ -72,6 +76,22 @@ internal class NetworkInventoryStore(
     }
 
     private suspend fun migrateLegacyCache(source: NetworkLibrarySource) {
+        if (!legacyCacheFile.isFile) return
+        legacyMigrationLock.withLock {
+            if (!legacyCacheFile.isFile) return@withLock
+            val sources = sourceStore?.sources?.value
+                ?.plus(source)
+                ?.distinctBy(NetworkLibrarySource::id)
+                ?: listOf(source)
+            for (candidate in sources) migrateLegacyCacheForSource(candidate)
+            if (sourceStore != null && legacyCacheFile.delete()) {
+                legacyRoot = null
+                legacyRootLoaded = true
+            }
+        }
+    }
+
+    private suspend fun migrateLegacyCacheForSource(source: NetworkLibrarySource) {
         if (dao.networkInventorySource(source.id) != null) return
         val entries = legacyEntries(source)
         if (entries.isEmpty()) return

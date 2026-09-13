@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
@@ -31,10 +30,8 @@ class RootActionsTest {
         val store = FakePlaylistStore()
         val favorites = FakeFavoritesStore()
         val actions = RootPlaylistActions(
-            object : PlaylistActionDependencies {
-                override val playlistStore = store
-                override val favoritesStore = favorites
-            },
+            playlistStore = store,
+            favoritesStore = favorites,
         )
 
         val result = actions.createPlaylistAndAddSongs("Road", listOf(7L, 9L)).await()

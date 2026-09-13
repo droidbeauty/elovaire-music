@@ -38,9 +38,8 @@ class MediaLibrarySessionCommandTest {
             playbackManager = PlaybackManager(context, scope)
             playbackManager.setMediaLibrarySessionCallback(
                 ElovaireMediaLibrarySessionCallback(
-                    browser = EmptyBrowser,
-                    commandResolver = FixedCommandResolver(song),
-                    playbackManager = playbackManager,
+                    catalog = CompositeMediaCatalogPort(EmptyBrowser, FixedCommandResolver(song)),
+                    playback = PlaybackManagerMediaPlaybackPort(playbackManager),
                 ),
             )
         }

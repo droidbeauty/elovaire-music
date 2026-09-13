@@ -11,14 +11,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticRecorder
 
-internal class AppRuntimeScope : Closeable {
+internal class AppRuntimeScope(
+    private val diagnostics: BackendDiagnosticRecorder = BackendDiagnostics,
+) : Closeable {
     private val supervisorJob = SupervisorJob()
     private val closed = AtomicBoolean(false)
 
     val scope: CoroutineScope = CoroutineScope(
         supervisorJob + Dispatchers.Main.immediate + CoroutineName("app-runtime") +
-            diagnosticFailureHandler("app-runtime"),
+            diagnosticFailureHandler("app-runtime", diagnostics),
     )
 
     override fun close() {
@@ -30,15 +33,19 @@ internal class AppRuntimeScope : Closeable {
 internal fun ownedChildScope(
     parentScope: CoroutineScope,
     owner: String,
+    diagnostics: BackendDiagnosticRecorder = BackendDiagnostics,
 ): CoroutineScope {
     return CoroutineScope(
         parentScope.coroutineContext +
             SupervisorJob(parentScope.coroutineContext[Job]) +
             CoroutineName(owner) +
-            diagnosticFailureHandler(owner),
+            diagnosticFailureHandler(owner, diagnostics),
     )
 }
 
-private fun diagnosticFailureHandler(owner: String): CoroutineExceptionHandler = CoroutineExceptionHandler { _, failure ->
-    if (failure !is CancellationException) BackendDiagnostics.recordWorkerFailure(owner, failure)
+private fun diagnosticFailureHandler(
+    owner: String,
+    diagnostics: BackendDiagnosticRecorder,
+): CoroutineExceptionHandler = CoroutineExceptionHandler { _, failure ->
+    if (failure !is CancellationException) diagnostics.recordWorkerFailure(owner, failure)
 }

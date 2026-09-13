@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.library.isSupportedAudioExtension
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -35,9 +36,10 @@ internal class NetworkLibraryScanner(
     private val onAvailabilityChanged: (String, NetworkProbeResult) -> Unit = { _, _ -> },
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val artworkCache = NetworkArtworkCache(context)
-    private val metadataReader = NetworkMetadataReader(registry)
+    private val metadataReader = NetworkMetadataReader(registry, resourceTracker = resourceTracker)
 
     suspend fun scan(
         sources: List<NetworkLibrarySource>,
@@ -50,8 +52,8 @@ internal class NetworkLibraryScanner(
         forceRefresh: Boolean = false,
         enrichMetadata: Boolean = true,
     ): NetworkLibraryScanResult = withContext(ioDispatcher) {
-        val networkScan = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkScan)
-        val networkRead = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkRead)
+        val networkScan = resourceTracker.acquire(BackendResourceKind.ActiveNetworkScan)
+        val networkRead = resourceTracker.acquire(BackendResourceKind.ActiveNetworkRead)
         try {
             val enabledSources = sources.filter(NetworkLibrarySource::enabled)
             val metadataSemaphore = Semaphore(MAX_CONCURRENT_METADATA_READS)

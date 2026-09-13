@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
+import elovaire.music.droidbeauty.app.data.settings.PlaybackHistoryStore
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import android.util.Log
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticRecorder
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
 
 @UnstableApi
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -42,10 +45,12 @@ import android.util.Log
 internal class PlaybackIntegrationCoordinator(
     private val scope: CoroutineScope,
     private val preferences: PlaybackIntegrationSettings,
+    private val history: PlaybackHistoryStore,
     private val library: LibraryReader,
     private val playback: PlaybackManager,
     private val effects: PlaybackEffects,
     private val sessionStore: PlaybackSessionStore,
+    private val diagnostics: BackendDiagnosticRecorder = BackendDiagnostics,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -56,7 +61,7 @@ internal class PlaybackIntegrationCoordinator(
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val sessionWriterScope = CoroutineScope(
-        ownedChildScope(scope, "playback-session-writer").coroutineContext + ioDispatcher,
+        ownedChildScope(scope, "playback-session-writer", diagnostics).coroutineContext + ioDispatcher,
     )
     private val sessionWrites = Channel<PersistedPlaybackSession?>(Channel.CONFLATED)
     private val sessionWriterJob: Job = sessionWriterScope.launch(start = CoroutineStart.LAZY) {
@@ -101,10 +106,10 @@ internal class PlaybackIntegrationCoordinator(
         }
         scope.launch {
             combine(
-                preferences.recentSongIds,
-                preferences.recentAlbumIds,
-                preferences.lastPlayedCollectionKind,
-                preferences.lastPlayedCollectionId,
+                history.recentSongIds,
+                history.recentAlbumIds,
+                history.lastPlayedCollectionKind,
+                history.lastPlayedCollectionId,
             ) { songIds, albumIds, collectionKind, collectionId ->
                 PersistedRecentPlayback(songIds, albumIds, collectionKind, collectionId)
             }
@@ -122,7 +127,7 @@ internal class PlaybackIntegrationCoordinator(
             playback.nowPlayingState
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()
-                .collect { (songId, albumId) -> preferences.recordPlaybackTransition(songId, albumId) }
+                .collect { (songId, albumId) -> history.recordPlaybackTransition(songId, albumId) }
         }
         scope.launch {
             combine(library.contentState, library.scanState) { content, scan ->

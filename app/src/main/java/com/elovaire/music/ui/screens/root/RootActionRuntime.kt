@@ -3,7 +3,12 @@ package elovaire.music.droidbeauty.app.ui.screens
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
-import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.LibraryActionDependencies
+import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
+import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
+import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
+import elovaire.music.droidbeauty.app.data.update.UpdateController
 
 internal data class RootActionRuntime(
     val songMenuActions: SongMenuActions,
@@ -15,7 +20,12 @@ internal data class RootActionRuntime(
 @Composable
 internal fun rememberRootActionRuntime(
     context: Context,
-    container: AppContainer,
+    playback: NowPlayingPlayback,
+    playlistStore: PlaylistStore,
+    favoritesStore: FavoritesStore,
+    libraryDependencies: LibraryActionDependencies,
+    settingsDependencies: SettingsActionDependencies,
+    updateController: UpdateController,
     navController: NavHostController,
     appState: RootAppState,
     derivedState: RootLibraryDerivedState,
@@ -29,20 +39,20 @@ internal fun rememberRootActionRuntime(
         playlists = appState.playlists,
         songsById = derivedState.songsById,
         albumsById = derivedState.albumsById,
-        playbackManager = container.playbackActionDependencies.playback,
-        playlistStore = container.playlistActionDependencies.playlistStore,
+        playbackManager = playback,
+        playlistStore = playlistStore,
         onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
         openAlbum = uiRuntime.openAlbum,
         navigateToAlbumId = { albumId -> uiRuntime.navigationState.navigateTo(Routes.album(albumId)) },
     )
     val playbackActions = rememberRootPlaybackActions(
-        dependencies = container.playbackActionDependencies,
+        playbackManager = playback,
         appLanguage = appState.appLanguage,
         songsByAlbumId = derivedState.songsByAlbumId,
         albumsById = derivedState.albumsById,
         openNowPlaying = uiRuntime.playerLayerController::requestOpen,
     )
-    val playlistActions = rememberRootPlaylistActions(container.playlistActionDependencies)
+    val playlistActions = rememberRootPlaylistActions(playlistStore, favoritesStore)
     val routeState = rootRouteStateOf(
         appState = appState,
         derivedState = derivedState,
@@ -52,15 +62,15 @@ internal fun rememberRootActionRuntime(
     )
     val routeActions = rememberRootRouteActions(
         context = context,
-        libraryDependencies = container.libraryActionDependencies,
-        settingsDependencies = container.settingsActionDependencies,
-        playlistDependencies = container.playlistActionDependencies,
+        libraryDependencies = libraryDependencies,
+        settingsDependencies = settingsDependencies,
+        playlistStore = playlistStore,
         navController = navController,
         navigationState = uiRuntime.navigationState,
         playbackActions = playbackActions,
         playlistActions = playlistActions,
         deleteController = deleteController,
-        updateController = container.updateController,
+        updateController = updateController,
         onRequestCreatePlaylist = uiRuntime.overlayState::requestCreatePlaylist,
         onInitialRevealFinished = permissionController::onInitialRevealFinished,
         onSearchActiveChanged = uiRuntime.searchChromeState::onActiveChanged,

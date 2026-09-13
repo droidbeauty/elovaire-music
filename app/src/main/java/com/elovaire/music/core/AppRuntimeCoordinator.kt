@@ -1,7 +1,5 @@
 package elovaire.music.droidbeauty.app.core
 
-import java.util.concurrent.atomic.AtomicReference
-
 internal enum class AppRuntimePhase {
     Created,
     PlaybackStarted,
@@ -16,7 +14,7 @@ internal class AppRuntimeCoordinator(
     private val memoryPressureAction: (MemoryPressure) -> Unit,
     private val releaseAction: () -> Unit,
 ) {
-    private val phase = AtomicReference(AppRuntimePhase.Created)
+    private var phase = AppRuntimePhase.Created
     private val transitionLock = Any()
 
     fun startPlayback() {
@@ -41,21 +39,28 @@ internal class AppRuntimeCoordinator(
 
     fun onMemoryPressure(pressure: MemoryPressure) {
         synchronized(transitionLock) {
-            if (phase.get() != AppRuntimePhase.Released) {
+            if (phase != AppRuntimePhase.Released) {
                 memoryPressureAction(pressure)
             }
         }
     }
 
+    fun scheduleDeferredStartupWork(action: () -> Unit) {
+        synchronized(transitionLock) {
+            if (phase == AppRuntimePhase.Started) action()
+        }
+    }
+
     fun release() {
         synchronized(transitionLock) {
-            if (phase.getAndSet(AppRuntimePhase.Released) != AppRuntimePhase.Released) {
+            if (phase != AppRuntimePhase.Released) {
+                phase = AppRuntimePhase.Released
                 releaseAction()
             }
         }
     }
 
-    internal fun currentPhase(): AppRuntimePhase = phase.get()
+    internal fun currentPhase(): AppRuntimePhase = synchronized(transitionLock) { phase }
 
     @Suppress("TooGenericExceptionCaught")
     private fun transitionTo(
@@ -63,12 +68,12 @@ internal class AppRuntimeCoordinator(
         allowedFrom: Set<AppRuntimePhase>,
         action: () -> Unit,
     ) {
-        val current = phase.get()
+        val current = phase
         if (current == AppRuntimePhase.Released || current == target || current == AppRuntimePhase.Started) {
             return
         }
         if (current !in allowedFrom) return
-        phase.set(target)
+        phase = target
         try {
             action()
         } catch (failure: Throwable) {

@@ -45,15 +45,25 @@ internal enum class BackendResourceKind(val key: String) {
     ActiveMutation("active_mutations"),
 }
 
+internal interface BackendDiagnosticRecorder {
+    fun record(event: BackendEvent)
+    fun snapshot(): List<BackendEventSnapshot>
+    fun clear()
+    fun lastContext(): BackendDiagnosticContext?
+    fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit)
+    fun clearBreadcrumbCheckpoint()
+    fun recordWorkerFailure(owner: String, failure: Throwable)
+}
+
 /** Bounded, process-local diagnostics; it never stores user content or exception messages. */
-internal object BackendDiagnostics {
+internal object BackendDiagnostics : BackendDiagnosticRecorder {
     private const val MAX_EVENTS = 256
     private val lock = Any()
     private val events = ArrayDeque<BackendEventSnapshot>()
     @Volatile private var lastContext: BackendDiagnosticContext? = null
     @Volatile private var breadcrumbCheckpoint: ((BackendDiagnosticContext) -> Unit)? = null
 
-    fun record(event: BackendEvent) {
+    override fun record(event: BackendEvent) {
         val snapshot = BackendEventSnapshot(
             name = event.name.take(MAX_EVENT_NAME_LENGTH),
             fields = sanitizeFields(event.fields),
@@ -71,20 +81,24 @@ internal object BackendDiagnostics {
         runCatching { breadcrumbCheckpoint?.invoke(context) }
     }
 
-    fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
+    override fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
 
-    fun clear() {
+    override fun clear() {
         synchronized(lock) { events.clear() }
         lastContext = null
     }
 
-    fun lastContext(): BackendDiagnosticContext? = lastContext
+    override fun lastContext(): BackendDiagnosticContext? = lastContext
 
-    fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {
+    override fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {
         breadcrumbCheckpoint = checkpoint
     }
 
-    fun recordWorkerFailure(owner: String, failure: Throwable) {
+    override fun clearBreadcrumbCheckpoint() {
+        breadcrumbCheckpoint = null
+    }
+
+    override fun recordWorkerFailure(owner: String, failure: Throwable) {
         if (failure is CancellationException) return
         record(
             BackendEvent.WorkerFailed(
@@ -116,29 +130,44 @@ internal class RecordingBackendEventSink(
     fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
 }
 
-internal object BackendResourceRegistry {
+internal interface BackendResourceTracker {
+    fun acquire(kind: BackendResourceKind): Closeable
+    fun set(kind: BackendResourceKind, count: Int)
+    fun adjust(kind: BackendResourceKind, delta: Int)
+    fun snapshot(): Map<String, Int>
+    fun clear()
+}
+
+internal class BackendResourceRuntime : BackendResourceTracker {
     private val lock = Any()
     private val counts = EnumMap<BackendResourceKind, Int>(BackendResourceKind::class.java)
 
-    fun acquire(kind: BackendResourceKind): Closeable {
+    override fun acquire(kind: BackendResourceKind): Closeable {
         synchronized(lock) { counts[kind] = (counts[kind] ?: 0) + 1 }
-        val released = AtomicBoolean(false)
-        return Closeable {
-            if (!released.compareAndSet(false, true)) return@Closeable
-            synchronized(lock) {
-                val count = counts[kind] ?: return@synchronized
-                if (count <= 1) counts.remove(kind) else counts[kind] = count - 1
+        return ResourceLease(kind)
+    }
+
+    private inner class ResourceLease(
+        private val kind: BackendResourceKind,
+    ) : Closeable {
+        private var released = false
+
+        override fun close() {
+            synchronized(this) {
+                if (released) return
+                released = true
             }
+            release(kind)
         }
     }
 
-    fun set(kind: BackendResourceKind, count: Int) {
+    override fun set(kind: BackendResourceKind, count: Int) {
         synchronized(lock) {
             if (count <= 0) counts.remove(kind) else counts[kind] = count
         }
     }
 
-    fun adjust(kind: BackendResourceKind, delta: Int) {
+    override fun adjust(kind: BackendResourceKind, delta: Int) {
         require(delta != 0)
         synchronized(lock) {
             val next = (counts[kind] ?: 0) + delta
@@ -146,11 +175,94 @@ internal object BackendResourceRegistry {
         }
     }
 
-    fun snapshot(): Map<String, Int> = synchronized(lock) {
+    override fun snapshot(): Map<String, Int> = synchronized(lock) {
         counts.entries.associate { (kind, count) -> kind.key to count }
     }
 
-    fun clear() = synchronized(lock) { counts.clear() }
+    override fun clear() = synchronized(lock) { counts.clear() }
+
+    private fun release(kind: BackendResourceKind) {
+        synchronized(lock) {
+            val count = counts[kind] ?: return
+            if (count <= 1) counts.remove(kind) else counts[kind] = count - 1
+        }
+    }
+}
+
+/** Compatibility facade for tests and legacy leaf objects not yet wired to an app runtime. */
+@Deprecated("Use an app-scoped BackendResourceRuntime")
+internal object BackendResourceRegistry : BackendResourceTracker {
+    private val runtime = BackendResourceRuntime()
+
+    override fun acquire(kind: BackendResourceKind): Closeable = runtime.acquire(kind)
+    override fun set(kind: BackendResourceKind, count: Int) = runtime.set(kind, count)
+    override fun adjust(kind: BackendResourceKind, delta: Int) = runtime.adjust(kind, delta)
+    override fun snapshot(): Map<String, Int> = runtime.snapshot()
+    override fun clear() = runtime.clear()
+}
+
+/** App-scoped bounded diagnostics and resource accounting. */
+internal class BackendDiagnosticsRuntime(
+    private val maxEvents: Int = 256,
+) : BackendEventSink, BackendDiagnosticRecorder, Closeable {
+    private val lock = Any()
+    private val events = ArrayDeque<BackendEventSnapshot>()
+    private val _resources = BackendResourceRuntime()
+    private val released = AtomicBoolean(false)
+    @Volatile private var lastContext: BackendDiagnosticContext? = null
+    @Volatile private var breadcrumbCheckpoint: ((BackendDiagnosticContext) -> Unit)? = null
+
+    val resources: BackendResourceTracker = _resources
+
+    override fun emit(event: BackendEvent) = record(event)
+
+    override fun record(event: BackendEvent) {
+        if (released.get()) return
+        val snapshot = BackendEventSnapshot(
+            name = event.name.take(MAX_EVENT_NAME_LENGTH),
+            fields = sanitizeFields(event.fields),
+        )
+        synchronized(lock) {
+            if (events.size == maxEvents) events.removeFirst()
+            events.addLast(snapshot)
+        }
+        val context = BackendDiagnosticContext(
+            eventName = snapshot.name,
+            subsystem = snapshot.fields["subsystem"],
+            phase = snapshot.fields["phase"],
+        )
+        lastContext = context
+        runCatching { breadcrumbCheckpoint?.invoke(context) }
+    }
+
+    override fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
+    override fun clear() {
+        synchronized(lock) { events.clear() }
+        lastContext = null
+        resources.clear()
+    }
+    override fun lastContext(): BackendDiagnosticContext? = lastContext
+    override fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {
+        if (released.get()) return
+        breadcrumbCheckpoint = checkpoint
+    }
+    override fun clearBreadcrumbCheckpoint() {
+        breadcrumbCheckpoint = null
+    }
+    override fun recordWorkerFailure(owner: String, failure: Throwable) {
+        if (failure is CancellationException) return
+        emit(BackendEvent.WorkerFailed(mapOf("owner" to owner, "error_type" to (failure::class.simpleName ?: "Unknown"))))
+    }
+
+    override fun close() {
+        if (!released.compareAndSet(false, true)) return
+        clearBreadcrumbCheckpoint()
+        clear()
+    }
+
+    private companion object {
+        const val MAX_EVENT_NAME_LENGTH = 64
+    }
 }
 
 internal class BackendOperationMonitor(

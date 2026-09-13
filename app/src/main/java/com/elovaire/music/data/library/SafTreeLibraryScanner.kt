@@ -7,6 +7,8 @@ import android.os.RemoteException
 import android.os.Bundle
 import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
@@ -57,9 +59,10 @@ internal fun safProviderCursorStatus(extras: Bundle): SafProviderCursorStatus {
 @Suppress("TooGenericExceptionCaught")
 internal class SafTreeLibraryScanner(
     private val context: Context,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val audioFormatDetector = AudioFormatDetector(context)
-    private val localMetadataReader = LocalAudioMetadataReader(context)
+    private val localMetadataReader = LocalAudioMetadataReader(context, resourceTracker)
     private var fileMetadataCache = emptyMap<SafDocumentKey, CachedSafFile>()
 
     suspend fun scan(selections: List<LibraryFolderSelection>): List<Song> {

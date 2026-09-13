@@ -33,7 +33,8 @@ class RootViewModelTest {
             val viewModel = RootViewModel(
                 object : RootViewModelDependencies {
                     override val libraryReader = library
-                    override val rootSettingsReader: elovaire.music.droidbeauty.app.data.settings.RootSettingsReader = settings
+                    override val appearanceSettings = settings
+                    override val userData = settings
                     override val playbackState = playback
                 },
             )

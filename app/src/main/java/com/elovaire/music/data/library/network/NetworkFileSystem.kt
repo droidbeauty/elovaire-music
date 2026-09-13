@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 import android.content.Context
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.IOException
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -55,8 +56,9 @@ internal class NetworkFileSystemRegistry(
     private val fileSystems: Map<NetworkLibraryProtocol, NetworkFileSystem>,
     private val localNetworkAccessAllowed: () -> Boolean = { true },
     applicationContext: Context? = null,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
-    private val operationAdmission = NetworkOperationAdmission()
+    private val operationAdmission = NetworkOperationAdmission(resourceTracker = resourceTracker)
     private val permissionAllowed = AtomicBoolean(localNetworkAccessAllowed())
     private val networkGeneration = AtomicLong(0L)
     private val connectivityObserver = applicationContext?.let { context ->
@@ -88,7 +90,7 @@ internal class NetworkFileSystemRegistry(
             return NetworkProbeResult(NetworkAvailability.LocalNetworkPermissionRequired)
         }
         return operationAdmission.withPermit(NetworkReadPurpose.Listing) {
-            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkListing)
+            val resource = resourceTracker.acquire(BackendResourceKind.ActiveNetworkListing)
             try {
                 fileSystems[source.protocol]?.probeBlocking(source, credentials)
                     ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
@@ -101,7 +103,7 @@ internal class NetworkFileSystemRegistry(
     fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkListingResult {
         checkLocalNetworkAccess()
         return operationAdmission.withPermit(NetworkReadPurpose.Listing) {
-            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkListing)
+            val resource = resourceTracker.acquire(BackendResourceKind.ActiveNetworkListing)
             try {
                 fileSystems[source.protocol]?.listBlocking(source, credentials)
                     ?: throw IOException("Network protocol is unavailable")
@@ -144,7 +146,7 @@ internal class NetworkFileSystemRegistry(
             val handle = fileSystems[sourceRecord.protocol]?.openBlocking(sourceRecord, credentialRecord, path, position, length)
                 ?: throw IOException("Network protocol is unavailable")
             val released = AtomicBoolean(false)
-            val resource = BackendResourceRegistry.acquire(purpose.resourceKind())
+            val resource = resourceTracker.acquire(purpose.resourceKind())
             NetworkReadHandle(
                 input = handle.input,
                 length = handle.length,
@@ -214,6 +216,7 @@ internal class NetworkOperationAdmission(
     backgroundCapacity: Int = 3,
     playbackCapacity: Int = 2,
     private val maxWaitMs: Long = MAX_WAIT_MS,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     init {
         require(backgroundCapacity > 0)
@@ -240,14 +243,14 @@ internal class NetworkOperationAdmission(
         val active = if (purpose == NetworkReadPurpose.Playback) activePlayback else activeBackground
         val waiting = if (purpose == NetworkReadPurpose.Playback) waitingPlayback else waitingBackground
         waiting.incrementAndGet()
-        BackendResourceRegistry.adjust(purpose.waitingResourceKind(), 1)
+        resourceTracker.adjust(purpose.waitingResourceKind(), 1)
         try {
             acquire(semaphore)
             active.incrementAndGet()
             return Permit(semaphore, active)
         } finally {
             waiting.decrementAndGet()
-            BackendResourceRegistry.adjust(purpose.waitingResourceKind(), -1)
+            resourceTracker.adjust(purpose.waitingResourceKind(), -1)
         }
     }
 

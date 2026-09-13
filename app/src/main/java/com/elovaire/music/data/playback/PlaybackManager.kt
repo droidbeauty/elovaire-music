@@ -35,6 +35,7 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
 import elovaire.music.droidbeauty.app.data.library.AudiobookCatalog
@@ -176,7 +177,7 @@ data class PlaybackFormatFailure(
 
 @SuppressLint("UnsafeOptInUsageError")
 @Suppress("LargeClass", "TooManyFunctions")
-class PlaybackManager(
+class PlaybackManager internal constructor(
     context: Context,
     scope: CoroutineScope,
     audioProcessorsProvider: () -> Array<AudioProcessor> = { emptyArray() },
@@ -193,6 +194,7 @@ class PlaybackManager(
         lastPlayedCollectionId: Long?,
     ) -> Unit = { _, _, _, _ -> },
     private val clock: AppClock = AndroidAppClock,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : NowPlayingPlayback {
     private val scope = scope
     private val appContext = context.applicationContext
@@ -527,6 +529,7 @@ class PlaybackManager(
         volumeObserver = systemVolumeObserver,
         audioDeviceCallback = audioDeviceCallback,
         noisyReceiver = becomingNoisyReceiver,
+        resourceTracker = resourceTracker,
     )
 
     private val _state = MutableStateFlow(
@@ -639,7 +642,7 @@ class PlaybackManager(
         get() = sessionOwner.platformMediaSessionToken
     internal val mediaLibrarySession: MediaLibrarySession
         get() = sessionOwner.mediaLibrarySession
-    private val sessionOwner = PlaybackSessionOwner(context, commandGatewayPlayer)
+    private val sessionOwner = PlaybackSessionOwner(context, commandGatewayPlayer, resourceTracker)
     internal fun setMediaLibrarySessionCallback(callback: MediaLibrarySession.Callback) {
         sessionOwner.setMediaLibrarySessionCallback(callback)
     }
@@ -936,7 +939,7 @@ class PlaybackManager(
 
     private fun createPlayer(enableSignalProcessing: Boolean): ExoPlayer {
         return playerFactory.create(enableSignalProcessing).also { created ->
-            playerResourceLeases[created] = BackendResourceRegistry.acquire(BackendResourceKind.ActivePlayer)
+            playerResourceLeases[created] = resourceTracker.acquire(BackendResourceKind.ActivePlayer)
         }
     }
 
@@ -1836,16 +1839,17 @@ class PlaybackManager(
         isManualPausePending = false
 
         val targetGain = effectivePlayerGain()
+        if (currentSong()?.mediaKind == AudioMediaKind.Audiobook) {
+            player.volume = targetGain
+            player.play()
+            clearResumeTransitionState(reason)
+            updateState()
+            return
+        }
         if (!supportsSoftwarePlaybackFade()) {
             player.volume = targetGain
             player.play()
-            if (reason == ResumeFadeReason.AudioInterruption) {
-                clearInterruptionResumeState()
-            } else {
-                shouldResumeAfterTransientFocusLoss = false
-                pausedForAudioFocusLoss = false
-                pendingResumeAfterExternalInterruption = false
-            }
+            clearResumeTransitionState(reason)
             updateState()
             return
         }
@@ -1869,13 +1873,7 @@ class PlaybackManager(
             if (!isCurrentPlaybackOperation(operationRevision)) return@launch
             player.volume = targetGain
             pauseFadeJob = null
-            if (reason == ResumeFadeReason.AudioInterruption) {
-                clearInterruptionResumeState()
-            } else {
-                shouldResumeAfterTransientFocusLoss = false
-                pausedForAudioFocusLoss = false
-                pendingResumeAfterExternalInterruption = false
-            }
+            clearResumeTransitionState(reason)
             updateState()
         }
     }
@@ -1883,7 +1881,7 @@ class PlaybackManager(
     private fun beginPauseFadeOut(reason: PauseFadeReason) {
         val operationRevision = playbackOperationRevision
         crossfadeController.cancel()
-        if (!supportsSoftwarePlaybackFade()) {
+        if (currentSong()?.mediaKind == AudioMediaKind.Audiobook || !supportsSoftwarePlaybackFade()) {
             player.pause()
             if (reason == PauseFadeReason.Manual) {
                 abandonAudioFocus()
@@ -1922,6 +1920,16 @@ class PlaybackManager(
             isPauseTransitioningToStopped = true
             pauseFadeJob = null
             updateState()
+        }
+    }
+
+    private fun clearResumeTransitionState(reason: ResumeFadeReason) {
+        if (reason == ResumeFadeReason.AudioInterruption) {
+            clearInterruptionResumeState()
+        } else {
+            shouldResumeAfterTransientFocusLoss = false
+            pausedForAudioFocusLoss = false
+            pendingResumeAfterExternalInterruption = false
         }
     }
 

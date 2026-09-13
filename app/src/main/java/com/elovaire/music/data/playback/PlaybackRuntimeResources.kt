@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.Closeable
 
 internal class PlaybackRuntimeResources(
@@ -21,6 +22,7 @@ internal class PlaybackRuntimeResources(
     private val volumeObserver: ContentObserver,
     private val audioDeviceCallback: AudioDeviceCallback,
     private val noisyReceiver: BroadcastReceiver,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val appContext = context.applicationContext
     private var volumeObserverRegistered = false
@@ -66,7 +68,7 @@ internal class PlaybackRuntimeResources(
                 Log.w(TAG, "Unable to register the playback volume observer.", failure)
                 return
             }
-            volumeObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+            volumeObserverLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
         } else {
             unregisterVolumeObserver()
         }
@@ -83,7 +85,7 @@ internal class PlaybackRuntimeResources(
                 Log.w(TAG, "Unable to register the playback audio-device callback.", failure)
                 return
             }
-            audioDeviceCallbackLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+            audioDeviceCallbackLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
         } else {
             unregisterAudioDeviceCallback()
         }
@@ -105,7 +107,7 @@ internal class PlaybackRuntimeResources(
                 Log.w(TAG, "Unable to register the playback noisy-route receiver.", failure)
                 return
             }
-            noisyReceiverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+            noisyReceiverLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
         } else {
             unregisterNoisyReceiver()
         }
