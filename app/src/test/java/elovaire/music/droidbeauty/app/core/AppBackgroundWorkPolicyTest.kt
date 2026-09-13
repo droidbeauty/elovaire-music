@@ -82,6 +82,14 @@ class AppBackgroundWorkPolicyTest {
     }
 
     @Test
+    fun freshnessCriticalLibraryRefreshIsNotDeferredDuringInteraction() {
+        val policy = AppBackgroundWorkPolicy(MutableStateFlow(true))
+        policy.acquireInteractionCritical()
+
+        assertFalse(policy.shouldDeferLibraryRefresh(freshnessCritical = true))
+    }
+
+    @Test
     fun interactionLeaseIsIdempotent() {
         val policy = AppBackgroundWorkPolicy(MutableStateFlow(true))
         val lease = policy.acquireInteractionCritical()

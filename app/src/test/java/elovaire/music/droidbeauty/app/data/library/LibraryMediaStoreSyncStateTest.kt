@@ -114,6 +114,38 @@ class LibraryMediaStoreSyncStateTest {
     }
 
     @Test
+    fun foregroundReconcileUsesEachVolumeGenerationFloor() {
+        val cached = LibraryMediaStoreSyncState(
+            filterFingerprint = "folders-a",
+            volumes = listOf(
+                LibraryMediaStoreVolumeSyncState("external", "1", 10L),
+                LibraryMediaStoreVolumeSyncState("external_secondary", "1", 3L),
+            ),
+        )
+        val current = cached.copy(
+            volumes = cached.volumes.map { volume ->
+                if (volume.volumeName == "external_secondary") volume.copy(generation = 4L) else volume
+            },
+        )
+
+        assertEquals(
+            LibraryRefreshRequest(
+                mediaStoreGenerationFloors = mapOf(
+                    "external" to 10L,
+                    "external_secondary" to 3L,
+                ),
+            ),
+            decideForegroundReconcile(
+                cached = cached,
+                current = current,
+                cachedSongCount = 10,
+                hasSafSelections = false,
+                staleNetworkSourceIds = emptySet(),
+            ),
+        )
+    }
+
+    @Test
     fun foregroundReconcileTargetsOnlyStaleNetworkSources() {
         val state = syncState()
 

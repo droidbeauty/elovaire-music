@@ -100,6 +100,7 @@ internal class MediaStoreScanner(
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
         mediaStoreGenerationFloor: Long? = null,
+        mediaStoreGenerationFloors: Map<String, Long> = emptyMap(),
         baseMediaStoreSongs: List<Song> = emptyList(),
         reuseMediaStoreState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
@@ -153,14 +154,24 @@ internal class MediaStoreScanner(
             return ElovaireTrace.section("library_mediastore_scan") {
                 val deltaQuery = if (
                     useDelta &&
-                    mediaStoreGenerationFloor != null &&
+                    (mediaStoreGenerationFloor != null || mediaStoreGenerationFloors.isNotEmpty()) &&
                     refreshMediaPaths.isEmpty() &&
                     !refreshMediaIndex &&
                     baseMediaStoreSongs.isNotEmpty()
                 ) {
                     ElovaireTrace.section("mediastore_discovery") {
                         ElovaireTrace.section("mediastore_query_delta") {
-                            MediaStoreAudioQuery.queryDelta(context.contentResolver, mediaStoreGenerationFloor)
+                            if (mediaStoreGenerationFloors.isNotEmpty()) {
+                                MediaStoreAudioQuery.queryDelta(
+                                    context.contentResolver,
+                                    mediaStoreGenerationFloors,
+                                )
+                            } else {
+                                MediaStoreAudioQuery.queryDelta(
+                                    context.contentResolver,
+                                    requireNotNull(mediaStoreGenerationFloor),
+                                )
+                            }
                         }
                     }
                 } else {
@@ -286,39 +297,10 @@ internal class MediaStoreScanner(
             )
         }
 
-        var queryPlan = queryPlanForCurrentProvider(useDelta = true)
-        var queryRead = readQuery(queryPlan, reportProgress = true)
-
-        // A repair request is intentionally independent from the first provider read. If repair
-        // succeeds or partially succeeds, re-query once so files newly indexed by the platform
-        // are included in this same scan. If repair fails, keep the already-read authoritative
-        // rows instead of turning a readable catalog into an unavailable source.
         val indexRefreshResult = indexRefreshJob?.await()
         indexRefreshResult?.let(decisionMap::recordIndexRefresh)
-        if (indexRefreshResult != null && indexRefreshResult !is MediaStoreIndexRefreshResult.Unavailable) {
-            val repairedQueryPlan = try {
-                queryPlanForCurrentProvider(useDelta = false)
-            } catch (failure: CancellationException) {
-                throw failure
-            } catch (_: RuntimeException) {
-                null
-            }
-            if (repairedQueryPlan != null) {
-                val repairedRead = try {
-                    readQuery(repairedQueryPlan, reportProgress = false)
-                } catch (failure: CancellationException) {
-                    throw failure
-                } catch (_: RuntimeException) {
-                    null
-                }
-                if (repairedRead != null) {
-                    queryPlan = repairedQueryPlan
-                    queryRead = repairedRead
-                } else {
-                    repairedQueryPlan.queryResult.cursor.close()
-                }
-            }
-        }
+        val queryPlan = queryPlanForCurrentProvider(useDelta = true)
+        val queryRead = readQuery(queryPlan, reportProgress = true)
 
         val totalRows = queryRead.totalRows
         val songs = queryRead.songs
@@ -357,6 +339,7 @@ internal class MediaStoreScanner(
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
         mediaStoreGenerationFloor: Long? = null,
+        mediaStoreGenerationFloors: Map<String, Long> = emptyMap(),
         baseMediaStoreSongs: List<Song> = emptyList(),
         reuseMediaStoreState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
@@ -368,6 +351,7 @@ internal class MediaStoreScanner(
                     refreshMediaPaths = refreshMediaPaths,
                     enrichMetadata = enrichMetadata,
                     mediaStoreGenerationFloor = mediaStoreGenerationFloor,
+                    mediaStoreGenerationFloors = mediaStoreGenerationFloors,
                     baseMediaStoreSongs = baseMediaStoreSongs,
                     reuseMediaStoreState = reuseMediaStoreState,
                     onProgress = onProgress,

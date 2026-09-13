@@ -183,6 +183,36 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun freshnessCriticalAndRemovedPathsSurviveCoalescing() {
+        val merged = LibraryRefreshRequest(
+            targetedPaths = listOf("/music/a.mp3"),
+            priority = LibraryRefreshPriority.FreshnessCritical,
+            removedPaths = listOf("/music/a.mp3"),
+        ).mergedWith(
+            LibraryRefreshRequest(targetedPaths = listOf("/music/b.mp3")),
+        )
+
+        assertEquals(LibraryRefreshPriority.FreshnessCritical, merged.priority)
+        assertEquals(listOf("/music/a.mp3"), merged.removedPaths)
+    }
+
+    @Test
+    fun perVolumeGenerationFloorsRemainTargeted() {
+        val merged = LibraryRefreshRequest(
+            mediaStoreGenerationFloors = mapOf("external" to 10L),
+        ).mergedWith(
+            LibraryRefreshRequest(
+                mediaStoreGenerationFloors = mapOf("external_secondary" to 4L),
+            ),
+        )
+
+        assertEquals(
+            mapOf("external" to 10L, "external_secondary" to 4L),
+            merged.mediaStoreGenerationFloors,
+        )
+    }
+
+    @Test
     fun targetedSafRefresh_reusesPublishedMediaStoreState() {
         assertTrue(
             shouldReusePublishedMediaStoreState(

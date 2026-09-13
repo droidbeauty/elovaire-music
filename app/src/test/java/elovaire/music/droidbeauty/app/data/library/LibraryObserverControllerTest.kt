@@ -37,6 +37,26 @@ class LibraryObserverControllerTest {
     }
 
     @Test
+    fun directFileOperationsPreserveDeleteAndCompletionSemantics() {
+        assertEquals(
+            DirectFileOperation.Delete,
+            directFileOperation(FileObserver.DELETE),
+        )
+        assertEquals(
+            DirectFileOperation.CloseWrite,
+            directFileOperation(FileObserver.CLOSE_WRITE or FileObserver.MODIFY),
+        )
+        assertEquals(
+            DirectFileOperation.MoveFrom,
+            directFileOperation(FileObserver.MOVED_FROM),
+        )
+        assertEquals(
+            DirectFileOperation.DirectoryTopology,
+            directFileOperation(FileObserver.CREATE, changedFileIsDirectory = true),
+        )
+    }
+
+    @Test
     fun mediaStoreObserverUrisIncludeAggregateAndKnownVolumes() {
         val aggregate = TestUri("content://media/external/audio/media")
         val primary = TestUri("content://media/external_primary/audio/media")

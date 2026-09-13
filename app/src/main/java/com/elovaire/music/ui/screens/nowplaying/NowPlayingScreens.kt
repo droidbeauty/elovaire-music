@@ -4135,26 +4135,23 @@ private fun LyricsUnavailableContent(
         contentAlignment = Alignment.Center,
     ) {
         Column(
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(30.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_info),
-                    contentDescription = null,
-                    tint = contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    text = noLyricsText,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = contentColor,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_info),
+                contentDescription = null,
+                tint = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = noLyricsText,
+                style = MaterialTheme.typography.titleLarge,
+                color = contentColor,
+                modifier = Modifier.fillMaxWidth(0.8f),
+                textAlign = TextAlign.Center,
+            )
             LyricsEditorActionButton(
                 iconResId = R.drawable.ic_lucide_plus,
                 contentDescription = "Add lyrics",

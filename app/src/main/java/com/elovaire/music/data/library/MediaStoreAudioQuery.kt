@@ -133,6 +133,41 @@ internal object MediaStoreAudioQuery {
         }
     }
 
+    /** Queries changed rows using the generation floor belonging to each MediaStore volume. */
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun queryDelta(
+        resolver: ContentResolver,
+        generationFloors: Map<String, Long>,
+    ): QueryResult? {
+        val validFloors = generationFloors
+            .filterKeys(String::isNotBlank)
+            .filterValues { it >= 0L }
+        if (validFloors.isEmpty()) return null
+        val clauses = validFloors.keys.joinToString(" OR ") {
+            "(${MediaStore.MediaColumns.VOLUME_NAME} = ? AND (" +
+                "${MediaStore.MediaColumns.GENERATION_ADDED} > ? OR " +
+                "${MediaStore.MediaColumns.GENERATION_MODIFIED} > ?))"
+        }
+        val args = validFloors.flatMap { (volume, generation) ->
+            listOf(volume, generation.toString(), generation.toString())
+        }.toTypedArray()
+        return try {
+            resolver.queryCancellable(
+                collectionUri,
+                deltaProjection,
+                "$selection AND ($clauses)",
+                args,
+                orderBy,
+            )?.let { QueryResult(it, ProjectionKind.Full) }
+        } catch (failure: SecurityException) {
+            throw failure
+        } catch (failure: kotlinx.coroutines.CancellationException) {
+            throw failure
+        } catch (_: RuntimeException) {
+            null
+        }
+    }
+
     @Suppress("TooGenericExceptionCaught")
     suspend fun queryIdentity(resolver: ContentResolver): Cursor? {
         return try {

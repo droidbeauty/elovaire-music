@@ -31,7 +31,7 @@ internal class LibraryObserverController(
     appContext: Context,
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
-    private val onObservedRefresh: (forceMediaIndex: Boolean, changedFilePath: String?) -> Unit,
+    private val onObservedRefresh: (LibraryObservedChange) -> Unit,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -68,7 +68,7 @@ internal class LibraryObserverController(
     private val safObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             if (consumeExpectedMutation(changedUri = uri, changedPath = null)) return
-            onObservedRefresh(false, null)
+            onObservedRefresh(LibraryObservedChange.SafTree(uri))
         }
     }
 
@@ -119,7 +119,7 @@ internal class LibraryObserverController(
 
     private fun onObservedMediaChange(uri: Uri?) {
         if (consumeExpectedMutation(changedUri = uri, changedPath = null)) return
-        onObservedRefresh(false, null)
+        onObservedRefresh(LibraryObservedChange.MediaStore(uri))
     }
 
     private fun consumeExpectedMutation(changedUri: Uri?, changedPath: String?): Boolean {
@@ -311,7 +311,7 @@ internal class LibraryObserverController(
                     handleObservedDirectoryEvent(event, changedFile)
                 }
             },
-            onCoverageIncomplete = { onObservedRefresh(true, null) },
+            onCoverageIncomplete = { onObservedRefresh(LibraryObservedChange.CoverageIncomplete) },
         )
     }
 
@@ -341,10 +341,17 @@ internal class LibraryObserverController(
                     == true,
             )
         ) {
-            onObservedRefresh(
-                false,
-                normalizedChangedPath,
-            )
+            normalizedChangedPath?.let { path ->
+                onObservedRefresh(
+                    LibraryObservedChange.DirectFile(
+                        path = path,
+                        operation = directFileOperation(
+                            event = event,
+                            changedFileIsDirectory = changedFile?.isDirectory == true,
+                        ),
+                    ),
+                )
+            }
         }
     }
 
@@ -388,8 +395,14 @@ internal class LibraryObserverController(
                     onCoverageIncomplete()
                 }
                 budgetExceeded = true
-                lastObservedDirectories = null
+                val fallbackDirectories = tree.directories
+                    .take(MAX_FALLBACK_DIRECTORY_OBSERVERS)
+                    .map(::File)
+                    .filter { it.isDirectory }
+                    .map(File::getAbsolutePath)
+                lastObservedDirectories = observerTreeIdentity(fallbackDirectories)
                 stopWatching()
+                lastObservedDirectories.orEmpty().forEach { path -> observeDirectory(File(path)) }
                 return
             }
             val normalizedDirectories = observerTreeIdentity(tree.directories)
@@ -461,6 +474,7 @@ internal class LibraryObserverController(
         const val OBSERVED_PATH_COALESCE_WINDOW_MS = 900L
         const val MAX_RECENT_OBSERVED_PATHS = 512
         const val MAX_RECURSIVE_DIRECTORY_OBSERVERS = 512
+        const val MAX_FALLBACK_DIRECTORY_OBSERVERS = 64
         const val MAX_RECURSIVE_DIRECTORY_DEPTH = 8
         const val OBSERVER_MASK =
             FileObserver.CREATE or

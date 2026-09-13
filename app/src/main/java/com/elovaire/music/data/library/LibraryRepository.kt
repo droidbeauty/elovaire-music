@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class LibraryContentState(
@@ -119,6 +120,8 @@ class LibraryRepository internal constructor(
     private val refreshRequests = LibraryRefreshRequests()
     private val _runtimeState = MutableStateFlow<LibraryRuntimeState>(LibraryRuntimeState.NoPermission)
     private val deletionMarkers = LibraryDeletionMarkers()
+    private val directPathTombstones = linkedSetOf<String>()
+    private val directPathTombstonesLock = Any()
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     @Volatile
@@ -161,8 +164,8 @@ class LibraryRepository internal constructor(
                 val runtime = _runtimeState.value
                 val canResumeDeferredRefresh =
                     isForeground &&
-                        !interactionCritical &&
-                        _scanState.value.permissionGranted
+                        _scanState.value.permissionGranted &&
+                        (!interactionCritical || runtime.pendingRefreshIsFreshnessCritical())
                 if (
                     canResumeDeferredRefresh &&
                         runtime is LibraryRuntimeState.BackgroundDirty
@@ -281,14 +284,11 @@ class LibraryRepository internal constructor(
                         hasSafSelections = scanner.hasSafSelections(),
                     )
                     if (syncDecision != LibrarySyncDecision.ReuseCached || networkSourceNeedsRefresh) {
-                        val generationFloor = if (
+                        val incrementalRequest = if (
                             syncDecision == LibrarySyncDecision.IncrementalScan &&
                             !scanner.hasSafSelections()
                         ) {
-                            cachedSnapshot.syncState?.volumes
-                                ?.map(LibraryMediaStoreVolumeSyncState::generation)
-                                ?.distinct()
-                                ?.singleOrNull()
+                            cachedSnapshot.syncState?.let(::mediaStoreIncrementalRefreshRequest)
                         } else {
                             null
                         }
@@ -296,7 +296,8 @@ class LibraryRepository internal constructor(
                             forceMediaIndex = false,
                             enrichMetadata = false,
                             showLoadingIndicator = false,
-                            mediaStoreGenerationFloor = generationFloor,
+                            mediaStoreGenerationFloor = incrementalRequest?.mediaStoreGenerationFloor,
+                            mediaStoreGenerationFloors = incrementalRequest?.mediaStoreGenerationFloors.orEmpty(),
                         )
                     } else if (cachedSnapshotNeedsMetadata) {
                         refresh(
@@ -338,8 +339,11 @@ class LibraryRepository internal constructor(
         targetedSafTreeIds: Set<String>? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         mediaStoreGenerationFloor: Long? = null,
+        mediaStoreGenerationFloors: Map<String, Long> = emptyMap(),
         targetedPaths: List<String> = emptyList(),
         reuseLocalState: Boolean = false,
+        priority: LibraryRefreshPriority = LibraryRefreshPriority.Background,
+        removedPaths: List<String> = emptyList(),
     ) {
         if (released.get() || !_scanState.value.permissionGranted) return
         val request = LibraryRefreshRequest(
@@ -349,10 +353,25 @@ class LibraryRepository internal constructor(
             targetedSafTreeIds = targetedSafTreeIds,
             targetedNetworkSourceIds = targetedNetworkSourceIds,
             mediaStoreGenerationFloor = mediaStoreGenerationFloor,
+            mediaStoreGenerationFloors = mediaStoreGenerationFloors,
             reuseLocalState = reuseLocalState,
+            priority = priority,
+            removedPaths = removedPaths,
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
+            if (
+                request.priority == LibraryRefreshPriority.FreshnessCritical &&
+                (_runtimeState.value as? LibraryRuntimeState.Scanning)
+                    ?.request
+                    ?.priority != LibraryRefreshPriority.FreshnessCritical
+            ) {
+                val activeScan = scanJob
+                activeScan?.invokeOnCompletion {
+                    continueAfterPreemptedScan()
+                }
+                activeScan?.cancel()
+            }
             backendEventSink.emitLazy {
                 BackendEvent.LibraryRefreshCoalesced(
                     mapOf(
@@ -454,7 +473,10 @@ class LibraryRepository internal constructor(
             if (scanJob != null || !hasCurrentPermission(scanPermissionVersion)) return@launch
             val pendingRequest = refreshRequests.takePendingAfterScan()
             if (pendingRequest != null && _scanState.value.permissionGranted) {
-                if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
+                if (backgroundWorkPolicy.shouldDeferLibraryRefresh(
+                        freshnessCritical = pendingRequest.priority == LibraryRefreshPriority.FreshnessCritical,
+                    )
+                ) {
                     holdDeferredRefresh(pendingRequest)
                 } else if (pendingRequest.safProviderRetryAttempt > 0) {
                     refreshDebounceJob?.cancel()
@@ -481,8 +503,10 @@ class LibraryRepository internal constructor(
         operation: BackendOperationContext,
     ) {
         if (!hasCurrentPermission(scanPermissionVersion)) return
-        val snapshot = scanResult.snapshot
-        val prepared = prepareVisibleSnapshot(snapshot.songs)
+        val prepared = prepareVisibleSnapshot(
+            snapshot = scanResult.snapshot,
+            scanComplete = scanResult.isComplete,
+        )
         val nextScanState = LibraryScanState(
             permissionGranted = true,
             isLoading = false,
@@ -565,14 +589,25 @@ class LibraryRepository internal constructor(
         val changeSet: LibraryChangeSet,
     )
 
-    private suspend fun prepareVisibleSnapshot(songs: List<Song>): PreparedLibrarySnapshot {
+    private suspend fun prepareVisibleSnapshot(
+        snapshot: LibrarySnapshot,
+        scanComplete: Boolean,
+    ): PreparedLibrarySnapshot {
+        val songs = songsVisibleAfterDirectPathTombstones(snapshot.songs)
+        if (scanComplete) {
+            clearResolvedDirectPathTombstones(snapshot.songs)
+        }
         val scannedSongIds = songs.mapTo(hashSetOf(), Song::id)
         deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
         var suppressedSongIds = deletionMarkers.suppressingSongIds()
         var visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
-        var preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content") {
-            withContext(defaultDispatcher) {
-                snapshotPublisher.prepareSongs(visibleSongs)
+        var preparedSnapshot = if (visibleSongs === snapshot.songs) {
+            snapshot
+        } else {
+            ElovaireTrace.suspendSection("library_prepare_content") {
+                withContext(defaultDispatcher) {
+                    snapshotPublisher.prepareSongs(visibleSongs)
+                }
             }
         }
         val latestSuppressedSongIds = deletionMarkers.suppressingSongIds()
@@ -633,6 +668,7 @@ class LibraryRepository internal constructor(
                 refreshMediaPaths = request.targetedPaths,
                 enrichMetadata = request.enrichMetadata,
                 mediaStoreGenerationFloor = request.mediaStoreGenerationFloor,
+                mediaStoreGenerationFloors = request.mediaStoreGenerationFloors,
                 targetedSafTreeIds = request.targetedSafTreeIds,
                 targetedNetworkSourceIds = request.targetedNetworkSourceIds,
                 baseSnapshot = existingSnapshot,
@@ -688,6 +724,7 @@ class LibraryRepository internal constructor(
                 forceMediaIndex = false,
                 enrichMetadata = enrichMetadata,
                 showLoadingIndicator = false,
+                priority = LibraryRefreshPriority.FreshnessCritical,
             )
             return
         }
@@ -697,6 +734,7 @@ class LibraryRepository internal constructor(
         val request = LibraryRefreshRequest(
             enrichMetadata = enrichMetadata,
             targetedPaths = normalizedPaths,
+            priority = LibraryRefreshPriority.FreshnessCritical,
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
@@ -817,6 +855,7 @@ class LibraryRepository internal constructor(
                 forceMediaIndex = false,
                 enrichMetadata = false,
                 showLoadingIndicator = false,
+                priority = LibraryRefreshPriority.FreshnessCritical,
             )
             _scanState.update { state ->
                 state.copy(errorMessage = "Some files could not be deleted.")
@@ -904,6 +943,7 @@ class LibraryRepository internal constructor(
                 targetedNetworkSourceIds = emptySet<String>()
                     .takeIf { onlyAddingSafTrees && !enrichMetadata },
                 reuseLocalState = onlyAddingSafTrees && !enrichMetadata,
+                priority = LibraryRefreshPriority.FreshnessCritical,
             )
         }
     }
@@ -922,20 +962,43 @@ class LibraryRepository internal constructor(
             enrichMetadata = enrichMetadata,
             showLoadingIndicator = showLoadingIndicator,
             targetedNetworkSourceIds = changedNetworkSourceIds + forceRefreshSourceIds,
+            priority = LibraryRefreshPriority.FreshnessCritical,
         )
     }
 
-    private fun scheduleMediaRefresh(
-        forceMediaIndex: Boolean = false,
-        changedFilePath: String? = null,
-    ) {
+    private fun scheduleMediaRefresh(change: LibraryObservedChange) {
+        val request = when (change) {
+            is LibraryObservedChange.MediaStore -> LibraryRefreshRequest(
+                priority = LibraryRefreshPriority.FreshnessCritical,
+            )
+            is LibraryObservedChange.SafTree -> LibraryRefreshRequest(
+                priority = LibraryRefreshPriority.FreshnessCritical,
+            )
+            LibraryObservedChange.CoverageIncomplete -> LibraryRefreshRequest(
+                forceMediaIndex = true,
+                priority = LibraryRefreshPriority.FreshnessCritical,
+            )
+            is LibraryObservedChange.DirectFile -> {
+                noteDirectPathChange(change.path, change.operation)
+                LibraryRefreshRequest(
+                    targetedPaths = listOf(change.path),
+                    priority = LibraryRefreshPriority.FreshnessCritical,
+                    removedPaths = listOfNotNull(
+                        change.path.takeIf {
+                            change.operation == DirectFileOperation.Delete ||
+                                change.operation == DirectFileOperation.MoveFrom
+                        },
+                    ),
+                )
+            }
+        }
         scope.launch {
             if (released.get() || !_scanState.value.permissionGranted) return@launch
-            refreshRequests.enqueue(
-                forceMediaIndex = forceMediaIndex,
-                targetedPaths = listOfNotNull(changedFilePath),
-            )
-            if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
+            refreshRequests.enqueue(request)
+            if (backgroundWorkPolicy.shouldDeferLibraryRefresh(
+                    freshnessCritical = request.priority == LibraryRefreshPriority.FreshnessCritical,
+                )
+            ) {
                 val pending = refreshRequests.takePendingAfterScan() ?: return@launch
                 holdDeferredRefresh(pending)
                 return@launch
@@ -967,6 +1030,22 @@ class LibraryRepository internal constructor(
         }
     }
 
+    private fun continueAfterPreemptedScan() {
+        scope.launch {
+            while (scanJob?.isActive == true) yield()
+            if (released.get() || !_scanState.value.permissionGranted) return@launch
+            val pending = refreshRequests.takePendingAfterScan() ?: return@launch
+            if (backgroundWorkPolicy.shouldDeferLibraryRefresh(
+                    freshnessCritical = pending.priority == LibraryRefreshPriority.FreshnessCritical,
+                )
+            ) {
+                holdDeferredRefresh(pending)
+            } else {
+                startRefresh(pending, showLoadingIndicator = false)
+            }
+        }
+    }
+
     private fun updateObserverRegistration() {
         val permissionGranted = _scanState.value.permissionGranted
         if (!backgroundWorkPolicy.shouldKeepMediaStoreObserver(permissionGranted)) {
@@ -976,6 +1055,45 @@ class LibraryRepository internal constructor(
         observerController.ensureRegistered(
             enableDirectoryObservers = backgroundWorkPolicy.shouldKeepRecursiveLibraryObservers(permissionGranted),
         )
+    }
+
+    private fun noteDirectPathChange(
+        path: String,
+        operation: DirectFileOperation,
+    ) {
+        val key = LibrarySongDuplicateResolver.normalizedRealPath(path) ?: return
+        synchronized(directPathTombstonesLock) {
+            when (operation) {
+                DirectFileOperation.Delete,
+                DirectFileOperation.MoveFrom,
+                -> directPathTombstones += key
+                DirectFileOperation.Create,
+                DirectFileOperation.CloseWrite,
+                DirectFileOperation.MoveTo,
+                -> directPathTombstones.remove(key)
+                DirectFileOperation.DirectoryTopology,
+                DirectFileOperation.Other,
+                -> Unit
+            }
+        }
+    }
+
+    private fun songsVisibleAfterDirectPathTombstones(songs: List<Song>): List<Song> {
+        val tombstones = synchronized(directPathTombstonesLock) { directPathTombstones.toSet() }
+        if (tombstones.isEmpty()) return songs
+        val filtered = songs.filterNot { song ->
+            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath) in tombstones
+        }
+        return filtered.takeIf { it.size != songs.size } ?: songs
+    }
+
+    private fun clearResolvedDirectPathTombstones(scannedSongs: List<Song>) {
+        val presentPaths = scannedSongs.asSequence()
+            .mapNotNull { song -> LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath) }
+            .toSet()
+        synchronized(directPathTombstonesLock) {
+            directPathTombstones.retainAll(presentPaths)
+        }
     }
 
     private data class LibraryContentPublication(
@@ -1005,8 +1123,8 @@ class LibraryRepository internal constructor(
         const val DELETE_OBSERVER_SUPPRESSION_MS = 1_200L
         const val DELETE_CONFIRMATION_POLL_MS = 100L
         const val DELETE_CONFIRMATION_MAX_POLLS = 5
-        const val MAX_SAF_PROVIDER_LOADING_RETRIES = 3
-        const val SAF_PROVIDER_RETRY_DELAY_MS = 100L
+        const val MAX_SAF_PROVIDER_LOADING_RETRIES = 6
+        const val SAF_PROVIDER_RETRY_DELAY_MS = 250L
     }
 
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
@@ -1022,6 +1140,7 @@ class LibraryRepository internal constructor(
             current.copy(removingSongIds = emptySet(), removingAlbumIds = emptySet())
         }
         observerController.release()
+        synchronized(directPathTombstonesLock) { directPathTombstones.clear() }
         if (clearPermissionState) {
             _scanState.value = _scanState.value.copy(
                 permissionGranted = false,
@@ -1031,6 +1150,14 @@ class LibraryRepository internal constructor(
         }
     }
 
+}
+
+private fun LibraryRuntimeState.pendingRefreshIsFreshnessCritical(): Boolean {
+    return when (this) {
+        is LibraryRuntimeState.BackgroundDirty -> pending.priority == LibraryRefreshPriority.FreshnessCritical
+        is LibraryRuntimeState.InteractionDirty -> pending.priority == LibraryRefreshPriority.FreshnessCritical
+        else -> false
+    }
 }
 
 private fun songsVisibleAfterDeletionMarkers(

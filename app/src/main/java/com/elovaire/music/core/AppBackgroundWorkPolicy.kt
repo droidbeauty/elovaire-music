@@ -99,8 +99,8 @@ internal class AppBackgroundWorkPolicy(
         return permissionGranted && isForeground.value
     }
 
-    fun shouldDeferLibraryRefresh(): Boolean =
-        !isForeground.value || interactionCritical.value
+    fun shouldDeferLibraryRefresh(freshnessCritical: Boolean = false): Boolean =
+        !isForeground.value || (interactionCritical.value && !freshnessCritical)
 
     fun acquireInteractionCritical(): Closeable {
         synchronized(interactionLock) {

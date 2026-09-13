@@ -63,16 +63,7 @@ internal fun decideForegroundReconcile(
         LibrarySyncDecision.ReuseCached -> null
         LibrarySyncDecision.FullScan -> LibraryRefreshRequest()
         LibrarySyncDecision.IncrementalScan -> {
-            val generationFloor = cached
-                ?.volumes
-                ?.map(LibraryMediaStoreVolumeSyncState::generation)
-                ?.distinct()
-                ?.singleOrNull()
-            if (generationFloor == null) {
-                LibraryRefreshRequest()
-            } else {
-                LibraryRefreshRequest(mediaStoreGenerationFloor = generationFloor)
-            }
+            cached?.let(::mediaStoreIncrementalRefreshRequest) ?: LibraryRefreshRequest()
         }
     }.let { mediaStoreRequest ->
         if (staleNetworkSourceIds.isEmpty()) {
@@ -84,5 +75,18 @@ internal fun decideForegroundReconcile(
             // state, so it must not mask a required MediaStore reconciliation.
             LibraryRefreshRequest()
         }
+    }
+}
+
+internal fun mediaStoreIncrementalRefreshRequest(
+    cached: LibraryMediaStoreSyncState,
+): LibraryRefreshRequest {
+    val floors = cached.volumes
+        .filter { it.generation >= 0L }
+        .associate { it.volumeName to it.generation }
+    return when {
+        floors.isEmpty() -> LibraryRefreshRequest()
+        floors.size == 1 -> LibraryRefreshRequest(mediaStoreGenerationFloor = floors.values.single())
+        else -> LibraryRefreshRequest(mediaStoreGenerationFloors = floors)
     }
 }

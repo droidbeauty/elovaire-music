@@ -11,10 +11,13 @@ internal data class LibraryRefreshRequest(
     /** Null means reconcile every source; an empty set means only merge current source state. */
     val targetedNetworkSourceIds: Set<String>? = null,
     val mediaStoreGenerationFloor: Long? = null,
+    val mediaStoreGenerationFloors: Map<String, Long> = emptyMap(),
     /** Reuse unaffected local sources while a targeted SAF source is being discovered. */
     val reuseLocalState: Boolean = false,
     /** Number of automatic retries after a provider reports that its result is still loading. */
     val safProviderRetryAttempt: Int = 0,
+    val priority: LibraryRefreshPriority = LibraryRefreshPriority.Background,
+    val removedPaths: List<String> = emptyList(),
 ) {
     fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
         val force = forceMediaIndex || other.forceMediaIndex
@@ -38,6 +41,17 @@ internal data class LibraryRefreshRequest(
         }
         val reuseLocalState = reuseLocalState && other.reuseLocalState && !force
         val safProviderRetryAttempt = maxOf(safProviderRetryAttempt, other.safProviderRetryAttempt)
+        val priority = maxOf(priority, other.priority)
+        val mergedRemovedPaths = if (force) {
+            emptyList()
+        } else {
+            (removedPaths + other.removedPaths)
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .distinct()
+                .toList()
+        }
         val mergedGenerationFloor = if (
             force ||
                 mergedPaths.isNotEmpty() ||
@@ -48,6 +62,23 @@ internal data class LibraryRefreshRequest(
             null
         } else {
             listOfNotNull(mediaStoreGenerationFloor, other.mediaStoreGenerationFloor).minOrNull()
+            }
+        val mergedGenerationFloors = if (
+            force ||
+                mergedPaths.isNotEmpty() ||
+                mergedSafTreeIds != null ||
+                targetedNetworkSourceIds != null ||
+                other.targetedNetworkSourceIds != null
+        ) {
+            emptyMap()
+        } else {
+            (mediaStoreGenerationFloors.keys + other.mediaStoreGenerationFloors.keys)
+                .associateWith { volume ->
+                    listOfNotNull(
+                        mediaStoreGenerationFloors[volume],
+                        other.mediaStoreGenerationFloors[volume],
+                    ).minOrNull() ?: error("Missing MediaStore generation floor")
+                }
         }
         if (mergedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
             // A large path burst is already a full MediaStore reconciliation. Escalating it to
@@ -58,6 +89,7 @@ internal data class LibraryRefreshRequest(
                 enrichMetadata = enrichMetadata || other.enrichMetadata,
                 targetedSafTreeIds = null,
                 targetedNetworkSourceIds = mergedNetworkSourceIds,
+                priority = priority,
                 reuseLocalState = false,
                 safProviderRetryAttempt = safProviderRetryAttempt,
             )
@@ -69,8 +101,11 @@ internal data class LibraryRefreshRequest(
             targetedSafTreeIds = mergedSafTreeIds,
             targetedNetworkSourceIds = mergedNetworkSourceIds,
             mediaStoreGenerationFloor = mergedGenerationFloor,
+            mediaStoreGenerationFloors = mergedGenerationFloors,
             reuseLocalState = reuseLocalState,
             safProviderRetryAttempt = safProviderRetryAttempt,
+            priority = priority,
+            removedPaths = mergedRemovedPaths,
         )
     }
 
@@ -113,8 +148,24 @@ internal data class LibraryRefreshRequest(
                         targetedSafTreeIds.isNullOrEmpty() &&
                         targetedNetworkSourceIds.isNullOrEmpty()
                 },
+            mediaStoreGenerationFloors = mediaStoreGenerationFloors
+                .filterValues { it >= 0L }
+                .takeIf {
+                    !forceMediaIndex &&
+                        normalizedPaths.isEmpty() &&
+                        targetedSafTreeIds.isNullOrEmpty() &&
+                        targetedNetworkSourceIds.isNullOrEmpty()
+                }
+                .orEmpty(),
             reuseLocalState = reuseLocalState && !forceMediaIndex,
             safProviderRetryAttempt = safProviderRetryAttempt.coerceAtLeast(0),
+            priority = priority,
+            removedPaths = removedPaths
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .distinct()
+                .toList(),
         )
     }
 
@@ -169,6 +220,9 @@ internal class LibraryRefreshRequests {
             forceMediaIndex = false,
             targetedPaths = emptyList(),
             targetedSafTreeIds = null,
+            mediaStoreGenerationFloor = null,
+            mediaStoreGenerationFloors = emptyMap(),
+            removedPaths = emptyList(),
         )?.takeIf { it.enrichMetadata }
     }
 
