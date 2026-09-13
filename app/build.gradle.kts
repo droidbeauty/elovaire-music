@@ -133,7 +133,7 @@ android {
 configurations.matching { configuration ->
     configuration.name.endsWith("AndroidTestRuntimeClasspath")
 }.configureEach {
-    // Room 2.8.4 migration serializers require the 1.8 serializer ABI; Navigation otherwise pins 1.7.3.
+    // Room 2.8.5 migration serializers require the 1.8 serializer ABI; Navigation otherwise pins 1.7.3.
     resolutionStrategy.force(
         libs.kotlinx.serialization.core,
         libs.kotlinx.serialization.core.jvm,

@@ -184,7 +184,6 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -3703,7 +3702,9 @@ private fun LyricsOverlay(
                 ),
             ),
     ) {
-        val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+        val screenWidth = with(LocalDensity.current) {
+            LocalWindowInfo.current.containerSize.width.toDp()
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()

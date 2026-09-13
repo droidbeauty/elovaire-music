@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.TrafficStats
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
@@ -325,11 +324,7 @@ internal class GitHubUpdateController(
     }
 
     private fun signerDigests(info: android.content.pm.PackageInfo): Set<String> {
-        val signatures = if (Build.VERSION.SDK_INT >= 28) {
-            info.signingInfo?.apkContentsSigners?.toList().orEmpty()
-        } else {
-            @Suppress("DEPRECATION") info.signatures?.toList().orEmpty()
-        }
+        val signatures = info.signingInfo?.apkContentsSigners?.toList().orEmpty()
         return signatures.map { signature ->
             MessageDigest.getInstance("SHA-256").digest(signature.toByteArray()).joinToString("") { byte -> "%02x".format(byte) }
         }.toSet()
@@ -343,10 +338,8 @@ internal class GitHubUpdateController(
         val opened = runCatching {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${appContext.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (intent.resolveActivity(appContext.packageManager) == null) false else {
-                appContext.startActivity(intent)
-                true
-            }
+            appContext.startActivity(intent)
+            true
         }.getOrDefault(false)
         if (!opened) reportFailure(IllegalStateException("Unable to open install permission settings"))
         return false
@@ -370,7 +363,6 @@ internal class GitHubUpdateController(
                 setDataAndType(uri, APK_MIME_TYPE)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            check(intent.resolveActivity(appContext.packageManager) != null) { "No package installer is available" }
             appContext.startActivity(intent)
         }
         result.exceptionOrNull()?.let {

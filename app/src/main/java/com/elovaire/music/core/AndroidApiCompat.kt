@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -33,6 +34,7 @@ internal fun requiredAudioPermission(): String {
     return requiredAudioPermission(Build.VERSION.SDK_INT)
 }
 
+@SuppressLint("InlinedApi")
 internal fun requiredAudioPermission(sdkInt: Int): String {
     return if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
@@ -71,6 +73,7 @@ internal fun AudioManager.safeActiveRoutedOutputDevicesForAttributes(
         .filter { device -> runCatching { device.isSink }.getOrDefault(false) }
 }
 
+@SuppressLint("InlinedApi")
 internal fun AudioManager.safeDirectPlaybackSupport(
     format: AudioFormat,
     attributes: AudioAttributes,

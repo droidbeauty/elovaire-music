@@ -12,16 +12,22 @@ internal object ElovaireTrace {
     ): T {
         record(name)
         val traceName = name.take(MAX_TRACE_NAME_LENGTH)
-        try {
+        val tracingStarted = try {
             Trace.beginSection(traceName)
+            true
         } catch (failure: RuntimeException) {
-            if (failure.message?.contains("not mocked", ignoreCase = true) == true) return block()
-            throw failure
+            if (failure.message?.contains("not mocked", ignoreCase = true) == true) {
+                false
+            } else {
+                throw failure
+            }
         }
         return try {
             block()
         } finally {
-            runCatching { Trace.endSection() }
+            if (tracingStarted) {
+                runCatching { Trace.endSection() }
+            }
         }
     }
 

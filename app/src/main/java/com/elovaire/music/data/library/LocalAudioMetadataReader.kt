@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
@@ -130,10 +131,18 @@ internal class LocalAudioMetadataReader(context: Context) {
                         ?.let(::parsePositiveNumber),
                     discNumber = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER)
                         ?.let(::parsePositiveNumber),
-                    sampleRate = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
-                        ?.toIntOrNull(),
-                    bitDepth = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)
-                        ?.toIntOrNull(),
+                    sampleRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        retriever.metadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
+                            ?.toIntOrNull()
+                    } else {
+                        null
+                    },
+                    bitDepth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)
+                            ?.toIntOrNull()
+                    } else {
+                        null
+                    },
                     bitrate = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
                         ?.toIntOrNull(),
                 ).also { failureKey?.let(failureRegistry::recordSuccess) }

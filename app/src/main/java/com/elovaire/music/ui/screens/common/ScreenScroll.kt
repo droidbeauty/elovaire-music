@@ -160,10 +160,13 @@ internal fun BoxScope.FastScrollbar(
         val viewportHeightPx = with(LocalDensity.current) { maxHeight.toPx() }.coerceAtLeast(1f)
         val scrollableContentHeightPx = state.maxValue.toFloat()
         if (scrollableContentHeightPx <= 0f) return@BoxWithConstraints
+        val scrollPosition by remember(state) {
+            derivedStateOf { state.value }
+        }
 
         val estimatedContentHeightPx = viewportHeightPx + scrollableContentHeightPx
         FastScrollbarTrack(
-            scrollFraction = (state.value / scrollableContentHeightPx).coerceIn(0f, 1f),
+            scrollFraction = (scrollPosition / scrollableContentHeightPx).coerceIn(0f, 1f),
             viewportFraction = (viewportHeightPx / estimatedContentHeightPx).coerceIn(0f, 1f),
             totalItems = 2,
             topInset = topInset,

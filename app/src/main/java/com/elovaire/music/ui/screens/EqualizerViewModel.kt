@@ -156,7 +156,6 @@ internal class EqualizerViewModel(
 
     override fun onCleared() {
         if (_uiState.value.isDirty) preferenceStore.setEqSettings(_uiState.value.toEqSettings())
-        super.onCleared()
     }
 }
 

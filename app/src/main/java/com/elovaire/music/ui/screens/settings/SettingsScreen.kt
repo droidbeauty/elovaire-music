@@ -1084,7 +1084,7 @@ private fun SettingsToggle(
         ) {
             Box(
                 modifier = Modifier
-                    .offset(x = thumbOffset, y = 2.dp)
+                    .offset { IntOffset(x = thumbOffset.roundToPx(), y = 2.dp.roundToPx()) }
                     .size(20.dp)
                     .clip(CircleShape)
                     .background(knobColor),

@@ -49,6 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -1575,10 +1576,13 @@ internal fun EqHorizontalScrollbar(
         val viewportWidthPx = with(density) { maxWidth.toPx() }
         val contentWidthPx = with(density) { contentWidth.toPx() }.coerceAtLeast(viewportWidthPx)
         val maxScrollPx = scrollState.maxValue.toFloat().coerceAtLeast(0f)
+        val scrollPosition by remember(scrollState) {
+            derivedStateOf { scrollState.value }
+        }
         val viewportFraction = (viewportWidthPx / contentWidthPx).coerceIn(0.08f, 1f)
         val thumbWidthPx = (viewportWidthPx * viewportFraction).coerceAtLeast(with(density) { 46.dp.toPx() })
         val thumbTravelPx = (viewportWidthPx - thumbWidthPx).coerceAtLeast(0f)
-        val thumbOffsetFraction = if (maxScrollPx <= 0f) 0f else (scrollState.value / maxScrollPx).coerceIn(0f, 1f)
+        val thumbOffsetFraction = if (maxScrollPx <= 0f) 0f else (scrollPosition / maxScrollPx).coerceIn(0f, 1f)
         val thumbOffsetPx = thumbTravelPx * thumbOffsetFraction
         val trackColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
             InkText.copy(alpha = 0.12f)
