@@ -20,6 +20,15 @@ internal object AppVersionPolicy {
         return leftVersion == rightVersion
     }
 
+    fun installerHandoffCompleted(
+        installedVersion: String,
+        expectedVersion: String,
+        versionBeforeHandoff: String,
+    ): Boolean {
+        return isSame(installedVersion, expectedVersion) ||
+            isNewer(installedVersion, versionBeforeHandoff)
+    }
+
     fun compare(left: String, right: String): Int {
         val leftVersion = parse(left) ?: return 0
         val rightVersion = parse(right) ?: return 0

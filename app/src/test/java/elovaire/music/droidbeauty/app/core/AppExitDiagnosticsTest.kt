@@ -73,6 +73,66 @@ class AppExitDiagnosticsTest {
         )
     }
 
+    @Test
+    fun previousProcessBreadcrumbIsChecksummedBoundedAndRejectsCorruption() {
+        val encoded = encodePreviousProcessBreadcrumb(
+            PreviousProcessBreadcrumb(
+                processId = "process",
+                versionCode = elovaire.music.droidbeauty.app.BuildConfig.VERSION_CODE,
+                phase = "recovery",
+                subsystem = "Persistence",
+                operationPhase = "started",
+                outcome = null,
+                resourceCounts = (0 until 32).associate { "resource-$it" to it + 1 },
+                timestampMs = 42L,
+            ),
+        )
+
+        val decoded = decodePreviousProcessBreadcrumb(encoded)
+        assertEquals("process", decoded?.processId)
+        assertTrue(decoded!!.resourceCounts.size <= 16)
+        assertEquals(null, decodePreviousProcessBreadcrumb(encoded.dropLast(1)))
+    }
+
+    @Test
+    fun previousProcessBreadcrumbDoesNotStoreFreeFormSensitiveFields() {
+        val breadcrumb = PreviousProcessBreadcrumb(
+            processId = "id",
+            versionCode = elovaire.music.droidbeauty.app.BuildConfig.VERSION_CODE,
+            phase = "ready",
+            subsystem = "Library",
+            operationPhase = "completed",
+            outcome = "ok",
+            resourceCounts = emptyMap(),
+            timestampMs = 1L,
+        )
+
+        val encoded = encodePreviousProcessBreadcrumb(breadcrumb)
+
+        assertFalse(encoded.contains("/storage/"))
+        assertFalse(encoded.contains("content://"))
+        assertFalse(encoded.contains("title"))
+    }
+
+    @Test
+    fun previousProcessBreadcrumbRequiresCurrentBuildAndFreshTimestamp() {
+        val breadcrumb = PreviousProcessBreadcrumb(
+            processId = "id",
+            versionCode = 7,
+            phase = "ready",
+            subsystem = null,
+            operationPhase = null,
+            outcome = null,
+            resourceCounts = emptyMap(),
+            timestampMs = 1_000L,
+        )
+
+        assertTrue(isUsablePreviousProcessBreadcrumb(breadcrumb, 2_000L, 7))
+        assertFalse(isUsablePreviousProcessBreadcrumb(breadcrumb, 2_000L, 8))
+        assertFalse(isUsablePreviousProcessBreadcrumb(breadcrumb, 901_001L, 7))
+        assertFalse(isUsablePreviousProcessBreadcrumb(breadcrumb.copy(timestampMs = 2_001L), 2_000L, 7))
+    }
+
     private fun record(category: AppExitCategory, timestampMs: Long) = AppExitRecord(
         reason = 0,
         status = 0,

@@ -7,7 +7,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -20,8 +19,7 @@ internal class AppBridgeCoordinator(
     private val services: AppServices,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private val bridgeJob = SupervisorJob(scope.coroutineContext[Job])
-    private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
+    private val bridgeScope = ownedChildScope(scope, "app-bridge")
     private val playbackIntegration = PlaybackIntegrationCoordinator(
         scope = bridgeScope,
         preferences = services.preferenceStore,

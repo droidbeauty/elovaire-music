@@ -97,8 +97,8 @@ internal class BitPerfectUsbManager(
     private var preferredRouteDevice: AudioDeviceInfo? = null
     private var cachedEvaluation: CachedDirectPlaybackEvaluation? = null
 
-    fun refreshConnectedDevices() {
-        publishStatus()
+    fun refreshConnectedDevices(routeSnapshot: AudioOutputRouteSnapshot? = null) {
+        publishStatus(routeSnapshot)
     }
 
     fun updateCurrentAudioTrackConfig(audioTrackConfig: AudioSink.AudioTrackConfig?) {
@@ -131,9 +131,9 @@ internal class BitPerfectUsbManager(
 
     fun preferredOutputDevice(): AudioDeviceInfo? = preferredRouteDevice
 
-    private fun publishStatus() {
+    private fun publishStatus(routeSnapshot: AudioOutputRouteSnapshot? = null) {
         runCatching {
-            publishStatusUnsafe()
+            publishStatusUnsafe(routeSnapshot)
         }.onFailure {
             preferredRouteDevice = null
             cachedEvaluation = null
@@ -147,7 +147,7 @@ internal class BitPerfectUsbManager(
         }
     }
 
-    private fun publishStatusUnsafe() {
+    private fun publishStatusUnsafe(externalRouteSnapshot: AudioOutputRouteSnapshot?) {
         if (audioManager == null) {
             preferredRouteDevice = null
             currentRouteFingerprint = emptyList()
@@ -162,7 +162,11 @@ internal class BitPerfectUsbManager(
             return
         }
 
-        val routeSnapshot = resolveRouteSnapshot(audioManager, playbackAudioAttributes)
+        val routeSnapshot = resolveRouteSnapshot(
+            audioManager = audioManager,
+            playbackAudioAttributes = playbackAudioAttributes,
+            routedDevices = externalRouteSnapshot?.routedDevices,
+        )
         if (routeSnapshot.fingerprint != currentRouteFingerprint) {
             currentRouteFingerprint = routeSnapshot.fingerprint
             cachedEvaluation = null
@@ -303,30 +307,31 @@ internal data class DirectPlaybackTrackConfig(
 private fun resolveRouteSnapshot(
     audioManager: AudioManager,
     playbackAudioAttributes: AudioAttributes,
+    routedDevices: List<AudioDeviceInfo>? = null,
 ): DirectPlaybackRouteSnapshot {
     val routeQuerySupported =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
     val availableDevices = audioManager.safeOutputDevices()
-    val routedDevices = if (routeQuerySupported) {
+    val resolvedRoutedDevices = routedDevices ?: if (routeQuerySupported) {
         audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes)
     } else {
         availableDevices
     }
-    val fingerprint = routedDevices
+    val fingerprint = resolvedRoutedDevices
         .mapNotNull { device -> runCatching { device.toRouteFingerprint() }.getOrNull() }
         .sortedWith(compareBy(RouteFingerprint::type, RouteFingerprint::id))
-    val preferredUsbDevice = routedDevices.firstOrNull { device ->
+    val preferredUsbDevice = resolvedRoutedDevices.firstOrNull { device ->
         runCatching { device.type.isEligibleUsbOutputType() }.getOrDefault(false)
     }
-    val primaryRoutedDevice = routedDevices.firstOrNull()
+    val primaryRoutedDevice = resolvedRoutedDevices.firstOrNull()
     return DirectPlaybackRouteSnapshot(
         fingerprint = fingerprint,
         preferredUsbDevice = preferredUsbDevice,
         preferredUsbFingerprint = preferredUsbDevice?.let { runCatching { it.toRouteFingerprint() }.getOrNull() },
         primaryRoutedDevice = primaryRoutedDevice,
         primaryRouteFingerprint = primaryRoutedDevice?.let { runCatching { it.toRouteFingerprint() }.getOrNull() },
-        hasBluetoothRoute = routedDevices.any { device ->
+        hasBluetoothRoute = resolvedRoutedDevices.any { device ->
             runCatching { device.type.isBluetoothOutputType() }.getOrDefault(false)
         },
         isRouteVerified = routeQuerySupported,

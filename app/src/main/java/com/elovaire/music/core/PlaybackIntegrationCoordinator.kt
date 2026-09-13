@@ -15,9 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -58,12 +56,8 @@ internal class PlaybackIntegrationCoordinator(
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val sessionWriterScope = CoroutineScope(
-        SupervisorJob() + ioDispatcher,
+        ownedChildScope(scope, "playback-session-writer").coroutineContext + ioDispatcher,
     )
-    // Keep the writer alive long enough to drain the final checkpoint during normal release,
-    // but cancel it if its owning bridge scope is terminated without calling release.
-    private val ownerCompletionHandle: DisposableHandle? =
-        scope.coroutineContext[Job]?.invokeOnCompletion { sessionWriterScope.cancel() }
     private val sessionWrites = Channel<PersistedPlaybackSession?>(Channel.CONFLATED)
     private val sessionWriterJob: Job = sessionWriterScope.launch(start = CoroutineStart.LAZY) {
         for (session in sessionWrites) {
@@ -186,7 +180,6 @@ internal class PlaybackIntegrationCoordinator(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        ownerCompletionHandle?.dispose()
         persistSession(allowAfterRelease = true)
         if (!sessionWriterJob.isActive) {
             sessionWriterScope.cancel()

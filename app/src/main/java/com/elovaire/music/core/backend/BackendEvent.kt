@@ -100,6 +100,10 @@ internal sealed interface BackendEvent {
         override val name = "OperationCancelled"
     }
 
+    data class WorkerFailed(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "WorkerFailed"
+    }
+
     data class MediaMutationStarted(override val fields: Map<String, String>) : BackendEvent {
         override val name = "MediaMutationStarted"
     }

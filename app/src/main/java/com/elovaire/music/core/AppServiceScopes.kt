@@ -1,14 +1,12 @@
 package elovaire.music.droidbeauty.app.core
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
 internal class AppServiceScopes(parentScope: CoroutineScope) {
-    val playback: CoroutineScope = childScope(parentScope)
-    val library: CoroutineScope = childScope(parentScope)
-    val optional: CoroutineScope = childScope(parentScope)
+    val playback: CoroutineScope = ownedChildScope(parentScope, "playback")
+    val library: CoroutineScope = ownedChildScope(parentScope, "library")
+    val optional: CoroutineScope = ownedChildScope(parentScope, "optional")
 
     fun cancelPlayback() = playback.cancel()
 
@@ -16,9 +14,4 @@ internal class AppServiceScopes(parentScope: CoroutineScope) {
 
     fun cancelOptional() = optional.cancel()
 
-    private fun childScope(parentScope: CoroutineScope): CoroutineScope {
-        return CoroutineScope(
-            parentScope.coroutineContext + SupervisorJob(parentScope.coroutineContext[Job]),
-        )
-    }
 }

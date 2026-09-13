@@ -18,7 +18,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-@Suppress("TooManyFunctions", "TooGenericExceptionCaught")
+@Suppress("TooManyFunctions", "TooGenericExceptionCaught", "ComplexCondition")
 internal class MediaStoreScanner(
     private val context: Context,
     indexRefresher: MediaStoreIndexRefresher? = null,

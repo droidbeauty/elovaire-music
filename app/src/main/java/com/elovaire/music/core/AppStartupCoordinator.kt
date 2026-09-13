@@ -29,7 +29,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.TimeoutCancellationException
@@ -62,6 +61,17 @@ internal data class DurableStartupState(
     val retryableComponents: Set<DurableStartupComponent> = emptySet(),
     val failure: BackendFailure? = null,
 )
+
+internal fun DurableStartupState.allowsMediaButton(): Boolean = when (phase) {
+    DurableStartupPhase.Ready,
+    DurableStartupPhase.Degraded,
+    -> true
+    DurableStartupPhase.NotStarted,
+    DurableStartupPhase.Recovering,
+    DurableStartupPhase.Failed,
+    DurableStartupPhase.Released,
+    -> false
+}
 
 internal fun startupStateAfterRecovery(
     mediaMutationRecoverySucceeded: Boolean,
@@ -118,7 +128,7 @@ internal class AppStartupCoordinator(
     private val playbackStarted = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     private val criticalRecoveryScope = CoroutineScope(
-        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]) + ioDispatcher,
+        ownedChildScope(appScope, "startup-critical-recovery").coroutineContext + ioDispatcher,
     )
     private var portableUserDataBackupJob: Job? = null
 
@@ -140,10 +150,16 @@ internal class AppStartupCoordinator(
     fun startPlayback() {
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         if (!durableStartupStarted.compareAndSet(false, true)) return
-        _durableStartupState.value = DurableStartupState(DurableStartupPhase.Recovering)
+        transitionStartupState(DurableStartupState(DurableStartupPhase.Recovering))
         startPortableUserDataBackup()
         criticalRecoveryScope.launch {
             try {
+                val exitDiagnostics = exitDiagnosticsDelegate.value
+                val exitSnapshot = withContext(ioDispatcher) {
+                    exitDiagnostics.inspect().also {
+                        exitDiagnostics.checkpointRuntime("durable-recovery", force = true)
+                    }
+                }
                 val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
                 val pendingSourceIds = networkSourceMutationJournal.pending()
                     .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
@@ -189,42 +205,70 @@ internal class AppStartupCoordinator(
                 }
                 libraryRepository.start()
                 libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
-                _durableStartupState.value = startupStateAfterRecovery(
+                val startupState = startupStateAfterRecovery(
                     mediaMutationRecoverySucceeded = mediaMutationRecoverySucceeded,
                     networkRecoverySucceeded = networkRecoverySucceeded,
                     blockedSourceIds = blockedSourceIds,
                 )
-                durableStartupReady.set(Unit)
+                transitionStartupState(startupState)
+                exitDiagnostics.checkpointRuntime(
+                    phase = "ready",
+                    outcome = startupState.phase.name,
+                    force = true,
+                )
                 optionalScope.launch(ioDispatcher) {
-                    runOptionalStartup(mediaMutationRecoverySucceeded)
+                    runOptionalStartup(mediaMutationRecoverySucceeded, exitSnapshot)
                 }
             } catch (cancelled: CancellationException) {
-                durableStartupReady.cancel(false)
+                transitionStartupState(DurableStartupState(DurableStartupPhase.Released))
                 throw cancelled
             } catch (failure: Exception) {
                 Log.e(TAG, "Durable playback startup failed", failure)
-                _durableStartupState.value = DurableStartupState(
+                val backendFailure = classifyBackendFailure(failure)
+                transitionStartupState(DurableStartupState(
                     phase = DurableStartupPhase.Failed,
-                    failure = classifyBackendFailure(failure),
+                    failure = backendFailure,
+                ))
+                exitDiagnosticsDelegate.value.checkpointRuntime(
+                    phase = "failed",
+                    outcome = backendFailure.disposition.name,
+                    force = true,
                 )
-                durableStartupReady.setException(failure)
             }
         }
     }
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        _durableStartupState.value = DurableStartupState(DurableStartupPhase.Released)
+        transitionStartupState(DurableStartupState(DurableStartupPhase.Released))
         portableUserDataBackupJob?.cancel()
         portableUserDataBackupJob = null
         criticalRecoveryScope.cancel()
-        durableStartupReady.cancel(false)
+    }
+
+    private fun transitionStartupState(next: DurableStartupState) {
+        if (released.get() && next.phase != DurableStartupPhase.Released) return
+        _durableStartupState.value = next
+        when (next.phase) {
+            DurableStartupPhase.Ready,
+            DurableStartupPhase.Degraded,
+            -> durableStartupReady.set(Unit)
+            DurableStartupPhase.Failed -> durableStartupReady.setException(
+                next.failure?.cause ?: IllegalStateException("Durable playback startup failed"),
+            )
+            DurableStartupPhase.Released -> durableStartupReady.cancel(false)
+            DurableStartupPhase.NotStarted,
+            DurableStartupPhase.Recovering,
+            -> Unit
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private suspend fun runOptionalStartup(mediaMutationRecoverySucceeded: Boolean) {
+    private suspend fun runOptionalStartup(
+        mediaMutationRecoverySucceeded: Boolean,
+        exitSnapshot: AppExitSnapshot,
+    ) {
         try {
-            val exitSnapshot = exitDiagnosticsDelegate.value.inspect()
             backgroundWorkPolicy.setOptionalStartupSuppressed(
                 exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
             )

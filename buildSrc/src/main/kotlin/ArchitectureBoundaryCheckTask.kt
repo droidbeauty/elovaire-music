@@ -147,6 +147,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/library/network/NetworkLibrarySourceStore.kt",
             "/data/library/network/NetworkSourceMutationJournal.kt",
             "/data/library/db/PersistenceMaintenanceWorker.kt",
+            "/data/update/GitHubUpdateController.kt",
         )
         val CLOCK_ALLOWED = setOf("/core/AppRuntimeBoundaries.kt")
         val SUPERVISOR_SCOPE_ALLOWED = setOf(

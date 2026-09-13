@@ -3,6 +3,9 @@ package elovaire.music.droidbeauty.app.platform
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.FileNotFoundException
+import java.io.IOException
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertThrows
 import org.junit.Rule
@@ -55,6 +58,31 @@ class ContentIoTest {
         }
 
         assertArrayEquals(byteArrayOf(4, 5), input.readBytesBounded(2))
+    }
+
+    @Test
+    fun contentFailuresHaveStableActionableCategories() {
+        assertEquals(
+            ContentIoFailureKind.PermissionRequired,
+            contentIoFailureKind(SecurityException("revoked")),
+        )
+        assertEquals(
+            ContentIoFailureKind.SourceUnavailable,
+            contentIoFailureKind(FileNotFoundException("missing")),
+        )
+        assertEquals(
+            ContentIoFailureKind.LocalIo,
+            contentIoFailureKind(IllegalStateException("wrapper", IOException("disk"))),
+        )
+        assertEquals(
+            ContentIoFailureKind.UnsupportedWriteCapability,
+            contentIoFailureKind(
+                ContentIoException(
+                    ContentIoFailureKind.UnsupportedWriteCapability,
+                    "provider rejected write mode",
+                ),
+            ),
+        )
     }
 
     @Test

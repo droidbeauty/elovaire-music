@@ -269,6 +269,9 @@ class PlaybackManager(
     private var crossfadeSilenceThresholdDb = CrossfadeSilencePolicy.BASE_LEVEL_DB
     private var volumeNormalizationEnabled = false
     private var outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
+    private var audioRouteGeneration = 0L
+    private var audioRouteIdentity: List<AudioRouteDeviceIdentity> = emptyList()
+    private var currentAudioRouteSnapshot = AudioOutputRouteSnapshot(0L, emptyList(), null, emptyList())
     private val playerResourceLeases = IdentityHashMap<ExoPlayer, Closeable>()
     private var player = createPlayer(enableSignalProcessing = true)
     private val playerGenerationGate = PlaybackPlayerGenerationGate<ExoPlayer>()
@@ -342,6 +345,7 @@ class PlaybackManager(
     private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
+    private val audioSinkRecoveryGuard = AudioSinkRecoveryGuard()
     private val playbackProgressController = PlaybackProgressController()
     private val progressDemandController = PlaybackProgressDemandController()
     private val playbackProgressTicker = PlaybackProgressTicker(
@@ -497,6 +501,9 @@ class PlaybackManager(
             audioSinkError: Exception,
         ) {
             if (released.get()) return
+            if (isDirectPlaybackActive && runtimeTransition is PlaybackRuntimeTransition.Idle) {
+                recoverFromAudioSinkError(audioSinkError)
+            }
             player.volume = effectivePlayerGain()
             scheduleStatePublish()
         }
@@ -1413,9 +1420,12 @@ class PlaybackManager(
                 audioManager = audioManager,
                 attributes = platformPlaybackAudioAttributes,
             )
-            val currentUsbOutput = currentUsbOutputDescriptor()
-            usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
-            bitPerfectUsbManager.refreshConnectedDevices()
+            currentAudioRouteSnapshot = resolveAudioRouteSnapshot()
+            usbDacHardwareVolumeManager.updateAudioOutputDevice(
+                currentAudioRouteSnapshot.usbOutput,
+                currentAudioRouteSnapshot.generation,
+            )
+            bitPerfectUsbManager.refreshConnectedDevices(currentAudioRouteSnapshot)
         }.onFailure {
             outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
             bitPerfectUsbManager.clearPlaybackFormat()
@@ -1529,6 +1539,31 @@ class PlaybackManager(
         } finally {
             runtimeStateMachine.complete()
         }
+    }
+
+    private fun recoverFromAudioSinkError(audioSinkError: Exception) {
+        val status = bitPerfectUsbManager.status.value
+        val key = AudioSinkRecoveryKey(
+            playbackRevision = playbackOperationRevision,
+            routeGeneration = currentAudioRouteSnapshot.generation,
+            failureCategory = audioSinkError::class.java.name,
+        )
+        if (!audioSinkRecoveryGuard.claim(key)) return
+        bitPerfectUsbManager.clearPlaybackFormat()
+        lastAppliedAudioPathDecisionKey = null
+        switchPlayerAudioPath(
+            useDirectPlayback = false,
+            reason = "audio-sink-fallback",
+            decisionKey = AudioPathDecisionKey(
+                useDirectPlayback = false,
+                directive = BitPerfectPlaybackDirective.PreferRegular,
+                evaluationKey = null,
+                routeDeviceId = status.activeRouteDeviceId,
+                routeType = status.activeRouteType,
+                preferredDeviceKey = null,
+                outputCapabilitySignature = outputCapabilities.routeSignature,
+            ),
+        )
     }
 
     private fun setQueue(
@@ -2241,6 +2276,7 @@ class PlaybackManager(
 
     private fun beginPlaybackOperation(): Long {
         playbackOperationRevision = if (playbackOperationRevision == Long.MAX_VALUE) 1L else playbackOperationRevision + 1L
+        audioSinkRecoveryGuard.reset()
         return playbackOperationRevision
     }
 
@@ -2424,22 +2460,39 @@ class PlaybackManager(
         return currentStep.toFloat() / maxStep.toFloat()
     }
 
-    private fun currentUsbOutputDescriptor(): UsbAudioDeviceDescriptor? {
-        val manager = audioManager ?: return null
-        val outputDevice = if (
+    private fun resolveAudioRouteSnapshot(): AudioOutputRouteSnapshot {
+        val manager = audioManager
+            ?: return AudioOutputRouteSnapshot(0L, emptyList(), null, emptyList())
+        val routedDevices = if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
         ) {
             manager.safeActiveRoutedOutputDevicesForAttributes(platformPlaybackAudioAttributes)
-                .firstOrNull { device ->
-                    runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
-                }
         } else {
-            manager.safeOutputDevices().firstOrNull { device ->
-                runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
-            }
+            manager.safeOutputDevices()
         }
-        return outputDevice?.toUsbAudioDeviceDescriptor()
+        val identity = routedDevices.map { device ->
+            AudioRouteDeviceIdentity(
+                id = runCatching { device.id }.getOrDefault(-1),
+                type = runCatching { device.type }.getOrDefault(-1),
+                isSink = runCatching { device.isSink }.getOrDefault(false),
+                address = runCatching { device.address.orEmpty() }.getOrDefault(""),
+            )
+        }.sortedWith(
+            compareBy(
+                AudioRouteDeviceIdentity::type,
+                AudioRouteDeviceIdentity::id,
+                AudioRouteDeviceIdentity::address,
+            ),
+        )
+        if (identity != audioRouteIdentity) {
+            audioRouteIdentity = identity
+            audioRouteGeneration = if (audioRouteGeneration == Long.MAX_VALUE) 1L else audioRouteGeneration + 1L
+        }
+        val usbOutput = routedDevices.firstOrNull { device ->
+            runCatching { device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
+        }?.toUsbAudioDeviceDescriptor()
+        return AudioOutputRouteSnapshot(audioRouteGeneration, routedDevices.toList(), usbOutput, identity)
     }
 
     private fun resolveCurrentQueueIndex(existingState: PlaybackUiState): Int {

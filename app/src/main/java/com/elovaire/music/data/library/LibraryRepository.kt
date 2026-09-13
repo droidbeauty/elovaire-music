@@ -91,6 +91,7 @@ data class LibraryDeleteFailure(
     val reason: String,
 )
 
+@Suppress("LargeClass", "TooManyFunctions")
 class LibraryRepository internal constructor(
     appContext: Context,
     private val scanner: LibraryScanCoordinator,

@@ -12,6 +12,7 @@ import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,9 +52,9 @@ internal class PortableSettingsBackup(
     private val bootSnapshotJobLock = Any()
     private var bootSnapshotJob: Job? = null
     private val mirrorScope = CoroutineScope(
-        (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
+            (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
-            ioDispatcher,
+            ioDispatcher + CoroutineName("portable-settings-backup"),
     )
     private var settingsObservationJob: Job? = null
 

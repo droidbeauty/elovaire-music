@@ -6,6 +6,7 @@ internal data class UsbDacConnectionToken(
     val generation: Long,
     val deviceId: Int,
     val identityKey: String,
+    val routeGeneration: Long = 0L,
 )
 
 internal fun isCurrentUsbDacCallback(

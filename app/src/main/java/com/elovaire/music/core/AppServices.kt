@@ -343,6 +343,7 @@ internal class AppServices(
                 playbackManager = playbackManager,
                 readExecutor = mediaLibraryReadExecutor,
                 startupReady = startupCoordinator.durableStartupReady,
+                startupOperational = { startupCoordinator.durableStartupState.value.allowsMediaButton() },
             ),
         )
     }

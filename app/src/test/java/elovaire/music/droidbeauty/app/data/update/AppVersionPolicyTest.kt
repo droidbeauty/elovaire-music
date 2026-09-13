@@ -34,4 +34,11 @@ class AppVersionPolicyTest {
         assertFalse(shouldRunAutomaticUpdateCheck(0L, 2_000L, 1_900L, 2_000L, 1_000L, 500L))
         assertTrue(shouldRunAutomaticUpdateCheck(0L, 2_000L, null, 2_000L, 1_000L, 500L))
     }
+
+    @Test
+    fun installerHandoffRequiresObservedInstalledVersionChangeOrExpectedVersion() {
+        assertTrue(AppVersionPolicy.installerHandoffCompleted("2.0.0", "2.0.0", "1.0.0"))
+        assertTrue(AppVersionPolicy.installerHandoffCompleted("2.1.0", "2.0.0", "1.0.0"))
+        assertFalse(AppVersionPolicy.installerHandoffCompleted("1.0.0", "2.0.0", "1.0.0"))
+    }
 }

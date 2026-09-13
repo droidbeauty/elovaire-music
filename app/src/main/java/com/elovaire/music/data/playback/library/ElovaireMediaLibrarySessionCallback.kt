@@ -41,6 +41,7 @@ internal class ElovaireMediaLibrarySessionCallback(
     private val playbackManager: PlaybackManager,
     private val readExecutor: MediaLibraryReadExecutor = MediaLibraryReadExecutor(),
     private val startupReady: ListenableFuture<Unit> = Futures.immediateFuture(Unit),
+    private val startupOperational: () -> Boolean = { true },
 ) : MediaLibrarySession.Callback {
     private val queueResolutionGeneration = AtomicLong(0L)
     private val searchResults = MediaLibrarySearchCache()
@@ -221,7 +222,7 @@ internal class ElovaireMediaLibrarySessionCallback(
         ) {
             return false
         }
-        if (!startupReady.isDone) return false
+        if (!startupReady.completedSuccessfully() || !startupOperational()) return false
         val pending = pendingMediaButtonResumption(consume = true) ?: return false
         val startIndex = pending.queue.queue.indexOfFirst { it.id == pending.queue.startSong.id }
             .coerceAtLeast(0)
@@ -284,6 +285,11 @@ internal class ElovaireMediaLibrarySessionCallback(
             KeyEvent.KEYCODE_HEADSETHOOK,
         )
     }
+}
+
+internal fun ListenableFuture<*>.completedSuccessfully(): Boolean {
+    if (!isDone || isCancelled) return false
+    return runCatching { get() }.isSuccess
 }
 
 private class MediaLibrarySearchCache {

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ internal class UsbDacHardwareVolumeManager(
 
     private var currentAudioDeviceDescriptor: UsbAudioDeviceDescriptor? = null
     private var currentAudioDeviceFingerprint: UsbAudioDeviceRoutingFingerprint? = null
+    @Volatile private var currentRouteGeneration = 0L
     @Volatile private var currentUsbDevice: UsbDevice? = null
     @Volatile private var currentCapability: UsbDacHardwareVolumeCapability? = null
     private var permissionReceiverRegistered = false
@@ -68,7 +70,7 @@ internal class UsbDacHardwareVolumeManager(
     private val volumeWriteMutex = Mutex()
     private val inspectionScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]) + ioDispatcher,
-    )
+    ).let { CoroutineScope(it.coroutineContext + CoroutineName("usb-dac-hardware")) }
 
     private val permissionReceiver = object : BroadcastReceiver() {
         override fun onReceive(
@@ -181,6 +183,7 @@ internal class UsbDacHardwareVolumeManager(
                 generation = connectionGeneration,
                 deviceId = usbDevice.deviceId,
                 identityKey = identity.persistenceKey(),
+                routeGeneration = currentRouteGeneration,
             )
         }
         if (
@@ -206,12 +209,14 @@ internal class UsbDacHardwareVolumeManager(
 
     fun updateAudioOutputDevice(
         audioDeviceDescriptor: UsbAudioDeviceDescriptor?,
+        routeGeneration: Long = 0L,
     ) {
         if (released || !usbHostSupported) return
         val nextFingerprint = audioDeviceDescriptor?.routingFingerprint()
-        if (currentAudioDeviceFingerprint == nextFingerprint) return
+        if (currentAudioDeviceFingerprint == nextFingerprint && currentRouteGeneration == routeGeneration) return
         currentAudioDeviceDescriptor = audioDeviceDescriptor
         currentAudioDeviceFingerprint = nextFingerprint
+        currentRouteGeneration = routeGeneration
         invalidateCurrentConnection()
         refreshConnectedDevice()
     }
@@ -652,9 +657,10 @@ internal class UsbDacHardwareVolumeManager(
         identity: UsbDacDeviceIdentity,
     ): Boolean {
         return !released &&
+            expected?.routeGeneration == currentRouteGeneration &&
             isCurrentUsbDacCallback(
                 current = currentConnection,
-                callbackGeneration = expected?.generation ?: -1L,
+                callbackGeneration = expected.generation,
                 callbackDeviceId = device.deviceId,
                 callbackIdentityKey = identity.persistenceKey(),
             )

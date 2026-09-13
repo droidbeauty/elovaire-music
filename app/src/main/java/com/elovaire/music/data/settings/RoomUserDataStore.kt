@@ -55,6 +55,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -105,7 +106,7 @@ internal class RoomUserDataStore(
     private val operationScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
-            ioDispatcher,
+            ioDispatcher + CoroutineName("user-data-actor"),
     )
     private val queueDepth = AtomicInteger()
     private val maxQueueDepth = AtomicInteger()

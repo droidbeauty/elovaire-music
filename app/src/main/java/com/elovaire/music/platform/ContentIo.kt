@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.os.RemoteException
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.util.Log
@@ -15,8 +16,26 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.nio.channels.FileChannel
+
+internal enum class ContentIoFailureKind {
+    PermissionRequired,
+    SourceUnavailable,
+    ProviderUnavailable,
+    UnsupportedWriteCapability,
+    MalformedProviderContract,
+    VerificationFailed,
+    LocalIo,
+    InvariantViolation,
+}
+
+internal open class ContentIoException(
+    val kind: ContentIoFailureKind,
+    message: String,
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)
 
 internal class ContentIo(
     private val resolver: ContentResolver,
@@ -37,7 +56,10 @@ internal class ContentIo(
                         result
                     }
                 }
-            } ?: error("Unable to open the source file.")
+            } ?: throw ContentIoException(
+                ContentIoFailureKind.SourceUnavailable,
+                "Unable to open the source file.",
+            )
             complete = true
             return copied
         } finally {
@@ -47,7 +69,12 @@ internal class ContentIo(
 
     @WorkerThread
     fun replaceFromFile(uri: Uri, source: File) {
-        check(source.isFile) { "The replacement file is unavailable." }
+        if (!source.isFile) {
+            throw ContentIoException(
+                ContentIoFailureKind.LocalIo,
+                "The replacement file is unavailable.",
+            )
+        }
         if (Build.VERSION.SDK_INT >= 36 && uri.authority == MediaStore.AUTHORITY) {
             replaceFromDescriptor(uri, source)
         } else {
@@ -74,8 +101,11 @@ internal class ContentIo(
         }
         val persistedSize = openDescriptor(uri, "r")?.use(ParcelFileDescriptor::getStatSize)
         logDebug(uri, "persisted-size bytes=$persistedSize expected=${source.length()}")
-        check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
-            "The provider persisted an incomplete file."
+        if (persistedSize != null && persistedSize >= 0L && persistedSize != source.length()) {
+            throw ContentIoException(
+                ContentIoFailureKind.VerificationFailed,
+                "The provider persisted an incomplete file.",
+            )
         }
     }
 
@@ -94,12 +124,18 @@ internal class ContentIo(
     fun readBytesBounded(uri: Uri, maxBytes: Int): ByteArray {
         require(maxBytes >= 0)
         return resolver.openInputStream(uri)?.use { input -> input.readBytesBounded(maxBytes) }
-            ?: error("Unable to open the source file.")
+            ?: throw ContentIoException(
+                ContentIoFailureKind.SourceUnavailable,
+                "Unable to open the source file.",
+            )
     }
 
     @WorkerThread
     fun openReadableDescriptor(uri: Uri): ParcelFileDescriptor {
-        return openDescriptor(uri, "r") ?: error("Unable to open the source file.")
+        return openDescriptor(uri, "r") ?: throw ContentIoException(
+            ContentIoFailureKind.SourceUnavailable,
+            "Unable to open the source file.",
+        )
     }
 
     @WorkerThread
@@ -121,14 +157,25 @@ internal class ContentIo(
 
     @WorkerThread
     fun requireSafWriteAccess(uri: Uri) {
-        check(hasPersistedWritePermission(uri)) { "The selected document has no persisted write permission." }
+        if (!hasPersistedWritePermission(uri)) {
+            throw ContentIoException(
+                ContentIoFailureKind.PermissionRequired,
+                "The selected document has no persisted write permission.",
+            )
+        }
         val flags = resolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_FLAGS), null, null, null)
             ?.use { cursor ->
                 if (!cursor.moveToFirst()) null else cursor.getInt(0)
             }
-            ?: error("Unable to query document write capability.")
-        check(flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0) {
-            "The selected document provider does not support writing this file."
+            ?: throw ContentIoException(
+                ContentIoFailureKind.MalformedProviderContract,
+                "Unable to query document write capability.",
+            )
+        if (flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE == 0) {
+            throw ContentIoException(
+                ContentIoFailureKind.UnsupportedWriteCapability,
+                "The selected document provider does not support writing this file.",
+            )
         }
     }
 
@@ -150,7 +197,10 @@ internal class ContentIo(
 
     @WorkerThread
     fun openReadWriteDescriptor(uri: Uri): ParcelFileDescriptor {
-        return openDescriptorOrNull(uri, "rw") ?: error("Unable to open the file for writing.")
+        return openDescriptorOrNull(uri, "rw") ?: throw ContentIoException(
+            ContentIoFailureKind.UnsupportedWriteCapability,
+            "Unable to open the file for writing.",
+        )
     }
 
     private fun openDescriptorOrNull(uri: Uri, mode: String): ParcelFileDescriptor? {
@@ -185,7 +235,28 @@ internal class ContentIo(
 }
 
 internal class ProviderRejectedWriteModeException(uri: Uri) :
-    IllegalStateException("The content provider rejected all supported write modes for ${uri.authority.orEmpty()}.")
+    ContentIoException(
+        ContentIoFailureKind.UnsupportedWriteCapability,
+        "The content provider rejected all supported write modes for ${uri.authority.orEmpty()}.",
+    )
+
+internal fun contentIoFailureKind(failure: Throwable): ContentIoFailureKind {
+    var current: Throwable? = failure
+    var depth = 0
+    val visited = HashSet<Throwable>()
+    while (current != null && depth++ < 8 && visited.add(current)) {
+        when (current) {
+            is ContentIoException -> return current.kind
+            is SecurityException -> return ContentIoFailureKind.PermissionRequired
+            is FileNotFoundException -> return ContentIoFailureKind.SourceUnavailable
+            is RemoteException -> return ContentIoFailureKind.ProviderUnavailable
+            is IOException -> return ContentIoFailureKind.LocalIo
+            is IllegalArgumentException -> return ContentIoFailureKind.MalformedProviderContract
+        }
+        current = current.cause
+    }
+    return ContentIoFailureKind.InvariantViolation
+}
 
 internal fun InputStream.readBytesBounded(maxBytes: Int): ByteArray {
     val output = ByteArrayOutputStream(minOf(maxBytes, DEFAULT_BUFFER_SIZE))
@@ -197,14 +268,24 @@ internal fun InputStream.readBytesBounded(maxBytes: Int): ByteArray {
         if (count == 0) {
             val singleByte = read()
             if (singleByte < 0) return output.toByteArray()
-            check(total < maxBytes) { "The provider response is too large." }
+            if (total >= maxBytes) {
+                throw ContentIoException(
+                    ContentIoFailureKind.MalformedProviderContract,
+                    "The provider response is too large.",
+                )
+            }
             output.write(singleByte)
             total += 1
             continue
         }
         if (count < 0) return output.toByteArray()
         total += count
-        check(total <= maxBytes) { "The provider response is too large." }
+        if (total > maxBytes) {
+            throw ContentIoException(
+                ContentIoFailureKind.MalformedProviderContract,
+                "The provider response is too large.",
+            )
+        }
         output.write(buffer, 0, count)
     }
 }
@@ -222,14 +303,22 @@ internal fun replaceFileContents(
         val count = input.transferTo(copied, expected - copied, output)
         if (count == 0L) {
             zeroProgressAttempts += 1
-            check(zeroProgressAttempts <= 3) {
-                "The provider stopped before the file was fully replaced."
+            if (zeroProgressAttempts > 3) {
+                throw ContentIoException(
+                    ContentIoFailureKind.VerificationFailed,
+                    "The provider stopped before the file was fully replaced.",
+                )
             }
             continue
         }
         zeroProgressAttempts = 0
         copied += count
     }
-    check(copied == expected) { "The provider accepted an incomplete file." }
+    if (copied != expected) {
+        throw ContentIoException(
+            ContentIoFailureKind.VerificationFailed,
+            "The provider accepted an incomplete file.",
+        )
+    }
     output.truncate(expected)
 }

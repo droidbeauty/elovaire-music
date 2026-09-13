@@ -43,4 +43,12 @@ class AppStartupCoordinatorTest {
             state.retryableComponents,
         )
     }
+
+    @Test
+    fun onlyReadyAndDegradedStartupStatesAllowMediaButtons() {
+        assertTrue(DurableStartupState(DurableStartupPhase.Ready).allowsMediaButton())
+        assertTrue(DurableStartupState(DurableStartupPhase.Degraded).allowsMediaButton())
+        assertFalse(DurableStartupState(DurableStartupPhase.Recovering).allowsMediaButton())
+        assertFalse(DurableStartupState(DurableStartupPhase.Released).allowsMediaButton())
+    }
 }

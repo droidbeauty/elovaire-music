@@ -24,7 +24,16 @@ internal data class AppUpdateUiState(
     val downloadProgress: Float? = null,
     val errorMessage: String? = null,
     val transientStatus: AppUpdateTransientStatus? = null,
+    val installState: AppUpdateInstallState = AppUpdateInstallState.None,
 )
+
+internal enum class AppUpdateInstallState {
+    None,
+    AwaitingPermission,
+    InstallerHandoffPending,
+    InstallationNotCompleted,
+    Installed,
+}
 
 internal enum class AppUpdateTransientStatus {
     UpToDate,

@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.AppWorkKind
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
@@ -60,17 +61,27 @@ internal class GitHubUpdateController(
     private var downloadJob: Job? = null
     private var startupJob: Job? = null
     private var cleanupJob: Job? = null
+    private var installHandoffRestoreJob: Job? = null
     private var pendingInstallApk: File? = null
+    private var installHandoff: InstallHandoff? = null
     private var resumeInstallAfterPermission = false
     private var pendingAutomaticCheck = false
     private var lastAutomaticFailureElapsedMs: Long? = null
+    private val handoffPreferences = allowStrictModeDiskReads {
+        appContext.getSharedPreferences(INSTALL_HANDOFF_PREFERENCES, Context.MODE_PRIVATE)
+    }
 
     override fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
+        installHandoffRestoreJob = scope.launch {
+            withContext(Dispatchers.IO) { restoreInstallHandoff() }
+        }
         foregroundJob = scope.launch {
             backgroundWorkPolicy.isForeground.collect { foreground ->
                 if (released.get()) return@collect
                 if (foreground) {
+                    installHandoffRestoreJob?.join()
+                    if (reconcileInstallHandoff()) return@collect
                     if (launchPendingInstallIfAllowed()) return@collect
                     if (pendingAutomaticCheck) {
                         pendingAutomaticCheck = false
@@ -175,7 +186,7 @@ internal class GitHubUpdateController(
             pendingInstallApk = apk
             _uiState.update { it.copy(isDownloading = false, isInstalling = true, installPermissionRequired = false, downloadProgress = 1f, errorMessage = null) }
             if (!ensureInstallerPermission(apk)) return@launch
-            launchInstallerOrReport(apk)
+            if (!launchInstallerOrReport(apk, release)) return@launch
         }.also { job ->
             job.invokeOnCompletion { cause ->
                 if (downloadJob === job) downloadJob = null
@@ -189,7 +200,16 @@ internal class GitHubUpdateController(
     override fun clearInstallState() {
         pendingInstallApk = null
         resumeInstallAfterPermission = false
-        _uiState.update { it.copy(isDownloading = false, isInstalling = false, installPermissionRequired = false, downloadProgress = null) }
+        clearPersistedHandoff()
+        _uiState.update {
+            it.copy(
+                isDownloading = false,
+                isInstalling = false,
+                installPermissionRequired = false,
+                downloadProgress = null,
+                installState = AppUpdateInstallState.None,
+            )
+        }
     }
 
     override fun clearTransientStatus() {
@@ -219,6 +239,7 @@ internal class GitHubUpdateController(
         downloadJob?.cancel()
         startupJob?.cancel()
         cleanupJob?.cancel()
+        installHandoffRestoreJob?.cancel()
     }
 
     private fun cancelDownload() {
@@ -334,7 +355,16 @@ internal class GitHubUpdateController(
         if (appContext.packageManager.canRequestPackageInstalls()) return true
         pendingInstallApk = file
         resumeInstallAfterPermission = true
-        _uiState.update { it.copy(isDownloading = false, isInstalling = false, installPermissionRequired = true, downloadProgress = null, errorMessage = "Allow installing updates from this source first.") }
+        _uiState.update {
+            it.copy(
+                isDownloading = false,
+                isInstalling = false,
+                installPermissionRequired = true,
+                downloadProgress = null,
+                installState = AppUpdateInstallState.AwaitingPermission,
+                errorMessage = "Allow installing updates from this source first.",
+            )
+        }
         val opened = runCatching {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${appContext.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -352,11 +382,28 @@ internal class GitHubUpdateController(
         if (!verifyDownloadedApkOrReport(file, release)) return false
         resumeInstallAfterPermission = false
         _uiState.update { it.copy(isInstalling = true, installPermissionRequired = false, errorMessage = null) }
-        launchInstallerOrReport(file)
-        return true
+        return launchInstallerOrReport(file, release)
     }
 
-    private fun launchInstallerOrReport(file: File): Boolean {
+    private suspend fun launchInstallerOrReport(file: File, release: AppReleaseInfo): Boolean {
+        val handoff = InstallHandoff(
+            fileName = file.name,
+            expectedVersion = release.versionName,
+            expectedSizeBytes = release.assetSizeBytes,
+            timestampMs = clock.wallTimeMs(),
+        )
+        val persisted = withContext(Dispatchers.IO) {
+            handoffPreferences.edit()
+                .putString(KEY_HANDOFF_FILE_NAME, handoff.fileName)
+                .putString(KEY_HANDOFF_VERSION, handoff.expectedVersion)
+                .putLong(KEY_HANDOFF_SIZE, handoff.expectedSizeBytes ?: -1L)
+                .putLong(KEY_HANDOFF_TIMESTAMP, handoff.timestampMs)
+                .commit()
+        }
+        if (!persisted) {
+            reportFailure(IllegalStateException("Unable to persist update installer handoff"))
+            return false
+        }
         val result = runCatching {
             val uri = FileProvider.getUriForFile(appContext, "${BuildConfig.APPLICATION_ID}.update.fileprovider", file)
             val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -366,20 +413,140 @@ internal class GitHubUpdateController(
             appContext.startActivity(intent)
         }
         result.exceptionOrNull()?.let {
+            clearPersistedHandoff()
             reportFailure(it)
             return false
         }
-        _uiState.update { it.copy(isInstalling = false, installPermissionRequired = false, downloadProgress = null, errorMessage = null) }
-        pendingInstallApk = null
+        installHandoff = handoff
+        _uiState.update {
+            it.copy(
+                isDownloading = false,
+                isInstalling = true,
+                installPermissionRequired = false,
+                downloadProgress = null,
+                errorMessage = null,
+                installState = AppUpdateInstallState.InstallerHandoffPending,
+            )
+        }
         return true
     }
 
+    private fun restoreInstallHandoff() {
+        val fileName = handoffPreferences.getString(KEY_HANDOFF_FILE_NAME, null)
+        val expectedVersion = handoffPreferences.getString(KEY_HANDOFF_VERSION, null)
+        val timestampMs = handoffPreferences.getLong(KEY_HANDOFF_TIMESTAMP, 0L)
+        val handoff = InstallHandoff(
+            fileName = fileName.orEmpty(),
+            expectedVersion = expectedVersion.orEmpty(),
+            expectedSizeBytes = handoffPreferences.getLong(KEY_HANDOFF_SIZE, -1L)
+                .takeIf { it > 0L },
+            timestampMs = timestampMs,
+        )
+        val file = File(updatesDirectory(), handoff.fileName)
+        if (!isValidInstallHandoff(handoff, file, clock.wallTimeMs())) {
+            clearPersistedHandoff()
+            if (fileName != null && AppUpdateIntegrity.isSafeApkFileName(fileName)) file.delete()
+            return
+        }
+        installHandoff = handoff
+        pendingInstallApk = file
+        _uiState.update {
+            it.copy(
+                isInstalling = true,
+                installState = AppUpdateInstallState.InstallerHandoffPending,
+            )
+        }
+    }
+
+    private fun isValidInstallHandoff(handoff: InstallHandoff, file: File, nowMs: Long): Boolean {
+        return handoff.fileName.isNotBlank() &&
+            handoff.expectedVersion.isNotBlank() &&
+            AppUpdateIntegrity.isSafeApkFileName(handoff.fileName) &&
+            handoff.timestampMs > 0L &&
+            nowMs - handoff.timestampMs in 0..INSTALL_HANDOFF_MAX_AGE_MS &&
+            file.isFile
+    }
+
+    private fun reconcileInstallHandoff(): Boolean {
+        val handoff = installHandoff ?: return false
+        val file = pendingInstallApk ?: File(updatesDirectory(), handoff.fileName)
+        if (!file.isFile) {
+            clearPersistedHandoff()
+            pendingInstallApk = null
+            _uiState.update {
+                it.copy(
+                    isInstalling = false,
+                    installState = AppUpdateInstallState.None,
+                    errorMessage = "The staged update is no longer available.",
+                )
+            }
+            return true
+        }
+        val installedVersion = runCatching {
+            appContext.packageManager.getPackageInfo(BuildConfig.APPLICATION_ID, 0).versionName.orEmpty()
+        }.getOrNull()
+        val installed = installedVersion != null && (
+            AppVersionPolicy.installerHandoffCompleted(
+                installedVersion = installedVersion,
+                expectedVersion = handoff.expectedVersion,
+                versionBeforeHandoff = BuildConfig.VERSION_NAME,
+            )
+            )
+        clearPersistedHandoff()
+        installHandoff = null
+        if (installed) {
+            pendingInstallApk = null
+            file.delete()
+            _uiState.update {
+                it.copy(
+                    isInstalling = false,
+                    installPermissionRequired = false,
+                    downloadProgress = null,
+                    errorMessage = null,
+                    installState = AppUpdateInstallState.Installed,
+                )
+            }
+        } else {
+            pendingInstallApk = file
+            _uiState.update {
+                it.copy(
+                    isInstalling = false,
+                    installPermissionRequired = false,
+                    downloadProgress = null,
+                    errorMessage = "The update was not installed.",
+                    installState = AppUpdateInstallState.InstallationNotCompleted,
+                )
+            }
+        }
+        return true
+    }
+
+    private fun clearPersistedHandoff() {
+        handoffPreferences.edit()
+            .remove(KEY_HANDOFF_FILE_NAME)
+            .remove(KEY_HANDOFF_VERSION)
+            .remove(KEY_HANDOFF_SIZE)
+            .remove(KEY_HANDOFF_TIMESTAMP)
+            .apply()
+    }
+
     private fun reportFailure(failure: Throwable) {
-        _uiState.update { it.copy(isChecking = false, isDownloading = false, isInstalling = false, installPermissionRequired = false, downloadProgress = null, errorMessage = userMessage(failure)) }
+        _uiState.update {
+            it.copy(
+                isChecking = false,
+                isDownloading = false,
+                isInstalling = false,
+                installPermissionRequired = false,
+                downloadProgress = null,
+                installState = AppUpdateInstallState.None,
+                errorMessage = userMessage(failure),
+            )
+        }
     }
 
     private fun cleanupStagedFiles() {
         val keep = pendingInstallApk?.canonicalFile
+            ?: installHandoff?.let { File(updatesDirectory(), it.fileName).canonicalFile }
         updatesDirectory().listFiles().orEmpty().forEach { file ->
             if (file.canonicalFile == keep) return@forEach
             if (file.extension.equals("part", true) || file.extension.equals("apk", true)) file.delete()
@@ -390,6 +557,13 @@ internal class GitHubUpdateController(
 
     private fun userMessage(failure: Throwable): String = failure.message ?: "Unable to check for updates"
 
+    private data class InstallHandoff(
+        val fileName: String,
+        val expectedVersion: String,
+        val expectedSizeBytes: Long?,
+        val timestampMs: Long,
+    )
+
     private companion object {
         const val AUTOMATIC_CHECK_INTERVAL_MS = 12L * 60L * 60L * 1_000L
         const val AUTOMATIC_FAILURE_BACKOFF_MS = 30L * 60L * 1_000L
@@ -397,6 +571,12 @@ internal class GitHubUpdateController(
         const val STARTUP_CLEANUP_DELAY_MS = 8_000L
         const val MAX_CHECKSUM_TEXT_CHARS = 64 * 1024
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+        const val INSTALL_HANDOFF_PREFERENCES = "update_install_handoff"
+        const val KEY_HANDOFF_FILE_NAME = "file_name"
+        const val KEY_HANDOFF_VERSION = "expected_version"
+        const val KEY_HANDOFF_SIZE = "expected_size_bytes"
+        const val KEY_HANDOFF_TIMESTAMP = "timestamp_ms"
+        const val INSTALL_HANDOFF_MAX_AGE_MS = 24L * 60L * 60L * 1_000L
     }
 }
 

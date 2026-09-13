@@ -31,11 +31,11 @@ import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,14 +74,16 @@ class PreferenceStore internal constructor(
     private val preferenceScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
-            ioDispatcher,
+            ioDispatcher + CoroutineName("settings-persistence-owner"),
     )
-    private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
-    private var crossfadePersistJob: Job? = null
     private var pendingCrossfadeDurationMs: Long? = null
     private var pendingCrossfadeSilenceThresholdDb: Float? = null
-    private var settingsWriteJob: Job? = null
+    private val settingsWriteSequencer = SettingsWriteSequencer(
+        ownerScope = preferenceScope,
+        dispatcher = ioDispatcher,
+        persist = ::persistSettings,
+    )
 
     private val _dismissedUpdateVersion = MutableStateFlow(
         preferences.getString(KEY_DISMISSED_UPDATE_VERSION, null)
@@ -488,15 +490,10 @@ class PreferenceStore internal constructor(
     }
 
     fun release(onUserDataDrained: () -> Unit = {}) {
-        eqPersistJob?.cancel()
-        eqPersistJob = null
-        crossfadePersistJob?.cancel()
-        crossfadePersistJob = null
         runBlocking(ioDispatcher) {
-            flushEqSettingsPersistence()
-            flushCrossfadePersistence()
-            settingsWriteJob?.join()
+            settingsWriteSequencer.flush()
         }
+        settingsWriteSequencer.close()
         userDataStore.release(onUserDataDrained)
         preferenceScope.cancel()
     }
@@ -537,10 +534,8 @@ class PreferenceStore internal constructor(
         _eqSettings.value = normalizedSettings
         checkpointBootSettings()
         if (immediate) {
-            eqPersistJob?.cancel()
-            eqPersistJob = null
             pendingEqSettings = null
-            enqueueSettingsWrite { writeEqSettings(normalizedSettings) }
+            settingsWriteSequencer.replaceLatest("equalizer", write = { writeEqSettings(normalizedSettings) })
         } else {
             pendingEqSettings = normalizedSettings
             scheduleEqSettingsPersistence()
@@ -548,18 +543,14 @@ class PreferenceStore internal constructor(
     }
 
     private fun scheduleEqSettingsPersistence() {
-        eqPersistJob?.cancel()
-        eqPersistJob = preferenceScope.launch {
-            delay(EQ_SETTINGS_PERSIST_DEBOUNCE_MS)
-            flushEqSettingsPersistence()
-        }
-    }
-
-    private suspend fun flushEqSettingsPersistence() {
-        eqPersistJob = null
         val settings = pendingEqSettings ?: return
-        pendingEqSettings = null
-        persistSettings("equalizer") { writeEqSettings(settings) }
+        settingsWriteSequencer.replaceLatest(
+            key = "equalizer",
+            debounceMs = EQ_SETTINGS_PERSIST_DEBOUNCE_MS,
+        ) {
+            pendingEqSettings = null
+            writeEqSettings(settings)
+        }
     }
 
     private suspend fun writeEqSettings(settings: EqSettings) {
@@ -576,25 +567,23 @@ class PreferenceStore internal constructor(
     }
 
     private fun scheduleCrossfadePersistence() {
-        crossfadePersistJob?.cancel()
-        crossfadePersistJob = preferenceScope.launch {
-            delay(CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS)
+        settingsWriteSequencer.replaceLatest(
+            key = "crossfade",
+            debounceMs = CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS,
+        ) {
             flushCrossfadePersistence()
         }
     }
 
     private suspend fun flushCrossfadePersistence() {
-        crossfadePersistJob = null
         val durationMs = pendingCrossfadeDurationMs
         val thresholdDb = pendingCrossfadeSilenceThresholdDb
         if (durationMs == null && thresholdDb == null) return
         pendingCrossfadeDurationMs = null
         pendingCrossfadeSilenceThresholdDb = null
-        persistSettings("crossfade") {
-            settingsDataStore.editSettings {
-                durationMs?.let { putLong(KEY_CROSSFADE_DURATION_MS, it) }
-                thresholdDb?.let { putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, it) }
-            }
+        settingsDataStore.editSettings {
+            durationMs?.let { putLong(KEY_CROSSFADE_DURATION_MS, it) }
+            thresholdDb?.let { putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, it) }
         }
     }
 
@@ -616,7 +605,7 @@ class PreferenceStore internal constructor(
         if (nextSettings.asMap().isEmpty() && preferences.asMap().isNotEmpty()) return
         if (nextSettings.asMap() == preferences.asMap()) return
         if (
-            settingsWriteJob?.isActive == true ||
+            settingsWriteSequencer.hasPendingWork() ||
                 pendingEqSettings != null ||
                 pendingCrossfadeDurationMs != null ||
                 pendingCrossfadeSilenceThresholdDb != null
@@ -710,11 +699,7 @@ class PreferenceStore internal constructor(
     }
 
     private fun enqueueSettingsWrite(write: suspend () -> Unit) {
-        val previous = settingsWriteJob
-        settingsWriteJob = preferenceScope.launch {
-            previous?.join()
-            persistSettings("settings", write)
-        }
+        settingsWriteSequencer.enqueue("settings", write)
     }
 
     private fun migrateLegacyUpdatePreferencesIfNeeded() {

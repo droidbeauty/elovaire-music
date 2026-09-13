@@ -14,6 +14,12 @@ internal data class BackendEventSnapshot(
     val fields: Map<String, String>,
 )
 
+internal data class BackendDiagnosticContext(
+    val eventName: String,
+    val subsystem: String?,
+    val phase: String?,
+)
+
 internal enum class BackendResourceKind(val key: String) {
     ActiveScan("active_library_scans"),
     ActiveNetworkScan("active_network_scans"),
@@ -44,6 +50,8 @@ internal object BackendDiagnostics {
     private const val MAX_EVENTS = 256
     private val lock = Any()
     private val events = ArrayDeque<BackendEventSnapshot>()
+    @Volatile private var lastContext: BackendDiagnosticContext? = null
+    @Volatile private var breadcrumbCheckpoint: ((BackendDiagnosticContext) -> Unit)? = null
 
     fun record(event: BackendEvent) {
         val snapshot = BackendEventSnapshot(
@@ -54,11 +62,39 @@ internal object BackendDiagnostics {
             if (events.size == MAX_EVENTS) events.removeFirst()
             events.addLast(snapshot)
         }
+        val context = BackendDiagnosticContext(
+            eventName = snapshot.name,
+            subsystem = snapshot.fields["subsystem"],
+            phase = snapshot.fields["phase"],
+        )
+        lastContext = context
+        runCatching { breadcrumbCheckpoint?.invoke(context) }
     }
 
     fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
 
-    fun clear() = synchronized(lock) { events.clear() }
+    fun clear() {
+        synchronized(lock) { events.clear() }
+        lastContext = null
+    }
+
+    fun lastContext(): BackendDiagnosticContext? = lastContext
+
+    fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {
+        breadcrumbCheckpoint = checkpoint
+    }
+
+    fun recordWorkerFailure(owner: String, failure: Throwable) {
+        if (failure is CancellationException) return
+        record(
+            BackendEvent.WorkerFailed(
+                fields = mapOf(
+                    "owner" to owner,
+                    "error_type" to (failure::class.simpleName ?: "Unknown"),
+                ),
+            ),
+        )
+    }
 
     private const val MAX_EVENT_NAME_LENGTH = 64
 }
@@ -205,6 +241,7 @@ private fun sanitizeFields(fields: Map<String, String>): Map<String, String> {
 
 private val SAFE_DIAGNOSTIC_FIELDS = setOf(
     "operation_id",
+    "owner",
     "subsystem",
     "phase",
     "elapsed_ms",
