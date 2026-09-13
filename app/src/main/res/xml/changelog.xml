@@ -6,10 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.8.6">
-        <item>Refined audiobooks, lyrics and subscreens in settings UI</item>
-        <item>Added translations to some previously missing parts of the UI</item>
-        <item>Fixed some performance issues with audiobook UI</item>
+    <release version="2.8.7">
+        <item>Performance upgrades to media scanning framework</item>
+        <item>Some layout tweaks in the lyrics UI</item>
         <item>Performance and stability upgrades</item>
     </release>
 </changelog>
