@@ -1474,6 +1474,7 @@ internal fun NowPlayingScreen(
                 ),
         ) {
             LyricsOverlay(
+                playbackManager = playbackManager,
                 song = currentSong,
                 lyricsUiState = lyricsUiState,
                 lyricsEditorUiState = lyricsEditorUiState,
@@ -1481,6 +1482,10 @@ internal fun NowPlayingScreen(
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
+                isPlaying = playerUiState.transportShowsPause,
+                onTogglePlayback = onTogglePlayback,
+                onSkipPrevious = onSkipPrevious,
+                onSkipNext = onSkipNext,
                 onSeekTo = playbackManager::seekTo,
                 onHideLyrics = { showLyricsSheet = false },
                 onSaveLyrics = onSaveLyrics,
@@ -3557,6 +3562,7 @@ private fun SongContextMenuItem(
 
 @Composable
 private fun LyricsOverlay(
+    playbackManager: NowPlayingPlayback,
     song: Song?,
     lyricsUiState: LyricsUiState,
     lyricsEditorUiState: LyricsEditorUiState,
@@ -3564,6 +3570,10 @@ private fun LyricsOverlay(
     tintColor: Color,
     contentColor: Color,
     secondaryContentColor: Color,
+    isPlaying: Boolean,
+    onTogglePlayback: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onSkipNext: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onHideLyrics: () -> Unit,
     onSaveLyrics: (String) -> Unit,
@@ -3575,6 +3585,17 @@ private fun LyricsOverlay(
     val copy = remember(language) { rootUiCopy(language) }
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
+    val playbackProgressFraction = remember(
+        playbackProgress.displayPositionMs,
+        playbackProgress.durationMs,
+    ) {
+        if (playbackProgress.durationMs > 0L) {
+            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
     var overlayEntered by remember(song?.id) { mutableStateOf(false) }
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 92.dp
@@ -3635,12 +3656,16 @@ private fun LyricsOverlay(
         withFrameNanos { }
         overlayEntered = true
     }
+    val dismissLyrics: () -> Unit = {
+        overlayEntered = false
+        onHideLyrics()
+    }
     BackHandler {
         if (isEditingLyrics) {
             isEditingLyrics = false
             onClearLyricsEditorError()
         } else {
-            onHideLyrics()
+            dismissLyrics()
         }
     }
 
@@ -3988,68 +4013,145 @@ private fun LyricsOverlay(
                 .zIndex(4f),
         ) {
             ElovaireAnimatedVisibility(
-                visible = !isEditingLyrics,
-                modifier = Modifier.fillMaxSize(),
-                enter = motionTransitions.standardEnter(),
-                exit = motionTransitions.standardExit(),
-                label = "hide_lyrics_action_visibility",
+                visible = overlayEntered && !isEditingLyrics,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(lyricsButtonArea)
+                    .offset(y = (-42).dp)
+                    .padding(horizontal = 20.dp),
+                enter = fadeIn(
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.Standard,
+                        easing = MotionEasing.FadeIn,
+                    ),
+                ) + slideInVertically(
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.ScreenExpand,
+                        easing = MotionEasing.RefinedDecelerate,
+                    ),
+                    initialOffsetY = { it / 3 },
+                ) + expandVertically(
+                    expandFrom = Alignment.Bottom,
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.ScreenExpand,
+                        easing = MotionEasing.RefinedDecelerate,
+                    ),
+                ),
+                exit = fadeOut(
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.Fast,
+                        easing = MotionEasing.FadeOut,
+                    ),
+                ) + slideOutVertically(
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.Standard,
+                        easing = MotionEasing.RefinedAccelerate,
+                    ),
+                    targetOffsetY = { it / 4 },
+                ) + shrinkVertically(
+                    shrinkTowards = Alignment.Bottom,
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.Standard,
+                        easing = MotionEasing.RefinedAccelerate,
+                    ),
+                ),
+                label = "lyrics_transport_controls_visibility",
             ) {
-                Box(
+                Row(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.BottomCenter,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(lyricsButtonArea)
-                            .offset(y = (-22).dp)
-                            .padding(horizontal = 20.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        val hideLyricsInteractionSource = rememberElovaireInteractionSource()
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(ElovaireRadii.pill))
-                                .then(
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        Modifier.hazeEffect(lyricsHazeState) {
-                                            blurRadius = 34.dp
-                                            backgroundColor = Color.Transparent
-                                        }
-                                    } else {
-                                        Modifier
-                                    },
-                                ),
+                        LyricsControlButton(
+                            modifier = Modifier.size(44.dp),
+                            shape = CircleShape,
+                            lyricsHazeState = lyricsHazeState,
+                            contentColor = contentColor,
+                            onClick = onTogglePlayback,
+                            label = "lyrics_play_pause",
                         ) {
-                            Surface(
-                                onClick = onHideLyrics,
-                                interactionSource = hideLyricsInteractionSource,
-                                modifier = Modifier.elovaireActionBump(
-                                    interactionSource = hideLyricsInteractionSource,
-                                    label = "hide_lyrics_bump",
-                                ),
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = contentColor.copy(alpha = 0.18f),
-                                contentColor = contentColor,
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_lucide_eye_off),
-                                        contentDescription = copy.hideLyrics,
-                                        modifier = Modifier.size(15.dp),
-                                    )
-                                    Text(
-                                        text = copy.hideLyrics,
-                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    )
-                                }
+                            Canvas(modifier = Modifier.matchParentSize()) {
+                                val strokeWidth = size.minDimension * 0.1f
+                                val arcInset = strokeWidth / 2f + 2.2f
+                                val arcSize = Size(
+                                    width = size.width - (arcInset * 2f),
+                                    height = size.height - (arcInset * 2f),
+                                )
+                                drawArc(
+                                    color = contentColor.copy(alpha = 0.18f),
+                                    startAngle = -90f,
+                                    sweepAngle = 360f,
+                                    useCenter = false,
+                                    topLeft = Offset(arcInset, arcInset),
+                                    size = arcSize,
+                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                                )
+                                drawArc(
+                                    color = contentColor,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f * playbackProgressFraction,
+                                    useCenter = false,
+                                    topLeft = Offset(arcInset, arcInset),
+                                    size = arcSize,
+                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                                )
+                            }
+                            AnimatedContent(
+                                targetState = isPlaying,
+                                transitionSpec = {
+                                    (
+                                        fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade)) +
+                                            scaleIn(
+                                                initialScale = 0.9f,
+                                                animationSpec = motionSpecs.spring(
+                                                    dampingRatio = 0.82f,
+                                                    stiffness = 560f,
+                                                ),
+                                            )
+                                        ) togetherWith (
+                                        fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
+                                            scaleOut(
+                                                targetScale = 1.04f,
+                                                animationSpec = motionSpecs.fadeOut(MotionDuration.Quick),
+                                            )
+                                        )
+                                },
+                                contentAlignment = Alignment.Center,
+                                label = "lyrics_play_pause_icon",
+                            ) { playing ->
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (playing) R.drawable.ic_lucide_pause else R.drawable.ic_lucide_play,
+                                    ),
+                                    contentDescription = if (playing) "Pause" else "Play",
+                                    tint = contentColor,
+                                    modifier = Modifier.size(18.dp),
+                                )
                             }
                         }
-                    }
+                        LyricsSkipControl(
+                            lyricsHazeState = lyricsHazeState,
+                            contentColor = contentColor,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            onSkipPrevious = onSkipPrevious,
+                            onSkipNext = onSkipNext,
+                        )
+                        LyricsControlButton(
+                            modifier = Modifier.size(44.dp),
+                            shape = CircleShape,
+                            lyricsHazeState = lyricsHazeState,
+                            contentColor = contentColor,
+                            onClick = dismissLyrics,
+                            label = "lyrics_hide",
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_log_out),
+                                contentDescription = copy.hideLyrics,
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                 }
             }
         }
@@ -4137,7 +4239,6 @@ private fun LyricsUnavailableContent(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(30.dp),
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_info),
@@ -4145,6 +4246,7 @@ private fun LyricsUnavailableContent(
                 tint = contentColor.copy(alpha = 0.7f),
                 modifier = Modifier.size(18.dp),
             )
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = noLyricsText,
                 style = MaterialTheme.typography.titleLarge,
@@ -4152,6 +4254,7 @@ private fun LyricsUnavailableContent(
                 modifier = Modifier.fillMaxWidth(0.8f),
                 textAlign = TextAlign.Center,
             )
+            Spacer(modifier = Modifier.height(30.dp))
             LyricsEditorActionButton(
                 iconResId = R.drawable.ic_lucide_plus,
                 contentDescription = "Add lyrics",
@@ -4159,6 +4262,154 @@ private fun LyricsUnavailableContent(
                 backgroundAlpha = 0.2f,
                 onClick = onAddLyrics,
             )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalHazeApi::class)
+private fun LyricsSkipControl(
+    lyricsHazeState: HazeState,
+    contentColor: Color,
+    accentColor: Color,
+    onSkipPrevious: () -> Unit,
+    onSkipNext: () -> Unit,
+) {
+    val shape = RoundedCornerShape(ElovaireRadii.pill)
+    Box(
+        modifier = Modifier
+            .width(160.dp)
+            .height(44.dp)
+            .clip(shape)
+            .then(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Modifier.hazeEffect(lyricsHazeState) {
+                        blurRadius = 34.dp
+                        backgroundColor = Color.Transparent
+                    }
+                } else {
+                    Modifier
+                },
+            ),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = shape,
+            color = contentColor.copy(alpha = 0.18f),
+            contentColor = contentColor,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val previousInteractionSource = rememberElovaireInteractionSource()
+                Surface(
+                    onClick = onSkipPrevious,
+                    modifier = Modifier
+                        .width(80.dp)
+                        .fillMaxHeight()
+                        .elovaireActionBump(
+                            interactionSource = previousInteractionSource,
+                            label = "lyrics_previous_bump",
+                        ),
+                    shape = RoundedCornerShape(0.dp),
+                    color = Color.Transparent,
+                    contentColor = contentColor,
+                    interactionSource = previousInteractionSource,
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_elovaire_backward_filled),
+                            contentDescription = "Previous",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(30.dp)
+                        .background(accentColor.copy(alpha = 0.3f)),
+                )
+                val nextInteractionSource = rememberElovaireInteractionSource()
+                Surface(
+                    onClick = onSkipNext,
+                    modifier = Modifier
+                        .width(80.dp)
+                        .fillMaxHeight()
+                        .elovaireActionBump(
+                            interactionSource = nextInteractionSource,
+                            label = "lyrics_next_bump",
+                        ),
+                    shape = RoundedCornerShape(0.dp),
+                    color = Color.Transparent,
+                    contentColor = contentColor,
+                    interactionSource = nextInteractionSource,
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_elovaire_forward_filled),
+                            contentDescription = "Next",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalHazeApi::class)
+private fun LyricsControlButton(
+    modifier: Modifier,
+    shape: Shape,
+    lyricsHazeState: HazeState,
+    contentColor: Color,
+    onClick: () -> Unit,
+    label: String,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val interactionSource = rememberElovaireInteractionSource()
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Modifier.hazeEffect(lyricsHazeState) {
+                        blurRadius = 34.dp
+                        backgroundColor = Color.Transparent
+                    }
+                } else {
+                    Modifier
+                },
+            ),
+    ) {
+        Surface(
+            onClick = onClick,
+            interactionSource = interactionSource,
+            modifier = Modifier
+                .fillMaxSize()
+                .elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = label,
+                ),
+            shape = shape,
+            color = contentColor.copy(alpha = 0.18f),
+            contentColor = contentColor,
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                content()
+            }
         }
     }
 }

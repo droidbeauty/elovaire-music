@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.core
 
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
+import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryActionController
 import elovaire.music.droidbeauty.app.data.library.LibraryRefreshIntent
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
@@ -42,6 +43,10 @@ internal class AppDependencies(
         override val libraryController: LibraryActionController = object : LibraryActionController {
             override fun onPermissionChanged(granted: Boolean) {
                 services.libraryRepository.onPermissionChanged(granted)
+            }
+
+            override fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
+                services.libraryRepository.setLibraryFolders(selections)
             }
 
             override fun refresh(intent: LibraryRefreshIntent) {

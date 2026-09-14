@@ -85,6 +85,7 @@ internal object AudiobookCatalog {
             artUri = ordered.firstNotNullOfOrNull(Song::artUri),
             durationMs = ordered.sumOf { it.durationMs.coerceAtLeast(0L) },
             parts = ordered.mapIndexed { index, song -> AudiobookPart(song, index + 1) },
+            description = ordered.firstNotNullOfOrNull { it.description?.trim()?.takeIf(String::isNotBlank) },
         )
     }
 

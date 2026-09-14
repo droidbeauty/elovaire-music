@@ -73,6 +73,7 @@ internal fun AlbumTagEditRequest.retryForFailures(
 private fun TagMutationRequest.hasAlbumLevelChanges(): Boolean {
     return collectionTitle !is TagFieldEdit.Unchanged ||
         collectionArtist !is TagFieldEdit.Unchanged ||
+        collectionDescription !is TagFieldEdit.Unchanged ||
         releaseYear !is TagFieldEdit.Unchanged ||
         genre !is TagFieldEdit.Unchanged
 }
@@ -82,7 +83,7 @@ private fun TagMutationRequest.textValues(): Sequence<String> = sequence {
         yield(it.title)
         yield(it.artist)
     }
-    listOf(collectionTitle, collectionArtist, genre).forEach { edit ->
+    listOf(collectionTitle, collectionArtist, collectionDescription, genre).forEach { edit ->
         (edit as? TagFieldEdit.Value)?.value?.let { yield(it) }
     }
 }

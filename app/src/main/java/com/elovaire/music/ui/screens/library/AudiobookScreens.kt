@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -88,7 +87,6 @@ import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
-import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 
 @Composable
 internal fun AudiobookMiniGallery(
@@ -156,6 +154,7 @@ private fun AudiobookMiniCard(
         ArtworkImage(
             uri = book.artUri,
             title = book.title,
+            placeholderIconResId = R.drawable.ic_lucide_book_headphones,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.75f),
@@ -344,7 +343,14 @@ private fun AudiobookCollectionContent(
                 ),
             ) {
                 item(key = "audiobooks_view_switcher") {
-                    AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                    }
                 }
                 item(key = "audiobooks_view_switcher_gap") {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -387,7 +393,14 @@ private fun AudiobookCollectionContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item(key = "audiobooks_view_switcher", span = { GridItemSpan(2) }) {
-                    AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                    }
                 }
                 items(
                     items = books,
@@ -521,6 +534,7 @@ private fun AudiobookCollectionRow(
             ArtworkImage(
                 uri = book.artUri,
                 title = book.title,
+                placeholderIconResId = R.drawable.ic_lucide_book_headphones,
                 modifier = Modifier
                     .width(80.dp)
                     .aspectRatio(artworkAspectRatio),
@@ -592,6 +606,7 @@ private fun AudiobookGridCard(
             ArtworkImage(
                 uri = book.artUri,
                 title = book.title,
+                placeholderIconResId = R.drawable.ic_lucide_book_headphones,
                 modifier = Modifier.matchParentSize(),
                 cornerRadius = ElovaireRadii.artwork,
                 requestedSizePx = 384,
@@ -678,10 +693,11 @@ internal fun AudiobookDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ArtworkImage(
-                    uri = book.artUri,
-                    title = book.title,
-                    modifier = Modifier
+            ArtworkImage(
+                uri = book.artUri,
+                title = book.title,
+                placeholderIconResId = R.drawable.ic_lucide_book_headphones,
+                modifier = Modifier
                         .width(80.dp)
                         .aspectRatio(audiobookArtworkAspectRatio(book)),
                     cornerRadius = ElovaireRadii.artworkSmall,
@@ -694,13 +710,13 @@ internal fun AudiobookDetailScreen(
                 ) {
                     Text(
                         text = book.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = readableSecondaryTextColor(),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -756,7 +772,6 @@ internal fun AudiobookDetailScreen(
                 AudiobookSectionHeader(
                     title = "About this book",
                     iconResId = R.drawable.ic_lucide_info,
-                    onTrailingClick = { if (description != null) showDescriptionDialog = true },
                 )
                 Text(
                     text = when (descriptionState) {
@@ -770,14 +785,20 @@ internal fun AudiobookDetailScreen(
                     color = readableSecondaryTextColor(),
                 )
                 if (descriptionPreview.hasMore) {
-                    Button(
+                    Surface(
                         onClick = { showDescriptionDialog = true },
+                        modifier = Modifier.elovaireActionBump(
+                            interactionSource = rememberElovaireInteractionSource(),
+                            label = "audiobook_description_more_bump",
+                        ),
                         shape = RoundedCornerShape(percent = 50),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                        contentColor = readableSecondaryTextColor(),
                     ) {
                         Text(
                             text = "MORE",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                         )
                     }
                 }
@@ -870,11 +891,9 @@ private fun AudiobookSectionHeader(
     title: String,
     iconResId: Int,
     modifier: Modifier = Modifier,
-    onTrailingClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
@@ -891,27 +910,6 @@ private fun AudiobookSectionHeader(
                 text = title,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
             )
-        }
-        if (onTrailingClick != null) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onTrailingClick,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_ellipsis),
-                    contentDescription = "More about this book",
-                    tint = readableMutedIconColor(),
-                    modifier = Modifier.size(16.dp),
-                )
-            }
         }
     }
 }
@@ -952,10 +950,7 @@ private fun AudiobookActionButton(
             Text(
                 text = text,
                 modifier = Modifier.padding(start = 8.dp),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = elovaireScaledSp(16f),
-                    fontWeight = FontWeight.SemiBold,
-                ),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = tint,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

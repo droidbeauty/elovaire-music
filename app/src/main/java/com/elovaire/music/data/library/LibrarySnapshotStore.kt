@@ -87,6 +87,7 @@ internal class LibrarySnapshotStore(
                             artist = songJson.optString("artist"),
                             albumArtist = songJson.optString("albumArtist").takeIf { it.isNotBlank() },
                             album = songJson.optString("album"),
+                            description = songJson.optString("description").takeIf { it.isNotBlank() },
                             releaseYear = songJson.optInt("releaseYear").takeIf { it > 0 },
                             genre = songJson.optString("genre"),
                             audioFormat = songJson.optString("audioFormat"),
@@ -200,6 +201,7 @@ internal class LibrarySnapshotStore(
                                 put("artist", song.artist)
                                 put("albumArtist", song.albumArtist.orEmpty())
                                 put("album", song.album)
+                                put("description", song.description.orEmpty())
                                 put("releaseYear", song.releaseYear ?: 0)
                                 put("genre", song.genre)
                                 put("audioFormat", song.audioFormat)
@@ -351,6 +353,7 @@ private fun MessageDigest.appendSongRevision(song: Song) {
     appendRevisionValue(song.artist)
     appendRevisionValue(song.albumArtist.orEmpty())
     appendRevisionValue(song.album)
+    appendRevisionValue(song.description.orEmpty())
     appendRevisionValue(song.releaseYear ?: 0)
     appendRevisionValue(song.genre)
     appendRevisionValue(song.audioFormat)

@@ -27,6 +27,7 @@ data class Song(
     val volumeNormalization: VolumeNormalizationMetadata? = null,
     val mediaKind: AudioMediaKind = AudioMediaKind.Music,
     val bookmarkMs: Long? = null,
+    val description: String? = null,
 )
 
 data class Album(
@@ -53,6 +54,7 @@ data class Audiobook(
     val artUri: Uri?,
     val durationMs: Long,
     val parts: List<AudiobookPart>,
+    val description: String? = null,
 )
 
 data class AudiobookPart(

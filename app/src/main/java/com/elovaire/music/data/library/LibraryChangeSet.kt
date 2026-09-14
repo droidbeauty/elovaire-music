@@ -183,6 +183,7 @@ internal object LibraryChangeSetCalculator {
             first.isExplicit == second.isExplicit &&
             first.artist == second.artist &&
             first.album == second.album &&
+            first.description == second.description &&
             first.releaseYear == second.releaseYear &&
             first.genre == second.genre &&
             first.audioFormat == second.audioFormat &&

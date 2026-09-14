@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -44,14 +43,15 @@ class MotionRevealRegistry {
 @Composable
 fun rememberMotionRevealRegistry(): MotionRevealRegistry = remember { MotionRevealRegistry() }
 
+@Composable
 fun Modifier.elovaireListReveal(
     itemKey: Any,
     index: Int,
     registry: MotionRevealRegistry,
     enabled: Boolean = true,
-): Modifier = composed {
+): Modifier {
     val previouslyRevealed = remember(itemKey, registry) { registry.isRevealed(itemKey) }
-    if (!enabled || previouslyRevealed || index > MaxAnimatedRevealIndex) return@composed this
+    if (!enabled || previouslyRevealed || index > MaxAnimatedRevealIndex) return this
     val specs = rememberMotionSpecs()
     val density = LocalDensity.current
     var started by remember(itemKey) { mutableStateOf(false) }
@@ -82,7 +82,7 @@ fun Modifier.elovaireListReveal(
         },
         label = "elovaireListRevealOffsetY",
     ) { visible -> if (visible) 0f else hiddenOffsetPx }
-    graphicsLayer {
+    return graphicsLayer {
         this.alpha = alpha
         translationY = offsetY
     }

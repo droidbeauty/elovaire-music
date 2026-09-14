@@ -70,6 +70,7 @@ internal data class AlbumTagEditRequest(
     override val songs: List<Song> get() = album.songs
     override val collectionTitle: TagFieldEdit<String> get() = albumTitle
     override val collectionArtist: TagFieldEdit<String> get() = albumArtist
+    override val collectionDescription: TagFieldEdit<String> get() = TagFieldEdit.Unchanged
 }
 
 internal data class TagEditApplyResult(
@@ -338,6 +339,11 @@ internal class AlbumTagEditorService(
                         .takeIf(String::isNotBlank),
                     releaseYear = request.releaseYear.valueOr(song.releaseYear),
                     genre = request.genre.valueOr(song.genre),
+                    description = when (val edit = request.collectionDescription) {
+                        TagFieldEdit.Unchanged -> song.description
+                        TagFieldEdit.Cleared -> null
+                        is TagFieldEdit.Value -> edit.value.trim()
+                    },
                     trackNumber = trackEdit?.let { effectiveTrack.trackNumber } ?: song.trackNumber,
                     discNumber = trackEdit?.let { effectiveTrack.discNumber } ?: song.discNumber,
                     metadataResolved = true,
@@ -423,10 +429,12 @@ internal class AlbumTagEditorService(
         artist = trackEdit?.let { effectiveTrack.artist },
         album = request.collectionTitle.expectedValue(),
         albumArtist = request.collectionArtist.expectedValue(),
+        description = request.collectionDescription.expectedValue(),
         year = request.releaseYear.expectedYear(),
         genre = request.genre.expectedValue(),
         shouldClearAlbum = request.collectionTitle is TagFieldEdit.Cleared,
         shouldClearAlbumArtist = request.collectionArtist is TagFieldEdit.Cleared,
+        shouldClearDescription = request.collectionDescription is TagFieldEdit.Cleared,
         shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
         shouldClearGenre = request.genre is TagFieldEdit.Cleared,
         trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
@@ -502,6 +510,7 @@ internal class AlbumTagEditorService(
         val tag = audioFile.tagOrCreateAndSetDefault
         applyTextEdit(tag, FieldKey.ALBUM, request.collectionTitle)
         applyTextEdit(tag, FieldKey.ALBUM_ARTIST, request.collectionArtist)
+        applyTextEdit(tag, FieldKey.COMMENT, request.collectionDescription)
         applyTextEdit(tag, FieldKey.GENRE, request.genre)
         if (request.tracks.any { it.songId == originalSong.id }) {
             setOrDeleteTextField(tag, FieldKey.ARTIST, track.artist.trim().ifBlank { originalSong.artist })
@@ -616,10 +625,12 @@ internal class AlbumTagEditorService(
         check(FieldKey.ARTIST, expected.artist, "Artist")
         check(FieldKey.ALBUM, expected.album, "Album")
         check(FieldKey.ALBUM_ARTIST, expected.albumArtist, "Album artist")
+        check(FieldKey.COMMENT, expected.description, "Description")
         check(FieldKey.YEAR, expected.year, "Year")
         check(FieldKey.GENRE, expected.genre, "Genre")
         checkCleared(FieldKey.ALBUM, "Album", expected.shouldClearAlbum)
         checkCleared(FieldKey.ALBUM_ARTIST, "Album artist", expected.shouldClearAlbumArtist)
+        checkCleared(FieldKey.COMMENT, "Description", expected.shouldClearDescription)
         checkCleared(FieldKey.YEAR, "Year", expected.shouldClearYear)
         checkCleared(FieldKey.GENRE, "Genre", expected.shouldClearGenre)
         check(FieldKey.TRACK, expected.trackNumber, "Track")
@@ -684,10 +695,12 @@ internal class AlbumTagEditorService(
         val artist: String?,
         val album: String?,
         val albumArtist: String?,
+        val description: String?,
         val year: String?,
         val genre: String?,
         val shouldClearAlbum: Boolean,
         val shouldClearAlbumArtist: Boolean,
+        val shouldClearDescription: Boolean,
         val shouldClearYear: Boolean,
         val shouldClearGenre: Boolean,
         val trackNumber: String?,

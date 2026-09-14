@@ -68,7 +68,7 @@ class ScannerMetadataCacheTest {
             dateAddedSeconds = 1L,
             dateModifiedSeconds = 2L,
             isEnriched = true,
-            metadata = SongMetadata(null, null, null, null, null, null, "FLAC", null, null, null, null),
+            metadata = SongMetadata(null, null, null, null, null, null, null, "FLAC", null, null, null, null),
             fileSizeBytes = 100L,
             durationMs = 1_000L,
         )

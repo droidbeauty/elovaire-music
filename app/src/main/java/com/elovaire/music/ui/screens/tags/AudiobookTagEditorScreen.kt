@@ -47,6 +47,7 @@ internal fun AudiobookTagEditorScreen(
     onPickCoverArt: () -> Unit,
     onBookTitleChange: (String) -> Unit,
     onAuthorChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
     onReleaseYearChange: (String) -> Unit,
     onGenreChange: (String) -> Unit,
     onPartTitleChange: (Long, String) -> Unit,
@@ -82,6 +83,7 @@ internal fun AudiobookTagEditorScreen(
                         onPickCoverArt = onPickCoverArt,
                         onBookTitleChange = onBookTitleChange,
                         onAuthorChange = onAuthorChange,
+                        onDescriptionChange = onDescriptionChange,
                         onReleaseYearChange = onReleaseYearChange,
                         onGenreChange = onGenreChange,
                     )
@@ -130,6 +132,7 @@ private fun AudiobookBookMetadataSection(
     onPickCoverArt: () -> Unit,
     onBookTitleChange: (String) -> Unit,
     onAuthorChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
     onReleaseYearChange: (String) -> Unit,
     onGenreChange: (String) -> Unit,
 ) {
@@ -146,6 +149,7 @@ private fun AudiobookBookMetadataSection(
                 ArtworkImage(
                     uri = state.selectedArtworkUri ?: book.artUri,
                     title = state.bookTitle,
+                    placeholderIconResId = R.drawable.ic_lucide_book_headphones,
                     modifier = Modifier
                         .size(112.dp)
                         .clickable(onClick = onPickCoverArt),
@@ -161,6 +165,14 @@ private fun AudiobookBookMetadataSection(
             }
             OutlinedTextField(state.bookTitle, onBookTitleChange, Modifier.fillMaxWidth(), label = { Text(copy.bookTitle) }, singleLine = true)
             OutlinedTextField(state.author, onAuthorChange, Modifier.fillMaxWidth(), label = { Text(copy.author) }, singleLine = true)
+            OutlinedTextField(
+                value = state.description,
+                onValueChange = onDescriptionChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(copy.description) },
+                minLines = 4,
+                maxLines = 8,
+            )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(state.releaseYear, onReleaseYearChange, Modifier.weight(1f), label = { Text(copy.year) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(state.genre, onGenreChange, Modifier.weight(1f), label = { Text(copy.genre) }, singleLine = true)
@@ -243,6 +255,7 @@ private data class AudiobookTagEditorCopy(
     val bookSection: String,
     val bookTitle: String,
     val author: String,
+    val description: String,
     val year: String,
     val genre: String,
     val coverHint: String,
@@ -255,12 +268,12 @@ private data class AudiobookTagEditorCopy(
 )
 
 private fun audiobookTagEditorCopy(language: AppLanguage): AudiobookTagEditorCopy = when (language) {
-    AppLanguage.Polish -> AudiobookTagEditorCopy("Edytuj audiobook", "Nie znaleziono audiobooka", "Informacje o książce", "Tytuł książki", "Autor", "Rok wydania", "Gatunek", "Dotknij okładki, aby ją zmienić", "Części", "Tytuł części", "Autor części", "Numer części", "Numer dysku", "Zapisz")
-    AppLanguage.Slovak -> AudiobookTagEditorCopy("Upraviť audioknihu", "Audiokniha sa nenašla", "Informácie o knihe", "Názov knihy", "Autor", "Rok vydania", "Žáner", "Ťuknutím zmeníte obal", "Časti", "Názov časti", "Interpret časti", "Číslo časti", "Číslo disku", "Uložiť")
-    AppLanguage.Croatian -> AudiobookTagEditorCopy("Uredi audioknjigu", "Audioknjiga nije pronađena", "Podaci o knjizi", "Naslov knjige", "Autor", "Godina izdanja", "Žanr", "Dodirnite omot za promjenu", "Dijelovi", "Naslov dijela", "Autor dijela", "Broj dijela", "Broj diska", "Spremi")
-    AppLanguage.Korean -> AudiobookTagEditorCopy("오디오북 태그 편집", "오디오북을 찾을 수 없습니다", "도서 정보", "도서 제목", "저자", "발매 연도", "장르", "커버를 탭하여 변경", "부분", "부분 제목", "부분 저자", "부분 번호", "디스크 번호", "저장")
-    AppLanguage.Malay -> AudiobookTagEditorCopy("Edit tag audiobook", "Buku audio tidak ditemui", "Maklumat buku", "Tajuk buku", "Pengarang", "Tahun keluaran", "Genre", "Ketik kulit untuk menukar", "Bahagian", "Tajuk bahagian", "Pengarang bahagian", "Nombor bahagian", "Nombor cakera", "Simpan")
-    AppLanguage.Bengali -> AudiobookTagEditorCopy("অডিওবুক ট্যাগ সম্পাদনা", "অডিওবুক পাওয়া যায়নি", "বইয়ের তথ্য", "বইয়ের শিরোনাম", "লেখক", "প্রকাশের বছর", "ধরন", "পরিবর্তন করতে কভারে ট্যাপ করুন", "অংশ", "অংশের শিরোনাম", "অংশের লেখক", "অংশের নম্বর", "ডিস্ক নম্বর", "সংরক্ষণ করুন")
-    AppLanguage.Urdu -> AudiobookTagEditorCopy("آڈیو بک ٹیگز میں ترمیم کریں", "آڈیو بک نہیں ملی", "کتاب کی معلومات", "کتاب کا عنوان", "مصنف", "اجرا کا سال", "صنف", "تبدیل کرنے کے لیے کور پر ٹیپ کریں", "حصے", "حصے کا عنوان", "حصے کا مصنف", "حصے کا نمبر", "ڈسک نمبر", "محفوظ کریں")
-    else -> AudiobookTagEditorCopy("Edit audiobook tags", "Audiobook not found", "Book information", "Book title", "Author", "Release year", "Genre", "Tap the cover to change it", "Parts", "Part title", "Part artist", "Part number", "Disc number", "Save")
+    AppLanguage.Polish -> AudiobookTagEditorCopy("Edytuj audiobook", "Nie znaleziono audiobooka", "Informacje o książce", "Tytuł książki", "Autor", "Opis", "Rok wydania", "Gatunek", "Dotknij okładki, aby ją zmienić", "Części", "Tytuł części", "Autor części", "Numer części", "Numer dysku", "Zapisz")
+    AppLanguage.Slovak -> AudiobookTagEditorCopy("Upraviť audioknihu", "Audiokniha sa nenašla", "Informácie o knihe", "Názov knihy", "Autor", "Popis", "Rok vydania", "Žáner", "Ťuknutím zmeníte obal", "Časti", "Názov časti", "Interpret časti", "Číslo časti", "Číslo disku", "Uložiť")
+    AppLanguage.Croatian -> AudiobookTagEditorCopy("Uredi audioknjigu", "Audioknjiga nije pronađena", "Podaci o knjizi", "Naslov knjige", "Autor", "Opis", "Godina izdanja", "Žanr", "Dodirnite omot za promjenu", "Dijelovi", "Naslov dijela", "Autor dijela", "Broj dijela", "Broj diska", "Spremi")
+    AppLanguage.Korean -> AudiobookTagEditorCopy("오디오북 태그 편집", "오디오북을 찾을 수 없습니다", "도서 정보", "도서 제목", "저자", "설명", "발매 연도", "장르", "커버를 탭하여 변경", "부분", "부분 제목", "부분 저자", "부분 번호", "디스크 번호", "저장")
+    AppLanguage.Malay -> AudiobookTagEditorCopy("Edit tag audiobook", "Buku audio tidak ditemui", "Maklumat buku", "Tajuk buku", "Pengarang", "Penerangan", "Tahun keluaran", "Genre", "Ketik kulit untuk menukar", "Bahagian", "Tajuk bahagian", "Pengarang bahagian", "Nombor bahagian", "Nombor cakera", "Simpan")
+    AppLanguage.Bengali -> AudiobookTagEditorCopy("অডিওবুক ট্যাগ সম্পাদনা", "অডিওবুক পাওয়া যায়নি", "বইয়ের তথ্য", "বইয়ের শিরোনাম", "লেখক", "বিবরণ", "প্রকাশের বছর", "ধরন", "পরিবর্তন করতে কভারে ট্যাপ করুন", "অংশ", "অংশের শিরোনাম", "অংশের লেখক", "অংশের নম্বর", "ডিস্ক নম্বর", "সংরক্ষণ করুন")
+    AppLanguage.Urdu -> AudiobookTagEditorCopy("آڈیو بک ٹیگز میں ترمیم کریں", "آڈیو بک نہیں ملی", "کتاب کی معلومات", "کتاب کا عنوان", "مصنف", "تفصیل", "اجرا کا سال", "صنف", "تبدیل کرنے کے لیے کور پر ٹیپ کریں", "حصے", "حصے کا عنوان", "حصے کا مصنف", "حصے کا نمبر", "ڈسک نمبر", "محفوظ کریں")
+    else -> AudiobookTagEditorCopy("Edit audiobook tags", "Audiobook not found", "Book information", "Book title", "Author", "Description", "Release year", "Genre", "Tap the cover to change it", "Parts", "Part title", "Part artist", "Part number", "Disc number", "Save")
 }

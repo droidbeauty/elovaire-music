@@ -12,6 +12,8 @@ interface LibraryReader {
 interface LibraryActionController {
     fun onPermissionChanged(granted: Boolean)
 
+    fun setLibraryFolders(selections: List<LibraryFolderSelection>)
+
     fun refresh(intent: LibraryRefreshIntent)
 }
 

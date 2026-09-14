@@ -39,6 +39,7 @@ internal data class AudiobookTagEditorUiState(
     val originalBook: Audiobook? = null,
     val bookTitle: String = "",
     val author: String = "",
+    val description: String = "",
     val releaseYear: String = "",
     val genre: String = "",
     val parts: List<EditableAudiobookPartState> = emptyList(),
@@ -78,6 +79,7 @@ internal fun Audiobook.toTagEditorUiState(): AudiobookTagEditorUiState {
         originalBook = this,
         bookTitle = title,
         author = author,
+        description = description.orEmpty(),
         releaseYear = songs.firstNotNullOfOrNull { it.releaseYear }?.toString().orEmpty(),
         genre = songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty(),
         parts = songs.mapIndexed { index, song ->
@@ -130,6 +132,7 @@ internal fun AudiobookTagEditorUiState.toAudiobookTagEditRequest(): AudiobookTag
         songs = book.canonicalSongs(),
         bookTitle = bookTitle.toTextEdit(book.title),
         author = author.toTextEdit(book.author),
+        description = description.toTextEdit(book.description.orEmpty()),
         releaseYear = when {
             releaseYear.trim() == originalYear -> TagFieldEdit.Unchanged
             releaseYear.isBlank() -> TagFieldEdit.Cleared
@@ -163,6 +166,7 @@ internal fun AudiobookTagEditorUiState.recalculateFlags(): AudiobookTagEditorUiS
             selectedArtworkUri?.toString() != book.artUri?.toString() ||
             bookTitle.trim() != book.title.trim() ||
             author.trim() != book.author.trim() ||
+            description.trim() != book.description.orEmpty().trim() ||
             releaseYear.trim() != originalYear.trim() ||
             genre.trim() != originalGenre.trim() ||
             parts.any { part ->

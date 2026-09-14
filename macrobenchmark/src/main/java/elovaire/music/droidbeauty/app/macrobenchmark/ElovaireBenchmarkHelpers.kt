@@ -211,10 +211,18 @@ internal fun MacrobenchmarkScope.searchJourney() {
     requireClickDescription("Search")
     waitForAppVisible()
     fun setQuery(query: String, waitForSettledResults: Boolean) {
-        val input = waitForSearchInput()
-        input.click()
-        input.text = query
-        if (waitForSettledResults) uiDevice.waitForIdle()
+        var lastStale: StaleObjectException? = null
+        repeat(4) {
+            try {
+                waitForSearchInput().click()
+                waitForSearchInput().text = query
+                if (waitForSettledResults) uiDevice.waitForIdle()
+                return
+            } catch (stale: StaleObjectException) {
+                lastStale = stale
+            }
+        }
+        throw lastStale ?: error("Search input did not accept query")
     }
 
     setQuery("a", waitForSettledResults = true)

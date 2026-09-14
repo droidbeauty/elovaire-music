@@ -80,18 +80,23 @@ internal class GoogleBooksAudiobookDescriptionReader(
     @Suppress("TooGenericExceptionCaught")
     private suspend fun fetchDescription(title: String, author: String): String? {
         return try {
-            val query = buildQuery(title, author)
-            val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
-            val response = transport.get(
-                rawUrl = "https://www.googleapis.com/books/v1/volumes?q=$encodedQuery&maxResults=5&printType=books",
-                headers = mapOf(
-                    "Accept" to "application/json",
-                    "User-Agent" to "Elovaire/1.0",
-                ),
-                maxBytes = MAX_RESPONSE_BYTES,
-            )
-            if (response.statusCode !in 200..299) null else {
-                parseGoogleBooksDescription(String(response.body, Charsets.UTF_8), title)
+            val queries = buildList {
+                if (author.isMeaningfulBookAuthor()) add(buildQuery(title, author))
+                add(buildQuery(title, author = ""))
+            }
+            queries.firstNotNullOfOrNull { query ->
+                val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
+                val response = transport.get(
+                    rawUrl = "https://www.googleapis.com/books/v1/volumes?q=$encodedQuery&maxResults=10&printType=books",
+                    headers = mapOf(
+                        "Accept" to "application/json",
+                        "User-Agent" to "Elovaire/1.0",
+                    ),
+                    maxBytes = MAX_RESPONSE_BYTES,
+                )
+                if (response.statusCode !in 200..299) null else {
+                    parseGoogleBooksDescription(String(response.body, Charsets.UTF_8), title)
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -114,6 +119,10 @@ internal class GoogleBooksAudiobookDescriptionReader(
             append(" inauthor:").append(author)
         }
     }
+
+    private fun String.isMeaningfulBookAuthor(): Boolean = isNotBlank() &&
+        !equals("Unknown Author", ignoreCase = true) &&
+        !equals("Unknown Artist", ignoreCase = true)
 
     private fun descriptionKey(title: String, author: String): String =
         "${title.lowercase(Locale.ROOT)}|${author.lowercase(Locale.ROOT)}"

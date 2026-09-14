@@ -74,6 +74,7 @@ internal class AudiobookTagEditorViewModel(
 
     fun onBookTitleChange(value: String) = updateDraft { it.copy(bookTitle = value, statusMessage = null, saveFailures = emptyList()) }
     fun onAuthorChange(value: String) = updateDraft { it.copy(author = value, statusMessage = null, saveFailures = emptyList()) }
+    fun onDescriptionChange(value: String) = updateDraft { it.copy(description = value, statusMessage = null, saveFailures = emptyList()) }
     fun onReleaseYearChange(value: String) = updateDraft {
         it.copy(releaseYear = value.filter(Char::isDigit).take(4), statusMessage = null, saveFailures = emptyList())
     }
@@ -241,6 +242,7 @@ internal class AudiobookTagEditorViewModel(
         savedStateHandle[KEY_DRAFT_BOOK_KEY] = key
         savedStateHandle[KEY_TITLE] = state.bookTitle
         savedStateHandle[KEY_AUTHOR] = state.author
+        savedStateHandle[KEY_DESCRIPTION] = state.description
         savedStateHandle[KEY_YEAR] = state.releaseYear
         savedStateHandle[KEY_GENRE] = state.genre
         savedStateHandle[KEY_ARTWORK] = state.selectedArtworkUri?.toString()
@@ -278,6 +280,7 @@ internal class AudiobookTagEditorViewModel(
         return state.copy(
             bookTitle = savedStateHandle.get<String>(KEY_TITLE) ?: state.bookTitle,
             author = savedStateHandle.get<String>(KEY_AUTHOR) ?: state.author,
+            description = savedStateHandle.get<String>(KEY_DESCRIPTION) ?: state.description,
             releaseYear = savedStateHandle.get<String>(KEY_YEAR) ?: state.releaseYear,
             genre = savedStateHandle.get<String>(KEY_GENRE) ?: state.genre,
             selectedArtworkUri = savedStateHandle.get<String>(KEY_ARTWORK)?.takeIf(String::isNotBlank)?.let(Uri::parse)
@@ -290,6 +293,7 @@ internal class AudiobookTagEditorViewModel(
         savedStateHandle.remove<String>(KEY_DRAFT_BOOK_KEY)
         savedStateHandle.remove<String>(KEY_TITLE)
         savedStateHandle.remove<String>(KEY_AUTHOR)
+        savedStateHandle.remove<String>(KEY_DESCRIPTION)
         savedStateHandle.remove<String>(KEY_YEAR)
         savedStateHandle.remove<String>(KEY_GENRE)
         savedStateHandle.remove<String>(KEY_ARTWORK)
@@ -318,6 +322,7 @@ internal class AudiobookTagEditorViewModel(
         const val KEY_DRAFT_BOOK_KEY = "audiobook_tag_editor.draft_book_key"
         const val KEY_TITLE = "audiobook_tag_editor.title"
         const val KEY_AUTHOR = "audiobook_tag_editor.author"
+        const val KEY_DESCRIPTION = "audiobook_tag_editor.description"
         const val KEY_YEAR = "audiobook_tag_editor.year"
         const val KEY_GENRE = "audiobook_tag_editor.genre"
         const val KEY_ARTWORK = "audiobook_tag_editor.artwork"

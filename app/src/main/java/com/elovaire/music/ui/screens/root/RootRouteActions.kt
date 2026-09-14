@@ -184,6 +184,7 @@ internal class RootRouteActions(
         val normalizedFolders = LibraryFolderSelectionResolver.normalize(currentFolders + selection)
         if (normalizedFolders == LibraryFolderSelectionResolver.normalize(currentFolders)) return
         librarySettings.setLibraryFolders(normalizedFolders)
+        libraryDependencies.libraryController.setLibraryFolders(normalizedFolders)
     }
 
     fun renamePlaylist(
@@ -214,7 +215,18 @@ internal class RootRouteActions(
         playlistStore.deleteSmartPlaylists(setOf(playlistId))
 
     fun removeLibraryFolder(selection: LibraryFolderSelection) {
-        librarySettings.removeLibraryFolder(selection)
+        val targetUri = selection.uri?.toString()
+        val targetPath = LibraryFolderSelectionResolver.normalizedPathKey(selection.path)
+        val currentFolders = librarySettings.libraryFolders.value
+        val normalizedFolders = LibraryFolderSelectionResolver.normalize(
+            currentFolders.filterNot { current ->
+                current.uri?.toString() == targetUri &&
+                    LibraryFolderSelectionResolver.normalizedPathKey(current.path) == targetPath
+            },
+        )
+        if (normalizedFolders == LibraryFolderSelectionResolver.normalize(currentFolders)) return
+        librarySettings.setLibraryFolders(normalizedFolders)
+        libraryDependencies.libraryController.setLibraryFolders(normalizedFolders)
     }
 
     fun addNetworkSource(source: NetworkLibrarySource, credentials: NetworkCredentials) {

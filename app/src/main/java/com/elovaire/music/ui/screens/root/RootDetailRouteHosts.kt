@@ -130,10 +130,14 @@ internal fun AudiobookDetailRouteHost(
         initialValue = AudiobookDescriptionLoadState.Loading,
         key1 = book.stableKey,
         key2 = book.title,
-        key3 = book.author,
+        key3 = book.author to book.description,
     ) {
         try {
-            value = descriptionReader.description(book)?.let(AudiobookDescriptionLoadState::Loaded)
+            val embeddedDescription = book.description
+                ?.trim()
+                ?.takeIf(String::isNotBlank)
+            value = (embeddedDescription ?: descriptionReader.description(book))
+                ?.let(AudiobookDescriptionLoadState::Loaded)
                 ?: AudiobookDescriptionLoadState.Unavailable
         } catch (cancelled: CancellationException) {
             throw cancelled

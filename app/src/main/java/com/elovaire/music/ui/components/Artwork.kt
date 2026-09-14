@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.components
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,7 @@ fun ArtworkImage(
     cornerRadius: Dp = ElovaireRadii.artwork,
     requestedSizePx: Int = 384,
     placeholderIconSize: Dp = 30.dp,
+    @DrawableRes placeholderIconResId: Int = R.drawable.ic_lucide_music,
     showArtworkGlow: Boolean = false,
     overlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {
@@ -140,7 +142,7 @@ fun ArtworkImage(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_music),
+                        painter = painterResource(id = placeholderIconResId),
                         contentDescription = title.ifBlank { "Artwork placeholder" },
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         modifier = Modifier.size(placeholderIconSize),

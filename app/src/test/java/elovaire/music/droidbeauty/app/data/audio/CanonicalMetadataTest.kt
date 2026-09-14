@@ -12,11 +12,13 @@ class CanonicalMetadataTest {
             embedded = MetadataSourceValues(
                 title = "  Embedded title ",
                 artist = "Embedded artist",
+                description = "Embedded description",
                 trackNumber = "03/12",
             ),
             platform = MetadataSourceValues(
                 title = "Platform title",
                 artist = "Platform artist",
+                description = "Platform description",
                 trackNumber = "4",
             ),
             indexed = MetadataSourceValues(title = "Indexed title"),
@@ -24,6 +26,7 @@ class CanonicalMetadataTest {
 
         assertEquals("Embedded title", result.title)
         assertEquals("Embedded artist", result.artist)
+        assertEquals("Embedded description", result.description)
         assertEquals(3, result.trackNumber)
     }
 

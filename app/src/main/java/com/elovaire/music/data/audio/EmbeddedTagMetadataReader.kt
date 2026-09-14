@@ -13,6 +13,7 @@ internal data class EmbeddedTagMetadata(
     val artist: String? = null,
     val albumArtist: String? = null,
     val album: String? = null,
+    val description: String? = null,
     val releaseYear: Int? = null,
     val genre: String? = null,
     val trackNumber: Int? = null,
@@ -62,6 +63,7 @@ internal class EmbeddedTagMetadataReader(context: Context) {
                 artist = tag.text(FieldKey.ARTIST),
                 albumArtist = tag.text(FieldKey.ALBUM_ARTIST),
                 album = tag.text(FieldKey.ALBUM),
+                description = tag.text(FieldKey.COMMENT),
                 releaseYear = sequenceOf(FieldKey.YEAR, FieldKey.ORIGINAL_YEAR)
                     .mapNotNull { field -> tag.text(field) }
                     .mapNotNull(::parseReleaseYear)

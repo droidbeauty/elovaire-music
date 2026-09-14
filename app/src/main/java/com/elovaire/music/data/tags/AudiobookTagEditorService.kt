@@ -8,6 +8,7 @@ internal data class AudiobookTagEditRequest(
     override val songs: List<Song>,
     val bookTitle: TagFieldEdit<String>,
     val author: TagFieldEdit<String>,
+    val description: TagFieldEdit<String> = TagFieldEdit.Unchanged,
     override val releaseYear: TagFieldEdit<Int>,
     override val genre: TagFieldEdit<String>,
     override val coverArtUri: Uri?,
@@ -16,6 +17,7 @@ internal data class AudiobookTagEditRequest(
 ) : TagMutationRequest {
     override val collectionTitle: TagFieldEdit<String> get() = bookTitle
     override val collectionArtist: TagFieldEdit<String> get() = author
+    override val collectionDescription: TagFieldEdit<String> get() = description
 }
 
 internal interface AudiobookTagEditor {

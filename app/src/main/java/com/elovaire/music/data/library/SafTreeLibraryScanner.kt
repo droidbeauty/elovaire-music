@@ -293,6 +293,7 @@ internal class SafTreeLibraryScanner(
                                 isExplicit = false,
                                 artist = artist,
                                 album = album,
+                                description = metadata.description,
                                 releaseYear = metadata.releaseYear,
                                 genre = metadata.genre ?: "Unknown Genre",
                                 audioFormat = detectedFormat.displayName,

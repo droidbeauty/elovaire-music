@@ -7,6 +7,7 @@ internal interface TagMutationRequest {
     val songs: List<Song>
     val collectionTitle: TagFieldEdit<String>
     val collectionArtist: TagFieldEdit<String>
+    val collectionDescription: TagFieldEdit<String>
     val releaseYear: TagFieldEdit<Int>
     val genre: TagFieldEdit<String>
     val coverArtUri: Uri?

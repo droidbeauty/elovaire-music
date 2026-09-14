@@ -57,6 +57,7 @@ internal fun AudiobookTagEditorRouteHost(
         onPickCoverArt = { picker.launch(arrayOf("image/*")) },
         onBookTitleChange = viewModel::onBookTitleChange,
         onAuthorChange = viewModel::onAuthorChange,
+        onDescriptionChange = viewModel::onDescriptionChange,
         onReleaseYearChange = viewModel::onReleaseYearChange,
         onGenreChange = viewModel::onGenreChange,
         onPartTitleChange = viewModel::onPartTitleChange,

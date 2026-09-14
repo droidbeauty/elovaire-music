@@ -40,14 +40,21 @@ class AudiobookTagEditorModelsTest {
             artUri = null,
             durationMs = song.durationMs,
             parts = listOf(AudiobookPart(song, 1)),
-        ).toTagEditorUiState().copy(bookTitle = "Renamed", author = "New Author")
+            description = "Original description",
+        ).toTagEditorUiState().copy(
+            bookTitle = "Renamed",
+            author = "New Author",
+            description = "Updated description",
+        )
 
         val request = state.toAudiobookTagEditRequest()!!
 
         assertTrue(request.bookTitle is TagFieldEdit.Value)
         assertTrue(request.author is TagFieldEdit.Value)
+        assertTrue(request.description is TagFieldEdit.Value)
         assertTrue(request.tracks.isEmpty())
         assertEquals("Renamed", (request.bookTitle as TagFieldEdit.Value).value)
+        assertEquals("Updated description", (request.description as TagFieldEdit.Value).value)
     }
 
     @Test
