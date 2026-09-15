@@ -4,10 +4,10 @@ import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffects
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
-import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
+import elovaire.music.droidbeauty.app.data.playback.PlaybackIntegrationPort
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
-import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
+import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
+import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionPersistence
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import elovaire.music.droidbeauty.app.data.settings.PlaybackHistoryStore
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
@@ -47,9 +47,18 @@ internal class PlaybackIntegrationCoordinator(
     private val preferences: PlaybackIntegrationSettings,
     private val history: PlaybackHistoryStore,
     private val library: LibraryReader,
-    private val playback: PlaybackManager,
+    private val playback: PlaybackIntegrationPort,
     private val effects: PlaybackEffects,
-    private val sessionStore: PlaybackSessionStore,
+    private val sessionStore: PlaybackSessionPersistence,
+    private val hydrateRecentPlayback: (
+        List<Long>,
+        List<Long>,
+        PlaybackCollectionKind?,
+        Long?,
+    ) -> Unit,
+    private val currentPositionForPersistence: () -> Long,
+    private val checkpointAudiobookProgress: () -> Unit,
+    private val restoreSession: (List<elovaire.music.droidbeauty.app.domain.model.Song>, Int, PersistedPlaybackSession) -> Unit,
     private val diagnostics: BackendDiagnosticRecorder = BackendDiagnostics,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -115,11 +124,11 @@ internal class PlaybackIntegrationCoordinator(
             }
                 .distinctUntilChanged()
                 .collect { recent ->
-                    playback.hydrateRecentPlayback(
-                        songIds = recent.songIds,
-                        albumIds = recent.albumIds,
-                        lastPlayedCollectionKind = recent.collectionKind,
-                        lastPlayedCollectionId = recent.collectionId,
+                    hydrateRecentPlayback(
+                        recent.songIds,
+                        recent.albumIds,
+                        recent.collectionKind,
+                        recent.collectionId,
                     )
                 }
         }
@@ -174,7 +183,7 @@ internal class PlaybackIntegrationCoordinator(
                         PlaybackCheckpoint.StateChange -> persistSession()
                         PlaybackCheckpoint.RecoveryPosition -> {
                             val positionMs = withContext(Dispatchers.Main.immediate) {
-                                playback.currentPositionForPersistence()
+                                currentPositionForPersistence()
                             }
                             persistSession(positionMs)
                         }
@@ -230,7 +239,7 @@ internal class PlaybackIntegrationCoordinator(
                 ?.let { id -> restoredQueue.indexOfFirst { it.id == id } }
                 ?.takeIf { it >= 0 }
             ?: persisted.currentIndex.coerceIn(restoredQueue.indices)
-        playback.restoreSession(restoredQueue, currentIndex, persisted)
+        restoreSession(restoredQueue, currentIndex, persisted)
     }
 
     private fun persistSession(
@@ -242,7 +251,7 @@ internal class PlaybackIntegrationCoordinator(
         if (queue.queue.isEmpty()) {
             if (!allowAfterRelease && lastSessionKey == SessionKey.Empty) return
             lastSessionKey = SessionKey.Empty
-            playback.checkpointAudiobookProgress()
+            checkpointAudiobookProgress()
             sessionWrites.trySend(null)
             return
         }
@@ -258,7 +267,7 @@ internal class PlaybackIntegrationCoordinator(
         )
         if (positionOverrideMs == null && !allowAfterRelease && sessionKey == lastSessionKey) return
         lastSessionKey = sessionKey
-        playback.checkpointAudiobookProgress()
+        checkpointAudiobookProgress()
         sessionWrites.trySend(
             PersistedPlaybackSession(
                 queueSongIds = sessionKey.queueSongIds,

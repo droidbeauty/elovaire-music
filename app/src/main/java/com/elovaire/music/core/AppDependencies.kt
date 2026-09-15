@@ -30,8 +30,8 @@ internal class AppDependencies(
         object : RootDeleteDependencies {
             override val deleteHandler = DeviceDeleteCoordinator(
                 context = applicationContext,
-                libraryRepository = services.libraryRepository,
-                playbackManager = services.playbackManager,
+                libraryDelete = services.libraryRepository,
+                queueMutations = services.playbackManager,
                 userDataStore = services.userDataStore,
                 invalidateArtwork = artworkInvalidator::invalidate,
                 ioDispatcher = appDispatchers.io,

@@ -108,7 +108,7 @@ internal class LibraryRepository internal constructor(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
-) : LibraryStartupController, LibraryNetworkController, LibraryTagUpdateWriter {
+) : LibraryStartupController, LibraryNetworkController, LibraryTagUpdateWriter, LibraryDeletePort {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
@@ -781,7 +781,7 @@ internal class LibraryRepository internal constructor(
         publishPendingDeletionState()
     }
 
-    suspend fun refreshAfterDelete(request: LibraryDeleteRequest): LibraryDeleteResult {
+    override suspend fun refreshAfterDelete(request: LibraryDeleteRequest): LibraryDeleteResult {
         if (request.songIds.isEmpty()) {
             return LibraryDeleteResult(emptySet(), emptySet(), emptyList())
         }

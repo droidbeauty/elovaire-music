@@ -22,7 +22,7 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
     private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(mainLooper) }
     private var removeForegroundNotificationOnDestroy = true
     private val mediaButtonStateCheck = Runnable {
-        val player = (application as ElovaireApp).container.playbackManager.playerInstance
+        val player = (application as ElovaireApp).container.playbackPlayer
         if (!player.playWhenReady && !isPlaybackOngoing) {
             pauseAllPlayersAndStopSelf()
         }
@@ -106,14 +106,14 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
     ): MediaLibrarySession? {
         return (application as ElovaireApp).container
             .also { it.startPlayback() }
-            .playbackManager
+            .playbackRuntime
             .mediaLibrarySession
     }
 
     override fun onTaskRemoved(rootIntent: android.content.Intent?) {
         val playbackManager = (application as ElovaireApp).container
             .also { it.startPlayback() }
-            .playbackManager
+            .playbackRuntime
         if (!playbackManager.state.value.transportShowsPause) {
             stopSelf()
             super.onTaskRemoved(rootIntent)

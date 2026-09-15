@@ -195,7 +195,7 @@ class PlaybackManager internal constructor(
     ) -> Unit = { _, _, _, _ -> },
     private val clock: AppClock = AndroidAppClock,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
-) : NowPlayingPlayback {
+) : NowPlayingPlayback, PlaybackIntegrationPort, PlaybackQueueMutationPort {
     private val scope = scope
     private val appContext = context.applicationContext
     private val audioProcessorsProvider = audioProcessorsProvider
@@ -725,7 +725,7 @@ class PlaybackManager internal constructor(
         syncProgressUpdateLoop()
     }
 
-    fun reevaluateAudioOutputPath() {
+    override fun reevaluateAudioOutputPath() {
         if (released.get()) return
         if (!hasActiveQueue()) return
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
@@ -735,7 +735,7 @@ class PlaybackManager internal constructor(
         updateState()
     }
 
-    fun hasActiveQueue(): Boolean {
+    override fun hasActiveQueue(): Boolean {
         if (released.get()) return false
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
     }
@@ -1296,15 +1296,15 @@ class PlaybackManager internal constructor(
         queueController.removeQueueIndex(index)
     }
 
-    fun removeSongsFromQueue(songIds: Set<Long>) {
+    override fun removeSongsFromQueue(songIds: Set<Long>) {
         if (released.get()) return
         crossfadeController.cancel()
         queueController.removeSongsFromQueue(songIds)
     }
 
-    fun refreshQueuedLibraryMetadataIfNeeded(
+    override fun refreshQueuedLibraryMetadataIfNeeded(
         updatedSongs: List<Song>,
-        authoritative: Boolean = false,
+        authoritative: Boolean,
     ) {
         if (released.get()) return
         queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs, authoritative)
@@ -1313,7 +1313,7 @@ class PlaybackManager internal constructor(
         player.volume = targetPlayerOutputGain()
     }
 
-    fun setCrossfadeEnabled(enabled: Boolean) {
+    override fun setCrossfadeEnabled(enabled: Boolean) {
         if (released.get()) return
         if (crossfadeEnabled == enabled) return
         crossfadeEnabled = enabled
@@ -1322,7 +1322,7 @@ class PlaybackManager internal constructor(
         scheduleAudioPathReevaluation("crossfade-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
     }
 
-    fun setCrossfadeDurationMs(value: Long) {
+    override fun setCrossfadeDurationMs(value: Long) {
         if (released.get()) return
         val durationMs = CrossfadeDurationPolicy.sanitizeSettingsDuration(value)
         if (crossfadeDurationMs == durationMs) return
@@ -1337,7 +1337,7 @@ class PlaybackManager internal constructor(
         }
     }
 
-    fun setCrossfadeSilenceThresholdDb(value: Float) {
+    override fun setCrossfadeSilenceThresholdDb(value: Float) {
         if (released.get()) return
         val thresholdDb = CrossfadeSilencePolicy.sanitizeLevelDb(value)
         if (crossfadeSilenceThresholdDb == thresholdDb) return
@@ -1352,7 +1352,7 @@ class PlaybackManager internal constructor(
         }
     }
 
-    fun setVolumeNormalizationEnabled(enabled: Boolean) {
+    override fun setVolumeNormalizationEnabled(enabled: Boolean) {
         if (released.get()) return
         if (volumeNormalizationEnabled == enabled) return
         volumeNormalizationEnabled = enabled

@@ -5,7 +5,7 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueMutationPort
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -43,8 +43,8 @@ internal interface DeviceDeleteHandler {
 
 internal class DeviceDeleteCoordinator(
     private val context: Context,
-    private val libraryRepository: LibraryRepository,
-    private val playbackManager: PlaybackManager,
+    private val libraryDelete: LibraryDeletePort,
+    private val queueMutations: PlaybackQueueMutationPort,
     private val userDataStore: PlaylistStore,
     private val invalidateArtwork: (Collection<Uri?>) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -76,7 +76,7 @@ internal class DeviceDeleteCoordinator(
 
     override suspend fun completeDelete(plan: DeviceDeletePlan) {
         invalidateArtwork(plan.targets.flatMap { listOf(it.artUri, it.uri) })
-        val deleteResult = libraryRepository.refreshAfterDelete(
+        val deleteResult = libraryDelete.refreshAfterDelete(
             LibraryDeleteRequest(
                 songIds = plan.targets.mapTo(linkedSetOf(), DeviceDeleteTarget::songId),
                 albumIds = plan.targets.mapTo(linkedSetOf(), DeviceDeleteTarget::albumId),
@@ -86,7 +86,7 @@ internal class DeviceDeleteCoordinator(
             ),
         )
         cleanupEmptyDirectories(plan.parentDirectories)
-        playbackManager.removeSongsFromQueue(deleteResult.deletedSongIds)
+        queueMutations.removeSongsFromQueue(deleteResult.deletedSongIds)
         if (deleteResult.deletedSongIds.isNotEmpty()) {
             if (userDataStore.removeSongReferences(deleteResult.deletedSongIds).await() !is
                 elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult.Success

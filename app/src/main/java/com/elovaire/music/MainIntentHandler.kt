@@ -58,7 +58,7 @@ internal class MainIntentHandler(
                 intent = request,
                 ioDispatcher = container.dispatchers.io,
             ) ?: return@launch
-            container.playbackManager.playExternalSong(song)
+            container.externalIntentPlayback(song)
             container.requestOpenNowPlaying()
             activity.setIntent(
                 Intent(activity, MainActivity::class.java).apply {

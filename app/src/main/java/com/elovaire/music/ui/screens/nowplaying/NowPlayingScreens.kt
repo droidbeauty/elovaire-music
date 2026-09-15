@@ -4292,9 +4292,9 @@ private fun LyricsSkipControl(
 ) {
     val shape = RoundedCornerShape(ElovaireRadii.pill)
     val surface = MaterialTheme.colorScheme.surface
-                Box(
-                    modifier = Modifier
-                        .width(160.dp)
+    Box(
+        modifier = Modifier
+            .width(160.dp)
             .height(44.dp)
             .clip(shape)
             .then(

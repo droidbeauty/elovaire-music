@@ -11,6 +11,11 @@ import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
+import androidx.media3.common.Player
+import elovaire.music.droidbeauty.app.data.library.LibraryReader
+import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
+import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
+import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +68,21 @@ class AppContainer(
     }
     private val bridgeCoordinator = AppBridgeCoordinator(
         scope = appScope,
-        services = services,
+        dependencies = AppBridgeDependencies(
+            applicationContext = services.applicationContext,
+            playbackSettings = services.preferenceStore,
+            librarySettings = services.preferenceStore,
+            history = services.userDataStore,
+            library = services.libraryRepository,
+            setLibraryFolders = services.libraryRepository::setLibraryFolders,
+            playback = services.playbackManager,
+            effects = services.playbackEffectsController,
+            sessionStore = services.playbackSessionStore,
+            hydrateRecentPlayback = services.playbackManager::hydrateRecentPlayback,
+            currentPositionForPersistence = services.playbackManager::currentPositionForPersistence,
+            checkpointAudiobookProgress = { services.playbackManager.checkpointAudiobookProgress() },
+            restoreSession = services.playbackManager::restoreSession,
+        ),
         ioDispatcher = appDispatchers.io,
         diagnostics = backendDiagnostics,
     )
@@ -79,19 +98,24 @@ class AppContainer(
     internal val artistImageRepository get() = services.artistImageRepository
     internal val lyricsService get() = services.lyricsService
     internal val albumTagEditorService get() = services.albumTagEditorService
-    val playbackManager get() = services.playbackManager
+    val playbackManager: elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
+        get() = services.playbackManager
+    internal val playbackRuntime get() = services.playbackManager
+    internal val externalIntentPlayback: (elovaire.music.droidbeauty.app.domain.model.Song) -> Unit
+        get() = services.playbackManager::playExternalSong
+    internal val playbackPlayer: Player get() = services.playbackManager.playerInstance
     internal val audiobookChapterReader get() = services.audiobookChapterReader
     internal val audiobookDescriptionReader get() = services.audiobookDescriptionReader
     internal val interactionWorkPolicy get() = backgroundWorkPolicy
     internal val dispatchers: AppDispatchers get() = appDispatchers
     internal val playbackResumptionGateway get() = services.playbackResumptionGateway
-    internal val rootLibraryReader get() = services.libraryRepository
-    internal val rootSettingsReader get() = services.preferenceStore
+    internal val rootLibraryReader: LibraryReader get() = services.libraryRepository
+    internal val rootSettingsReader: AppearanceSettingsStore get() = services.preferenceStore
     internal val rootDeleteDependencies get() = dependencies.rootDeleteDependencies
     internal val libraryActionDependencies get() = dependencies.libraryActionDependencies
     internal val settingsActionDependencies get() = dependencies.settingsActionDependencies
-    internal val playlistStore get() = services.userDataStore
-    internal val favoritesStore get() = services.userDataStore
+    internal val playlistStore: PlaylistStore get() = services.userDataStore
+    internal val favoritesStore: FavoritesStore get() = services.userDataStore
     internal val viewModelDependencies get() = dependencies.viewModelDependencies
     internal fun exportPortableUserData(): ByteArray = services.exportPortableUserData()
     internal fun importPortableUserData(bytes: ByteArray): Deferred<PlaylistMutationResult> =
@@ -100,7 +124,7 @@ class AppContainer(
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         PlaybackNotificationController(
             context = applicationContext,
-            playbackManager = playbackManager,
+            playbackManager = services.playbackManager,
             scope = appScope,
         )
     }

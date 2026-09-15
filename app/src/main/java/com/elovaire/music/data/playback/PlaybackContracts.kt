@@ -71,3 +71,25 @@ interface NowPlayingPlayback : PlaybackReader, PlaybackController, PlaybackQueue
     fun audiobookResumeSongId(bookKey: String): Long?
     fun audiobookProgress(bookKey: String): AudiobookProgress?
 }
+
+/** Playback capabilities used by startup and recovery integration. */
+internal interface PlaybackIntegrationPort : PlaybackReader {
+    val progressState: StateFlow<PlaybackProgressState>
+
+    fun hasActiveQueue(): Boolean
+    fun reevaluateAudioOutputPath()
+    fun setCrossfadeEnabled(enabled: Boolean)
+    fun setCrossfadeDurationMs(value: Long)
+    fun setCrossfadeSilenceThresholdDb(value: Float)
+    fun setVolumeNormalizationEnabled(enabled: Boolean)
+
+    fun refreshQueuedLibraryMetadataIfNeeded(
+        updatedSongs: List<Song>,
+        authoritative: Boolean = false,
+    )
+}
+
+/** Queue mutation needed after a device delete has been committed. */
+internal interface PlaybackQueueMutationPort {
+    fun removeSongsFromQueue(songIds: Set<Long>)
+}

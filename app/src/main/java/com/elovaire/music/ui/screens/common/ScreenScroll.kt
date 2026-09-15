@@ -265,6 +265,48 @@ internal fun BoxScope.FastScrollbar(
     )
 }
 
+private fun fastScrollbarGestureModifier(
+    totalItems: Int,
+    layout: ScrollbarLayout,
+    trackGesturesEnabled: Boolean,
+    visible: Boolean,
+    isDragging: Boolean,
+    jumpToPointer: (Float, Float) -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
+): Modifier {
+    if (!trackGesturesEnabled || (!visible && !isDragging)) return Modifier
+    return Modifier
+        .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
+            detectTapGestures { offset ->
+                jumpToPointer(offset.y, layout.thumbLengthPx / 2f)
+            }
+        }
+        .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
+            var dragGrabOffsetPx = layout.thumbLengthPx / 2f
+            detectVerticalDragGestures(
+                onDragStart = { offset ->
+                    dragGrabOffsetPx = if (offset.y in layout.thumbOffsetPx..(
+                            layout.thumbOffsetPx + layout.thumbLengthPx
+                            )
+                    ) {
+                        offset.y - layout.thumbOffsetPx
+                    } else {
+                        layout.thumbLengthPx / 2f
+                    }
+                    onDragStart()
+                    jumpToPointer(offset.y, dragGrabOffsetPx)
+                },
+                onVerticalDrag = { change, _ ->
+                    change.consume()
+                    jumpToPointer(change.position.y, dragGrabOffsetPx)
+                },
+                onDragEnd = onDragEnd,
+                onDragCancel = onDragEnd,
+            )
+        }
+}
+
 @Composable
 private fun BoxScope.FastScrollbarTrack(
     scrollFraction: Float,
@@ -283,7 +325,6 @@ private fun BoxScope.FastScrollbarTrack(
     var isDragging by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(true) }
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
-    var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
     var dragThumbLengthPx by remember { mutableFloatStateOf(0f) }
     InteractionCriticalWindow(isScrollInProgress || isDragging)
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -338,44 +379,23 @@ private fun BoxScope.FastScrollbarTrack(
             dragFraction = fraction
             targetFractions.trySend(fraction)
         }
-        val scrollbarGestureModifier = if (trackGesturesEnabled && (visible || isDragging)) {
-            Modifier
-                .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
-                    detectTapGestures { offset ->
-                        jumpToPointer(offset.y, layout.thumbLengthPx / 2f)
-                    }
-                }
-                .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
-                    detectVerticalDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            visible = true
-                            dragThumbLengthPx = layout.thumbLengthPx
-                            dragGrabOffsetPx = if (offset.y in layout.thumbOffsetPx..(
-                                    layout.thumbOffsetPx + layout.thumbLengthPx
-                                    )
-                            ) {
-                                offset.y - layout.thumbOffsetPx
-                            } else {
-                                layout.thumbLengthPx / 2f
-                            }
-                            jumpToPointer(offset.y, dragGrabOffsetPx)
-                        },
-                        onVerticalDrag = { change, _ ->
-                            change.consume()
-                            jumpToPointer(change.position.y, dragGrabOffsetPx)
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            dragThumbLengthPx = 0f
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                            dragThumbLengthPx = 0f
-                        },
-                    )
-                }
-        } else Modifier
+        val scrollbarGestureModifier = fastScrollbarGestureModifier(
+            totalItems = totalItems,
+            layout = layout,
+            trackGesturesEnabled = trackGesturesEnabled,
+            visible = visible,
+            isDragging = isDragging,
+            jumpToPointer = jumpToPointer,
+            onDragStart = {
+                isDragging = true
+                visible = true
+                dragThumbLengthPx = layout.thumbLengthPx
+            },
+            onDragEnd = {
+                isDragging = false
+                dragThumbLengthPx = 0f
+            },
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()

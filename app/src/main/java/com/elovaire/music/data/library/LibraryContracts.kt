@@ -17,6 +17,11 @@ interface LibraryActionController {
     fun refresh(intent: LibraryRefreshIntent)
 }
 
+/** Narrow library capability used by the device-delete transaction. */
+internal interface LibraryDeletePort {
+    suspend fun refreshAfterDelete(request: LibraryDeleteRequest): LibraryDeleteResult
+}
+
 enum class LibraryRefreshReason {
     UserInitiated,
     PermissionReconciliation,

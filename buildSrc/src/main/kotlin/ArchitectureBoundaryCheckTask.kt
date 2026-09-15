@@ -22,6 +22,11 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if (coreImportsUi(path, code)) {
                 violations += "$path makes the application core depend on a UI implementation"
             }
+            NARROW_BOUNDARY_IMPORTS.entries.firstOrNull { path.endsWith(it.key) }?.value
+                ?.filter { import -> Regex("(?m)^import\\s+$import$").containsMatchIn(code) }
+                ?.forEach { import ->
+                    violations += "$path depends directly on $import; use the narrow boundary contract"
+                }
             if (
                 "/domain/kernel/" in path &&
                 (Regex("(?m)^import android(?:x)?[.]").containsMatchIn(code) ||
@@ -125,6 +130,18 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/artwork/ArtworkLoader.kt",
             "/data/tags/AlbumTagEditorService.kt",
             "/ui/screens/about/AboutScreens.kt",
+        )
+        val NARROW_BOUNDARY_IMPORTS = mapOf(
+            "/core/AppBridgeCoordinator.kt" to setOf(
+                "elovaire.music.droidbeauty.app.core.AppServices",
+            ),
+            "/core/PlaybackIntegrationCoordinator.kt" to setOf(
+                "elovaire.music.droidbeauty.app.data.playback.PlaybackManager",
+            ),
+            "/data/library/DeviceDeleteCoordinator.kt" to setOf(
+                "elovaire.music.droidbeauty.app.data.library.LibraryRepository",
+                "elovaire.music.droidbeauty.app.data.playback.PlaybackManager",
+            ),
         )
         val HTTP_ALLOWED = setOf(
             "/data/artwork/ArtworkLoader.kt",

@@ -18,10 +18,18 @@ internal data class PersistedPlaybackSession(
     val savedAtWallTimeMs: Long,
 )
 
+internal interface PlaybackSessionPersistence {
+    fun load(): PersistedPlaybackSession?
+
+    fun save(session: PersistedPlaybackSession)
+
+    fun clear()
+}
+
 internal class PlaybackSessionStore(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
-) {
+) : PlaybackSessionPersistence {
     private val committedPreferences = allowStrictModeDiskReads {
         context.applicationContext.getSharedPreferences(COMMITTED_FILE_NAME, Context.MODE_PRIVATE)
     }
@@ -40,7 +48,7 @@ internal class PlaybackSessionStore(
     private var clearStateKnown = false
 
     @Synchronized
-    fun load(): PersistedPlaybackSession? {
+    override fun load(): PersistedPlaybackSession? {
         return if (committedPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
             load(committedPreferences, committedPreferences)
         } else {
@@ -109,7 +117,7 @@ internal class PlaybackSessionStore(
     }
 
     @Synchronized
-    fun save(session: PersistedPlaybackSession) {
+    override fun save(session: PersistedPlaybackSession) {
         val normalized = normalizePersistedPlaybackSession(session)
         if (normalized.queueSongIds.isEmpty()) {
             clear()
@@ -150,7 +158,7 @@ internal class PlaybackSessionStore(
     }
 
     @Synchronized
-    fun clear() {
+    override fun clear() {
         lastSavedSession = null
         if (clearStateKnown) return
         listOf(committedPreferences, structurePreferences, recoveryPreferences)
