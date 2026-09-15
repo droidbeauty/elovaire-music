@@ -75,6 +75,7 @@ private data class FastScrollbarMetrics(
 )
 
 internal val FastScrollbarTouchWidth = 40.dp
+internal val FastScrollbarGestureWidth = 6.dp
 internal val FastScrollbarEdgePadding = 0.dp
 internal val FastScrollbarTrackWidth = 1.dp
 internal val FastScrollbarThumbWidth = 3.dp
@@ -380,8 +381,7 @@ private fun BoxScope.FastScrollbarTrack(
                 .fillMaxSize()
                 .semantics {
                     progressBarRangeInfo = ProgressBarRangeInfo(displayedScrollFraction, 0f..1f)
-                }
-                .then(scrollbarGestureModifier),
+                },
         ) {
             FastScrollbarChrome(
                 trackColor = trackColor,
@@ -390,6 +390,15 @@ private fun BoxScope.FastScrollbarTrack(
                 thumbOffsetPx = layout.thumbOffsetPx,
                 thumbWidth = if (isDragging) 5.dp else FastScrollbarThumbWidth,
                 alpha = chromeAlpha,
+            )
+        }
+        if (trackGesturesEnabled && (visible || isDragging)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(FastScrollbarGestureWidth)
+                    .then(scrollbarGestureModifier),
             )
         }
     }

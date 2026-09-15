@@ -3965,6 +3965,11 @@ private fun LyricsOverlay(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {},
+                            )
                             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                             .hazeEffect(lyricsHazeState) {
                                 progressive = softEdgeBlurProgressive(
@@ -3991,6 +3996,11 @@ private fun LyricsOverlay(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {},
+                            )
                             .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
@@ -4190,7 +4200,12 @@ private fun LyricsOverlay(
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                         Modifier.hazeEffect(lyricsHazeState) {
                                             blurRadius = 34.dp
-                                            backgroundColor = Color.Transparent
+                                            backgroundColor = surface.copy(alpha = 0.18f)
+                                            tints = listOf(
+                                                HazeTint(surface.copy(alpha = 0.08f)),
+                                                HazeTint(contentColor.copy(alpha = 0.02f)),
+                                            )
+                                            noiseFactor = 0.012f
                                         }
                                     } else {
                                         Modifier
@@ -4276,16 +4291,22 @@ private fun LyricsSkipControl(
     onSkipNext: () -> Unit,
 ) {
     val shape = RoundedCornerShape(ElovaireRadii.pill)
-    Box(
-        modifier = Modifier
-            .width(160.dp)
+    val surface = MaterialTheme.colorScheme.surface
+                Box(
+                    modifier = Modifier
+                        .width(160.dp)
             .height(44.dp)
             .clip(shape)
             .then(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     Modifier.hazeEffect(lyricsHazeState) {
                         blurRadius = 34.dp
-                        backgroundColor = Color.Transparent
+                        backgroundColor = surface.copy(alpha = 0.18f)
+                        tints = listOf(
+                            HazeTint(surface.copy(alpha = 0.08f)),
+                            HazeTint(contentColor.copy(alpha = 0.02f)),
+                        )
+                        noiseFactor = 0.012f
                     }
                 } else {
                     Modifier
@@ -4330,8 +4351,8 @@ private fun LyricsSkipControl(
                 }
                 Box(
                     modifier = Modifier
-                        .width(1.dp)
-                        .height(30.dp)
+                        .width(2.dp)
+                        .height(20.dp)
                         .background(accentColor.copy(alpha = 0.3f)),
                 )
                 val nextInteractionSource = rememberElovaireInteractionSource()
@@ -4377,6 +4398,7 @@ private fun LyricsControlButton(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
+    val surface = MaterialTheme.colorScheme.surface
     Box(
         modifier = modifier
             .clip(shape)
@@ -4384,7 +4406,12 @@ private fun LyricsControlButton(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     Modifier.hazeEffect(lyricsHazeState) {
                         blurRadius = 34.dp
-                        backgroundColor = Color.Transparent
+                        backgroundColor = surface.copy(alpha = 0.18f)
+                        tints = listOf(
+                            HazeTint(surface.copy(alpha = 0.08f)),
+                            HazeTint(contentColor.copy(alpha = 0.02f)),
+                        )
+                        noiseFactor = 0.012f
                     }
                 } else {
                     Modifier
