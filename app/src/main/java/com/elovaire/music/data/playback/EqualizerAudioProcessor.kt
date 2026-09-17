@@ -409,6 +409,9 @@ internal class EqualizerAudioProcessor(
     private var currentSettings: EqSettings = EqSettings()
 
     @Volatile
+    private var settingsHaveSignalAlteringEffects = false
+
+    @Volatile
     private var manualPreampDb = 0f
 
     private var channelCount = 0
@@ -436,6 +439,8 @@ internal class EqualizerAudioProcessor(
     private var targetAutoHeadroomDb = 0f
     private var currentBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
     private var targetBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
+    private var currentBandGainsActive = false
+    private var targetBandGainsActive = false
     private var activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
     private var activeBandIndices = IntArray(EqualizerDspModel.BAND_COUNT)
     private var activeBandCount = 0
@@ -492,6 +497,7 @@ internal class EqualizerAudioProcessor(
             reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
             reverbProfile = settings.reverbProfile,
         )
+        settingsHaveSignalAlteringEffects = EqValuePolicy.hasSignalAlteringEffects(currentSettings)
         targetsDirty = true
     }
 
@@ -576,6 +582,8 @@ internal class EqualizerAudioProcessor(
         sampleRateHz = 48_000
         currentBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
         targetBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
+        currentBandGainsActive = false
+        targetBandGainsActive = false
         activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
         activeBandCount = 0
         coefficientPlanBuilds = 0L
@@ -668,6 +676,7 @@ internal class EqualizerAudioProcessor(
         val settingsSnapshot = currentSettings
         val flat = EqualizerDspModel.isFlat(settingsSnapshot)
         targetWetMix = if (flat) 0f else 1f
+        var hasActiveTargetBand = false
         settingsSnapshot.bands.forEachIndexed { index, normalized ->
             val bandFrequencyHz = activeBandFrequenciesHz.getOrElse(index) { -1f }
             targetBandGainsDb[index] = if (bandFrequencyHz > 0f) {
@@ -675,7 +684,9 @@ internal class EqualizerAudioProcessor(
             } else {
                 0f
             }
+            if (abs(targetBandGainsDb[index]) > 0.0001f) hasActiveTargetBand = true
         }
+        targetBandGainsActive = hasActiveTargetBand
         val bassAmount = settingsSnapshot.bass.coerceAtLeast(0f).coerceIn(0f, 1f)
         val bassConfig = safeConfig.bassConfig.copy(
             enabled = bassAmount > 0.0005f,
@@ -739,7 +750,7 @@ internal class EqualizerAudioProcessor(
     }
 
     private fun canBypassProcessing(): Boolean {
-        return !EqValuePolicy.hasSignalAlteringEffects(currentSettings) &&
+        return !settingsHaveSignalAlteringEffects &&
             abs(manualPreampDb) <= 0.0001f &&
             abs(currentWetMix) <= 0.0001f &&
             abs(targetWetMix) <= 0.0001f &&
@@ -753,8 +764,8 @@ internal class EqualizerAudioProcessor(
             abs(currentMidrangeDb) <= 0.0001f &&
             abs(currentTrebleDb) <= 0.0001f &&
             abs(currentAutoHeadroomDb) <= 0.0001f &&
-            currentBandGainsDb.all { abs(it) <= 0.0001f } &&
-            targetBandGainsDb.all { abs(it) <= 0.0001f } &&
+            !currentBandGainsActive &&
+            !targetBandGainsActive &&
             reverbProcessor.isBypassed() &&
             spaciousnessProcessor.isBypassed()
     }
@@ -782,9 +793,12 @@ internal class EqualizerAudioProcessor(
         currentTrebleDb = smooth(currentTrebleDb, targetTrebleDb, smoothingAlpha)
         currentAutoHeadroomDb = smooth(currentAutoHeadroomDb, targetAutoHeadroomDb, smoothingAlpha)
         currentInputGainLinear = dbToLinear(manualPreampDb + currentBassPregainDb + currentAutoHeadroomDb)
+        var hasActiveCurrentBand = false
         currentBandGainsDb.indices.forEach { index ->
             currentBandGainsDb[index] = smooth(currentBandGainsDb[index], targetBandGainsDb[index], smoothingAlpha)
+            if (abs(currentBandGainsDb[index]) > 0.0001f) hasActiveCurrentBand = true
         }
+        currentBandGainsActive = hasActiveCurrentBand
     }
 
     private fun rebuildCoefficients() {

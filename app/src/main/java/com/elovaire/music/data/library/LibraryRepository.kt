@@ -954,14 +954,13 @@ internal class LibraryRepository internal constructor(
         showLoadingIndicator: Boolean,
         forceRefreshSourceIds: Set<String>,
     ) {
-        val changedNetworkSourceIds = scanner.networkSourceIdsChanged(sources)
-        val changed = scanner.setNetworkSources(sources)
-        if (!changed && forceRefreshSourceIds.isEmpty()) return
+        val networkSourceUpdate = scanner.updateNetworkSources(sources)
+        if (!networkSourceUpdate.changed && forceRefreshSourceIds.isEmpty()) return
         refresh(
             forceMediaIndex = false,
             enrichMetadata = enrichMetadata,
             showLoadingIndicator = showLoadingIndicator,
-            targetedNetworkSourceIds = changedNetworkSourceIds + forceRefreshSourceIds,
+            targetedNetworkSourceIds = networkSourceUpdate.changedSourceIds + forceRefreshSourceIds,
             priority = LibraryRefreshPriority.FreshnessCritical,
         )
     }

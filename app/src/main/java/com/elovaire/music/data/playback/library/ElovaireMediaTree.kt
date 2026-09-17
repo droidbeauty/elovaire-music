@@ -14,6 +14,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.playback.AudiobookPlaybackContext
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
+import elovaire.music.droidbeauty.app.domain.search.SearchableAudiobook
 import elovaire.music.droidbeauty.app.domain.search.SearchablePlaylist
 import elovaire.music.droidbeauty.app.domain.search.SearchableSong
 import elovaire.music.droidbeauty.app.domain.search.normalizeSearchText
@@ -22,6 +23,7 @@ import elovaire.music.droidbeauty.app.domain.search.searchIndexedAlbumsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchIndexedPlaylists
 import elovaire.music.droidbeauty.app.domain.search.searchIndexedSongsForPicker
 import elovaire.music.droidbeauty.app.domain.search.toSearchableAlbum
+import elovaire.music.droidbeauty.app.domain.search.toSearchableAudiobook
 import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import java.util.Locale
 
@@ -339,12 +341,10 @@ internal class ElovaireMediaTree(
                 ElovaireMediaIds.song(song.id)
             }
         }
-        val exactAndStrongTitleSongs = snapshot.searchableSongs()
-            .filter {
-                it.normalizedTitle == normalizedQuery.value || it.normalizedTitle.startsWith(normalizedQuery.value)
-            }
-            .sortedBy(SearchableSong::normalizedTitle)
-            .map(SearchableSong::song)
+        val exactAndStrongTitleSongs = snapshot.searchableSongTitleMatches(
+            query = normalizedQuery.value,
+            limit = limit,
+        )
         return ArrayList<String>(limit.coerceAtMost(128)).apply {
             val seen = HashSet<String>(limit.coerceAtMost(128))
             fun addDistinctId(mediaId: String) {
@@ -359,11 +359,11 @@ internal class ElovaireMediaTree(
             addDistinctIds(exactAndStrongTitleSongs) { ElovaireMediaIds.song(it.id) }
             if (size < limit) {
                 addDistinctIds(
-                    snapshot.audiobooks.filter { book ->
-                        normalizeSearchText(book.title).contains(normalizedQuery.value) ||
-                            normalizeSearchText(book.author).contains(normalizedQuery.value)
+                    snapshot.searchableAudiobooks().filter { book ->
+                        book.normalizedTitle.contains(normalizedQuery.value) ||
+                            book.normalizedAuthor.contains(normalizedQuery.value)
                     },
-                ) { ElovaireMediaIds.audiobook(it.stableKey) }
+                ) { ElovaireMediaIds.audiobook(it.audiobook.stableKey) }
             }
             if (size < limit) {
                 addDistinctIds(
@@ -726,7 +726,13 @@ internal class ElovaireMediaTree(
         private val albumsById by lazy(LazyThreadSafetyMode.PUBLICATION) { albums.associateBy(Album::id) }
         private val playlistsById by lazy(LazyThreadSafetyMode.PUBLICATION) { playlists.associateBy(Playlist::id) }
         private val searchableSongs by lazy(LazyThreadSafetyMode.PUBLICATION) { songs.map(Song::toSearchableSong) }
+        private val searchableSongsByTitle by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            searchableSongs.sortedBy(SearchableSong::normalizedTitle)
+        }
         private val searchableAlbums by lazy(LazyThreadSafetyMode.PUBLICATION) { albums.map(Album::toSearchableAlbum) }
+        private val searchableAudiobooks by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            audiobooks.map(Audiobook::toSearchableAudiobook)
+        }
         private val searchablePlaylists by lazy(LazyThreadSafetyMode.PUBLICATION) {
             playlists
                 .filter { it.songIds.isNotEmpty() }
@@ -775,7 +781,31 @@ internal class ElovaireMediaTree(
         fun artistNames(): List<String> = artistNames
         fun genreNames(): List<String> = genreNames
         fun searchableSongs(): List<SearchableSong> = searchableSongs
+        fun searchableSongTitleMatches(query: String, limit: Int): List<Song> {
+            if (query.isBlank() || limit <= 0) return emptyList()
+            val ordered = searchableSongsByTitle
+            var low = 0
+            var high = ordered.size
+            while (low < high) {
+                val middle = (low + high) ushr 1
+                if (ordered[middle].normalizedTitle < query) {
+                    low = middle + 1
+                } else {
+                    high = middle
+                }
+            }
+            val matches = ArrayList<Song>(limit.coerceAtMost(64))
+            while (low < ordered.size) {
+                val searchable = ordered[low]
+                if (!searchable.normalizedTitle.startsWith(query)) break
+                matches += searchable.song
+                low++
+                if (matches.size >= limit) break
+            }
+            return matches
+        }
         fun searchableAlbums(): List<SearchableAlbum> = searchableAlbums
+        fun searchableAudiobooks(): List<SearchableAudiobook> = searchableAudiobooks
         fun searchablePlaylists(): List<SearchablePlaylist> = searchablePlaylists
         fun artistSearchRows(): List<NamedSongs> = artistSearchRows
         fun genreSearchRows(): List<NamedSongs> = genreSearchRows

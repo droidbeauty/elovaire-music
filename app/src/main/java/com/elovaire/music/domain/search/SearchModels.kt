@@ -58,6 +58,7 @@ internal enum class SearchSortMode {
 internal data class RankedResult<T>(
     val value: T,
     val score: Int,
+    val sourceIndex: Int = 0,
 )
 
 internal data class NormalizedSearchQuery(
@@ -204,6 +205,7 @@ internal inline fun <T> Iterable<T>.rankMatching(
             ranked += RankedResult(
                 value = item,
                 score = score,
+                sourceIndex = index,
             )
         }
     }

@@ -252,7 +252,7 @@ internal class SpaciousnessProcessor {
     }
 
     private fun syncConfig() {
-        if (pendingConfig == activeConfig) return
+        if (pendingConfig === activeConfig) return
         val previousMode = activeMode
         activeConfig = pendingConfig
         activeMode = activeConfig.mode

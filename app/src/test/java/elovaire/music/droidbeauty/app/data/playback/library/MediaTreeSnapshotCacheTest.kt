@@ -129,6 +129,31 @@ class MediaTreeSnapshotCacheTest {
     }
 
     @Test
+    fun titlePrefixMatchesAreOrderedAndCappedWithoutChangingResults() {
+        val songs = listOf(
+            testSong(id = 3L).copy(title = "Other"),
+            testSong(id = 2L).copy(title = "Track 2"),
+            testSong(id = 1L).copy(title = "Track 1"),
+        )
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true,
+            songs,
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            null,
+            null,
+            "title-index",
+        )
+
+        assertEquals(
+            listOf(1L, 2L),
+            snapshot.searchableSongTitleMatches("track", limit = 2).map(Song::id),
+        )
+    }
+
+    @Test
     fun contextSongsAreSortedOnceAndReusedForArtistAndGenreBrowses() {
         val songs = listOf(
             testSong(id = 3L).copy(album = "B", trackNumber = 1),

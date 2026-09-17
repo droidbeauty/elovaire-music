@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
+import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -257,6 +259,96 @@ class SearchIndexTest {
         assertEquals(fullResults.totalSongMatchCount, previewResults.totalSongMatchCount)
         assertEquals(fullResults.matchingSongs.take(20), previewResults.matchingSongs)
         assertEquals(emptyList<Song>(), previewResults.allMatchingSongs)
+    }
+
+    @Test
+    fun buildSearchResults_keepsTopCategoryResultsEquivalentToFullRanking() {
+        val songs = (1L..40L).map { id ->
+            song(
+                id = id,
+                title = "Result Track $id",
+                artist = "Result Artist $id",
+                albumArtist = null,
+            )
+        }
+        val albums = songs.map { song ->
+            Album(
+                id = song.id,
+                title = "Result Album ${song.id}",
+                artist = "Result Artist ${song.id}",
+                artUri = null,
+                songCount = 1,
+                durationMs = song.durationMs,
+                songs = listOf(song),
+            )
+        }
+        val audiobooks = songs.map { song ->
+            Audiobook(
+                stableKey = "book-${song.id}",
+                title = "Result Book ${song.id}",
+                author = "Result Author ${song.id}",
+                artUri = null,
+                durationMs = song.durationMs,
+                parts = listOf(AudiobookPart(song, 1)),
+            )
+        }
+        val index = buildSearchIndex(songs, albums, audiobooks)
+        val query = NormalizedSearchQuery.from("result")
+        val result = buildSearchResults(query, SearchSortMode.Title, index, includeAllSongs = false)
+
+        val expectedAlbums = index.albums
+            .rankMatching(
+                query = query,
+                normalizedTitle = SearchableAlbum::normalizedTitle,
+                normalizedArtist = SearchableAlbum::normalizedArtist,
+                normalizedComposite = SearchableAlbum::normalizedComposite,
+            )
+            .sortedWith(
+                compareByDescending<RankedResult<SearchableAlbum>> { it.score }
+                    .thenBy { it.value.normalizedArtist }
+                    .thenBy { it.value.normalizedTitle }
+                    .thenBy { it.value.album.id },
+            )
+            .take(12)
+            .map { it.value.album }
+        val expectedArtists = index.artists
+            .rankMatching(
+                query = query,
+                normalizedTitle = SearchableArtist::normalizedName,
+                normalizedArtist = { "" },
+                normalizedComposite = SearchableArtist::normalizedName,
+            )
+            .sortedWith(
+                compareByDescending<RankedResult<SearchableArtist>> { it.score }
+                    .thenByDescending { it.value.songCount }
+                    .thenBy { it.value.normalizedName },
+            )
+            .take(6)
+            .map { ranked ->
+                SearchArtistResult(
+                    name = ranked.value.displayName,
+                    songCount = ranked.value.songCount,
+                    artUri = ranked.value.artUri,
+                )
+            }
+        val expectedAudiobooks = index.audiobooks
+            .rankMatching(
+                query = query,
+                normalizedTitle = SearchableAudiobook::normalizedTitle,
+                normalizedArtist = SearchableAudiobook::normalizedAuthor,
+                normalizedComposite = SearchableAudiobook::normalizedComposite,
+            )
+            .sortedWith(
+                compareByDescending<RankedResult<SearchableAudiobook>> { it.score }
+                    .thenBy { it.value.normalizedTitle }
+                    .thenBy { it.value.normalizedAuthor },
+            )
+            .take(6)
+            .map { it.value.audiobook }
+
+        assertEquals(expectedAlbums, result.matchingAlbums)
+        assertEquals(expectedArtists, result.matchingArtists)
+        assertEquals(expectedAudiobooks, result.matchingAudiobooks)
     }
 
     private fun song(

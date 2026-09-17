@@ -318,7 +318,7 @@ private class MediaLibrarySearchCache {
             prepareRevisionLocked(revision)
             pages[key]
         }?.let { return it }
-        val loaded = loader().toList()
+        val loaded = loader()
         synchronized(this) {
             if (activeRevision != revision) return loaded
             return pages[key] ?: loaded.also { pages[key] = it }

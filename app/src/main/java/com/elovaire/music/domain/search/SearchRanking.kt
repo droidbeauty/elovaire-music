@@ -56,31 +56,41 @@ internal fun buildSearchResults(
     }
 
     cancellationCheck()
-    val matchingAlbums = index.albums
-        .rankMatching(
-            query = query,
-            normalizedTitle = SearchableAlbum::normalizedTitle,
-            normalizedArtist = SearchableAlbum::normalizedArtist,
-            normalizedComposite = SearchableAlbum::normalizedComposite,
-            cancellationCheck = cancellationCheck,
-        )
-        .let(::sortRankedAlbums)
-        .take(12)
+    val matchingAlbums = topRankedMatches(
+        items = index.albums,
+        limit = 12,
+        rankedComparator = compareByDescending<RankedResult<SearchableAlbum>> { it.score }
+            .thenBy { it.value.normalizedArtist }
+            .thenBy { it.value.normalizedTitle }
+            .thenBy { it.value.album.id },
+        score = { album ->
+            scoreMatch(
+                query = query,
+                normalizedTitle = album.normalizedTitle,
+                normalizedArtist = album.normalizedArtist,
+                normalizedComposite = album.normalizedComposite,
+            )
+        },
+        cancellationCheck = cancellationCheck,
+    ).map { it.value.album }
 
     cancellationCheck()
-    val matchingArtists = index.artists
-        .rankMatching(
-            query = query,
-            normalizedTitle = SearchableArtist::normalizedName,
-            normalizedArtist = { "" },
-            normalizedComposite = SearchableArtist::normalizedName,
-            cancellationCheck = cancellationCheck,
-        )
-        .sortedWith(
-            compareByDescending<RankedResult<SearchableArtist>> { it.score }
-                .thenByDescending { it.value.songCount }
-                .thenBy { it.value.normalizedName },
-        )
+    val matchingArtists = topRankedMatches(
+        items = index.artists,
+        limit = 6,
+        rankedComparator = compareByDescending<RankedResult<SearchableArtist>> { it.score }
+            .thenByDescending { it.value.songCount }
+            .thenBy { it.value.normalizedName },
+        score = { artist ->
+            scoreMatch(
+                query = query,
+                normalizedTitle = artist.normalizedName,
+                normalizedArtist = "",
+                normalizedComposite = artist.normalizedName,
+            )
+        },
+        cancellationCheck = cancellationCheck,
+    )
         .map { rankedArtist ->
             SearchArtistResult(
                 name = rankedArtist.value.displayName,
@@ -88,24 +98,25 @@ internal fun buildSearchResults(
                 artUri = rankedArtist.value.artUri,
             )
         }
-        .take(6)
 
     cancellationCheck()
-    val matchingAudiobooks = index.audiobooks
-        .rankMatching(
-            query = query,
-            normalizedTitle = SearchableAudiobook::normalizedTitle,
-            normalizedArtist = SearchableAudiobook::normalizedAuthor,
-            normalizedComposite = SearchableAudiobook::normalizedComposite,
-            cancellationCheck = cancellationCheck,
-        )
-        .sortedWith(
-            compareByDescending<RankedResult<SearchableAudiobook>> { it.score }
-                .thenBy { it.value.normalizedTitle }
-                .thenBy { it.value.normalizedAuthor },
-        )
+    val matchingAudiobooks = topRankedMatches(
+        items = index.audiobooks,
+        limit = 6,
+        rankedComparator = compareByDescending<RankedResult<SearchableAudiobook>> { it.score }
+            .thenBy { it.value.normalizedTitle }
+            .thenBy { it.value.normalizedAuthor },
+        score = { audiobook ->
+            scoreMatch(
+                query = query,
+                normalizedTitle = audiobook.normalizedTitle,
+                normalizedArtist = audiobook.normalizedAuthor,
+                normalizedComposite = audiobook.normalizedComposite,
+            )
+        },
+        cancellationCheck = cancellationCheck,
+    )
         .map { it.value.audiobook }
-        .take(6)
 
     return SearchResults(
         allMatchingSongs = if (includeAllSongs) sortedSongs else emptyList(),
@@ -121,6 +132,34 @@ private data class TopMatchingSongs(
     val songs: List<Song>,
     val matchCount: Int,
 )
+
+private fun <T> topRankedMatches(
+    items: List<T>,
+    limit: Int,
+    rankedComparator: Comparator<RankedResult<T>>,
+    score: (T) -> Int?,
+    cancellationCheck: () -> Unit,
+): List<RankedResult<T>> {
+    if (limit <= 0 || items.isEmpty()) return emptyList()
+    val stableBestFirst = rankedComparator.thenComparator { left, right ->
+        left.sourceIndex.compareTo(right.sourceIndex)
+    }
+    val heap = PriorityQueue<RankedResult<T>>(limit, stableBestFirst.reversed())
+    items.forEachIndexed { index, item ->
+        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
+        score(item)?.let { matchScore ->
+            val candidate = RankedResult(item, matchScore, sourceIndex = index)
+            if (heap.size < limit) {
+                heap += candidate
+            } else if (stableBestFirst.compare(candidate, requireNotNull(heap.peek())) < 0) {
+                heap.poll()
+                heap += candidate
+            }
+        }
+    }
+    cancellationCheck()
+    return heap.sortedWith(stableBestFirst)
+}
 
 private fun topMatchingSongs(
     songs: List<SearchableSong>,

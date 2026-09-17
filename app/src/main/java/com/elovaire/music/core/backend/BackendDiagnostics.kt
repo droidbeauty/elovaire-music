@@ -56,21 +56,7 @@ internal interface BackendDiagnosticRecorder {
 }
 
 /** Bounded, process-local diagnostics; it never stores user content or exception messages. */
-internal object BackendDiagnostics : BackendDiagnosticRecorder {
-    private val runtime = BackendDiagnosticsRuntime()
-
-    override fun record(event: BackendEvent) = runtime.record(event)
-    override fun snapshot(): List<BackendEventSnapshot> = runtime.snapshot()
-    override fun clear() = runtime.clear()
-    override fun lastContext(): BackendDiagnosticContext? = runtime.lastContext()
-    override fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {
-        runtime.installBreadcrumbCheckpoint(checkpoint)
-    }
-    override fun clearBreadcrumbCheckpoint() = runtime.clearBreadcrumbCheckpoint()
-    override fun recordWorkerFailure(owner: String, failure: Throwable) {
-        runtime.recordWorkerFailure(owner, failure)
-    }
-}
+internal object BackendDiagnostics : BackendDiagnosticRecorder by BackendDiagnosticsRuntime()
 
 internal class RecordingBackendEventSink(
     private val maxEvents: Int = 256,

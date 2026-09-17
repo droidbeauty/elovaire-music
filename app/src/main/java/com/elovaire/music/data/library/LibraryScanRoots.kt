@@ -7,24 +7,34 @@ internal class LibraryScanRoots(
     selections: List<LibraryFolderSelection> = listOf(LibraryFolderSelectionResolver.defaultMusicFolder()),
 ) {
     private var selectedFolders: List<LibraryFolderSelection> = LibraryFolderSelectionResolver.normalize(selections)
+    private var cachedFilterFingerprintVersion: Int? = null
+    private var cachedFilterFingerprint: String? = null
 
     fun setSelections(selections: List<LibraryFolderSelection>): Boolean {
         val normalized = LibraryFolderSelectionResolver.normalize(selections)
         if (selectedFolders == normalized) return false
         selectedFolders = normalized
+        cachedFilterFingerprintVersion = null
+        cachedFilterFingerprint = null
         return true
     }
 
     fun selections(): List<LibraryFolderSelection> = selectedFolders
 
     fun filterFingerprint(version: Int): String {
+        if (cachedFilterFingerprintVersion == version) {
+            return requireNotNull(cachedFilterFingerprint)
+        }
         return listOf(
             version.toString(),
             selectedFolders.joinToString("|") { selection ->
                 val path = selection.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath).orEmpty()
                 listOf(selection.uri?.toString().orEmpty(), normalizeAbsolutePath(path)).joinToString("@")
             },
-        ).joinToString("::")
+        ).joinToString("::").also {
+            cachedFilterFingerprintVersion = version
+            cachedFilterFingerprint = it
+        }
     }
 
     fun accessibleFileRoots(): List<File> {

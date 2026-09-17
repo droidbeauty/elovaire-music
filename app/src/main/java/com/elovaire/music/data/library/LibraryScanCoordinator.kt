@@ -25,36 +25,51 @@ internal class LibraryScanCoordinator(
 ) {
     private var networkSources: List<NetworkLibrarySource> = emptyList()
     private var blockedNetworkSourceIds: Set<String> = emptySet()
+    private var networkFilterFingerprintValue = ""
+    private var filterFingerprintCache: String? = null
+
+    internal data class NetworkSourceUpdate(
+        val changed: Boolean,
+        val changedSourceIds: Set<String> = emptySet(),
+    )
 
     fun setNetworkSources(sources: List<NetworkLibrarySource>): Boolean {
-        val normalized = sources
-            .distinctBy(NetworkLibrarySource::id)
-            .sortedBy { it.id }
-        if (networkSources == normalized) return false
-        networkSources = normalized
-        return true
+        return updateNetworkSources(sources).changed
     }
 
-    internal fun networkSourceIdsChanged(sources: List<NetworkLibrarySource>): Set<String> {
+    internal fun updateNetworkSources(sources: List<NetworkLibrarySource>): NetworkSourceUpdate {
         val normalized = sources
             .distinctBy(NetworkLibrarySource::id)
             .sortedBy { it.id }
+        if (networkSources == normalized) return NetworkSourceUpdate(changed = false)
         val previousById = networkSources.associateBy(NetworkLibrarySource::id)
-        return normalized
-            .filter { previousById[it.id] != it }
-            .mapTo(linkedSetOf(), NetworkLibrarySource::id)
+        networkSources = normalized
+        networkFilterFingerprintValue = networkFilterFingerprint(normalized)
+        filterFingerprintCache = null
+        return NetworkSourceUpdate(
+            changed = true,
+            changedSourceIds = normalized
+                .filter { previousById[it.id] != it }
+                .mapTo(linkedSetOf(), NetworkLibrarySource::id),
+        )
     }
 
-    fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean =
-        localScanner.setLibraryFolders(selections)
+    fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
+        val changed = localScanner.setLibraryFolders(selections)
+        if (changed) filterFingerprintCache = null
+        return changed
+    }
 
     internal fun libraryFolderSelections(): List<LibraryFolderSelection> = localScanner.libraryFolderSelections()
 
     fun requiresMediaIndexRepair(): Boolean = localScanner.requiresMediaIndexRepair()
 
     fun currentFilterFingerprint(): String {
-        val remote = networkFilterFingerprint(networkSources)
-        return "${localScanner.currentFilterFingerprint()}::network:$remote"
+        val cached = filterFingerprintCache
+        if (cached != null) return cached
+        return "${localScanner.currentFilterFingerprint()}::network:$networkFilterFingerprintValue".also {
+            filterFingerprintCache = it
+        }
     }
 
     internal fun currentSyncState(): LibraryMediaStoreSyncState? = localScanner.currentSyncState()

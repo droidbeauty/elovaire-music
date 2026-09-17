@@ -121,6 +121,9 @@ internal class ReverbProcessor {
     private var targetCrossMix = 0f
     private var currentDampingFrequencyHz = 6_400f
     private var targetDampingFrequencyHz = 6_400f
+    private var configuredDampingFrequencyHz = Float.NaN
+    private var configuredDampingSampleRateHz = 0
+    private var dampingAlpha = 0f
     private var activeTapDurations = ReverbTapDurations(
         primaryMs = 24,
         secondaryMs = 42,
@@ -198,6 +201,7 @@ internal class ReverbProcessor {
         currentCrossMix = smooth(currentCrossMix, targetCrossMix, smoothingAlpha)
         currentDampingFrequencyHz = smooth(currentDampingFrequencyHz, targetDampingFrequencyHz, smoothingAlpha)
         if (currentWetMix <= 0.0005f) return
+        updateDampingAlpha()
 
         if (channels == 1 || frame.size == 1) {
             val dry = sanitize(frame[0])
@@ -206,8 +210,7 @@ internal class ReverbProcessor {
             val diffuse = readDelay(monoDelay, activeTapSamples.diffuse)
             val wet = shapeWetSignal(monoDamping.process(
                 (primary * 0.34f) + (secondary * 0.28f) + (diffuse * 0.22f),
-                sampleRateHz,
-                currentDampingFrequencyHz,
+                dampingAlpha,
             ))
             monoDelay[writeIndex] = sanitize(dry + (wet * currentFeedback * 0.72f))
             frame[0] = sanitize(dry + (wet * currentWetMix))
@@ -231,16 +234,14 @@ internal class ReverbProcessor {
                 (leftSecondary * 0.24f) +
                 (leftDiffuse * 0.20f) +
                 (leftCross * (0.06f + (currentCrossMix * 0.72f))),
-            sampleRateHz,
-            currentDampingFrequencyHz,
+            dampingAlpha,
         ))
         val wetRight = shapeWetSignal(rightDamping.process(
             (rightPrimary * 0.34f) +
                 (rightSecondary * 0.24f) +
                 (rightDiffuse * 0.20f) +
                 (rightCross * (0.06f + (currentCrossMix * 0.72f))),
-            sampleRateHz,
-            currentDampingFrequencyHz,
+            dampingAlpha,
         ))
 
         leftDelay[writeIndex] = sanitize(dryLeft + (wetLeft * currentFeedback * 0.76f) + (wetRight * currentCrossMix * 0.62f))
@@ -251,7 +252,7 @@ internal class ReverbProcessor {
     }
 
     private fun syncConfig() {
-        if (pendingConfig == activeConfig) return
+        if (pendingConfig === activeConfig) return
         activeConfig = pendingConfig
         smoothingAlpha = smoothingAlpha(
             sampleRateHz = sampleRateHz,
@@ -291,6 +292,19 @@ internal class ReverbProcessor {
     private fun shapeWetSignal(value: Float): Float {
         val safeValue = if (value.isFinite()) value else 0f
         return sanitize(safeValue / (1f + (abs(safeValue) * 0.85f)))
+    }
+
+    private fun updateDampingAlpha() {
+        if (
+            sampleRateHz == configuredDampingSampleRateHz &&
+            currentDampingFrequencyHz == configuredDampingFrequencyHz
+        ) return
+        val safeSampleRate = sampleRateHz.coerceAtLeast(8_000)
+        val safeCutoff = currentDampingFrequencyHz.coerceIn(400f, safeSampleRate / 2f * 0.8f)
+        dampingAlpha = (1f - exp((-2f * Math.PI.toFloat() * safeCutoff) / safeSampleRate.toFloat()))
+            .coerceIn(0.01f, 1f)
+        configuredDampingSampleRateHz = sampleRateHz
+        configuredDampingFrequencyHz = currentDampingFrequencyHz
     }
 
     private fun smooth(
@@ -345,27 +359,12 @@ private fun smoothingAlpha(
 
 private class ReverbLowPassState {
     private var output = 0f
-    private var configuredSampleRateHz = 0
-    private var configuredCutoffFrequencyHz = Float.NaN
-    private var alpha = 0f
 
     fun reset() {
         output = 0f
     }
 
-    fun process(
-        input: Float,
-        sampleRateHz: Int,
-        cutoffFrequencyHz: Float,
-    ): Float {
-        if (sampleRateHz != configuredSampleRateHz || cutoffFrequencyHz != configuredCutoffFrequencyHz) {
-            val safeSampleRate = sampleRateHz.coerceAtLeast(8_000)
-            val safeCutoff = cutoffFrequencyHz.coerceIn(400f, safeSampleRate / 2f * 0.8f)
-            alpha = (1f - exp((-2f * Math.PI.toFloat() * safeCutoff) / safeSampleRate.toFloat()))
-                .coerceIn(0.01f, 1f)
-            configuredSampleRateHz = sampleRateHz
-            configuredCutoffFrequencyHz = cutoffFrequencyHz
-        }
+    fun process(input: Float, alpha: Float): Float {
         output += (input - output) * alpha
         return output
     }
