@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
@@ -27,13 +28,22 @@ import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolve
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsPolicy
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.EmptyCoroutineContext
 
 @Suppress("TooManyFunctions")
 class PreferenceStore internal constructor(
@@ -53,21 +63,24 @@ class PreferenceStore internal constructor(
     UpdatePreferencesStore,
     PlaybackIntegrationSettings {
     private val appContext = context.applicationContext
-    private val persistenceRuntime = SettingsPersistenceRuntime(
-        context = appContext,
-        ownerScope = ownerScope,
-        ioDispatcher = ioDispatcher,
-        initialSettings = initialSettings,
-        portableSettingsBackup = portableSettingsBackup,
-        diagnostics = diagnostics,
+    private val settingsDataStore = appContext.elovaireSettingsDataStore()
+    private var currentSettings = initialSettings
+    private var bootSettingsInitialized = false
+    private val persistenceScope = CoroutineScope(
+        (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
+            SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
+            ioDispatcher + CoroutineName("settings-persistence-owner"),
     )
-    private val settingsDataStore get() = persistenceRuntime.dataStore
+    private val settingsWriteSequencer = SettingsWriteSequencer(
+        ownerScope = persistenceScope,
+        dispatcher = ioDispatcher,
+        persist = ::persistSettings,
+    )
     private var preferences: SettingsSnapshot
-        get() = persistenceRuntime.snapshot
-        set(value) = persistenceRuntime.replaceSnapshot(value)
-    private val settingsWriteSequencer get() = persistenceRuntime.writeSequencer
-    private val bootSettingsInitialized: Boolean
-        get() = persistenceRuntime.isBootSettingsInitialized()
+        get() = currentSettings
+        set(value) {
+            currentSettings = value
+        }
     private val legacyPreferences: SharedPreferences = allowStrictModeDiskReads {
         PreferenceStorage(appContext).preferences
     }
@@ -151,7 +164,9 @@ class PreferenceStore internal constructor(
 
     init {
         migrateLegacyUpdatePreferencesIfNeeded()
-        persistenceRuntime.observe(::applyDataStoreSettings)
+        persistenceScope.launch {
+            settingsDataStore.data.collect(::applyDataStoreSettings)
+        }
     }
 
     override fun setDismissedUpdateVersion(versionName: String?) {
@@ -439,7 +454,9 @@ class PreferenceStore internal constructor(
     }
 
     fun release() {
-        persistenceRuntime.release(ioDispatcher)
+        runBlocking(ioDispatcher) { settingsWriteSequencer.flush() }
+        settingsWriteSequencer.close()
+        persistenceScope.cancel()
     }
 
     private fun persistEqSettings(
@@ -528,6 +545,22 @@ class PreferenceStore internal constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun persistSettings(kind: String, write: suspend () -> Unit) {
+        try {
+            write()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: IOException) {
+            Log.w(TAG, "Unable to persist $kind settings.", failure)
+        } catch (failure: IllegalStateException) {
+            Log.w(TAG, "Unable to persist $kind settings.", failure)
+        } catch (failure: RuntimeException) {
+            (diagnostics ?: BackendDiagnostics).recordWorkerFailure("settings-persistence", failure)
+            throw failure
+        }
+    }
+
     private fun applyDataStoreSettings(next: Preferences) {
         val nextSettings = SettingsSnapshot(next)
         if (nextSettings.asMap().isEmpty() && preferences.asMap().isNotEmpty()) return
@@ -583,7 +616,9 @@ class PreferenceStore internal constructor(
                 }
             }.filterKeys { it in settingsPreferenceKeys }
         }
-        persistenceRuntime.checkpoint(values)
+        currentSettings = SettingsSnapshot(values)
+        bootSettingsInitialized = true
+        portableSettingsBackup?.checkpointBootSettings(values)
     }
 
     private fun currentSettingsValues(): Map<String, Any?> {

@@ -87,6 +87,23 @@ internal interface PlaybackIntegrationPort : PlaybackReader {
         updatedSongs: List<Song>,
         authoritative: Boolean = false,
     )
+
+    fun hydrateRecentPlayback(
+        songIds: List<Long>,
+        albumIds: List<Long>,
+        lastPlayedCollectionKind: PlaybackCollectionKind?,
+        lastPlayedCollectionId: Long?,
+    )
+
+    fun currentPositionForPersistence(): Long
+
+    fun checkpointAudiobookProgress(force: Boolean = false)
+
+    fun restoreSession(
+        songs: List<Song>,
+        currentIndex: Int,
+        persisted: PersistedPlaybackSession,
+    )
 }
 
 /** Queue mutation needed after a device delete has been committed. */

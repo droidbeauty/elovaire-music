@@ -19,21 +19,15 @@ internal class AppRuntimeCoordinator(
 
     fun startPlayback() {
         synchronized(transitionLock) {
-            transitionTo(
-                target = AppRuntimePhase.PlaybackStarted,
-                allowedFrom = setOf(AppRuntimePhase.Created),
-                action = startPlaybackAction,
-            )
+            if (phase != AppRuntimePhase.Created) return
+            runTransition(AppRuntimePhase.PlaybackStarted, startPlaybackAction)
         }
     }
 
     fun start() {
         synchronized(transitionLock) {
-            transitionTo(
-                target = AppRuntimePhase.Started,
-                allowedFrom = setOf(AppRuntimePhase.Created, AppRuntimePhase.PlaybackStarted),
-                action = startAction,
-            )
+            if (phase != AppRuntimePhase.Created && phase != AppRuntimePhase.PlaybackStarted) return
+            runTransition(AppRuntimePhase.Started, startAction)
         }
     }
 
@@ -63,16 +57,11 @@ internal class AppRuntimeCoordinator(
     internal fun currentPhase(): AppRuntimePhase = synchronized(transitionLock) { phase }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun transitionTo(
+    private fun runTransition(
         target: AppRuntimePhase,
-        allowedFrom: Set<AppRuntimePhase>,
         action: () -> Unit,
     ) {
         val current = phase
-        if (current == AppRuntimePhase.Released || current == target || current == AppRuntimePhase.Started) {
-            return
-        }
-        if (current !in allowedFrom) return
         phase = target
         try {
             action()

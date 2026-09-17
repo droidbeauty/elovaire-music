@@ -57,60 +57,19 @@ internal interface BackendDiagnosticRecorder {
 
 /** Bounded, process-local diagnostics; it never stores user content or exception messages. */
 internal object BackendDiagnostics : BackendDiagnosticRecorder {
-    private const val MAX_EVENTS = 256
-    private val lock = Any()
-    private val events = ArrayDeque<BackendEventSnapshot>()
-    @Volatile private var lastContext: BackendDiagnosticContext? = null
-    @Volatile private var breadcrumbCheckpoint: ((BackendDiagnosticContext) -> Unit)? = null
+    private val runtime = BackendDiagnosticsRuntime()
 
-    override fun record(event: BackendEvent) {
-        val snapshot = BackendEventSnapshot(
-            name = event.name.take(MAX_EVENT_NAME_LENGTH),
-            fields = sanitizeFields(event.fields),
-        )
-        synchronized(lock) {
-            if (events.size == MAX_EVENTS) events.removeFirst()
-            events.addLast(snapshot)
-        }
-        val context = BackendDiagnosticContext(
-            eventName = snapshot.name,
-            subsystem = snapshot.fields["subsystem"],
-            phase = snapshot.fields["phase"],
-        )
-        lastContext = context
-        runCatching { breadcrumbCheckpoint?.invoke(context) }
-    }
-
-    override fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
-
-    override fun clear() {
-        synchronized(lock) { events.clear() }
-        lastContext = null
-    }
-
-    override fun lastContext(): BackendDiagnosticContext? = lastContext
-
+    override fun record(event: BackendEvent) = runtime.record(event)
+    override fun snapshot(): List<BackendEventSnapshot> = runtime.snapshot()
+    override fun clear() = runtime.clear()
+    override fun lastContext(): BackendDiagnosticContext? = runtime.lastContext()
     override fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {
-        breadcrumbCheckpoint = checkpoint
+        runtime.installBreadcrumbCheckpoint(checkpoint)
     }
-
-    override fun clearBreadcrumbCheckpoint() {
-        breadcrumbCheckpoint = null
-    }
-
+    override fun clearBreadcrumbCheckpoint() = runtime.clearBreadcrumbCheckpoint()
     override fun recordWorkerFailure(owner: String, failure: Throwable) {
-        if (failure is CancellationException) return
-        record(
-            BackendEvent.WorkerFailed(
-                fields = mapOf(
-                    "owner" to owner,
-                    "error_type" to (failure::class.simpleName ?: "Unknown"),
-                ),
-            ),
-        )
+        runtime.recordWorkerFailure(owner, failure)
     }
-
-    private const val MAX_EVENT_NAME_LENGTH = 64
 }
 
 internal class RecordingBackendEventSink(
@@ -191,15 +150,7 @@ internal class BackendResourceRuntime : BackendResourceTracker {
 
 /** Compatibility facade for tests and legacy leaf objects not yet wired to an app runtime. */
 @Deprecated("Use an app-scoped BackendResourceRuntime")
-internal object BackendResourceRegistry : BackendResourceTracker {
-    private val runtime = BackendResourceRuntime()
-
-    override fun acquire(kind: BackendResourceKind): Closeable = runtime.acquire(kind)
-    override fun set(kind: BackendResourceKind, count: Int) = runtime.set(kind, count)
-    override fun adjust(kind: BackendResourceKind, delta: Int) = runtime.adjust(kind, delta)
-    override fun snapshot(): Map<String, Int> = runtime.snapshot()
-    override fun clear() = runtime.clear()
-}
+internal object BackendResourceRegistry : BackendResourceTracker by BackendResourceRuntime()
 
 /** App-scoped bounded diagnostics and resource accounting. */
 internal class BackendDiagnosticsRuntime(

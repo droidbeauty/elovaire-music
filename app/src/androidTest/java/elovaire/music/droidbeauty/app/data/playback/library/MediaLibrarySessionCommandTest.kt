@@ -38,7 +38,7 @@ class MediaLibrarySessionCommandTest {
             playbackManager = PlaybackManager(context, scope)
             playbackManager.setMediaLibrarySessionCallback(
                 ElovaireMediaLibrarySessionCallback(
-                    catalog = CompositeMediaCatalogPort(EmptyBrowser, FixedCommandResolver(song)),
+                    catalog = TestMediaCatalog(EmptyBrowser, FixedCommandResolver(song)),
                     playback = PlaybackManagerMediaPlaybackPort(playbackManager),
                 ),
             )
@@ -135,3 +135,10 @@ private class FixedCommandResolver(song: Song) : MediaLibraryCommandResolver {
     override fun defaultPlayableQueue() = resolved
     override fun resumptionQueue() = resolved
 }
+
+private class TestMediaCatalog(
+    browser: MediaLibraryBrowser,
+    commandResolver: MediaLibraryCommandResolver,
+) : MediaCatalogPort,
+    MediaLibraryBrowser by browser,
+    MediaLibraryCommandResolver by commandResolver

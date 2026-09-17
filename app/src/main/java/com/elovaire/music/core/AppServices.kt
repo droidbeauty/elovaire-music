@@ -22,7 +22,6 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationJournal
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryBackend
-import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryIntegration
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
@@ -251,16 +250,12 @@ internal class AppServices(
     ).also {
         it.setLibraryFolders(preferenceStore.libraryFolders.value)
     }
-    private val networkLibraryIntegration = NetworkLibraryIntegration(
-        library = libraryRepository,
-        sourceStore = networkSourceStore,
-    )
     private val networkBackend = NetworkLibraryBackend(
         optionalScope = optionalScope,
         sourceStore = networkSourceStore,
         registryProvider = { networkFileSystemRegistryDelegate.value },
         coordinator = networkSourceCoordinator,
-        onLibraryChange = networkLibraryIntegration::apply,
+        library = libraryRepository,
         ioDispatcher = appDispatchers.io,
     ).also { networkLibraryBackend = it }
     private val durableRecoveryRuntime = DurableRecoveryRuntime(

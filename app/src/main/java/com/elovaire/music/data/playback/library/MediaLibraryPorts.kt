@@ -11,24 +11,6 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 /** Domain-facing catalog capability used by the Media3 adapter. */
 internal interface MediaCatalogPort : MediaLibraryBrowser, MediaLibraryCommandResolver
 
-internal class CompositeMediaCatalogPort(
-    private val browser: MediaLibraryBrowser,
-    private val commandResolver: MediaLibraryCommandResolver,
-) : MediaCatalogPort {
-    override fun childrenOf(id: ElovaireMediaId) = browser.childrenOf(id)
-    override fun childrenOfPage(id: ElovaireMediaId, page: Int, pageSize: Int) =
-        browser.childrenOfPage(id, page, pageSize)
-    override fun item(mediaId: String) = browser.item(mediaId)
-    override fun search(query: String, limit: Int) = browser.search(query, limit)
-    override fun searchRevision() = browser.searchRevision()
-    override fun searchPage(query: String, offset: Int, limit: Int) = browser.searchPage(query, offset, limit)
-    override fun searchCount(query: String) = browser.searchCount(query)
-    override fun resolvePlayableQueue(mediaId: String) = commandResolver.resolvePlayableQueue(mediaId)
-    override fun resolveSearchQueue(query: String) = commandResolver.resolveSearchQueue(query)
-    override fun defaultPlayableQueue() = commandResolver.defaultPlayableQueue()
-    override fun resumptionQueue() = commandResolver.resumptionQueue()
-}
-
 /** Playback capability needed by a Media3 controller without exposing PlaybackManager. */
 internal interface MediaPlaybackPort {
     val applicationLooper: Looper

@@ -33,7 +33,7 @@ internal fun shouldKeepPlaybackServiceForeground(
 }
 
 @UnstableApi
-class PlaybackNotificationController(
+internal class PlaybackNotificationController(
     private val context: Context,
     private val playbackManager: PlaybackManager,
     private val scope: CoroutineScope,

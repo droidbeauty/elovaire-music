@@ -177,7 +177,7 @@ data class PlaybackFormatFailure(
 
 @SuppressLint("UnsafeOptInUsageError")
 @Suppress("LargeClass", "TooManyFunctions")
-class PlaybackManager internal constructor(
+internal class PlaybackManager internal constructor(
     context: Context,
     scope: CoroutineScope,
     audioProcessorsProvider: () -> Array<AudioProcessor> = { emptyArray() },
@@ -744,7 +744,7 @@ class PlaybackManager internal constructor(
         return !released.get() && shouldKeepInterruptionResumeIntent()
     }
 
-    internal fun currentPositionForPersistence(): Long {
+    override fun currentPositionForPersistence(): Long {
         return player.currentPosition.coerceAtLeast(0L)
     }
 
@@ -779,7 +779,7 @@ class PlaybackManager internal constructor(
         }
     }
 
-    internal fun restoreSession(
+    override fun restoreSession(
         songs: List<Song>,
         currentIndex: Int,
         persisted: PersistedPlaybackSession,
@@ -828,7 +828,7 @@ class PlaybackManager internal constructor(
         syncProgressUpdateLoop()
     }
 
-    internal fun hydrateRecentPlayback(
+    override fun hydrateRecentPlayback(
         songIds: List<Long>,
         albumIds: List<Long>,
         lastPlayedCollectionKind: PlaybackCollectionKind?,
@@ -1029,7 +1029,7 @@ class PlaybackManager internal constructor(
         return audiobookProgressStore.load(bookKey)
     }
 
-    internal fun checkpointAudiobookProgress(force: Boolean = false) {
+    override fun checkpointAudiobookProgress(force: Boolean) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             playbackHandler.post { checkpointAudiobookProgress(force) }
             return

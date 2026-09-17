@@ -14,24 +14,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-internal sealed interface NetworkLibraryChange {
-    val sourceId: String
-
-    data class Saved(
-        override val sourceId: String,
-        val refreshRequired: Boolean,
-    ) : NetworkLibraryChange
-
-    data class Removed(override val sourceId: String) : NetworkLibraryChange
-}
-
 /** Owns network mutation results, probe state, connectivity service lifetime, and release. */
 internal class NetworkLibraryBackend(
     private val optionalScope: CoroutineScope,
     private val sourceStore: NetworkLibrarySourceStore,
     private val registryProvider: () -> NetworkFileSystemRegistry,
     coordinator: NetworkSourceMutationBackend,
-    private val onLibraryChange: (NetworkLibraryChange) -> Unit,
+    private val library: LibraryNetworkController,
     private val ioDispatcher: CoroutineDispatcher,
 ) : Closeable {
     private val released = AtomicBoolean(false)
@@ -107,12 +96,15 @@ internal class NetworkLibraryBackend(
             is NetworkSourceMutationResult.Saved -> {
                 recordProbe(result.sourceId, result.probeResult)
                 start()
-                onLibraryChange(NetworkLibraryChange.Saved(result.sourceId, result.refreshRequired))
+                refreshLibrary(
+                    sourceId = result.sourceId,
+                    forceRefresh = result.refreshRequired,
+                )
             }
             is NetworkSourceMutationResult.Removed -> {
                 _probeResults.update { it - result.sourceId }
                 start()
-                onLibraryChange(NetworkLibraryChange.Removed(result.sourceId))
+                refreshLibrary(sourceId = result.sourceId, forceRefresh = true)
             }
             is NetworkSourceMutationResult.Failed -> {
                 recordProbe(
@@ -131,25 +123,17 @@ internal class NetworkLibraryBackend(
         Log.w(TAG, "Network services could not start; retrying later.", failure)
     }
 
-    private companion object {
-        const val TAG = "NetworkLibraryBackend"
-    }
-}
-
-internal class NetworkLibraryIntegration(
-    private val library: LibraryNetworkController,
-    private val sourceStore: NetworkLibrarySourceStore,
-) {
-    fun apply(change: NetworkLibraryChange) {
-        library.unblockNetworkSource(change.sourceId)
+    private fun refreshLibrary(sourceId: String, forceRefresh: Boolean) {
+        library.unblockNetworkSource(sourceId)
         library.setNetworkSources(
             sources = sourceStore.sources.value,
             enrichMetadata = false,
             showLoadingIndicator = true,
-            forceRefreshSourceIds = when (change) {
-                is NetworkLibraryChange.Saved -> if (change.refreshRequired) setOf(change.sourceId) else emptySet()
-                is NetworkLibraryChange.Removed -> setOf(change.sourceId)
-            },
+            forceRefreshSourceIds = if (forceRefresh) setOf(sourceId) else emptySet(),
         )
+    }
+
+    private companion object {
+        const val TAG = "NetworkLibraryBackend"
     }
 }
