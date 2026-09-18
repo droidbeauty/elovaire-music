@@ -283,6 +283,8 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
+import elovaire.music.droidbeauty.app.ui.screens.DynamicBackdropSurface
+import elovaire.music.droidbeauty.app.ui.screens.blurSurfaceBorderColor
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
@@ -355,6 +357,68 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal fun Set<Long>.toggleSelection(id: Long): Set<Long> {
     return if (id in this) this - id else this + id
 }
+
+private class SortOptionsPopupPositionProvider(
+    private val verticalOffsetPx: Int,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+        val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+        val x = when (layoutDirection) {
+            androidx.compose.ui.unit.LayoutDirection.Ltr -> anchorBounds.left
+            androidx.compose.ui.unit.LayoutDirection.Rtl -> anchorBounds.right - popupContentSize.width
+        }.coerceIn(0, maxX)
+        val belowAnchor = anchorBounds.bottom + verticalOffsetPx
+        val y = if (belowAnchor + popupContentSize.height <= windowSize.height) {
+            belowAnchor
+        } else {
+            anchorBounds.top - verticalOffsetPx - popupContentSize.height
+        }.coerceIn(0, maxY)
+        return IntOffset(x, y)
+    }
+}
+
+@Composable
+internal fun SortOptionsPopup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    var shouldRender by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) {
+        if (expanded) shouldRender = true
+    }
+    if (!shouldRender) return
+
+    val density = LocalDensity.current
+    val positionProvider = remember(density) {
+        SortOptionsPopupPositionProvider(with(density) { 10.dp.roundToPx() })
+    }
+    Popup(
+        popupPositionProvider = positionProvider,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+    ) {
+        PopupCardMotionHost(
+            visible = expanded,
+            onExitFinished = { shouldRender = false },
+        ) {
+            DynamicBackdropSurface(
+                shape = RoundedCornerShape(ElovaireRadii.card),
+                overlayAlpha = 0.6f,
+                borderColor = blurSurfaceBorderColor(),
+            ) {
+                content()
+            }
+        }
+    }
+}
+
 @Composable
 internal fun readableSecondaryTextColor(): Color {
     return if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {

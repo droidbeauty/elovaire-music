@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import elovaire.music.droidbeauty.app.ui.screens.common.MutedSectionHeader
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
+import elovaire.music.droidbeauty.app.ui.screens.common.SortOptionsPopup
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableCardSurfaceColor
@@ -300,7 +301,6 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
-import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
@@ -1242,7 +1242,7 @@ private fun AlbumCollectionContent(
                         .ensureSingleItemRubberBand(gridState),
                     contentPadding = PaddingValues(
                         start = 6.dp,
-                        top = topPadding + selectionTopInset + 8.dp,
+                        top = topPadding + selectionTopInset + 18.dp,
                         end = 6.dp,
                         bottom = bottomPadding + 12.dp,
                     ),
@@ -1272,9 +1272,7 @@ private fun AlbumCollectionContent(
                                 onLayoutModeChanged = onLayoutModeChanged,
                             )
                         }
-                        if (showSortOptions) {
-                            Spacer(modifier = Modifier.height(14.dp))
-                        }
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
 
                     itemsIndexed(
@@ -1662,49 +1660,51 @@ private fun AlbumSortControl(
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Surface(
-            modifier = Modifier.elovaireActionBump(
-                interactionSource = interactionSource,
-                label = "album_sort_bump",
-            ),
-            onClick = onToggleExpanded,
-            interactionSource = interactionSource,
-            shape = RoundedCornerShape(ElovaireRadii.pill),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = selected.label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .rotate(if (expanded) 180f else 0f),
-                )
-            }
-        }
-
-        PopupCardMotionHost(
-            visible = expanded,
-        ) {
+        Box {
             Surface(
-                shape = RoundedCornerShape(ElovaireRadii.card),
-                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = "album_sort_bump",
+                ),
+                onClick = onToggleExpanded,
+                interactionSource = interactionSource,
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = selected.label,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(if (expanded) 180f else 0f),
+                    )
+                }
+            }
+
+            SortOptionsPopup(
+                expanded = expanded,
+                onDismissRequest = { if (expanded) onToggleExpanded() },
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(ElovaireRadii.card),
+                    color = Color.Transparent,
+                ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     AlbumSortMode.entries.forEachIndexed { index, mode ->
                         Row(
@@ -1739,6 +1739,7 @@ private fun AlbumSortControl(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -2136,49 +2137,51 @@ private fun SongSortControl(
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Surface(
-            modifier = Modifier.elovaireActionBump(
-                interactionSource = interactionSource,
-                label = "song_sort_bump",
-            ),
-            onClick = onToggleExpanded,
-            interactionSource = interactionSource,
-            shape = RoundedCornerShape(ElovaireRadii.pill),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = selected.label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .rotate(if (expanded) 180f else 0f),
-                )
-            }
-        }
-
-        PopupCardMotionHost(
-            visible = expanded,
-        ) {
+        Box {
             Surface(
-                shape = RoundedCornerShape(ElovaireRadii.card),
-                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = "song_sort_bump",
+                ),
+                onClick = onToggleExpanded,
+                interactionSource = interactionSource,
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = selected.label,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(if (expanded) 180f else 0f),
+                    )
+                }
+            }
+
+            SortOptionsPopup(
+                expanded = expanded,
+                onDismissRequest = { if (expanded) onToggleExpanded() },
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(ElovaireRadii.card),
+                    color = Color.Transparent,
+                ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     SongSortMode.entries.forEachIndexed { index, mode ->
                         Row(
@@ -2213,6 +2216,7 @@ private fun SongSortControl(
                     }
                 }
             }
+        }
         }
     }
 }

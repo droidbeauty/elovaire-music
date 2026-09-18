@@ -3,6 +3,7 @@ import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
+import elovaire.music.droidbeauty.app.ui.screens.common.SortOptionsPopup
 
 import android.Manifest
 import android.content.Context
@@ -297,7 +298,6 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
-import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
@@ -1232,64 +1232,70 @@ private fun SearchSongsResultsHeader(
                 iconResId = R.drawable.ic_lucide_music,
                 modifier = Modifier.weight(1f),
             )
-            Surface(
-                modifier = Modifier.elovaireActionBump(
+            Box {
+                Surface(
+                    modifier = Modifier.elovaireActionBump(
+                        interactionSource = interactionSource,
+                        label = "search_song_sort_bump",
+                    ),
+                    onClick = onToggleExpanded,
                     interactionSource = interactionSource,
-                    label = "search_song_sort_bump",
-                ),
-                onClick = onToggleExpanded,
-                interactionSource = interactionSource,
-                shape = RoundedCornerShape(ElovaireRadii.pill),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    shape = RoundedCornerShape(ElovaireRadii.pill),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Text(
-                        text = searchSortModeLabel(selected, language),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = searchSortModeLabel(selected, language),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        )
+                    }
                 }
-            }
-        }
-        PopupCardMotionHost(visible = expanded) {
-            Surface(
-                shape = RoundedCornerShape(ElovaireRadii.card),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    SearchSongSortMode.entries.forEachIndexed { index, mode ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { onSelect(mode) },
-                                )
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                        ) {
-                            Text(
-                                text = searchSortModeLabel(mode, language),
-                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (mode == selected) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    readableSecondaryTextColor()
-                                },
-                            )
-                        }
-                        if (index != SearchSongSortMode.entries.lastIndex) {
-                            DividerLine()
+
+                SortOptionsPopup(
+                    expanded = expanded,
+                    onDismissRequest = { if (expanded) onToggleExpanded() },
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(ElovaireRadii.card),
+                        color = Color.Transparent,
+                    ) {
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            SearchSongSortMode.entries.forEachIndexed { index, mode ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { onSelect(mode) },
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                ) {
+                                    Text(
+                                        text = searchSortModeLabel(mode, language),
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = if (mode == selected) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            readableSecondaryTextColor()
+                                        },
+                                    )
+                                }
+                                if (index != SearchSongSortMode.entries.lastIndex) {
+                                    DividerLine()
+                                }
+                            }
                         }
                     }
                 }
