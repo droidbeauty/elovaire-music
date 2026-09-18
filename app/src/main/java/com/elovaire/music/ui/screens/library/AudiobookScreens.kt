@@ -87,6 +87,7 @@ import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
+import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 
 @Composable
 internal fun AudiobookMiniGallery(
@@ -337,23 +338,18 @@ private fun AudiobookCollectionContent(
                 overscrollEffect = null,
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap + selectionTopInset,
+                    top = detailTopBarOccupiedHeight() + 8.dp + selectionTopInset,
                     end = 20.dp,
                     bottom = bottomPadding,
                 ),
             ) {
                 item(key = "audiobooks_view_switcher") {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
                     }
-                }
-                item(key = "audiobooks_view_switcher_gap") {
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
                 itemsIndexed(
                     items = books,
@@ -372,7 +368,7 @@ private fun AudiobookCollectionContent(
             }
             FastScrollbar(
                 state = listState,
-                topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap + selectionTopInset,
+                topInset = detailTopBarOccupiedHeight() + 16.dp + selectionTopInset,
                 bottomInset = bottomPadding + 16.dp,
             )
         }
@@ -385,7 +381,7 @@ private fun AudiobookCollectionContent(
                 overscrollEffect = null,
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap + selectionTopInset,
+                    top = detailTopBarOccupiedHeight() + 8.dp + selectionTopInset,
                     end = 20.dp,
                     bottom = bottomPadding,
                 ),
@@ -394,9 +390,7 @@ private fun AudiobookCollectionContent(
             ) {
                 item(key = "audiobooks_view_switcher", span = { GridItemSpan(2) }) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
@@ -418,7 +412,7 @@ private fun AudiobookCollectionContent(
             }
             FastScrollbar(
                 state = gridState,
-                topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap + selectionTopInset,
+                topInset = detailTopBarOccupiedHeight() + 16.dp + selectionTopInset,
                 bottomInset = bottomPadding + 16.dp,
             )
         }
@@ -710,14 +704,20 @@ internal fun AudiobookDetailScreen(
                 ) {
                     Text(
                         text = book.title,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontSize = elovaireScaledSp(ALBUM_HEADER_TITLE_TEXT_SIZE_SP),
+                            lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.8f,
+                        ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                        color = readableSecondaryTextColor(),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = elovaireScaledSp(ALBUM_HEADER_ARTIST_TEXT_SIZE_SP),
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.76f),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -950,7 +950,10 @@ private fun AudiobookActionButton(
             Text(
                 text = text,
                 modifier = Modifier.padding(start = 8.dp),
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = elovaireScaledSp(16f),
+                    fontWeight = FontWeight.SemiBold,
+                ),
                 color = tint,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1101,22 +1104,25 @@ private fun AudiobookPartRow(
             isPlaying -> AnimatedAudioLinesIcon(
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 animate = true,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(16.dp),
             )
-            progress >= 1f -> Surface(
-                shape = RoundedCornerShape(ElovaireRadii.pill),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+            progress >= 1f -> Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = finishedLabel.uppercase(),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = readableSecondaryTextColor(),
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_check),
+                    contentDescription = finishedLabel,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(10.dp),
                 )
             }
             else -> CircularProgressIndicator(
                 progress = { progress },
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(16.dp),
                 strokeWidth = 2.dp,
                 color = MaterialTheme.colorScheme.onSurface,
                 trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),

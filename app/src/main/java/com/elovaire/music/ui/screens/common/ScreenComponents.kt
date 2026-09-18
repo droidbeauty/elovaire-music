@@ -359,6 +359,7 @@ internal fun Set<Long>.toggleSelection(id: Long): Set<Long> {
 }
 
 private class SortOptionsPopupPositionProvider(
+    private val horizontalPaddingPx: Int,
     private val verticalOffsetPx: Int,
 ) : PopupPositionProvider {
     override fun calculatePosition(
@@ -369,10 +370,7 @@ private class SortOptionsPopupPositionProvider(
     ): IntOffset {
         val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
         val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
-        val x = when (layoutDirection) {
-            androidx.compose.ui.unit.LayoutDirection.Ltr -> anchorBounds.left
-            androidx.compose.ui.unit.LayoutDirection.Rtl -> anchorBounds.right - popupContentSize.width
-        }.coerceIn(0, maxX)
+        val x = horizontalPaddingPx.coerceIn(0, maxX)
         val belowAnchor = anchorBounds.bottom + verticalOffsetPx
         val y = if (belowAnchor + popupContentSize.height <= windowSize.height) {
             belowAnchor
@@ -396,8 +394,12 @@ internal fun SortOptionsPopup(
     if (!shouldRender) return
 
     val density = LocalDensity.current
+    val menuWidth = (LocalConfiguration.current.screenWidthDp.dp - 40.dp).coerceAtLeast(0.dp)
     val positionProvider = remember(density) {
-        SortOptionsPopupPositionProvider(with(density) { 10.dp.roundToPx() })
+        SortOptionsPopupPositionProvider(
+            horizontalPaddingPx = with(density) { 20.dp.roundToPx() },
+            verticalOffsetPx = with(density) { 10.dp.roundToPx() },
+        )
     }
     Popup(
         popupPositionProvider = positionProvider,
@@ -409,6 +411,7 @@ internal fun SortOptionsPopup(
             onExitFinished = { shouldRender = false },
         ) {
             DynamicBackdropSurface(
+                modifier = Modifier.width(menuWidth),
                 shape = RoundedCornerShape(ElovaireRadii.card),
                 overlayAlpha = 0.6f,
                 borderColor = blurSurfaceBorderColor(),

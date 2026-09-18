@@ -1242,7 +1242,7 @@ private fun AlbumCollectionContent(
                         .ensureSingleItemRubberBand(gridState),
                     contentPadding = PaddingValues(
                         start = 6.dp,
-                        top = topPadding + selectionTopInset + 18.dp,
+                        top = topPadding + selectionTopInset + 8.dp,
                         end = 6.dp,
                         bottom = bottomPadding + 12.dp,
                     ),
@@ -1272,7 +1272,7 @@ private fun AlbumCollectionContent(
                                 onLayoutModeChanged = onLayoutModeChanged,
                             )
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
 
                     itemsIndexed(
