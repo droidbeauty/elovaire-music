@@ -67,7 +67,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -181,6 +180,10 @@ internal class RoomUserDataStore(
         } catch (failure: Error) {
             failActor(failure)
         } finally {
+            synchronized(submissionLock) {
+                operations.close()
+                rejectPendingOperationsLocked()
+            }
             if (released.get()) {
                 lifecycle.set(StoreLifecycle.Released)
                 _userDataReadiness.value = UserDataReadiness.Released
@@ -877,11 +880,8 @@ internal class RoomUserDataStore(
             )
         } catch (failure: CancellationException) {
             if (!committed) publishSnapshot(previousSnapshot)
-            if (currentCoroutineContext().isActive) {
-                operation.completion?.cancel(failure)
-            } else {
-                throw failure
-            }
+            operation.completion?.cancel(failure)
+            throw failure
         } catch (failure: SQLException) {
             if (!committed) publishSnapshot(previousSnapshot)
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)

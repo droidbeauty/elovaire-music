@@ -7,6 +7,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -30,9 +32,19 @@ internal class SettingsWriteSequencer(
     private var idleWaiter: CompletableDeferred<Unit>? = null
     private var writing = false
     private var closed = false
-    private val worker: Job = CoroutineScope(
-        ownerScope.coroutineContext + dispatcher + CoroutineName("settings-persistence"),
-    ).launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { runWorker() }
+    private val workerScope = CoroutineScope(
+        ownerScope.coroutineContext.minusKey(Job) +
+            SupervisorJob() +
+            dispatcher +
+            CoroutineName("settings-persistence"),
+    )
+    private val worker: Job = workerScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+        runWorker()
+    }
+
+    init {
+        worker.invokeOnCompletion { workerScope.cancel() }
+    }
 
     fun enqueue(key: String, write: suspend () -> Unit) {
         synchronized(lock) {
@@ -77,13 +89,8 @@ internal class SettingsWriteSequencer(
         synchronized(lock) {
             if (closed) return
             closed = true
-            ordered.clear()
-            latest.clear()
             signalLocked()
-            idleWaiter?.complete(Unit)
-            idleWaiter = null
         }
-        worker.cancel()
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -105,22 +112,27 @@ internal class SettingsWriteSequencer(
             val waitMs: Long?
             val signal: CompletableDeferred<Unit>
             synchronized(lock) {
-                if (closed) return null
+                if (closed && ordered.isEmpty() && latest.isEmpty() && !writing) return null
                 val nextReadyAt = latest.values.minOfOrNull(PendingWrite::readyAtMs)
-                waitMs = nextReadyAt?.let { (it - nowMs()).coerceAtLeast(1L) }
+                waitMs = if (closed) {
+                    0L
+                } else {
+                    nextReadyAt?.let { (it - nowMs()).coerceAtLeast(1L) }
+                }
                 signal = wake
             }
             if (waitMs == null) {
                 signal.await()
-            } else {
+            } else if (waitMs > 0L) {
                 withTimeoutOrNull(waitMs) { signal.await() }
+            } else {
+                takeReadyWrite()?.let { return it }
             }
             takeReadyWrite()?.let { return it }
         }
     }
 
     private fun takeReadyWrite(): PendingWrite? = synchronized(lock) {
-        if (closed) return@synchronized null
         val orderedWrite = ordered.firstOrNull()
         if (orderedWrite != null) {
             ordered.removeFirst()
@@ -129,7 +141,7 @@ internal class SettingsWriteSequencer(
         }
         val now = nowMs()
         val entry = latest.entries.minByOrNull { it.value.readyAtMs } ?: return@synchronized null
-        if (entry.value.readyAtMs > now) return@synchronized null
+        if (!closed && entry.value.readyAtMs > now) return@synchronized null
         latest.remove(entry.key)
         writing = true
         entry.value

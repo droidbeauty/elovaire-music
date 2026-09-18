@@ -40,7 +40,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.runBlocking
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.EmptyCoroutineContext
@@ -454,7 +453,6 @@ class PreferenceStore internal constructor(
     }
 
     fun release() {
-        runBlocking(ioDispatcher) { settingsWriteSequencer.flush() }
         settingsWriteSequencer.close()
         persistenceScope.cancel()
     }

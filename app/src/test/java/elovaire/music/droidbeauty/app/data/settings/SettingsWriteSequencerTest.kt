@@ -70,4 +70,24 @@ class SettingsWriteSequencerTest {
         sequencer.close()
         ownerScope.cancel()
     }
+
+    @Test
+    fun close_drains_accepted_writes_without_blocking_the_caller() = runBlocking {
+        val ownerScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val writes = mutableListOf<String>()
+        val sequencer = SettingsWriteSequencer(
+            ownerScope = ownerScope,
+            dispatcher = Dispatchers.Unconfined,
+            persist = { _, write -> write() },
+            nowMs = { 0L },
+        )
+
+        sequencer.enqueue("ordered") { writes += "ordered" }
+        sequencer.replaceLatest("latest", debounceMs = 10_000L) { writes += "latest" }
+        sequencer.close()
+
+        assertEquals(listOf("ordered", "latest"), writes)
+        assertTrue(!sequencer.hasPendingWork())
+        ownerScope.cancel()
+    }
 }

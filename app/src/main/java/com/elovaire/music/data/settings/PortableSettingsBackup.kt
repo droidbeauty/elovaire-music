@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.EmptyCoroutineContext
 
 @OptIn(FlowPreview::class)
@@ -56,6 +55,9 @@ internal class PortableSettingsBackup(
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
             ioDispatcher + CoroutineName("portable-settings-backup"),
     )
+    private val bootSnapshotScope = CoroutineScope(
+        SupervisorJob() + ioDispatcher + CoroutineName("portable-settings-boot-snapshot"),
+    )
     private var settingsObservationJob: Job? = null
 
     /** Returns the last validated synchronous boot snapshot without touching DataStore. */
@@ -73,11 +75,12 @@ internal class PortableSettingsBackup(
 
     /** Checkpoints only the small immutable settings snapshot needed for the next process start. */
     fun checkpointBootSettings(values: Map<String, Any?>) {
+        if (released.get()) return
         val filtered = values.filterKeys { it in settingsPreferenceKeys }
         pendingBootSnapshot.set(filtered)
         synchronized(bootSnapshotJobLock) {
             if (bootSnapshotJob?.isActive != true && !released.get()) {
-                bootSnapshotJob = mirrorScope.launch {
+                bootSnapshotJob = bootSnapshotScope.launch {
                     kotlinx.coroutines.delay(BOOT_SNAPSHOT_COALESCE_DELAY_MS)
                     flushPendingBootSnapshot()
                 }
@@ -89,27 +92,53 @@ internal class PortableSettingsBackup(
         start()
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun start() {
         if (released.get()) return
         if (!started.compareAndSet(false, true)) return
         settingsObservationJob = mirrorScope.launch {
-            ElovaireTrace.suspendSection("portable_settings_restore") {
-                restoreDataStoreIfEmpty()
+            try {
+                ElovaireTrace.suspendSection("portable_settings_restore") {
+                    restoreDataStoreIfEmpty()
+                }
+                settingsDataStore.data
+                    .debounce(MIRROR_COALESCE_DELAY_MS)
+                    .collect { settings ->
+                        try {
+                            syncAll(settings)
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            throw cancelled
+                        } catch (failure: RuntimeException) {
+                            android.util.Log.w(TAG, "Unable to update portable settings backup.", failure)
+                        }
+                    }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: RuntimeException) {
+                android.util.Log.w(TAG, "Portable settings backup observation stopped.", failure)
             }
-            settingsDataStore.data
-                .debounce(MIRROR_COALESCE_DELAY_MS)
-                .collect(::syncAll)
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun release() {
-        released.set(true)
+        if (!released.compareAndSet(false, true)) return
         if (started.compareAndSet(true, false)) {
             settingsObservationJob?.cancel()
         }
         settingsObservationJob = null
-        runBlocking(ioDispatcher) { flushBootSnapshot() }
         mirrorScope.cancel()
+        bootSnapshotScope.launch {
+            try {
+                flushBootSnapshot()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: RuntimeException) {
+                android.util.Log.w(TAG, "Unable to flush settings boot snapshot during release.", failure)
+            } finally {
+                bootSnapshotScope.cancel()
+            }
+        }
     }
 
     suspend fun flushBootSnapshot() {
@@ -126,7 +155,7 @@ internal class PortableSettingsBackup(
         synchronized(bootSnapshotJobLock) {
             bootSnapshotJob = null
             if (pendingBootSnapshot.get() != null && !released.get()) {
-                bootSnapshotJob = mirrorScope.launch { flushPendingBootSnapshot() }
+                bootSnapshotJob = bootSnapshotScope.launch { flushPendingBootSnapshot() }
             }
         }
     }
@@ -242,6 +271,7 @@ internal class PortableSettingsBackup(
         const val BOOT_FORMAT_VERSION = 1
         const val BOOT_SNAPSHOT_COALESCE_DELAY_MS = 100L
         const val MIRROR_COALESCE_DELAY_MS = 400L
+        const val TAG = "PortableSettingsBackup"
     }
 }
 

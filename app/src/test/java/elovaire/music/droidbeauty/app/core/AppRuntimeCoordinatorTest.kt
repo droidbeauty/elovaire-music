@@ -65,6 +65,27 @@ class AppRuntimeCoordinatorTest {
     }
 
     @Test
+    fun reentrant_release_is_deferred_until_the_transition_action_finishes() {
+        val events = mutableListOf<String>()
+        lateinit var coordinator: AppRuntimeCoordinator
+        coordinator = AppRuntimeCoordinator(
+            startPlaybackAction = {},
+            startAction = {
+                events += "start"
+                coordinator.release()
+                events += "after-start"
+            },
+            memoryPressureAction = {},
+            releaseAction = { events += "release" },
+        )
+
+        coordinator.start()
+
+        assertEquals(listOf("start", "after-start", "release"), events)
+        assertEquals(AppRuntimePhase.Released, coordinator.currentPhase())
+    }
+
+    @Test
     fun concurrent_full_start_waits_for_playback_start_to_finish() {
         val playbackEntered = CountDownLatch(1)
         val releasePlayback = CountDownLatch(1)

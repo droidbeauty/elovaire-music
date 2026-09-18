@@ -33,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -400,7 +401,7 @@ internal class LibraryRepository internal constructor(
         scanJob = scope.launch {
             val scanResource = resourceTracker.acquire(BackendResourceKind.ActiveScan)
             val operation = BackendOperationContext(operationIdGenerator.nextId(), BackendSubsystem.Library, clock.elapsedTimeMs())
-            val currentScanJob = currentCoroutineContext()[Job]
+            val currentScanJob = checkNotNull(currentCoroutineContext()[Job])
             val scanPermissionVersion = permissionChangeVersion
             val refreshRequest = refreshRequests.takeForImmediateScan(request)
             _runtimeState.value = LibraryRuntimeState.Scanning(refreshRequest, scanPermissionVersion)
@@ -432,6 +433,7 @@ internal class LibraryRepository internal constructor(
                     scanResult = scanResult,
                     refreshRequest = refreshRequest,
                     scanPermissionVersion = scanPermissionVersion,
+                    scanJob = currentScanJob,
                     operation = operation,
                 )
             } catch (throwable: CancellationException) {
@@ -500,13 +502,17 @@ internal class LibraryRepository internal constructor(
         scanResult: CoordinatedLibraryScan,
         refreshRequest: LibraryRefreshRequest,
         scanPermissionVersion: Long,
+        scanJob: Job,
         operation: BackendOperationContext,
     ) {
-        if (!hasCurrentPermission(scanPermissionVersion)) return
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return
         val prepared = prepareVisibleSnapshot(
             snapshot = scanResult.snapshot,
             scanComplete = scanResult.isComplete,
-        )
+            scanJob = scanJob,
+            scanPermissionVersion = scanPermissionVersion,
+        ) ?: return
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return
         val nextScanState = LibraryScanState(
             permissionGranted = true,
             isLoading = false,
@@ -518,6 +524,7 @@ internal class LibraryRepository internal constructor(
             _scanState.value = nextScanState
         }
         if (scanResult.isComplete) {
+            if (!isCurrentScan(scanJob, scanPermissionVersion)) return
             withContext(ioDispatcher) {
                 val syncState = scanner.currentSyncState()
                 ElovaireTrace.section("library_snapshot_persist") {
@@ -539,7 +546,7 @@ internal class LibraryRepository internal constructor(
             }
         }
         invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
-        if (!hasCurrentPermission(scanPermissionVersion)) return
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return
         val snapshotNeedsMetadata = prepared.snapshot.songs.any { song ->
             !song.metadataResolved ||
                 song.releaseYear == null ||
@@ -592,7 +599,10 @@ internal class LibraryRepository internal constructor(
     private suspend fun prepareVisibleSnapshot(
         snapshot: LibrarySnapshot,
         scanComplete: Boolean,
-    ): PreparedLibrarySnapshot {
+        scanJob: Job,
+        scanPermissionVersion: Long,
+    ): PreparedLibrarySnapshot? {
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
         val songs = songsVisibleAfterDirectPathTombstones(snapshot.songs)
         if (scanComplete) {
             clearResolvedDirectPathTombstones(snapshot.songs)
@@ -610,6 +620,7 @@ internal class LibraryRepository internal constructor(
                 }
             }
         }
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
         val latestSuppressedSongIds = deletionMarkers.suppressingSongIds()
         if (latestSuppressedSongIds != suppressedSongIds) {
             suppressedSongIds = latestSuppressedSongIds
@@ -620,6 +631,7 @@ internal class LibraryRepository internal constructor(
                 }
             }
         }
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
         val previousSongs = _contentState.value.songs
         val nextContentState = ElovaireTrace.section("library_prepare_content_state") {
             snapshotPublisher.stateForSnapshot(
@@ -633,6 +645,7 @@ internal class LibraryRepository internal constructor(
             LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
         }
         if (changeSet.relocated.isNotEmpty()) {
+            if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
             val relocationOutcome = onSongRelocations(
                 changeSet.relocated.associate { relocation ->
                     relocation.before.id to relocation.after.id
@@ -648,11 +661,20 @@ internal class LibraryRepository internal constructor(
                 )
             }
         }
+        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
         snapshotPublisher.publishState(nextContentState)
         return PreparedLibrarySnapshot(
             snapshot = nextSnapshot,
             changeSet = changeSet,
         )
+    }
+
+    private suspend fun isCurrentScan(
+        scanJob: Job,
+        scanPermissionVersion: Long,
+    ): Boolean {
+        currentCoroutineContext().ensureActive()
+        return this.scanJob === scanJob && hasCurrentPermission(scanPermissionVersion)
     }
 
     private suspend fun scanLibrary(

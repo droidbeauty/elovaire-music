@@ -7,6 +7,9 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.8.8">
-        <item>General performance upgrades</item>
+        <item>Tweaks in the audiobooks UI</item>
+        <item>Added in-app audiobook management system via long press on any entry</item>
+        <item>Redesigned sort by pop-up menu</item>
+        <item>General performance and efficiency upgrades</item>
     </release>
 </changelog>

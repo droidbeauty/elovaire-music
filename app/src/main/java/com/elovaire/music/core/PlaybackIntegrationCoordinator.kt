@@ -16,7 +16,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -61,7 +64,14 @@ internal class PlaybackIntegrationCoordinator(
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val sessionWriterScope = CoroutineScope(
-        ownedChildScope(scope, "playback-session-writer", diagnostics).coroutineContext + ioDispatcher,
+        SupervisorJob() +
+            ioDispatcher +
+            CoroutineName("playback-session-writer") +
+            CoroutineExceptionHandler { _, failure ->
+                if (failure !is kotlinx.coroutines.CancellationException) {
+                    diagnostics.recordWorkerFailure("playback-session-writer", failure)
+                }
+            },
     )
     private val sessionWrites = Channel<PersistedPlaybackSession?>(Channel.CONFLATED)
     private val sessionWriterJob: Job = sessionWriterScope.launch(start = CoroutineStart.LAZY) {
