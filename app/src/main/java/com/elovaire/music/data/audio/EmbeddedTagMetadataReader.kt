@@ -63,7 +63,7 @@ internal class EmbeddedTagMetadataReader(context: Context) {
                 artist = tag.text(FieldKey.ARTIST),
                 albumArtist = tag.text(FieldKey.ALBUM_ARTIST),
                 album = tag.text(FieldKey.ALBUM),
-                description = tag.text(FieldKey.COMMENT),
+                description = EmbeddedDescriptionMetadata.read(tag),
                 releaseYear = sequenceOf(FieldKey.YEAR, FieldKey.ORIGINAL_YEAR)
                     .mapNotNull { field -> tag.text(field) }
                     .mapNotNull(::parseReleaseYear)

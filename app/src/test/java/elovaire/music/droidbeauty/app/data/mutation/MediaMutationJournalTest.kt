@@ -190,7 +190,7 @@ class MediaMutationJournalTest {
     }
 
     @Test
-    fun startupRecoveryDoesNotTouchActiveForegroundMutation() = runBlocking {
+    fun startupRecoveryDoesNotDependOnAnotherJournalInstance() = runBlocking {
         val stored = mutableMapOf<String, LibraryMutationEntity>()
         val dao = libraryDao(stored)
         val foregroundJournal = MediaMutationJournal(dao, FixedClock, { "active" }, NoOpBackendEventSink)
@@ -199,9 +199,8 @@ class MediaMutationJournalTest {
         foregroundJournal.create(MediaMutationOperation(type = MediaMutationType.TagEdit))
         val result = recoveryJournal.recoverIncomplete()
 
-        assertEquals(MediaMutationStatus.Created.name, stored.getValue("active").status)
-        assertEquals(0, (result as MediaMutationRecoveryResult.Success).recoveredCount)
-        foregroundJournal.mark("active", MediaMutationStatus.Cancelled)
+        assertEquals(MediaMutationStatus.Cancelled.name, stored.getValue("active").status)
+        assertEquals(1, (result as MediaMutationRecoveryResult.Success).recoveredCount)
     }
 
     @Test
@@ -225,9 +224,11 @@ class MediaMutationJournalTest {
         foregroundJournal.close()
 
         val result = recoveryJournal.recoverIncomplete()
+        val repeated = recoveryJournal.recoverIncomplete()
 
         assertEquals(1, (result as MediaMutationRecoveryResult.Success).recoveredCount)
         assertEquals(MediaMutationStatus.Cancelled.name, stored.getValue("active-after-close").status)
+        assertEquals(0, (repeated as MediaMutationRecoveryResult.Success).recoveredCount)
     }
 
     private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): MediaMutationDao {

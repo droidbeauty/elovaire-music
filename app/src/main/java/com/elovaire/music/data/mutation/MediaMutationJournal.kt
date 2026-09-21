@@ -23,10 +23,9 @@ import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.ConcurrentHashMap
-import java.lang.ref.WeakReference
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 
 internal enum class MediaMutationType {
     TagEdit,
@@ -87,7 +86,7 @@ internal class MediaMutationJournal(
 ) : Closeable {
     private val transitionMutex = Mutex()
     private val closed = AtomicBoolean(false)
-    private val ownedMutationIds = ConcurrentHashMap.newKeySet<String>()
+    private val activeMutationIds = ConcurrentHashMap.newKeySet<String>()
 
     suspend fun create(operation: MediaMutationOperation): String = transitionMutex.withLock {
         check(!closed.get()) { "Media mutation journal is closed." }
@@ -104,7 +103,7 @@ internal class MediaMutationJournal(
             val status = existing.status.toMediaMutationStatusOrNull()
             check(status != null) { "Mutation $mutationId has an unknown persisted status." }
             if (!status.isTerminal()) {
-                claimOwnership(mutationId)
+                activeMutationIds += mutationId
                 updateActiveMutationResource()
             }
             return@withLock mutationId
@@ -124,7 +123,7 @@ internal class MediaMutationJournal(
                 error = null,
             ),
         )
-        claimOwnership(mutationId)
+        activeMutationIds += mutationId
         updateActiveMutationResource()
         backendEventSink.emitLazy {
             BackendEvent.MediaMutationStarted(
@@ -164,8 +163,9 @@ internal class MediaMutationJournal(
                 error = error,
             ),
         )
+        if (!status.isTerminal()) activeMutationIds += mutationId
         if (status.isTerminal()) {
-            releaseOwnership(mutationId)
+            activeMutationIds -= mutationId
             updateActiveMutationResource()
         }
     }
@@ -177,7 +177,7 @@ internal class MediaMutationJournal(
         val recovery = runCatching {
             transitionMutex.withLock {
                 var recoveredCount = 0
-                dao.recoverableMutations().filterNot(::isOwnedByLiveJournal).forEach { mutation ->
+                dao.recoverableMutations().forEach { mutation ->
                     val current = mutation.status.toMediaMutationStatusOrNull()
                     if (current == null) {
                         dao.upsertMutation(
@@ -228,63 +228,12 @@ internal class MediaMutationJournal(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        ownedMutationIds.forEach { mutationId ->
-            activeMutationOwners.entries.removeIf { entry ->
-                entry.key == mutationId && entry.value.get() === this
-            }
-        }
-        ownedMutationIds.clear()
-        pruneInactiveOwners()
+        activeMutationIds.clear()
         updateActiveMutationResource()
     }
 
-    private fun claimOwnership(mutationId: String) {
-        val owner = activeMutationOwners[mutationId]
-        if (owner?.get() === this) {
-            ownedMutationIds += mutationId
-            return
-        }
-        if (owner == null || owner.get() == null || owner.get()?.closed?.get() == true) {
-            activeMutationOwners[mutationId] = WeakReference(this)
-            ownedMutationIds += mutationId
-        }
-    }
-
-    private fun releaseOwnership(mutationId: String) {
-        ownedMutationIds.remove(mutationId)
-        activeMutationOwners.remove(mutationId)
-    }
-
-    private fun isOwnedByLiveJournal(mutation: LibraryMutationEntity): Boolean {
-        val owner = activeMutationOwners[mutation.mutationId]?.get()
-        if (owner == null || owner.closed.get()) {
-            activeMutationOwners.remove(mutation.mutationId)
-            ownedMutationIds.remove(mutation.mutationId)
-            return false
-        }
-        return true
-    }
-
-    private fun pruneInactiveOwners() {
-        activeMutationOwners.entries.removeIf { (mutationId, owner) ->
-            val journal = owner.get()
-            journal == null || journal.closed.get() || !journal.ownedMutationIds.contains(mutationId)
-        }
-    }
-
     private fun updateActiveMutationResource() {
-        resourceTracker.set(
-            BackendResourceKind.ActiveMutation,
-            activeMutationOwners.count { (mutationId, owner) ->
-                val journal = owner.get()
-                journal != null && !journal.closed.get() &&
-                    journal.ownedMutationIds.contains(mutationId)
-            },
-        )
-    }
-
-    private companion object {
-        val activeMutationOwners = ConcurrentHashMap<String, WeakReference<MediaMutationJournal>>()
+        resourceTracker.set(BackendResourceKind.ActiveMutation, activeMutationIds.size)
     }
 }
 

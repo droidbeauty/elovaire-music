@@ -130,6 +130,7 @@ internal fun EqualizerScreen(
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val graphScrollState = rememberScrollState()
+    val reverbScrollState = rememberScrollState()
     val language = LocalAppLanguage.current
     val copy = remember(language) { settingsCopy(language) }
     val graphContentWidth = EQ_GRAPH_EDGE_PADDING * 2 +
@@ -164,7 +165,8 @@ internal fun EqualizerScreen(
                         Column(
                             modifier = Modifier
                                 .horizontalGestureSafe()
-                                .horizontalScroll(graphScrollState),
+                                .horizontalScroll(graphScrollState, overscrollEffect = null)
+                                .ensureHorizontalRubberBand(graphScrollState),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                         EqResponseGraph(
@@ -301,7 +303,8 @@ internal fun EqualizerScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .horizontalGestureSafe()
-                                        .horizontalScroll(rememberScrollState()),
+                                        .horizontalScroll(reverbScrollState, overscrollEffect = null)
+                                        .ensureHorizontalRubberBand(reverbScrollState),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -1078,7 +1081,8 @@ private fun EqPresetMenu(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalGestureSafe()
-            .horizontalScroll(horizontalScrollState),
+            .horizontalScroll(horizontalScrollState, overscrollEffect = null)
+            .ensureHorizontalRubberBand(horizontalScrollState),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1134,6 +1138,7 @@ private fun SpaciousnessModeMenu(
     onModeSelected: (SpaciousnessMode) -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val horizontalScrollState = rememberScrollState()
     val modes = remember {
         listOf(
             SpaciousnessMode.StereoWidth,
@@ -1148,7 +1153,8 @@ private fun SpaciousnessModeMenu(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalGestureSafe()
-            .horizontalScroll(rememberScrollState()),
+            .horizontalScroll(horizontalScrollState, overscrollEffect = null)
+            .ensureHorizontalRubberBand(horizontalScrollState),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

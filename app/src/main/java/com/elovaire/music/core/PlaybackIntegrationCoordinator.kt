@@ -58,8 +58,6 @@ internal class PlaybackIntegrationCoordinator(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private var restorationAttempted = false
-    private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
-    private var cachedQueueIds: List<Long> = emptyList()
     private var lastSessionKey: SessionKey? = null
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
@@ -195,7 +193,7 @@ internal class PlaybackIntegrationCoordinator(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        persistSession(allowAfterRelease = true)
+        persistSessionNow(allowAfterRelease = true)
         if (!sessionWriterJob.isActive) {
             sessionWriterScope.cancel()
             return
@@ -243,38 +241,55 @@ internal class PlaybackIntegrationCoordinator(
         playback.restoreSession(restoredQueue, currentIndex, persisted)
     }
 
-    private fun persistSession(
+    private suspend fun persistSession(
         positionOverrideMs: Long? = null,
         allowAfterRelease: Boolean = false,
     ) {
+        val snapshot = withContext(Dispatchers.Main.immediate) {
+            playback.capturePersistenceSnapshot()
+        }
+        enqueueSession(snapshot, positionOverrideMs, allowAfterRelease)
+    }
+
+    private fun persistSessionNow(allowAfterRelease: Boolean) {
+        enqueueSession(
+            snapshot = playback.capturePersistenceSnapshot(),
+            positionOverrideMs = null,
+            allowAfterRelease = allowAfterRelease,
+        )
+    }
+
+    private fun enqueueSession(
+        snapshot: elovaire.music.droidbeauty.app.data.playback.PlaybackPersistenceSnapshot,
+        positionOverrideMs: Long?,
+        allowAfterRelease: Boolean,
+    ) {
         if (!restorationAttempted || released.get() && !allowAfterRelease) return
-        val queue = playback.queueState.value
-        if (queue.queue.isEmpty()) {
+        if (snapshot.queueSongIds.isEmpty()) {
             if (!allowAfterRelease && lastSessionKey == SessionKey.Empty) return
             lastSessionKey = SessionKey.Empty
             playback.checkpointAudiobookProgress()
-            sessionWrites.trySend(null)
+            enqueueSessionWrite(null)
             return
         }
-        val transport = playback.transportState.value
         val sessionKey = SessionKey(
-            queueSongIds = queueSongIds(queue.queue),
-            currentSongId = queue.queue.getOrNull(queue.currentIndex)?.id,
-            currentIndex = queue.currentIndex,
-            repeatMode = transport.repeatMode,
-            shuffleEnabled = transport.shuffleEnabled,
-            sourcePlaylistId = queue.sourcePlaylistId,
-            wasPlaying = transport.isPlaying || transport.transportShowsPause,
+            queueSongIds = snapshot.queueSongIds,
+            currentSongId = snapshot.currentSongId,
+            currentIndex = snapshot.currentIndex,
+            repeatMode = snapshot.repeatMode,
+            shuffleEnabled = snapshot.shuffleEnabled,
+            sourcePlaylistId = snapshot.sourcePlaylistId,
+            wasPlaying = snapshot.wasPlaying,
         )
         if (positionOverrideMs == null && !allowAfterRelease && sessionKey == lastSessionKey) return
         lastSessionKey = sessionKey
         playback.checkpointAudiobookProgress()
-        sessionWrites.trySend(
+        enqueueSessionWrite(
             PersistedPlaybackSession(
                 queueSongIds = sessionKey.queueSongIds,
                 currentSongId = sessionKey.currentSongId,
                 currentIndex = sessionKey.currentIndex,
-                positionMs = positionOverrideMs ?: playback.progressState.value.positionMs,
+                positionMs = positionOverrideMs ?: snapshot.positionMs,
                 repeatMode = sessionKey.repeatMode,
                 shuffleEnabled = sessionKey.shuffleEnabled,
                 sourcePlaylistId = sessionKey.sourcePlaylistId,
@@ -284,11 +299,13 @@ internal class PlaybackIntegrationCoordinator(
         )
     }
 
-    private fun queueSongIds(queue: List<elovaire.music.droidbeauty.app.domain.model.Song>): List<Long> {
-        if (cachedQueue === queue) return cachedQueueIds
-        return queue.map { it.id }.also {
-            cachedQueue = queue
-            cachedQueueIds = it
+    private fun enqueueSessionWrite(session: PersistedPlaybackSession?) {
+        val result = sessionWrites.trySend(session)
+        if (result.isFailure) {
+            diagnostics.recordWorkerFailure(
+                "playback-session-writer",
+                IllegalStateException("Playback session checkpoint was rejected after writer shutdown."),
+            )
         }
     }
 

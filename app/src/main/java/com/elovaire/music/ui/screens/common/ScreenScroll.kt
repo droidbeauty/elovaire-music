@@ -492,9 +492,55 @@ internal fun Modifier.ensureSingleItemRubberBand(state: LazyGridState): Modifier
     )
 }
 
+internal fun Modifier.ensureHorizontalRubberBand(state: androidx.compose.foundation.ScrollState): Modifier = composed {
+    val baseModifier = this.kuperRubberBand(
+        canScrollBackward = { state.canScrollBackward },
+        canScrollForward = { state.canScrollForward },
+        orientation = Orientation.Horizontal,
+    )
+    if (state.canScrollBackward || state.canScrollForward) return@composed baseModifier
+    val fallbackScrollState = rememberScrollableState { 0f }
+    baseModifier.scrollable(
+        state = fallbackScrollState,
+        orientation = Orientation.Horizontal,
+        overscrollEffect = null,
+    )
+}
+
+internal fun Modifier.ensureHorizontalRubberBand(state: androidx.compose.foundation.lazy.LazyListState): Modifier = composed {
+    val baseModifier = this.kuperRubberBand(
+        canScrollBackward = { state.canScrollBackward },
+        canScrollForward = { state.canScrollForward },
+        orientation = Orientation.Horizontal,
+    )
+    if (state.canScrollBackward || state.canScrollForward) return@composed baseModifier
+    val fallbackScrollState = rememberScrollableState { 0f }
+    baseModifier.scrollable(
+        state = fallbackScrollState,
+        orientation = Orientation.Horizontal,
+        overscrollEffect = null,
+    )
+}
+
+internal fun Modifier.ensureHorizontalRubberBand(state: LazyGridState): Modifier = composed {
+    val baseModifier = this.kuperRubberBand(
+        canScrollBackward = { state.canScrollBackward },
+        canScrollForward = { state.canScrollForward },
+        orientation = Orientation.Horizontal,
+    )
+    if (state.canScrollBackward || state.canScrollForward) return@composed baseModifier
+    val fallbackScrollState = rememberScrollableState { 0f }
+    baseModifier.scrollable(
+        state = fallbackScrollState,
+        orientation = Orientation.Horizontal,
+        overscrollEffect = null,
+    )
+}
+
 private fun Modifier.kuperRubberBand(
     canScrollBackward: () -> Boolean,
     canScrollForward: () -> Boolean,
+    orientation: Orientation = Orientation.Vertical,
 ): Modifier = composed {
     val motionSpecs = rememberMotionSpecs()
     var translationTarget by remember { mutableFloatStateOf(0f) }
@@ -512,10 +558,15 @@ private fun Modifier.kuperRubberBand(
                 source: NestedScrollSource,
             ): Offset {
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
-                val isPullingDown = available.y > 0f && !canScrollBackward()
-                val isPullingUp = available.y < 0f && !canScrollForward()
-                if (!isPullingDown && !isPullingUp) return Offset.Zero
-                translationTarget = (translationTarget + (available.y * 0.032f))
+                val availableDistance = if (orientation == Orientation.Horizontal) {
+                    available.x
+                } else {
+                    available.y
+                }
+                val isPullingBackward = availableDistance > 0f && !canScrollBackward()
+                val isPullingForward = availableDistance < 0f && !canScrollForward()
+                if (!isPullingBackward && !isPullingForward) return Offset.Zero
+                translationTarget = (translationTarget + (availableDistance * 0.032f))
                     .coerceIn(-maxTranslationPx, maxTranslationPx)
                 return Offset.Zero
             }
@@ -532,6 +583,12 @@ private fun Modifier.kuperRubberBand(
         }
     }
     this
-        .graphicsLayer { translationY = translation }
+        .graphicsLayer {
+            if (orientation == Orientation.Horizontal) {
+                translationX = translation
+            } else {
+                translationY = translation
+            }
+        }
         .nestedScroll(connection)
 }

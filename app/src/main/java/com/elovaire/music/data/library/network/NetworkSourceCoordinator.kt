@@ -63,7 +63,7 @@ internal class NetworkSourceCoordinator(
             newLocationFingerprint = NetworkSourceIdentity.locationFingerprint(normalized),
         )
         credentialStore.put(normalized.id, normalized.credentialKey, effectiveCredentials)
-        mutationJournal.markPhase(normalized.id, "credential_persisted")
+        mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.CredentialPersisted)
         try {
             sourceStore.upsert(normalized)
         } catch (failure: RuntimeException) {
@@ -81,18 +81,19 @@ internal class NetworkSourceCoordinator(
             }
             throw failure
         }
-        mutationJournal.markPhase(normalized.id, "source_persisted")
+        mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.SourcePersisted)
         if (previousSource != null && previousSource.credentialKey != normalized.credentialKey) {
             credentialStore.remove(previousSource.credentialKey)
         }
-        mutationJournal.markPhase(normalized.id, "credentials_cleaned")
+        mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.CredentialsCleaned)
         if (previousSource != null && previousSource != normalized) {
             inventoryStore.remove(source.id)
         }
-        mutationJournal.markPhase(normalized.id, "inventory_invalidated")
+        mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.InventoryInvalidated)
         if (previousSource != normalized || previous != effectiveCredentials) {
             registryProvider().invalidate(source.id)
         }
+        mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.RuntimeInvalidated)
         val outcome = NetworkSourceMutationOutcome(
             probeResult = registryProvider().probeBlocking(normalized, effectiveCredentials),
             refreshRequired = previousSource != normalized || previous != effectiveCredentials,
@@ -105,11 +106,11 @@ internal class NetworkSourceCoordinator(
         val currentSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         mutationJournal.prepareRemove(currentSource ?: source)
         registryProvider().invalidate(source.id)
-        mutationJournal.markPhase(source.id, "runtime_invalidated")
+        mutationJournal.markPhase(source.id, NetworkSourceMutationPhase.RuntimeInvalidated)
         sourceStore.remove(source.id)
-        mutationJournal.markPhase(source.id, "source_removed")
+        mutationJournal.markPhase(source.id, NetworkSourceMutationPhase.SourceRemoved)
         inventoryStore.remove(source.id)
-        mutationJournal.markPhase(source.id, "inventory_removed")
+        mutationJournal.markPhase(source.id, NetworkSourceMutationPhase.InventoryRemoved)
         credentialStoreProvider().apply {
             remove(source.credentialKey)
             if (currentSource != null && currentSource.credentialKey != source.credentialKey) {

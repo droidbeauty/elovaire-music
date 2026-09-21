@@ -22,6 +22,50 @@ internal data class AudiobookUiCopy(
     val editTags: String = "Edit audiobook tags",
 )
 
+internal data class AudiobookDescriptionCopy(
+    val about: String,
+    val loading: String,
+    val unavailable: String,
+    val more: String,
+    val close: String,
+)
+
+internal fun audiobookDescriptionCopy(language: AppLanguage): AudiobookDescriptionCopy = when (language) {
+    AppLanguage.Albanian -> AudiobookDescriptionCopy("Rreth këtij libri", "Po ngarkohet përshkrimi…", "Nuk ka përshkrim", "MË SHUMË", "Mbyll përshkrimin")
+    AppLanguage.ChineseSimplified -> AudiobookDescriptionCopy("关于本书", "正在加载简介…", "没有简介", "更多", "关闭简介")
+    AppLanguage.Croatian -> AudiobookDescriptionCopy("O ovoj knjizi", "Učitavanje opisa…", "Opis nije dostupan", "VIŠE", "Zatvori opis")
+    AppLanguage.Czech -> AudiobookDescriptionCopy("O této knize", "Načítání popisu…", "Popis není k dispozici", "VÍCE", "Zavřít popis")
+    AppLanguage.Danish -> AudiobookDescriptionCopy("Om denne bog", "Indlæser beskrivelse…", "Ingen beskrivelse", "MERE", "Luk beskrivelse")
+    AppLanguage.Dutch -> AudiobookDescriptionCopy("Over dit boek", "Beschrijving laden…", "Geen beschrijving", "MEER", "Beschrijving sluiten")
+    AppLanguage.Bengali -> AudiobookDescriptionCopy("এই বই সম্পর্কে", "বিবরণ লোড হচ্ছে…", "কোনও বিবরণ নেই", "আরও", "বিবরণ বন্ধ করুন")
+    AppLanguage.Estonian -> AudiobookDescriptionCopy("Sellest raamatust", "Kirjelduse laadimine…", "Kirjeldus puudub", "ROHKEM", "Sulge kirjeldus")
+    AppLanguage.French -> AudiobookDescriptionCopy("À propos de ce livre", "Chargement de la description…", "Aucune description", "PLUS", "Fermer la description")
+    AppLanguage.German -> AudiobookDescriptionCopy("Über dieses Buch", "Beschreibung wird geladen…", "Keine Beschreibung", "MEHR", "Beschreibung schließen")
+    AppLanguage.Greek -> AudiobookDescriptionCopy("Σχετικά με αυτό το βιβλίο", "Φόρτωση περιγραφής…", "Δεν υπάρχει περιγραφή", "ΠΕΡΙΣΣΟΤΕΡΑ", "Κλείσιμο περιγραφής")
+    AppLanguage.Hindi -> AudiobookDescriptionCopy("इस पुस्तक के बारे में", "विवरण लोड हो रहा है…", "कोई विवरण उपलब्ध नहीं", "अधिक", "विवरण बंद करें")
+    AppLanguage.Hungarian -> AudiobookDescriptionCopy("A könyvről", "Leírás betöltése…", "Nincs leírás", "TÖBB", "Leírás bezárása")
+    AppLanguage.Italian -> AudiobookDescriptionCopy("Informazioni sul libro", "Caricamento descrizione…", "Nessuna descrizione", "ALTRO", "Chiudi descrizione")
+    AppLanguage.Japanese -> AudiobookDescriptionCopy("この本について", "説明を読み込み中…", "説明はありません", "もっと見る", "説明を閉じる")
+    AppLanguage.Korean -> AudiobookDescriptionCopy("이 책 정보", "설명 로드 중…", "설명이 없습니다", "더 보기", "설명 닫기")
+    AppLanguage.Latin -> AudiobookDescriptionCopy("De hoc libro", "Descriptio oneratur…", "Descriptio nulla", "PLURA", "Descriptionem claude")
+    AppLanguage.Latvian -> AudiobookDescriptionCopy("Par šo grāmatu", "Notiek apraksta ielāde…", "Apraksts nav pieejams", "VAIRĀK", "Aizvērt aprakstu")
+    AppLanguage.Lithuanian -> AudiobookDescriptionCopy("Apie šią knygą", "Įkeliamas aprašas…", "Aprašo nėra", "DAUGIAU", "Uždaryti aprašą")
+    AppLanguage.Malay -> AudiobookDescriptionCopy("Tentang buku ini", "Memuatkan penerangan…", "Tiada penerangan", "LAGI", "Tutup penerangan")
+    AppLanguage.Macedonian -> AudiobookDescriptionCopy("За оваа книга", "Описот се вчитува…", "Нема опис", "ПОВЕЌЕ", "Затвори го описот")
+    AppLanguage.Norwegian -> AudiobookDescriptionCopy("Om denne boken", "Laster inn beskrivelse…", "Ingen beskrivelse", "MER", "Lukk beskrivelse")
+    AppLanguage.Polish -> AudiobookDescriptionCopy("O tej książce", "Ładowanie opisu…", "Brak opisu", "WIĘCEJ", "Zamknij opis")
+    AppLanguage.Portuguese -> AudiobookDescriptionCopy("Sobre este livro", "A carregar a descrição…", "Sem descrição", "MAIS", "Fechar descrição")
+    AppLanguage.Russian -> AudiobookDescriptionCopy("Об этой книге", "Загрузка описания…", "Описание отсутствует", "ЕЩЁ", "Закрыть описание")
+    AppLanguage.Serbian -> AudiobookDescriptionCopy("О овој књизи", "Учитавање описа…", "Нема описа", "ЈОШ", "Затвори опис")
+    AppLanguage.Slovak -> AudiobookDescriptionCopy("O tejto knihe", "Načítava sa popis…", "Popis nie je k dispozícii", "VIAC", "Zavrieť popis")
+    AppLanguage.Spanish -> AudiobookDescriptionCopy("Sobre este libro", "Cargando descripción…", "No hay descripción", "MÁS", "Cerrar descripción")
+    AppLanguage.Swedish -> AudiobookDescriptionCopy("Om den här boken", "Läser in beskrivning…", "Ingen beskrivning", "MER", "Stäng beskrivning")
+    AppLanguage.Thai -> AudiobookDescriptionCopy("เกี่ยวกับหนังสือเล่มนี้", "กำลังโหลดคำอธิบาย…", "ไม่มีคำอธิบาย", "เพิ่มเติม", "ปิดคำอธิบาย")
+    AppLanguage.Ukrainian -> AudiobookDescriptionCopy("Про цю книгу", "Завантаження опису…", "Опис відсутній", "БІЛЬШЕ", "Закрити опис")
+    AppLanguage.Urdu -> AudiobookDescriptionCopy("اس کتاب کے بارے میں", "تفصیل لوڈ ہو رہی ہے…", "کوئی تفصیل نہیں", "مزید", "تفصیل بند کریں")
+    AppLanguage.English -> AudiobookDescriptionCopy("About this book", "Loading description…", "No description available", "MORE", "Close description")
+}
+
 internal fun audiobookCopy(language: AppLanguage): AudiobookUiCopy {
     return when (language) {
         AppLanguage.Polish -> AudiobookUiCopy(

@@ -1080,6 +1080,7 @@ private fun SearchAudiobooksResults(
 ) {
     val language = LocalAppLanguage.current
     val copy = audiobookCopy(language)
+    val listState = rememberLazyListState()
     ModuleCard(
         contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
     ) {
@@ -1088,7 +1089,12 @@ private fun SearchAudiobooksResults(
                 title = copy.title,
                 iconResId = R.drawable.ic_lucide_library,
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            LazyRow(
+                state = listState,
+                overscrollEffect = null,
+                modifier = Modifier.ensureHorizontalRubberBand(listState),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 items(books, key = Audiobook::stableKey, contentType = { "search_audiobook_card" }) { book ->
                     Column(
                         modifier = Modifier

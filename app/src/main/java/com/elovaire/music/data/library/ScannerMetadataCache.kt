@@ -10,8 +10,19 @@ internal class ScannerMetadataCache {
 
     operator fun get(mediaUri: String): CachedSongMetadata? = metadata[mediaUri]
 
-    fun put(mediaUri: String, cachedMetadata: CachedSongMetadata) {
-        metadata[mediaUri] = cachedMetadata
+    fun put(mediaUri: String, cachedMetadata: CachedSongMetadata): CachedSongMetadata {
+        val previous = metadata[mediaUri]
+        val preservedQuality = cachedMetadata.metadata.quality
+            ?: previous?.metadata?.quality
+        val stored = if (preservedQuality == cachedMetadata.metadata.quality) {
+            cachedMetadata
+        } else {
+            cachedMetadata.copy(
+                metadata = cachedMetadata.metadata.copy(quality = preservedQuality),
+            )
+        }
+        metadata[mediaUri] = stored
+        return stored
     }
 
     fun retainOnly(mediaUris: Set<String>) {

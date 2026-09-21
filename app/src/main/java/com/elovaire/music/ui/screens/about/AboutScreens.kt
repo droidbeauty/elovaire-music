@@ -748,6 +748,7 @@ private fun AboutEntryBlock(
     val visibleLinks = entry.links.filterNot { link ->
         showPlayStoreCard && link.label.equals("Play Store", ignoreCase = true)
     }
+    val linksScrollState = rememberScrollState()
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (showLogo) {
             Row(
@@ -771,7 +772,8 @@ private fun AboutEntryBlock(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                        .horizontalScroll(linksScrollState, overscrollEffect = null)
+                        .ensureHorizontalRubberBand(linksScrollState),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     visibleLinks.forEach { link ->

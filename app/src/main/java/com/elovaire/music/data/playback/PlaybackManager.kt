@@ -748,6 +748,20 @@ internal class PlaybackManager internal constructor(
         return player.currentPosition.coerceAtLeast(0L)
     }
 
+    override fun capturePersistenceSnapshot(): PlaybackPersistenceSnapshot {
+        val snapshot = _state.value
+        return PlaybackPersistenceSnapshot(
+            queueSongIds = snapshot.queue.map(Song::id),
+            currentSongId = snapshot.queue.getOrNull(snapshot.currentIndex)?.id,
+            currentIndex = snapshot.currentIndex,
+            positionMs = player.currentPosition.coerceAtLeast(0L),
+            repeatMode = snapshot.repeatMode,
+            shuffleEnabled = snapshot.shuffleEnabled,
+            sourcePlaylistId = snapshot.sourcePlaylistId,
+            wasPlaying = snapshot.isPlaying || snapshot.transportShowsPause,
+        )
+    }
+
     internal fun updateCurrentArtworkData(
         songId: Long,
         artworkData: ByteArray,

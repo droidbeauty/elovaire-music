@@ -4,6 +4,17 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.flow.StateFlow
 
+internal data class PlaybackPersistenceSnapshot(
+    val queueSongIds: List<Long>,
+    val currentSongId: Long?,
+    val currentIndex: Int,
+    val positionMs: Long,
+    val repeatMode: PlaybackRepeatMode,
+    val shuffleEnabled: Boolean,
+    val sourcePlaylistId: Long?,
+    val wasPlaying: Boolean,
+)
+
 interface PlaybackReader {
     val nowPlayingState: StateFlow<PlaybackNowPlayingState>
     val transportState: StateFlow<PlaybackTransportState>
@@ -96,6 +107,8 @@ internal interface PlaybackIntegrationPort : PlaybackReader {
     )
 
     fun currentPositionForPersistence(): Long
+
+    fun capturePersistenceSnapshot(): PlaybackPersistenceSnapshot
 
     fun checkpointAudiobookProgress(force: Boolean = false)
 

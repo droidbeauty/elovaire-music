@@ -8,6 +8,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import java.io.IOException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,7 +38,7 @@ class SettingsWriteSequencerTest {
         assertTrue(sequencer.hasPendingWork())
 
         releaseFirst.complete(Unit)
-        sequencer.flush()
+        assertTrue(sequencer.flush())
 
         assertEquals(listOf("first", "last", "new"), writes)
         sequencer.close()
@@ -64,7 +65,7 @@ class SettingsWriteSequencerTest {
 
         sequencer.enqueue("first") { writes += "first" }
         sequencer.enqueue("second") { writes += "second" }
-        sequencer.flush()
+        assertFalse(sequencer.flush())
 
         assertEquals(listOf("second"), writes)
         sequencer.close()

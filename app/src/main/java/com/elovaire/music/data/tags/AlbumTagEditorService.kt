@@ -11,6 +11,7 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.EmbeddedDescriptionMetadata
 import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
@@ -510,7 +511,7 @@ internal class AlbumTagEditorService(
         val tag = audioFile.tagOrCreateAndSetDefault
         applyTextEdit(tag, FieldKey.ALBUM, request.collectionTitle)
         applyTextEdit(tag, FieldKey.ALBUM_ARTIST, request.collectionArtist)
-        applyTextEdit(tag, FieldKey.COMMENT, request.collectionDescription)
+        applyDescriptionEdit(tag, request.collectionDescription, originalSong.description)
         applyTextEdit(tag, FieldKey.GENRE, request.genre)
         if (request.tracks.any { it.songId == originalSong.id }) {
             setOrDeleteTextField(tag, FieldKey.ARTIST, track.artist.trim().ifBlank { originalSong.artist })
@@ -560,6 +561,18 @@ internal class AlbumTagEditorService(
             TagFieldEdit.Unchanged -> Unit
             TagFieldEdit.Cleared -> runCatching { tag.deleteField(fieldKey) }
             is TagFieldEdit.Value -> setOrDeleteTextField(tag, fieldKey, edit.value)
+        }
+    }
+
+    private fun applyDescriptionEdit(
+        tag: org.jaudiotagger.tag.Tag,
+        edit: TagFieldEdit<String>,
+        legacyValue: String?,
+    ) {
+        when (edit) {
+            TagFieldEdit.Unchanged -> Unit
+            TagFieldEdit.Cleared -> EmbeddedDescriptionMetadata.write(tag, null, legacyValue)
+            is TagFieldEdit.Value -> EmbeddedDescriptionMetadata.write(tag, edit.value)
         }
     }
 
@@ -625,12 +638,16 @@ internal class AlbumTagEditorService(
         check(FieldKey.ARTIST, expected.artist, "Artist")
         check(FieldKey.ALBUM, expected.album, "Album")
         check(FieldKey.ALBUM_ARTIST, expected.albumArtist, "Album artist")
-        check(FieldKey.COMMENT, expected.description, "Description")
+        if (expected.description != null && !EmbeddedDescriptionMetadata.matches(tag, expected.description)) {
+            failures += "Description did not match the saved value"
+        }
         check(FieldKey.YEAR, expected.year, "Year")
         check(FieldKey.GENRE, expected.genre, "Genre")
         checkCleared(FieldKey.ALBUM, "Album", expected.shouldClearAlbum)
         checkCleared(FieldKey.ALBUM_ARTIST, "Album artist", expected.shouldClearAlbumArtist)
-        checkCleared(FieldKey.COMMENT, "Description", expected.shouldClearDescription)
+        if (expected.shouldClearDescription && EmbeddedDescriptionMetadata.read(tag) != null) {
+            failures += "Description should be cleared"
+        }
         checkCleared(FieldKey.YEAR, "Year", expected.shouldClearYear)
         checkCleared(FieldKey.GENRE, "Genre", expected.shouldClearGenre)
         check(FieldKey.TRACK, expected.trackNumber, "Track")

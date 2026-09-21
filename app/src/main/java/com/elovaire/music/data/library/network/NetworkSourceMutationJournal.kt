@@ -5,10 +5,23 @@ import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import kotlinx.coroutines.withTimeout
 
 internal enum class NetworkSourceMutationKind {
     Save,
     Remove,
+}
+
+/** Durable phases use stable wire values so recovery can be audited and repeated safely. */
+internal enum class NetworkSourceMutationPhase(val wireValue: String) {
+    Prepared("prepared"),
+    CredentialPersisted("credential_persisted"),
+    SourcePersisted("source_persisted"),
+    CredentialsCleaned("credentials_cleaned"),
+    InventoryInvalidated("inventory_invalidated"),
+    RuntimeInvalidated("runtime_invalidated"),
+    SourceRemoved("source_removed"),
+    InventoryRemoved("inventory_removed"),
 }
 
 internal data class NetworkSourceMutationMarker(
@@ -18,7 +31,7 @@ internal data class NetworkSourceMutationMarker(
     val newCredentialKey: String?,
     val previousLocationFingerprint: String?,
     val newLocationFingerprint: String?,
-    val phase: String,
+    val phase: NetworkSourceMutationPhase,
 )
 
 internal class NetworkSourceMutationJournalCorruptionException(
@@ -47,7 +60,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
             newCredentialKey = newCredentialKey,
             previousLocationFingerprint = previousLocationFingerprint,
             newLocationFingerprint = newLocationFingerprint,
-            phase = PHASE_PREPARED,
+            phase = NetworkSourceMutationPhase.Prepared,
         ),
     )
 
@@ -59,15 +72,19 @@ internal class NetworkSourceMutationJournal(context: Context) {
             newCredentialKey = null,
             previousLocationFingerprint = NetworkSourceIdentity.locationFingerprint(source),
             newLocationFingerprint = null,
-            phase = PHASE_PREPARED,
+            phase = NetworkSourceMutationPhase.Prepared,
         ),
     )
 
-    fun markPhase(sourceId: String, phase: String) {
+    fun markPhase(sourceId: String, phase: NetworkSourceMutationPhase) {
         synchronized(lock) {
-            require(phase in VALID_PHASES) { "Unknown network source mutation phase." }
             val markers = readLocked()
             val current = markers.firstOrNull { it.sourceId == sourceId } ?: return
+            if (current.phase == phase) return
+            check(isValidNetworkSourceMutationPhaseTransition(current.kind, current.phase, phase)) {
+                "Invalid ${current.kind.name} network source mutation transition: " +
+                    "${current.phase.wireValue} -> ${phase.wireValue}"
+            }
             writeLocked(markers.map { marker ->
                 if (marker.sourceId == sourceId) current.copy(phase = phase) else marker
             })
@@ -106,7 +123,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
                     .put("newCredentialKey", marker.newCredentialKey)
                     .put("previousLocationFingerprint", marker.previousLocationFingerprint)
                     .put("newLocationFingerprint", marker.newLocationFingerprint)
-                    .put("phase", marker.phase),
+                    .put("phase", marker.phase.wireValue),
             )
         }
         check(preferences.edit().putString(KEY_MARKERS, array.toString()).commit()) {
@@ -148,12 +165,12 @@ internal class NetworkSourceMutationJournal(context: Context) {
                     ?: throw NetworkSourceMutationJournalCorruptionException(
                         "Network source mutation journal contains a marker without a source.",
                     )
-                val phase = item.optString("phase", PHASE_PREPARED)
-                if (phase !in VALID_PHASES) {
-                    throw NetworkSourceMutationJournalCorruptionException(
-                        "Network source mutation journal contains an unknown phase.",
-                    )
-                }
+                val phaseValue = item.optString("phase", NetworkSourceMutationPhase.Prepared.wireValue)
+                val phase = NetworkSourceMutationPhase.entries.firstOrNull { phase ->
+                    phase.wireValue == phaseValue || phase.name == phaseValue
+                } ?: throw NetworkSourceMutationJournalCorruptionException(
+                    "Network source mutation journal contains an unknown phase.",
+                )
                 add(
                     NetworkSourceMutationMarker(
                         sourceId = sourceId,
@@ -175,18 +192,39 @@ internal class NetworkSourceMutationJournal(context: Context) {
         const val PREFERENCES = "network_source_mutations_v1"
         const val KEY_MARKERS = "markers"
         const val MAX_MARKERS = 32
-        const val PHASE_PREPARED = "prepared"
-        val VALID_PHASES = setOf(
-            PHASE_PREPARED,
-            "credential_persisted",
-            "source_persisted",
-            "credentials_cleaned",
-            "inventory_invalidated",
-            "runtime_invalidated",
-            "source_removed",
-            "inventory_removed",
-        )
     }
+}
+
+internal fun isValidNetworkSourceMutationPhaseTransition(
+    kind: NetworkSourceMutationKind,
+    current: NetworkSourceMutationPhase,
+    next: NetworkSourceMutationPhase,
+): Boolean {
+    val allowed = when (kind) {
+        NetworkSourceMutationKind.Save -> when (current) {
+            NetworkSourceMutationPhase.Prepared -> setOf(NetworkSourceMutationPhase.CredentialPersisted)
+            NetworkSourceMutationPhase.CredentialPersisted -> setOf(NetworkSourceMutationPhase.SourcePersisted)
+            NetworkSourceMutationPhase.SourcePersisted -> setOf(NetworkSourceMutationPhase.CredentialsCleaned)
+            NetworkSourceMutationPhase.CredentialsCleaned -> setOf(NetworkSourceMutationPhase.InventoryInvalidated)
+            NetworkSourceMutationPhase.InventoryInvalidated -> setOf(NetworkSourceMutationPhase.RuntimeInvalidated)
+            NetworkSourceMutationPhase.RuntimeInvalidated,
+            NetworkSourceMutationPhase.SourceRemoved,
+            NetworkSourceMutationPhase.InventoryRemoved,
+            -> emptySet()
+        }
+        NetworkSourceMutationKind.Remove -> when (current) {
+            NetworkSourceMutationPhase.Prepared -> setOf(NetworkSourceMutationPhase.RuntimeInvalidated)
+            NetworkSourceMutationPhase.RuntimeInvalidated -> setOf(NetworkSourceMutationPhase.SourceRemoved)
+            NetworkSourceMutationPhase.SourceRemoved -> setOf(NetworkSourceMutationPhase.InventoryRemoved)
+            NetworkSourceMutationPhase.InventoryRemoved,
+            NetworkSourceMutationPhase.CredentialPersisted,
+            NetworkSourceMutationPhase.SourcePersisted,
+            NetworkSourceMutationPhase.CredentialsCleaned,
+            NetworkSourceMutationPhase.InventoryInvalidated,
+            -> emptySet()
+        }
+    }
+    return next in allowed
 }
 
 internal suspend fun NetworkSourceMutationJournal.recover(
@@ -194,34 +232,44 @@ internal suspend fun NetworkSourceMutationJournal.recover(
     credentialStore: NetworkCredentialStore,
     inventoryStore: NetworkInventoryStore,
     invalidateRuntime: ((sourceId: String) -> Unit)? = null,
+    perMarkerTimeoutMs: Long = 15_000L,
 ) {
     pending().forEach { marker ->
-        // Recovery may run after process death before the runtime registry has
-        // observed the durable mutation. Drop any session that still reflects
-        // the interrupted operation before the source is used again.
-        invalidateRuntime?.invoke(marker.sourceId)
-        when (marker.kind) {
-            NetworkSourceMutationKind.Save -> {
-                val current = sourceStore.sources.value.firstOrNull { it.id == marker.sourceId }
-                if (current?.credentialKey == marker.newCredentialKey) {
-                    marker.previousCredentialKey
-                        ?.takeIf { it != marker.newCredentialKey }
-                        ?.let(credentialStore::remove)
-                    if (marker.previousLocationFingerprint != marker.newLocationFingerprint) {
-                        inventoryStore.remove(marker.sourceId)
+        withTimeout(perMarkerTimeoutMs) {
+            // Each operation below is idempotent. If cancellation interrupts this block,
+            // the marker remains durable and the next recovery pass repeats the same
+            // reconciliation from the durable source state.
+            invalidateRuntime?.invoke(marker.sourceId)
+            when (marker.kind) {
+                NetworkSourceMutationKind.Save -> {
+                    val current = sourceStore.sources.value.firstOrNull { it.id == marker.sourceId }
+                    if (current?.credentialKey == marker.newCredentialKey) {
+                        val newCredentialKey = marker.newCredentialKey
+                            ?: error("A committed network source save has no credential key")
+                        check(
+                            credentialStore.read(marker.sourceId, newCredentialKey) is
+                                NetworkCredentialReadResult.Available,
+                        ) { "Committed network source credentials are unavailable" }
+                        marker.previousCredentialKey
+                            ?.takeIf { it != marker.newCredentialKey }
+                            ?.let(credentialStore::remove)
+                        if (marker.previousLocationFingerprint != marker.newLocationFingerprint) {
+                            inventoryStore.remove(marker.sourceId)
+                        }
+                    } else {
+                        marker.newCredentialKey?.let(credentialStore::remove)
                     }
-                } else {
-                    marker.newCredentialKey?.let(credentialStore::remove)
                 }
-            }
 
-            NetworkSourceMutationKind.Remove -> {
-                if (sourceStore.sources.value.none { it.id == marker.sourceId }) {
+                NetworkSourceMutationKind.Remove -> {
+                    // Removal is the durable user intent. Completing it is safe even when
+                    // process death occurred before the source preference was removed.
+                    sourceStore.remove(marker.sourceId)
                     marker.previousCredentialKey?.let(credentialStore::remove)
                     inventoryStore.remove(marker.sourceId)
                 }
             }
+            clear(marker.sourceId)
         }
-        clear(marker.sourceId)
     }
 }

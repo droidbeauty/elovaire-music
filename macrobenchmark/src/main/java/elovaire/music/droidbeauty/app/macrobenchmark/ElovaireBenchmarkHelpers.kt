@@ -129,6 +129,8 @@ internal data class BurstInputSample(
     val injectedAtElapsedMs: Long,
 )
 
+internal val RAPID_INPUT_CADENCES_MS = longArrayOf(160L, 100L, 64L, 32L, 16L)
+
 internal fun MacrobenchmarkScope.burstClickDescriptions(
     descriptions: List<String>,
     interInputDelayMs: Long,
@@ -182,6 +184,37 @@ internal fun MacrobenchmarkScope.rapidBottomNavigationBurst(interInputDelayMs: L
         descriptions = listOf("Albums", "Playlists", "Search", "Home"),
         interInputDelayMs = interInputDelayMs,
     )
+}
+
+internal fun MacrobenchmarkScope.rapidTopLevelRouteStorm(interInputDelayMs: Long) {
+    val journeys = listOf(
+        listOf("Albums", "Playlists", "Search", "Home"),
+        listOf("Home", "Search", "Playlists", "Albums"),
+        listOf("Albums", "Search", "Playlists", "Albums", "Home", "Search"),
+    )
+    journeys.forEach { journey ->
+        burstClickDescriptions(journey, interInputDelayMs)
+    }
+    uiDevice.waitForIdle()
+    requireClickDescription("Search")
+    assertAppProcessIsAlive()
+}
+
+internal fun MacrobenchmarkScope.rapidOpenBackStorm(interInputDelayMs: Long) {
+    burstClickDescriptions(
+        descriptions = listOf("Albums", "Playlists", "Search", "Home"),
+        interInputDelayMs = interInputDelayMs,
+    )
+    burstPressBack(count = 4, interInputDelayMs = interInputDelayMs)
+    uiDevice.waitForIdle()
+    requireClickDescription("Home")
+    assertAppProcessIsAlive()
+}
+
+internal fun MacrobenchmarkScope.assertAppProcessIsAlive() {
+    check(uiDevice.wait(Until.hasObject(By.pkg(TARGET_PACKAGE)), FIND_TIMEOUT_MS)) {
+        "Target process is no longer visible: $TARGET_PACKAGE"
+    }
 }
 
 private fun MacrobenchmarkScope.acceptFirstLaunchStoragePermissionIfVisible() {

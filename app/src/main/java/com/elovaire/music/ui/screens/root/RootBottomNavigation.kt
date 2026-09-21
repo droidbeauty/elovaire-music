@@ -25,6 +25,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
@@ -82,6 +87,7 @@ internal fun BottomNavigationBar(
                         baseTint = iconColor,
                         suppressEnterAnimation = suppressEnterAnimation,
                         selected = currentRoute == destination.route,
+                        testTag = "bottom_nav_${destination.route}",
                         onClick = { onNavigate(destination.route) },
                     )
                 }
@@ -113,6 +119,7 @@ private fun BottomNavigationItemButton(
     baseTint: Color,
     suppressEnterAnimation: Boolean,
     selected: Boolean,
+    testTag: String,
     onClick: () -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
@@ -155,6 +162,12 @@ private fun BottomNavigationItemButton(
                 label = "${contentDescription}_bottom_nav_scale",
             )
             .clip(RoundedCornerShape(ElovaireRadii.tile))
+            .semantics {
+                this.contentDescription = contentDescription
+                this.selected = selected
+                testTagsAsResourceId = true
+            }
+            .testTag(testTag)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -164,7 +177,7 @@ private fun BottomNavigationItemButton(
     ) {
         Icon(
             painter = painterResource(id = iconResId),
-            contentDescription = contentDescription,
+            contentDescription = null,
             tint = iconTint,
             modifier = Modifier
                 .graphicsLayer {

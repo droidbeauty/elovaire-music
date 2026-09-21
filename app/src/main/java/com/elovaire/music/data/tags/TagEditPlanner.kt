@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.tags
 
 import android.net.Uri
+import elovaire.music.droidbeauty.app.data.audio.EmbeddedDescriptionMetadata
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal data class TagEditPlan(
@@ -27,6 +28,13 @@ internal object TagEditPlanner {
             return TagEditValidationFailure.InvalidTrackNumber
         }
         if (request.textValues().any { it.length > MAX_TAG_TEXT_LENGTH }) {
+            return TagEditValidationFailure.TextTooLong
+        }
+        if ((request.collectionDescription as? TagFieldEdit.Value<String>)
+                ?.value
+                ?.length
+                ?.let { it > EmbeddedDescriptionMetadata.MAX_CHARACTERS } == true
+        ) {
             return TagEditValidationFailure.TextTooLong
         }
         if (request.coverArtBytes?.size?.let { it > MAX_TAG_ARTWORK_BYTES } == true) {
@@ -83,7 +91,7 @@ private fun TagMutationRequest.textValues(): Sequence<String> = sequence {
         yield(it.title)
         yield(it.artist)
     }
-    listOf(collectionTitle, collectionArtist, collectionDescription, genre).forEach { edit ->
+    listOf(collectionTitle, collectionArtist, genre).forEach { edit ->
         (edit as? TagFieldEdit.Value)?.value?.let { yield(it) }
     }
 }

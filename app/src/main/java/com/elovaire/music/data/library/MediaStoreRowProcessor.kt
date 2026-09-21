@@ -117,7 +117,7 @@ internal class MediaStoreRowProcessor(
         val resolvedAlbum = songMetadata.album ?: row.album
         val isExplicit = detectExplicit(resolvedTitle, row.fileName)
         val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
-        metadataCache.put(
+        val storedMetadata = metadataCache.put(
             uriKey,
             CachedSongMetadata(
                 songId = row.id,
@@ -143,7 +143,7 @@ internal class MediaStoreRowProcessor(
                 releaseYear = songMetadata.releaseYear,
                 genre = songMetadata.genre.orUnknown("Unknown Genre"),
                 audioFormat = songMetadata.format,
-                audioQuality = songMetadata.quality,
+                audioQuality = storedMetadata.metadata.quality,
                 fileName = row.fileName,
                 albumId = row.albumId,
                 durationMs = effectiveDurationMs,

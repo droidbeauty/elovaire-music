@@ -78,6 +78,31 @@ class ScannerMetadataCacheTest {
         assertFalse(cached.matches("song.flac", "/music/song.flac", 1L, 2L, 100L, 2_000L, true))
     }
 
+    @Test
+    fun lightweightRefreshDoesNotEraseKnownAudioQuality() {
+        val cache = ScannerMetadataCache()
+        val key = "media|external|7"
+        val enriched = CachedSongMetadata(
+            songId = 7L,
+            fileName = "song.mp3",
+            filePath = "/music/song.mp3",
+            dateAddedSeconds = 1L,
+            dateModifiedSeconds = 2L,
+            isEnriched = true,
+            metadata = SongMetadata(null, null, null, null, null, null, null, "MP3", "320/44.1kHz", null, null, null),
+        )
+        cache.put(key, enriched)
+
+        val lightweight = enriched.copy(
+            isEnriched = false,
+            metadata = enriched.metadata.copy(quality = null),
+        )
+        val stored = cache.put(key, lightweight)
+
+        assertEquals("320/44.1kHz", stored.metadata.quality)
+        assertEquals("320/44.1kHz", cache[key]?.metadata?.quality)
+    }
+
     private fun song(
         uri: String,
         title: String,

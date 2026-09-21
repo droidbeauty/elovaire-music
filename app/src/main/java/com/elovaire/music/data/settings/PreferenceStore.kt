@@ -74,6 +74,9 @@ class PreferenceStore internal constructor(
         ownerScope = persistenceScope,
         dispatcher = ioDispatcher,
         persist = ::persistSettings,
+        onWriteFailure = { key, failure ->
+            (diagnostics ?: BackendDiagnostics).recordWorkerFailure("settings-persistence:$key", failure)
+        },
     )
     private var preferences: SettingsSnapshot
         get() = currentSettings
@@ -551,10 +554,11 @@ class PreferenceStore internal constructor(
             throw cancelled
         } catch (failure: IOException) {
             Log.w(TAG, "Unable to persist $kind settings.", failure)
+            throw failure
         } catch (failure: IllegalStateException) {
             Log.w(TAG, "Unable to persist $kind settings.", failure)
+            throw failure
         } catch (failure: RuntimeException) {
-            (diagnostics ?: BackendDiagnostics).recordWorkerFailure("settings-persistence", failure)
             throw failure
         }
     }

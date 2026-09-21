@@ -73,6 +73,7 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookDescriptionCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookFinishedLabel
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
@@ -100,6 +101,7 @@ internal fun AudiobookMiniGallery(
 ) {
     if (books.isEmpty()) return
     val copy = audiobookCopy(LocalAppLanguage.current)
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     ModuleCard(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             MutedSectionHeader(
@@ -108,6 +110,9 @@ internal fun AudiobookMiniGallery(
                 onClick = onOpenCollection,
             )
             LazyRow(
+                state = listState,
+                overscrollEffect = null,
+                modifier = Modifier.ensureHorizontalRubberBand(listState),
                 contentPadding = PaddingValues(horizontal = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -417,7 +422,49 @@ private fun AudiobookCollectionContent(
             )
         }
 
-            AlbumLayoutMode.DenseGrid -> Unit
+            AlbumLayoutMode.DenseGrid -> {
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(gridState),
+                    overscrollEffect = null,
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = detailTopBarOccupiedHeight() + 8.dp + selectionTopInset,
+                        end = 16.dp,
+                        bottom = bottomPadding,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item(key = "audiobooks_view_switcher", span = { GridItemSpan(3) }) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                        }
+                    }
+                    items(
+                        items = books,
+                        key = Audiobook::stableKey,
+                        contentType = { "audiobook_dense_grid_card" },
+                    ) { book ->
+                        AudiobookGridCard(
+                            book = book,
+                            selectionMode = selectionModeActive,
+                            selected = book.stableKey in selectedBookKeys,
+                            onClick = { onBookClick(book) },
+                            onLongPress = { onBookLongPress(book) },
+                        )
+                    }
+                }
+                FastScrollbar(
+                    state = gridState,
+                    topInset = detailTopBarOccupiedHeight() + 16.dp + selectionTopInset,
+                    bottomInset = bottomPadding + 16.dp,
+                )
+            }
         }
     }
 }
@@ -468,6 +515,13 @@ private fun AudiobooksViewSwitcher(
             selected = layoutMode == AlbumLayoutMode.Grid,
             contentDescription = "Grid",
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Grid) },
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        ToggleIconChip(
+            iconResId = R.drawable.ic_lucide_grid_3x3,
+            selected = layoutMode == AlbumLayoutMode.DenseGrid,
+            contentDescription = "Dense grid",
+            onClick = { onLayoutModeChanged(AlbumLayoutMode.DenseGrid) },
         )
     }
 }
@@ -655,9 +709,13 @@ internal fun AudiobookDetailScreen(
         return
     }
     val copy = audiobookCopy(LocalAppLanguage.current)
+    val descriptionCopy = audiobookDescriptionCopy(LocalAppLanguage.current)
     var showDescriptionDialog by remember { mutableStateOf(false) }
     val description = (descriptionState as? AudiobookDescriptionLoadState.Loaded)?.text
     val descriptionPreview = remember(description) { audiobookDescriptionPreview(description) }
+    LaunchedEffect(book.stableKey) {
+        showDescriptionDialog = false
+    }
     val partPrefixDurations = remember(book.parts) { audiobookPartPrefixDurations(book.parts) }
     val resolvedProgress = remember(book, savedProgress, currentSongId, progressMs, partPrefixDurations) {
         resolveAudiobookProgress(
@@ -761,23 +819,20 @@ internal fun AudiobookDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { if (description != null) showDescriptionDialog = true },
-                    )
                     .padding(start = 20.dp, top = 12.dp, end = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 AudiobookSectionHeader(
-                    title = "About this book",
+                    title = descriptionCopy.about,
                     iconResId = R.drawable.ic_lucide_info,
                 )
                 Text(
                     text = when (descriptionState) {
-                        AudiobookDescriptionLoadState.Loading -> "Loading description…"
-                        AudiobookDescriptionLoadState.Unavailable -> "No description available"
-                        is AudiobookDescriptionLoadState.Loaded -> descriptionPreview.text
+                        AudiobookDescriptionLoadState.Loading -> descriptionCopy.loading
+                        AudiobookDescriptionLoadState.Unavailable -> descriptionCopy.unavailable
+                        is AudiobookDescriptionLoadState.Loaded -> descriptionPreview.text.ifBlank {
+                            descriptionCopy.unavailable
+                        }
                     },
                     fontFamily = FontFamily.Serif,
                     fontSize = 14.sp,
@@ -796,7 +851,7 @@ internal fun AudiobookDetailScreen(
                         contentColor = readableSecondaryTextColor(),
                     ) {
                         Text(
-                            text = "MORE",
+                            text = descriptionCopy.more,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                         )
@@ -853,6 +908,8 @@ internal fun AudiobookDetailScreen(
     }
     AudiobookDescriptionDialog(
         text = description,
+        title = descriptionCopy.about,
+        closeDescription = descriptionCopy.close,
         visible = showDescriptionDialog && description != null,
         onDismiss = { showDescriptionDialog = false },
     )
@@ -877,14 +934,18 @@ private data class AudiobookDescriptionPreview(
 
 private fun audiobookDescriptionPreview(description: String?): AudiobookDescriptionPreview {
     val normalized = description.orEmpty().trim()
-    if (normalized.isBlank()) return AudiobookDescriptionPreview("No description available", false)
+    if (normalized.isBlank()) return AudiobookDescriptionPreview("", false)
     val sentences = normalized.split(Regex("(?<=[.!?])\\s+")).filter(String::isNotBlank)
     val preview = sentences.take(5).joinToString(" ").ifBlank { normalized }
+        .take(AUDIOBOOK_DESCRIPTION_PREVIEW_MAX_CHARACTERS)
+        .trim()
     return AudiobookDescriptionPreview(
         text = preview,
-        hasMore = sentences.size > 5,
+        hasMore = preview.length < normalized.length,
     )
 }
+
+private const val AUDIOBOOK_DESCRIPTION_PREVIEW_MAX_CHARACTERS = 900
 
 @Composable
 private fun AudiobookSectionHeader(
@@ -965,6 +1026,8 @@ private fun AudiobookActionButton(
 @Composable
 private fun AudiobookDescriptionDialog(
     text: String?,
+    title: String,
+    closeDescription: String,
     visible: Boolean,
     onDismiss: () -> Unit,
 ) {
@@ -996,12 +1059,13 @@ private fun AudiobookDescriptionDialog(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .fillMaxHeight(0.62f),
+                    .fillMaxHeight(0.72f),
             ) {
                 DynamicBackdropSurface(
                     modifier = Modifier.fillMaxSize(),
                     shape = RoundedCornerShape(topStart = ElovaireRadii.card, topEnd = ElovaireRadii.card),
                     overlayAlpha = 0.6f,
+                    borderColor = null,
                 ) {
                     Column(
                         modifier = Modifier
@@ -1014,7 +1078,7 @@ private fun AudiobookDescriptionDialog(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "About this book",
+                                text = title,
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                             )
                             Box(
@@ -1031,7 +1095,7 @@ private fun AudiobookDescriptionDialog(
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_lucide_x),
-                                    contentDescription = "Close description",
+                                    contentDescription = closeDescription,
                                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                                     modifier = Modifier.size(16.dp),
                                 )

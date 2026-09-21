@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.AudioQualityFormatter
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -262,6 +263,13 @@ internal class SafTreeLibraryScanner(
                                 refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
                             }
                             val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: 0L
+                            val audioQuality = AudioQualityFormatter.format(
+                                container = detectedFormat.container,
+                                bitDepth = metadata.bitDepth,
+                                sampleRate = metadata.sampleRate ?: detectedFormat.sampleRate,
+                                bitrate = metadata.bitrate ?: detectedFormat.bitrate,
+                                codecMimeType = detectedFormat.codecMimeType,
+                            )
                             val stableSongId = stableNegativeId(identityKey ?: "saf-uri:${child.uri}")
                             val candidate = AudioScanCandidate(
                                 id = stableSongId,
@@ -297,7 +305,7 @@ internal class SafTreeLibraryScanner(
                                 releaseYear = metadata.releaseYear,
                                 genre = metadata.genre ?: "Unknown Genre",
                                 audioFormat = detectedFormat.displayName,
-                                audioQuality = null,
+                                audioQuality = audioQuality,
                                 fileName = child.name,
                                 albumId = albumIds.getOrPut(albumIdentity) {
                                     stableNegativeId("saf-album:$albumIdentity")

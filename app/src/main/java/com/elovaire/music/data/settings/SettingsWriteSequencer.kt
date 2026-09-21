@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -17,6 +18,7 @@ internal class SettingsWriteSequencer(
     ownerScope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher,
     private val persist: suspend (String, suspend () -> Unit) -> Unit,
+    private val onWriteFailure: (String, Throwable) -> Unit = { _, _ -> },
     private val nowMs: () -> Long = SystemClock::elapsedRealtime,
 ) {
     private data class PendingWrite(
@@ -32,6 +34,8 @@ internal class SettingsWriteSequencer(
     private var idleWaiter: CompletableDeferred<Unit>? = null
     private var writing = false
     private var closed = false
+    private var lastFailure: Throwable? = null
+    private var closeWatchdog: Job? = null
     private val workerScope = CoroutineScope(
         ownerScope.coroutineContext.minusKey(Job) +
             SupervisorJob() +
@@ -71,7 +75,9 @@ internal class SettingsWriteSequencer(
         ordered.isNotEmpty() || latest.isNotEmpty() || writing
     }
 
-    suspend fun flush() {
+    /** Returns false when at least one accepted write failed while draining. */
+    suspend fun flush(): Boolean {
+        var failure: Throwable?
         while (true) {
             val waiter = synchronized(lock) {
                 if (ordered.isEmpty() && latest.isEmpty() && !writing) {
@@ -79,10 +85,12 @@ internal class SettingsWriteSequencer(
                 } else {
                     idleWaiter ?: CompletableDeferred<Unit>().also { idleWaiter = it }
                 }
-            } ?: return
+            } ?: break
             signal()
             waiter.await()
         }
+        failure = synchronized(lock) { lastFailure.also { lastFailure = null } }
+        return failure == null
     }
 
     fun close() {
@@ -90,6 +98,10 @@ internal class SettingsWriteSequencer(
             if (closed) return
             closed = true
             signalLocked()
+            closeWatchdog = workerScope.launch {
+                delay(CLOSE_DRAIN_TIMEOUT_MS)
+                worker.cancel()
+            }
         }
     }
 
@@ -102,7 +114,16 @@ internal class SettingsWriteSequencer(
                 persist(next.key, next.write)
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) { }
+            } catch (failure: Exception) {
+                synchronized(lock) { lastFailure = failure }
+                try {
+                    onWriteFailure(next.key, failure)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: RuntimeException) {
+                    // Diagnostics must not prevent later independent writes from draining.
+                }
+            }
             markIdleIfNeeded()
         }
     }
@@ -169,5 +190,6 @@ internal class SettingsWriteSequencer(
 
     private companion object {
         const val MAX_ORDERED_WRITES = 64
+        const val CLOSE_DRAIN_TIMEOUT_MS = 15_000L
     }
 }

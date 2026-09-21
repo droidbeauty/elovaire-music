@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.8.8">
-        <item>Tweaks in the audiobooks UI</item>
-        <item>Added in-app audiobook management system via long press on any entry</item>
-        <item>Redesigned sort by pop-up menu</item>
+    <release version="2.8.9">
+        <item>Redesigned playlist preview UI</item>
+        <item>New features in EQ - custom presets and preamp level control</item>
+        <item>Improved tag editing system for audiobooks</item>
         <item>General performance and efficiency upgrades</item>
     </release>
 </changelog>

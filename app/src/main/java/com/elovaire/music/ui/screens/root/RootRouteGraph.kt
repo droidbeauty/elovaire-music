@@ -30,17 +30,17 @@ internal fun RootRouteGraph(
         motionTransitions = motionTransitions,
         modifier = modifier,
     ) {
-        composable(HOME_ROUTE) {
+        composable(RootRouteRegistry.HOME) {
             AlbumTransitionContent(this) {
                 HomeRouteHost(navState, routeState.home, routeActions, padding)
             }
         }
-        composable(ALBUMS_ROUTE) {
+        composable(RootRouteRegistry.ALBUMS) {
             AlbumTransitionContent(this) {
                 LibraryHubRouteHost(navState, routeState, routeActions, padding)
             }
         }
-        composable(RECENTLY_ADDED_ROUTE) {
+        composable(RootRouteRegistry.RECENTLY_ADDED) {
             AlbumTransitionContent(this) {
                 RecentlyAddedRouteHost(
                     routeState = routeState,
@@ -49,13 +49,13 @@ internal fun RootRouteGraph(
                 )
             }
         }
-        composable(AUDIOBOOKS_ROUTE) {
+        composable(RootRouteRegistry.AUDIOBOOKS) {
             AlbumTransitionContent(this) {
                 AudiobooksRouteHost(routeState, routeActions, padding)
             }
         }
         composable(
-            route = "$AUDIOBOOK_ROUTE/{bookKey}",
+            route = RootRouteRegistry.AUDIOBOOK,
             arguments = listOf(navArgument("bookKey") { type = NavType.StringType }),
         ) { backStackEntry ->
             AlbumTransitionContent(this) {
@@ -70,7 +70,7 @@ internal fun RootRouteGraph(
             }
         }
         composable(
-            route = "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
+            route = RootRouteRegistry.AUDIOBOOK_TAG_EDITOR,
             arguments = listOf(navArgument("bookKey") { type = NavType.StringType }),
         ) { backStackEntry ->
             AudiobookTagEditorRouteHost(
@@ -82,37 +82,37 @@ internal fun RootRouteGraph(
                 onSaveSucceeded = routeActions::completeAudiobookTagEdit,
             )
         }
-        composable(PLAYLISTS_ROUTE) {
+        composable(RootRouteRegistry.PLAYLISTS) {
             PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
         }
-        composable(SEARCH_ROUTE) {
+        composable(RootRouteRegistry.SEARCH) {
             AlbumTransitionContent(this) {
                 SearchRouteHost(navState, routeState, routeActions, padding, searchViewModel)
             }
         }
         composable(
-            route = "$PLAYLIST_ROUTE/{playlistId}",
+            route = RootRouteRegistry.PLAYLIST,
             arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
         ) { backStackEntry ->
             PlaylistDetailRouteHost(backStackEntry.playlistRouteId(), routeState.playlists, routeActions, padding)
         }
         composable(
-            route = "$SMART_PLAYLIST_ROUTE/{smartPlaylistId}",
+            route = RootRouteRegistry.SMART_PLAYLIST,
             arguments = listOf(navArgument("smartPlaylistId") { type = NavType.LongType }),
         ) { backStackEntry ->
             SmartPlaylistDetailRouteHost(backStackEntry.smartPlaylistRouteId(), routeState.playlists, routeActions, padding)
         }
-        composable(SMART_PLAYLIST_EDITOR_ROUTE) {
+        composable(RootRouteRegistry.SMART_PLAYLIST_EDITOR) {
             SmartPlaylistEditorRouteHost(null, routeState.playlists, routeActions, padding)
         }
         composable(
-            route = "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
+            route = RootRouteRegistry.SMART_PLAYLIST_EDITOR_EXISTING,
             arguments = listOf(navArgument("smartPlaylistId") { type = NavType.LongType }),
         ) { backStackEntry ->
             SmartPlaylistEditorRouteHost(backStackEntry.smartPlaylistRouteId(), routeState.playlists, routeActions, padding)
         }
         composable(
-            route = "$ALBUM_ROUTE/{albumId}",
+            route = RootRouteRegistry.ALBUM,
             arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
         ) { backStackEntry ->
             AlbumTransitionContent(this) {
@@ -120,7 +120,7 @@ internal fun RootRouteGraph(
             }
         }
         composable(
-            route = "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+            route = RootRouteRegistry.ALBUM_TAG_EDITOR,
             arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
         ) { backStackEntry ->
             AlbumTagEditorRouteHost(
@@ -132,7 +132,7 @@ internal fun RootRouteGraph(
             )
         }
         composable(
-            route = "$LIBRARY_COLLECTION_ROUTE/{kind}",
+            route = RootRouteRegistry.LIBRARY_COLLECTION,
             arguments = listOf(navArgument("kind") { type = NavType.StringType }),
         ) { backStackEntry ->
             AlbumTransitionContent(this) {
@@ -146,7 +146,7 @@ internal fun RootRouteGraph(
             }
         }
         composable(
-            route = "$GENRE_ROUTE/{genre}",
+            route = RootRouteRegistry.GENRE,
             arguments = listOf(navArgument("genre") { type = NavType.StringType }),
         ) { backStackEntry ->
             AlbumTransitionContent(this) {
@@ -154,44 +154,44 @@ internal fun RootRouteGraph(
             }
         }
         composable(
-            route = "$ARTIST_ROUTE/{artistName}",
+            route = RootRouteRegistry.ARTIST,
             arguments = listOf(navArgument("artistName") { type = NavType.StringType }),
         ) { backStackEntry ->
             AlbumTransitionContent(this) {
                 ArtistRouteHost(backStackEntry.artistRouteArg(), routeState, routeActions, padding, artistImageRepository)
             }
         }
-        composable(EQUALIZER_ROUTE) {
+        composable(RootRouteRegistry.EQUALIZER) {
             EqualizerRouteHost(viewModelFactory, routeActions)
         }
-        composable(CROSSFADE_ROUTE) {
+        composable(RootRouteRegistry.CROSSFADE) {
             CrossfadeRouteHost(routeState, routeActions, padding)
         }
-        composable(AUDIOBOOK_SETTINGS_ROUTE) {
+        composable(RootRouteRegistry.AUDIOBOOK_SETTINGS) {
             AudiobookSettingsRouteHost(routeActions, padding)
         }
-        composable(SETTINGS_ROUTE) {
+        composable(RootRouteRegistry.SETTINGS) {
             SettingsRouteHost(routeState, routeActions, padding)
         }
-        composable(MANAGE_PLAYLISTS_ROUTE) {
+        composable(RootRouteRegistry.MANAGE_PLAYLISTS) {
             ManagePlaylistsRouteHost(routeState, routeActions, padding)
         }
-        composable(LIBRARY_FOLDERS_ROUTE) {
+        composable(RootRouteRegistry.LIBRARY_FOLDERS) {
             LibraryFoldersRouteHost(routeState, routeActions, padding)
         }
-        composable(NOW_PLAYING_BAR_STYLE_ROUTE) {
+        composable(RootRouteRegistry.NOW_PLAYING_BAR_STYLE) {
             NowPlayingBarStyleRouteHost(routeState, routeActions, padding)
         }
-        composable(SMART_PLAYLIST_SETTINGS_ROUTE) {
+        composable(RootRouteRegistry.SMART_PLAYLIST_SETTINGS) {
             SmartPlaylistSettingsRouteHost(routeActions, padding)
         }
-        composable(CHANGELOG_ROUTE) {
+        composable(RootRouteRegistry.CHANGELOG) {
             ChangelogRouteHost(routeActions)
         }
-        composable(ABOUT_ROUTE) {
+        composable(RootRouteRegistry.ABOUT) {
             AboutRouteHost(routeActions, padding)
         }
-        composable(PRIVACY_POLICY_ROUTE) {
+        composable(RootRouteRegistry.PRIVACY_POLICY) {
             PrivacyPolicyRouteHost(routeState, routeActions, padding)
         }
     }

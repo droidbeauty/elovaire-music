@@ -50,6 +50,72 @@ internal const val RECENTLY_ADDED_ROUTE = "recently_added"
 internal const val AUDIOBOOKS_ROUTE = "audiobooks"
 internal const val AUDIOBOOK_ROUTE = "audiobook"
 
+/**
+ * The route patterns registered by [RootRouteGraph]. Keeping the patterns in one place makes
+ * route changes explicit and gives the interaction qualification suite a stable source of truth.
+ */
+internal object RootRouteRegistry {
+    const val HOME = HOME_ROUTE
+    const val ALBUMS = ALBUMS_ROUTE
+    const val RECENTLY_ADDED = RECENTLY_ADDED_ROUTE
+    const val AUDIOBOOKS = AUDIOBOOKS_ROUTE
+    const val AUDIOBOOK = "$AUDIOBOOK_ROUTE/{bookKey}"
+    const val AUDIOBOOK_TAG_EDITOR = "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}"
+    const val PLAYLISTS = PLAYLISTS_ROUTE
+    const val SEARCH = SEARCH_ROUTE
+    const val PLAYLIST = "$PLAYLIST_ROUTE/{playlistId}"
+    const val SMART_PLAYLIST = "$SMART_PLAYLIST_ROUTE/{smartPlaylistId}"
+    const val SMART_PLAYLIST_EDITOR = SMART_PLAYLIST_EDITOR_ROUTE
+    const val SMART_PLAYLIST_EDITOR_EXISTING = "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}"
+    const val ALBUM = "$ALBUM_ROUTE/{albumId}"
+    const val ALBUM_TAG_EDITOR = "$ALBUM_TAG_EDITOR_ROUTE/{albumId}"
+    const val LIBRARY_COLLECTION = "$LIBRARY_COLLECTION_ROUTE/{kind}"
+    const val GENRE = "$GENRE_ROUTE/{genre}"
+    const val ARTIST = "$ARTIST_ROUTE/{artistName}"
+    const val EQUALIZER = EQUALIZER_ROUTE
+    const val CROSSFADE = CROSSFADE_ROUTE
+    const val AUDIOBOOK_SETTINGS = AUDIOBOOK_SETTINGS_ROUTE
+    const val SETTINGS = SETTINGS_ROUTE
+    const val MANAGE_PLAYLISTS = MANAGE_PLAYLISTS_ROUTE
+    const val LIBRARY_FOLDERS = LIBRARY_FOLDERS_ROUTE
+    const val NOW_PLAYING_BAR_STYLE = NOW_PLAYING_BAR_STYLE_ROUTE
+    const val SMART_PLAYLIST_SETTINGS = SMART_PLAYLIST_SETTINGS_ROUTE
+    const val CHANGELOG = CHANGELOG_ROUTE
+    const val ABOUT = ABOUT_ROUTE
+    const val PRIVACY_POLICY = PRIVACY_POLICY_ROUTE
+
+    val registeredPatterns: List<String> = listOf(
+        HOME,
+        ALBUMS,
+        RECENTLY_ADDED,
+        AUDIOBOOKS,
+        AUDIOBOOK,
+        AUDIOBOOK_TAG_EDITOR,
+        PLAYLISTS,
+        SEARCH,
+        PLAYLIST,
+        SMART_PLAYLIST,
+        SMART_PLAYLIST_EDITOR,
+        SMART_PLAYLIST_EDITOR_EXISTING,
+        ALBUM,
+        ALBUM_TAG_EDITOR,
+        LIBRARY_COLLECTION,
+        GENRE,
+        ARTIST,
+        EQUALIZER,
+        CROSSFADE,
+        AUDIOBOOK_SETTINGS,
+        SETTINGS,
+        MANAGE_PLAYLISTS,
+        LIBRARY_FOLDERS,
+        NOW_PLAYING_BAR_STYLE,
+        SMART_PLAYLIST_SETTINGS,
+        CHANGELOG,
+        ABOUT,
+        PRIVACY_POLICY,
+    )
+}
+
 internal object Routes {
     fun album(albumId: Long): String = "$ALBUM_ROUTE/$albumId"
     fun playlist(playlistId: Long): String = "$PLAYLIST_ROUTE/$playlistId"

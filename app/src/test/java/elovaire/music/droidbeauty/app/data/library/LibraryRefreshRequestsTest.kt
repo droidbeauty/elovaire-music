@@ -10,6 +10,20 @@ import org.junit.Test
 
 class LibraryRefreshRequestsTest {
     @Test
+    fun normalizedRequestMergesWithItselfWithoutChangingSemantics() {
+        val request = LibraryRefreshRequest(
+            enrichMetadata = true,
+            targetedPaths = listOf(" /music/b.mp3 ", "/music/a.mp3", "/music/b.mp3"),
+            targetedSafTreeIds = setOf("tree/a"),
+            targetedNetworkSourceIds = setOf("nas/a"),
+            priority = LibraryRefreshPriority.FreshnessCritical,
+            removedPaths = listOf("/music/old.mp3"),
+        ).normalized()
+
+        assertEquals(request, request.mergedWith(request))
+    }
+
+    @Test
     fun takeForImmediateScan_mergesPendingRequest() {
         val requests = LibraryRefreshRequests()
         requests.enqueue(

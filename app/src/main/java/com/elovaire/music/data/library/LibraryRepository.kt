@@ -40,8 +40,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class LibraryContentState(
@@ -71,6 +73,13 @@ data class LibraryUiState(
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
     val errorMessage: String? = null,
+)
+
+private data class LibraryScanAttempt(
+    val generation: Long,
+    val permissionVersion: Long,
+    val filterFingerprint: String,
+    val request: LibraryRefreshRequest,
 )
 
 data class LibraryDeleteRequest(
@@ -118,6 +127,9 @@ internal class LibraryRepository internal constructor(
     )
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
+    private var scanGeneration = 0L
+    private var activeAttempt: LibraryScanAttempt? = null
+    private val commitMutex = Mutex()
     private var refreshDebounceJob: Job? = null
     private var foregroundObserverJob: Job? = null
     private val refreshRequests = LibraryRefreshRequests()
@@ -363,15 +375,12 @@ internal class LibraryRepository internal constructor(
             refreshRequests.enqueue(request)
             if (
                 request.priority == LibraryRefreshPriority.FreshnessCritical &&
-                (_runtimeState.value as? LibraryRuntimeState.Scanning)
-                    ?.request
-                    ?.priority != LibraryRefreshPriority.FreshnessCritical
+                (
+                    activeAttempt?.request?.priority != LibraryRefreshPriority.FreshnessCritical ||
+                        activeAttempt?.filterFingerprint != scanner.currentFilterFingerprint()
+                    )
             ) {
-                val activeScan = scanJob
-                activeScan?.invokeOnCompletion {
-                    continueAfterPreemptedScan()
-                }
-                activeScan?.cancel()
+                scanJob?.cancel()
             }
             backendEventSink.emitLazy {
                 BackendEvent.LibraryRefreshCoalesced(
@@ -398,13 +407,19 @@ internal class LibraryRepository internal constructor(
         } else {
             _scanState.update { it.copy(errorMessage = null) }
         }
-        scanJob = scope.launch {
+        val scanPermissionVersion = permissionChangeVersion
+        val refreshRequest = refreshRequests.takeForImmediateScan(request).normalized()
+        val attempt = LibraryScanAttempt(
+            generation = ++scanGeneration,
+            permissionVersion = scanPermissionVersion,
+            filterFingerprint = scanner.currentFilterFingerprint(),
+            request = refreshRequest,
+        )
+        lateinit var job: Job
+        job = scope.launch(start = CoroutineStart.LAZY) {
             val scanResource = resourceTracker.acquire(BackendResourceKind.ActiveScan)
             val operation = BackendOperationContext(operationIdGenerator.nextId(), BackendSubsystem.Library, clock.elapsedTimeMs())
-            val currentScanJob = checkNotNull(currentCoroutineContext()[Job])
-            val scanPermissionVersion = permissionChangeVersion
-            val refreshRequest = refreshRequests.takeForImmediateScan(request)
-            _runtimeState.value = LibraryRuntimeState.Scanning(refreshRequest, scanPermissionVersion)
+            _runtimeState.value = LibraryRuntimeState.Scanning(attempt.request, attempt.permissionVersion)
             backendEventSink.emitLazy {
                 BackendEvent.LibraryScanStarted(
                     operation.fields(
@@ -424,16 +439,13 @@ internal class LibraryRepository internal constructor(
             val progressThrottler = LibraryScanProgressThrottler(clock)
             try {
                 val scanResult = scanLibrary(
-                    refreshRequest,
+                    attempt,
                     showLoadingIndicator,
-                    scanPermissionVersion,
                     progressThrottler,
                 )
                 publishSuccessfulScan(
                     scanResult = scanResult,
-                    refreshRequest = refreshRequest,
-                    scanPermissionVersion = scanPermissionVersion,
-                    scanJob = currentScanJob,
+                    attempt = attempt,
                     operation = operation,
                 )
             } catch (throwable: CancellationException) {
@@ -456,7 +468,7 @@ internal class LibraryRepository internal constructor(
                         ),
                     )
                 }
-                if (hasCurrentPermission(scanPermissionVersion)) {
+                if (isCurrentScan(attempt)) {
                     val failure = throwable.toLibraryScanFailure("refresh")
                     _runtimeState.value = LibraryRuntimeState.Failed(failure, recoverable = true)
                     _scanState.update {
@@ -469,140 +481,102 @@ internal class LibraryRepository internal constructor(
                 }
             } finally {
                 scanResource.close()
-                if (scanJob === currentScanJob) scanJob = null
-            }
-
-            if (scanJob != null || !hasCurrentPermission(scanPermissionVersion)) return@launch
-            val pendingRequest = refreshRequests.takePendingAfterScan()
-            if (pendingRequest != null && _scanState.value.permissionGranted) {
-                if (backgroundWorkPolicy.shouldDeferLibraryRefresh(
-                        freshnessCritical = pendingRequest.priority == LibraryRefreshPriority.FreshnessCritical,
-                    )
-                ) {
-                    holdDeferredRefresh(pendingRequest)
-                } else if (pendingRequest.safProviderRetryAttempt > 0) {
-                    refreshDebounceJob?.cancel()
-                    refreshDebounceJob = scope.launch {
-                        delay(SAF_PROVIDER_RETRY_DELAY_MS)
-                        refreshDebounceJob = null
-                        if (!released.get() && scanJob == null && _scanState.value.permissionGranted) {
-                            startRefresh(pendingRequest, showLoadingIndicator = false)
-                        }
-                    }
-                } else {
-                    startRefresh(pendingRequest, showLoadingIndicator = false)
+                if (activeAttempt === attempt) {
+                    activeAttempt = null
+                    if (scanJob === job) scanJob = null
+                    scope.launch { continueAfterScan() }
                 }
-            } else if (_runtimeState.value is LibraryRuntimeState.Scanning) {
-                _runtimeState.value = LibraryRuntimeState.Idle
             }
         }
+        scanJob = job
+        activeAttempt = attempt
+        job.start()
     }
 
     private suspend fun publishSuccessfulScan(
         scanResult: CoordinatedLibraryScan,
-        refreshRequest: LibraryRefreshRequest,
-        scanPermissionVersion: Long,
-        scanJob: Job,
+        attempt: LibraryScanAttempt,
         operation: BackendOperationContext,
     ) {
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return
+        if (!isCurrentScan(attempt)) return
         val prepared = prepareVisibleSnapshot(
             snapshot = scanResult.snapshot,
             scanComplete = scanResult.isComplete,
-            scanJob = scanJob,
-            scanPermissionVersion = scanPermissionVersion,
+            attempt = attempt,
         ) ?: return
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return
-        val nextScanState = LibraryScanState(
-            permissionGranted = true,
-            isLoading = false,
-            scanProgress = 1f,
-            errorMessage = if (prepared.snapshot.songs.isEmpty()) scanResult.incompleteMessage else null,
-            isAuthoritative = scanResult.isComplete,
-        )
-        if (_scanState.value != nextScanState) {
-            _scanState.value = nextScanState
-        }
-        if (scanResult.isComplete) {
-            if (!isCurrentScan(scanJob, scanPermissionVersion)) return
-            withContext(ioDispatcher) {
-                val syncState = scanner.currentSyncState()
-                ElovaireTrace.section("library_snapshot_persist") {
-                    snapshotStore.save(
-                        snapshot = prepared.snapshot,
-                        filterFingerprint = scanner.currentFilterFingerprint(),
-                        syncState = syncState,
-                    )
+        commitMutex.withLock {
+            if (!isCurrentScan(attempt)) return@withLock
+            val syncState = if (scanResult.isComplete) {
+                withContext(ioDispatcher) {
+                    val state = scanner.currentSyncState()
+                    ElovaireTrace.section("library_snapshot_persist") {
+                        snapshotStore.save(
+                            snapshot = prepared.snapshot,
+                            filterFingerprint = scanner.currentFilterFingerprint(),
+                            syncState = state,
+                        )
+                    }
+                    ElovaireTrace.section("library_room_index_commit") {
+                        libraryIndexStore?.applyChangeSet(
+                            changeSet = prepared.changeSet,
+                            snapshot = prepared.snapshot,
+                            fullRebuild = attempt.request.forceMediaIndex &&
+                                prepared.changeSet.added.size == prepared.snapshot.songs.size,
+                        )
+                    }
+                    state
                 }
-                ElovaireTrace.section("library_room_index_commit") {
-                    libraryIndexStore?.applyChangeSet(
-                        changeSet = prepared.changeSet,
-                        snapshot = prepared.snapshot,
-                        fullRebuild = refreshRequest.forceMediaIndex &&
-                            prepared.changeSet.added.size == prepared.snapshot.songs.size,
-                    )
-                }
-                lastSuccessfulMediaStoreSyncState = syncState
+            } else {
+                null
             }
-        }
-        invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return
-        val snapshotNeedsMetadata = prepared.snapshot.songs.any { song ->
-            !song.metadataResolved ||
-                song.releaseYear == null ||
-                song.qualityNeedsEnrichment() ||
-                song.genre.isBlank() ||
-                song.genre == "Unknown Genre"
-        }
-        val retrySafProviderLoading =
-            scanResult.retryableSafTreeIds.isNotEmpty() &&
-            refreshRequest.safProviderRetryAttempt < MAX_SAF_PROVIDER_LOADING_RETRIES
-        if (retrySafProviderLoading) {
-            refreshRequests.enqueue(
-                LibraryRefreshRequest(
-                    targetedSafTreeIds = scanResult.retryableSafTreeIds,
-                    targetedNetworkSourceIds = emptySet(),
-                    reuseLocalState = true,
-                    safProviderRetryAttempt = refreshRequest.safProviderRetryAttempt + 1,
-                ),
+            if (!isCurrentScan(attempt)) return@withLock
+            val nextScanState = LibraryScanState(
+                permissionGranted = true,
+                isLoading = false,
+                scanProgress = 1f,
+                errorMessage = if (prepared.snapshot.songs.isEmpty()) scanResult.incompleteMessage else null,
+                isAuthoritative = scanResult.isComplete,
             )
-        } else if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
-            refreshRequests.enqueue(enrichMetadata = true)
-        }
-        backendEventSink.emitLazy {
-            BackendEvent.LibraryScanCompleted(
-                operation.fields(
-                    phase = "scan_completed",
-                    elapsedTimeMs = clock.elapsedTimeMs(),
-                    extra = mapOf(
-                        "songs" to prepared.snapshot.songs.size.toString(),
-                        "albums" to prepared.snapshot.albums.size.toString(),
+            if (_scanState.value != nextScanState) _scanState.value = nextScanState
+            snapshotPublisher.publishState(prepared.contentState)
+            if (syncState != null) lastSuccessfulMediaStoreSyncState = syncState
+            invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
+            enqueueFollowUpRequests(scanResult, attempt, prepared)
+            backendEventSink.emitLazy {
+                BackendEvent.LibraryScanCompleted(
+                    operation.fields(
+                        phase = "scan_completed",
+                        elapsedTimeMs = clock.elapsedTimeMs(),
+                        extra = mapOf(
+                            "songs" to prepared.snapshot.songs.size.toString(),
+                            "albums" to prepared.snapshot.albums.size.toString(),
+                        ),
+                        metrics = BackendOperationMetrics(
+                            itemsOutput = prepared.snapshot.songs.size,
+                            rowsChanged = prepared.changeSet.added.size +
+                                prepared.changeSet.updated.size +
+                                prepared.changeSet.relocated.size +
+                                prepared.changeSet.removed.size,
+                            fallback = !scanResult.isComplete,
+                        ),
                     ),
-                    metrics = BackendOperationMetrics(
-                        itemsOutput = prepared.snapshot.songs.size,
-                        rowsChanged = prepared.changeSet.added.size +
-                            prepared.changeSet.updated.size +
-                            prepared.changeSet.relocated.size +
-                            prepared.changeSet.removed.size,
-                        fallback = !scanResult.isComplete,
-                    ),
-                ),
-            )
+                )
+            }
         }
     }
 
     private data class PreparedLibrarySnapshot(
         val snapshot: LibrarySnapshot,
         val changeSet: LibraryChangeSet,
+        val contentState: LibraryContentState,
     )
 
     private suspend fun prepareVisibleSnapshot(
         snapshot: LibrarySnapshot,
         scanComplete: Boolean,
-        scanJob: Job,
-        scanPermissionVersion: Long,
+        attempt: LibraryScanAttempt,
     ): PreparedLibrarySnapshot? {
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
+        if (!isCurrentScan(attempt)) return null
         val songs = songsVisibleAfterDirectPathTombstones(snapshot.songs)
         if (scanComplete) {
             clearResolvedDirectPathTombstones(snapshot.songs)
@@ -620,7 +594,7 @@ internal class LibraryRepository internal constructor(
                 }
             }
         }
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
+        if (!isCurrentScan(attempt)) return null
         val latestSuppressedSongIds = deletionMarkers.suppressingSongIds()
         if (latestSuppressedSongIds != suppressedSongIds) {
             suppressedSongIds = latestSuppressedSongIds
@@ -631,7 +605,7 @@ internal class LibraryRepository internal constructor(
                 }
             }
         }
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
+        if (!isCurrentScan(attempt)) return null
         val previousSongs = _contentState.value.songs
         val nextContentState = ElovaireTrace.section("library_prepare_content_state") {
             snapshotPublisher.stateForSnapshot(
@@ -645,7 +619,7 @@ internal class LibraryRepository internal constructor(
             LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
         }
         if (changeSet.relocated.isNotEmpty()) {
-            if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
+            if (!isCurrentScan(attempt)) return null
             val relocationOutcome = onSongRelocations(
                 changeSet.relocated.associate { relocation ->
                     relocation.before.id to relocation.after.id
@@ -661,29 +635,34 @@ internal class LibraryRepository internal constructor(
                 )
             }
         }
-        if (!isCurrentScan(scanJob, scanPermissionVersion)) return null
-        snapshotPublisher.publishState(nextContentState)
+        if (!isCurrentScan(attempt)) return null
         return PreparedLibrarySnapshot(
             snapshot = nextSnapshot,
             changeSet = changeSet,
+            contentState = nextContentState,
         )
     }
 
-    private suspend fun isCurrentScan(
-        scanJob: Job,
-        scanPermissionVersion: Long,
-    ): Boolean {
+    private suspend fun isCurrentScan(attempt: LibraryScanAttempt): Boolean {
         currentCoroutineContext().ensureActive()
-        return this.scanJob === scanJob && hasCurrentPermission(scanPermissionVersion)
+        return activeAttempt?.generation == attempt.generation &&
+            activeAttempt === attempt &&
+            hasCurrentPermission(attempt.permissionVersion) &&
+            scanner.currentFilterFingerprint() == attempt.filterFingerprint
     }
 
     private suspend fun scanLibrary(
-        request: LibraryRefreshRequest,
+        attempt: LibraryScanAttempt,
         showLoadingIndicator: Boolean,
-        permissionVersion: Long,
         progressThrottler: LibraryScanProgressThrottler,
     ): CoordinatedLibraryScan = withContext(ioDispatcher) {
+        val request = attempt.request
         val existingSnapshot = snapshotPublisher.snapshotOf(_contentState.value)
+        // Lightweight reconciliation is allowed to skip extractor work, but it must never
+        // replace a quality value already published to the library with a temporary null.
+        // Re-prime from the committed snapshot before every scan so this remains true after
+        // memory pressure or any other metadata-cache reset.
+        scanner.primeMetadataCache(existingSnapshot.songs)
         ElovaireTrace.suspendSection("library_refresh_scan") {
             scanner.scanWithStatus(
                 refreshMediaIndex = request.forceMediaIndex,
@@ -696,7 +675,7 @@ internal class LibraryRepository internal constructor(
                 baseSnapshot = existingSnapshot,
                 reuseLocalState = request.reuseLocalState,
                 onProgress = if (showLoadingIndicator) progress@{ current, total ->
-                    if (!hasCurrentPermission(permissionVersion)) return@progress
+                    if (!hasCurrentPermission(attempt.permissionVersion)) return@progress
                     val progress = if (total <= 0) {
                         1f
                     } else {
@@ -718,6 +697,36 @@ internal class LibraryRepository internal constructor(
                     null
                 },
             )
+        }
+    }
+
+    private fun enqueueFollowUpRequests(
+        scanResult: CoordinatedLibraryScan,
+        attempt: LibraryScanAttempt,
+        prepared: PreparedLibrarySnapshot,
+    ) {
+        val snapshotNeedsMetadata = !attempt.request.enrichMetadata &&
+            prepared.snapshot.songs.any { song ->
+                !song.metadataResolved ||
+                    song.releaseYear == null ||
+                    song.qualityNeedsEnrichment() ||
+                    song.genre.isBlank() ||
+                    song.genre == "Unknown Genre"
+            }
+        val retrySafProviderLoading =
+            scanResult.retryableSafTreeIds.isNotEmpty() &&
+                attempt.request.safProviderRetryAttempt < MAX_SAF_PROVIDER_LOADING_RETRIES
+        if (retrySafProviderLoading) {
+            refreshRequests.enqueue(
+                LibraryRefreshRequest(
+                    targetedSafTreeIds = scanResult.retryableSafTreeIds,
+                    targetedNetworkSourceIds = emptySet(),
+                    reuseLocalState = true,
+                    safProviderRetryAttempt = attempt.request.safProviderRetryAttempt + 1,
+                ),
+            )
+        } else if (snapshotNeedsMetadata) {
+            refreshRequests.enqueue(enrichMetadata = true)
         }
     }
 
@@ -1051,19 +1060,31 @@ internal class LibraryRepository internal constructor(
         }
     }
 
-    private fun continueAfterPreemptedScan() {
-        scope.launch {
-            while (scanJob?.isActive == true) yield()
-            if (released.get() || !_scanState.value.permissionGranted) return@launch
-            val pending = refreshRequests.takePendingAfterScan() ?: return@launch
-            if (backgroundWorkPolicy.shouldDeferLibraryRefresh(
-                    freshnessCritical = pending.priority == LibraryRefreshPriority.FreshnessCritical,
-                )
-            ) {
-                holdDeferredRefresh(pending)
-            } else {
-                startRefresh(pending, showLoadingIndicator = false)
+    private fun continueAfterScan() {
+        if (released.get() || !_scanState.value.permissionGranted) return
+        val pending = refreshRequests.takePendingAfterScan()
+        if (pending == null) {
+            if (_runtimeState.value is LibraryRuntimeState.Scanning) {
+                _runtimeState.value = LibraryRuntimeState.Idle
             }
+            return
+        }
+        if (backgroundWorkPolicy.shouldDeferLibraryRefresh(
+                freshnessCritical = pending.priority == LibraryRefreshPriority.FreshnessCritical,
+            )
+        ) {
+            holdDeferredRefresh(pending)
+        } else if (pending.safProviderRetryAttempt > 0) {
+            refreshDebounceJob?.cancel()
+            refreshDebounceJob = scope.launch {
+                delay(SAF_PROVIDER_RETRY_DELAY_MS)
+                refreshDebounceJob = null
+                if (!released.get() && scanJob == null && _scanState.value.permissionGranted) {
+                    startRefresh(pending, showLoadingIndicator = false)
+                }
+            }
+        } else {
+            startRefresh(pending, showLoadingIndicator = false)
         }
     }
 
@@ -1151,6 +1172,7 @@ internal class LibraryRepository internal constructor(
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
         scanJob?.cancel()
         scanJob = null
+        activeAttempt = null
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         refreshRequests.clear()

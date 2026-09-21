@@ -2815,7 +2815,8 @@ internal fun ArtistAlbumGallery(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalGestureSafe()
-                .horizontalScroll(scrollState),
+                .horizontalScroll(scrollState, overscrollEffect = null)
+                .ensureHorizontalRubberBand(scrollState),
             horizontalArrangement = Arrangement.spacedBy(itemGap),
         ) {
             albums.forEach { album ->
@@ -3570,12 +3571,15 @@ private fun RecentAlbumGrid(
     albums: List<Album>,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
+    val gridState = rememberLazyGridState()
     LazyHorizontalGrid(
+        state = gridState,
         rows = GridCells.Fixed(2),
         overscrollEffect = null,
         modifier = Modifier
             .fillMaxWidth()
-            .height(378.dp),
+            .height(378.dp)
+            .ensureHorizontalRubberBand(gridState),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {

@@ -33,44 +33,41 @@ internal class DurableRecoveryRuntime(
     @Suppress("TooGenericExceptionCaught")
     suspend fun recover(): DurableRecoveryResult {
         val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
-        val pendingSourceIds = networkSourceMutationJournal.pending()
-            .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
         var networkRecoverySucceeded = true
         val blockedSourceIds = try {
-            withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
-                networkSourceMutationJournal.recover(
-                    sourceStore = networkSourceStore,
-                    credentialStore = networkCredentialStoreProvider(),
-                    inventoryStore = networkInventoryStore,
-                    invalidateRuntime = invalidateNetworkSourceRuntime,
-                )
-            }
+            networkSourceMutationJournal.recover(
+                sourceStore = networkSourceStore,
+                credentialStore = networkCredentialStoreProvider(),
+                inventoryStore = networkInventoryStore,
+                invalidateRuntime = invalidateNetworkSourceRuntime,
+                perMarkerTimeoutMs = DURABLE_RECOVERY_TIMEOUT_MS,
+            )
             emptySet()
         } catch (_: TimeoutCancellationException) {
             networkRecoverySucceeded = false
-            pendingSourceIds
+            pendingNetworkSourceIds()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: SQLiteException) {
             networkRecoverySucceeded = false
             Log.w(TAG, "Network source mutation recovery deferred", failure)
-            pendingSourceIds
+            pendingNetworkSourceIds()
         } catch (failure: IllegalStateException) {
             networkRecoverySucceeded = false
             Log.w(TAG, "Network source mutation recovery deferred", failure)
-            pendingSourceIds
+            pendingNetworkSourceIds()
         } catch (failure: SecurityException) {
             networkRecoverySucceeded = false
             Log.w(TAG, "Network source mutation recovery deferred", failure)
-            pendingSourceIds
+            pendingNetworkSourceIds()
         } catch (failure: GeneralSecurityException) {
             networkRecoverySucceeded = false
             Log.w(TAG, "Network source credential recovery deferred", failure)
-            pendingSourceIds
+            pendingNetworkSourceIds()
         } catch (failure: RuntimeException) {
             networkRecoverySucceeded = false
             Log.e(TAG, "Network source mutation recovery failed", failure)
-            pendingSourceIds
+            pendingNetworkSourceIds()
         }
         return DurableRecoveryResult(
             mediaMutationRecoverySucceeded = mediaMutationRecoverySucceeded,
@@ -78,6 +75,9 @@ internal class DurableRecoveryRuntime(
             blockedSourceIds = blockedSourceIds,
         )
     }
+
+    private fun pendingNetworkSourceIds(): Set<String> = networkSourceMutationJournal.pending()
+        .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun recoverCriticalMediaMutations(): Boolean {
