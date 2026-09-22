@@ -12,7 +12,7 @@ internal class MediaTargetExistenceProbe(
 ) {
     private val resolver = context.applicationContext.contentResolver
 
-    fun findExistingSongIds(targets: Map<Long, Uri>): Set<Long> {
+    suspend fun findExistingSongIds(targets: Map<Long, Uri>): Set<Long> {
         if (targets.isEmpty()) return emptySet()
         return targets.mapNotNullTo(linkedSetOf()) { (songId, uri) ->
             if (uri.scheme.equals("file", ignoreCase = true)) {
@@ -29,7 +29,7 @@ internal class MediaTargetExistenceProbe(
                 } else {
                     null
                 }
-                resolver.query(uri, projection, selection, null, null)?.use { it.moveToFirst() }
+                resolver.queryCancellable(uri, projection, selection, null, null)?.use { it.moveToFirst() }
                     ?: false
             }.getOrDefault(false)
             songId.takeIf { exists }

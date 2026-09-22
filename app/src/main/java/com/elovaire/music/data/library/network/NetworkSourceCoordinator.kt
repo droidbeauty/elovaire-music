@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+
 internal data class NetworkSourceMutationOutcome(
     val probeResult: NetworkProbeResult,
     val refreshRequired: Boolean,
@@ -36,7 +37,9 @@ internal class NetworkSourceCoordinator(
         )
         val previous = when (previousResult) {
             NetworkCredentialReadResult.Missing -> null
-            is NetworkCredentialReadResult.Available -> previousResult.credentials
+            is NetworkCredentialReadResult.Available -> previousResult.credentials.also {
+                credentialStore.migrateIfNeeded(source.id, previousSource?.credentialKey ?: source.credentialKey, previousResult)
+            }
             NetworkCredentialReadResult.KeyUnavailable,
             is NetworkCredentialReadResult.Corrupt,
             -> if (credentials.password.isBlank()) {
@@ -94,12 +97,18 @@ internal class NetworkSourceCoordinator(
             registryProvider().invalidate(source.id)
         }
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.RuntimeInvalidated)
-        val outcome = NetworkSourceMutationOutcome(
-            probeResult = registryProvider().probeBlocking(normalized, effectiveCredentials),
+        mutationJournal.clear(normalized.id)
+        return NetworkSourceMutationOutcome(
+            probeResult = runCatching {
+                registryProvider().probeBlocking(normalized, effectiveCredentials)
+            }.getOrElse { failure ->
+                NetworkProbeResult(
+                    availability = failure.remoteIoFailureKind().toNetworkAvailability(),
+                    message = failure::class.simpleName,
+                )
+            },
             refreshRequired = previousSource != normalized || previous != effectiveCredentials,
         )
-        mutationJournal.clear(normalized.id)
-        return outcome
     }
 
     override suspend fun remove(source: NetworkLibrarySource) {

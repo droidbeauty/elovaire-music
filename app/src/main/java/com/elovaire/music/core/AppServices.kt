@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.library.LibrarySnapshotStore
 import elovaire.music.droidbeauty.app.data.library.LibraryScanCoordinator
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.SafTreeLibraryScanner
+import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentialStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkFileSystemRegistry
@@ -24,6 +25,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutation
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryBackend
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
+import elovaire.music.droidbeauty.app.data.audio.MediaMetadataRetrieverAdmission
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
@@ -83,6 +85,8 @@ internal class AppServices(
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
     private val database = ElovaireDatabase.create(applicationContext)
     private val databaseResource = backendDiagnostics.resources.acquire(BackendResourceKind.DatabaseInstance)
+    private val libraryMediaFailureRegistry = MediaFailureRegistry()
+    private val mediaMetadataRetrieverAdmission = MediaMetadataRetrieverAdmission()
     private val mediaMutationJournal = MediaMutationJournal(
         dao = database.mediaMutationDao(),
         backendEventSink = backendEventSink,
@@ -137,6 +141,8 @@ internal class AppServices(
             registry = networkFileSystemRegistryDelegate.value,
             inventory = networkInventoryStore,
             ioDispatcher = appDispatchers.io,
+            failureRegistry = libraryMediaFailureRegistry,
+            retrieverAdmission = mediaMetadataRetrieverAdmission,
             resourceTracker = backendDiagnostics.resources,
             onAvailabilityChanged = { sourceId, result ->
                 networkLibraryBackend?.recordProbe(sourceId, result)
@@ -220,10 +226,14 @@ internal class AppServices(
             localScanner = MediaStoreScanner(
                 context = applicationContext,
                 ioDispatcher = appDispatchers.io,
+                failureRegistry = libraryMediaFailureRegistry,
+                retrieverAdmission = mediaMetadataRetrieverAdmission,
                 resourceTracker = backendDiagnostics.resources,
             ),
             safScanner = SafTreeLibraryScanner(
                 context = applicationContext,
+                failureRegistry = libraryMediaFailureRegistry,
+                retrieverAdmission = mediaMetadataRetrieverAdmission,
                 resourceTracker = backendDiagnostics.resources,
             ),
             networkScannerProvider = { networkScannerDelegate.value },

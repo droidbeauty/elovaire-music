@@ -7,6 +7,7 @@ import android.os.Build
 import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
+import elovaire.music.droidbeauty.app.data.audio.MediaMetadataRetrieverAdmission
 import elovaire.music.droidbeauty.app.data.audio.toMetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
@@ -18,13 +19,14 @@ import java.io.File
 /** Reads local-file metadata once, then applies the shared source precedence rules. */
 internal class LocalAudioMetadataReader(
     context: Context,
+    private val failureRegistry: MediaFailureRegistry = MediaFailureRegistry(),
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val retrieverAdmission: MediaMetadataRetrieverAdmission = MediaMetadataRetrieverAdmission(),
 ) {
     private val appContext = context.applicationContext
     private val embeddedReader = EmbeddedTagMetadataReader(appContext)
-    private val failureRegistry = MediaFailureRegistry()
 
-    fun read(
+    suspend fun read(
         uri: Uri,
         filePath: String?,
         fileName: String,
@@ -71,20 +73,22 @@ internal class LocalAudioMetadataReader(
     }
 
     /** Resolve only duration for provider rows whose indexed duration is missing or stale. */
-    fun readDuration(uri: Uri): Long {
+    suspend fun readDuration(uri: Uri): Long {
         val metadataResource = resourceTracker.acquire(BackendResourceKind.ActiveMetadataRead)
         return try {
-            val retriever = MediaMetadataRetriever()
-            val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
-            try {
-                retriever.setDataSource(appContext, uri)
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                    ?.toLongOrNull()
-                    ?.takeIf { it > 0L }
-                    ?: 0L
-            } finally {
-                runCatching { retriever.release() }
-                resource.close()
+            retrieverAdmission.withPermit {
+                val retriever = MediaMetadataRetriever()
+                val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
+                try {
+                    retriever.setDataSource(appContext, uri)
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        ?.toLongOrNull()
+                        ?.takeIf { it > 0L }
+                        ?: 0L
+                } finally {
+                    runCatching { retriever.release() }
+                    resource.close()
+                }
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -96,25 +100,26 @@ internal class LocalAudioMetadataReader(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun readPlatformMetadata(
+    private suspend fun readPlatformMetadata(
         uri: Uri,
         filePath: String?,
         failureKey: MediaFailureKey?,
     ): PlatformAudioMetadata {
         if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) return PlatformAudioMetadata()
         return try {
-            val retriever = MediaMetadataRetriever()
-            val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
-            try {
-                val localFile = filePath
-                    ?.let(::File)
-                    ?.takeIf { it.isFile && it.canRead() }
-                if (localFile != null) {
-                    retriever.setDataSource(localFile.absolutePath)
-                } else {
-                    retriever.setDataSource(appContext, uri)
-                }
-                PlatformAudioMetadata(
+            retrieverAdmission.withPermit {
+                val retriever = MediaMetadataRetriever()
+                val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
+                try {
+                    val localFile = filePath
+                        ?.let(::File)
+                        ?.takeIf { it.isFile && it.canRead() }
+                    if (localFile != null) {
+                        retriever.setDataSource(localFile.absolutePath)
+                    } else {
+                        retriever.setDataSource(appContext, uri)
+                    }
+                    PlatformAudioMetadata(
                     durationMs = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                         ?.toLongOrNull()
                         ?.takeIf { it > 0L },
@@ -150,10 +155,11 @@ internal class LocalAudioMetadataReader(
                     },
                     bitrate = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
                         ?.toIntOrNull(),
-                ).also { failureKey?.let(failureRegistry::recordSuccess) }
-            } finally {
-                runCatching { retriever.release() }
-                resource.close()
+                    ).also { failureKey?.let(failureRegistry::recordSuccess) }
+                } finally {
+                    runCatching { retriever.release() }
+                    resource.close()
+                }
             }
         } catch (cancellation: CancellationException) {
             throw cancellation

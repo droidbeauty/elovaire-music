@@ -80,7 +80,10 @@ internal class EqualizerViewModel(
             .onEach { settings ->
                 val sanitized = EqValuePolicy.sanitize(settings)
                 if (sanitized != _uiState.value.toEqSettings()) {
-                    _uiState.value = sanitized.toEqualizerUiState()
+                    val matchingCustomPreset = preferenceStore.eqCustomPresets.value
+                        .firstOrNull { EqValuePolicy.sanitize(it.settings) == sanitized }
+                        ?.name
+                    _uiState.value = sanitized.toEqualizerUiState(presetName = matchingCustomPreset)
                 }
             }
             .launchIn(viewModelScope)
@@ -105,7 +108,7 @@ internal class EqualizerViewModel(
     }
 
     fun updatePreamp(valueDb: Float) = updateState {
-        it.copy(preampDb = valueDb.coerceIn(EqValuePolicy.MIN_PREAMP_DB, EqValuePolicy.MAX_PREAMP_DB))
+        it.copy(preampDb = EqValuePolicy.clampPreamp(valueDb))
     }
 
     fun updateBass(value: Float) = updateState { it.copy(bassBoost = EqValuePolicy.clampPositiveMacro(value)) }

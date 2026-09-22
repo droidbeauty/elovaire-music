@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
+import elovaire.music.droidbeauty.app.data.audio.MediaMetadataRetrieverAdmission
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.File
@@ -266,23 +267,25 @@ private fun decodeEmbeddedArtwork(
     targetSize: ImageTargetSize,
     purpose: ArtworkPurpose,
 ): Bitmap? {
-    return runCatching {
-        val retriever = MediaMetadataRetriever()
-        val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
-        try {
-            retriever.setDataSource(context, uri)
-            val bytes = retriever.embeddedPicture ?: return null
-            if (bytes.size > MAX_ENCODED_ARTWORK_BYTES) return null
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            val sampledOptions = artworkDecodeOptions(bounds, targetSize, purpose)
-                ?: return@runCatching null
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
-        } finally {
-            runCatching { retriever.release() }
-            resource.close()
-        }
-    }.getOrNull()
+    return ArtworkBitmapCache.tryWithRetrieverPermit {
+        runCatching {
+            val retriever = MediaMetadataRetriever()
+            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
+            try {
+                retriever.setDataSource(context, uri)
+                val bytes = retriever.embeddedPicture ?: return@runCatching null
+                if (bytes.size > MAX_ENCODED_ARTWORK_BYTES) return@runCatching null
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                val sampledOptions = artworkDecodeOptions(bounds, targetSize, purpose)
+                    ?: return@runCatching null
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
+            } finally {
+                runCatching { retriever.release() }
+                resource.close()
+            }
+        }.getOrNull()
+    }
 }
 
 private const val MAX_ENCODED_ARTWORK_BYTES = 16 * 1024 * 1024
@@ -388,9 +391,12 @@ internal object ArtworkBitmapCache {
         }
     }
     private val inFlight = mutableMapOf<String, CompletableFuture<Bitmap?>>()
+    private val retrieverAdmission = MediaMetadataRetrieverAdmission()
     private val _completedDecodes = MutableStateFlow(0L)
     val completedDecodes = _completedDecodes.asStateFlow()
     private const val MAX_IN_FLIGHT = 8
+
+    fun <T> tryWithRetrieverPermit(block: () -> T): T? = retrieverAdmission.tryWithPermit(block)
 
     @Synchronized
     fun ensureRegistered(appContext: Context) {

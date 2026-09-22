@@ -24,6 +24,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 import android.util.Log
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticRecorder
@@ -57,8 +60,11 @@ internal class PlaybackIntegrationCoordinator(
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private var restorationAttempted = false
-    private var lastSessionKey: SessionKey? = null
+    private var restorationState = SessionRestorationState.NotAttempted
+    @Volatile
+    private var lastDurableSessionKey: SessionKey? = null
+    @Volatile
+    private var lastSubmittedSessionKey: SessionKey? = null
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val sessionWriterScope = CoroutineScope(
@@ -71,16 +77,37 @@ internal class PlaybackIntegrationCoordinator(
                 }
             },
     )
-    private val sessionWrites = Channel<PersistedPlaybackSession?>(Channel.CONFLATED)
+    private val sessionWrites = Channel<PendingSessionWrite>(Channel.CONFLATED)
+    @Volatile
+    private var lastSessionWriteFailure: Throwable? = null
+    private val sessionDrainResult = CompletableDeferred<PlaybackSessionDrainResult>()
     private val sessionWriterJob: Job = sessionWriterScope.launch(start = CoroutineStart.LAZY) {
-        for (session in sessionWrites) {
+        for (pending in sessionWrites) {
             try {
-                if (session == null) sessionStore.clear() else sessionStore.save(session)
+                if (pending.session == null) sessionStore.clear() else sessionStore.save(pending.session)
+                lastDurableSessionKey = pending.key
             } catch (failure: kotlinx.coroutines.CancellationException) {
                 throw failure
             } catch (failure: RuntimeException) {
+                if (lastSubmittedSessionKey == pending.key) lastSubmittedSessionKey = null
+                lastSessionWriteFailure = failure
                 Log.w(TAG, "Playback session checkpoint failed.", failure)
             }
+        }
+    }
+
+    init {
+        sessionWriterJob.invokeOnCompletion { cause ->
+            if (released.get()) {
+                val result = when {
+                    cause is kotlinx.coroutines.CancellationException -> PlaybackSessionDrainResult.TimedOut(cause)
+                    cause != null -> PlaybackSessionDrainResult.Failed(cause)
+                    lastSessionWriteFailure != null -> PlaybackSessionDrainResult.Failed(lastSessionWriteFailure)
+                    else -> PlaybackSessionDrainResult.Drained
+                }
+                sessionDrainResult.complete(result)
+            }
+            sessionWriterScope.cancel()
         }
     }
 
@@ -191,54 +218,65 @@ internal class PlaybackIntegrationCoordinator(
         }
     }
 
-    fun release() {
-        if (!released.compareAndSet(false, true)) return
+    fun release(): Deferred<PlaybackSessionDrainResult> {
+        if (!released.compareAndSet(false, true)) return sessionDrainResult
         persistSessionNow(allowAfterRelease = true)
-        if (!sessionWriterJob.isActive) {
-            sessionWriterScope.cancel()
-            return
-        }
+        sessionWriterJob.start()
         sessionWrites.close()
-        sessionWriterJob.invokeOnCompletion { sessionWriterScope.cancel() }
+        sessionWriterScope.launch {
+            withTimeoutOrNull(SESSION_DRAIN_TIMEOUT_MS) { sessionWriterJob.join() }
+                ?: sessionWriterJob.cancel(PlaybackSessionDrainTimeout())
+        }
+        return sessionDrainResult
     }
 
     private suspend fun restoreSessionIfNeeded(
         songs: List<elovaire.music.droidbeauty.app.domain.model.Song>,
         isAuthoritative: Boolean,
     ) {
-        if (restorationAttempted || !isAuthoritative) return
+        if (!isAuthoritative || restorationState == SessionRestorationState.Completed ||
+            restorationState == SessionRestorationState.NoSession ||
+            restorationState == SessionRestorationState.TerminallyRejected
+        ) return
+        if (restorationState == SessionRestorationState.InProgress) return
         if (playback.hasActiveQueue()) {
-            restorationAttempted = true
+            restorationState = SessionRestorationState.Completed
             persistSession()
             return
         }
-        restorationAttempted = true
-        val persisted = withContext(ioDispatcher) { sessionStore.load() } ?: return
-        if (persisted.queueSongIds.isEmpty()) {
-            withContext(ioDispatcher) { sessionStore.clear() }
-            return
-        }
-        val requestedSongIds = persisted.queueSongIds.toHashSet()
-        val songsById = songs.asSequence()
-            .filter { it.id in requestedSongIds }
-            .associateBy { it.id }
-        val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
-        if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys)) {
-            // The scan is authoritative here: missing entries are no longer merely
-            // unresolved remote media. Preserve the valid order, or clear an empty queue,
-            // and checkpoint only after the decision has been made.
-            if (restoredQueue.isEmpty()) {
+        restorationState = SessionRestorationState.InProgress
+        try {
+            val persisted = withContext(ioDispatcher) { sessionStore.load() }
+            if (persisted == null || persisted.queueSongIds.isEmpty()) {
                 withContext(ioDispatcher) { sessionStore.clear() }
+                restorationState = SessionRestorationState.NoSession
                 return
             }
+            val requestedSongIds = persisted.queueSongIds.toHashSet()
+            val songsById = songs.asSequence()
+                .filter { it.id in requestedSongIds }
+                .associateBy { it.id }
+            val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
+            if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys) && restoredQueue.isEmpty()) {
+                withContext(ioDispatcher) { sessionStore.clear() }
+                restorationState = SessionRestorationState.NoSession
+                return
+            }
+            val currentIndex = persisted.currentIndex
+                .takeIf { it in restoredQueue.indices && restoredQueue[it].id == persisted.currentSongId }
+                ?: persisted.currentSongId
+                    ?.let { id -> restoredQueue.indexOfFirst { it.id == id } }
+                    ?.takeIf { it >= 0 }
+                ?: persisted.currentIndex.coerceIn(restoredQueue.indices)
+            playback.restoreSession(restoredQueue, currentIndex, persisted)
+            restorationState = SessionRestorationState.Completed
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            restorationState = SessionRestorationState.RetryableFailure
+            throw cancelled
+        } catch (failure: RuntimeException) {
+            restorationState = SessionRestorationState.RetryableFailure
+            Log.w(TAG, "Playback session restoration will be retried.", failure)
         }
-        val currentIndex = persisted.currentIndex
-            .takeIf { it in restoredQueue.indices && restoredQueue[it].id == persisted.currentSongId }
-            ?: persisted.currentSongId
-                ?.let { id -> restoredQueue.indexOfFirst { it.id == id } }
-                ?.takeIf { it >= 0 }
-            ?: persisted.currentIndex.coerceIn(restoredQueue.indices)
-        playback.restoreSession(restoredQueue, currentIndex, persisted)
     }
 
     private suspend fun persistSession(
@@ -264,12 +302,17 @@ internal class PlaybackIntegrationCoordinator(
         positionOverrideMs: Long?,
         allowAfterRelease: Boolean,
     ) {
-        if (!restorationAttempted || released.get() && !allowAfterRelease) return
+        if (restorationState == SessionRestorationState.NotAttempted ||
+            restorationState == SessionRestorationState.InProgress ||
+            released.get() && !allowAfterRelease
+        ) return
         if (snapshot.queueSongIds.isEmpty()) {
-            if (!allowAfterRelease && lastSessionKey == SessionKey.Empty) return
-            lastSessionKey = SessionKey.Empty
+            if (!allowAfterRelease && (lastDurableSessionKey == SessionKey.Empty ||
+                    lastSubmittedSessionKey == SessionKey.Empty)
+            ) return
             playback.checkpointAudiobookProgress()
-            enqueueSessionWrite(null)
+            lastSubmittedSessionKey = SessionKey.Empty
+            enqueueSessionWrite(SessionKey.Empty, null)
             return
         }
         val sessionKey = SessionKey(
@@ -281,11 +324,14 @@ internal class PlaybackIntegrationCoordinator(
             sourcePlaylistId = snapshot.sourcePlaylistId,
             wasPlaying = snapshot.wasPlaying,
         )
-        if (positionOverrideMs == null && !allowAfterRelease && sessionKey == lastSessionKey) return
-        lastSessionKey = sessionKey
+        if (positionOverrideMs == null && !allowAfterRelease &&
+            (sessionKey == lastDurableSessionKey || sessionKey == lastSubmittedSessionKey)
+        ) return
+        lastSubmittedSessionKey = sessionKey
         playback.checkpointAudiobookProgress()
         enqueueSessionWrite(
-            PersistedPlaybackSession(
+            key = sessionKey,
+            session = PersistedPlaybackSession(
                 queueSongIds = sessionKey.queueSongIds,
                 currentSongId = sessionKey.currentSongId,
                 currentIndex = sessionKey.currentIndex,
@@ -299,8 +345,8 @@ internal class PlaybackIntegrationCoordinator(
         )
     }
 
-    private fun enqueueSessionWrite(session: PersistedPlaybackSession?) {
-        val result = sessionWrites.trySend(session)
+    private fun enqueueSessionWrite(key: SessionKey, session: PersistedPlaybackSession?) {
+        val result = sessionWrites.trySend(PendingSessionWrite(key, session))
         if (result.isFailure) {
             diagnostics.recordWorkerFailure(
                 "playback-session-writer",
@@ -313,7 +359,32 @@ internal class PlaybackIntegrationCoordinator(
         const val TAG = "PlaybackSession"
         const val PLAYBACK_POSITION_PERSIST_INTERVAL_MS = 5_000L
         const val PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS = 10_000L
+        const val SESSION_DRAIN_TIMEOUT_MS = 15_000L
     }
+}
+
+internal sealed interface PlaybackSessionDrainResult {
+    data object Drained : PlaybackSessionDrainResult
+    data class Failed(val cause: Throwable?) : PlaybackSessionDrainResult
+    data class TimedOut(val cause: Throwable?) : PlaybackSessionDrainResult
+}
+
+private class PlaybackSessionDrainTimeout : kotlinx.coroutines.CancellationException(
+    "Playback session drain timed out.",
+)
+
+private data class PendingSessionWrite(
+    val key: SessionKey,
+    val session: PersistedPlaybackSession?,
+)
+
+private enum class SessionRestorationState {
+    NotAttempted,
+    InProgress,
+    Completed,
+    NoSession,
+    TerminallyRejected,
+    RetryableFailure,
 }
 
 private enum class PlaybackCheckpoint {

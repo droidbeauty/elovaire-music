@@ -6,10 +6,16 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal class NetworkLibrarySourceStore(context: Context) {
+internal class NetworkLibrarySourceStore(
+    context: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
     private val preferences = allowStrictModeDiskReads {
         context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
     }
@@ -34,8 +40,8 @@ internal class NetworkLibrarySourceStore(context: Context) {
         credentialKey = source.credentialKey.trim().ifBlank { "network-credential-${source.id}" },
     )
 
-    fun upsert(source: NetworkLibrarySource): NetworkLibrarySource {
-        return synchronized(mutationLock) {
+    suspend fun upsert(source: NetworkLibrarySource): NetworkLibrarySource = withContext(ioDispatcher) {
+        synchronized(mutationLock) {
             val normalized = normalized(source)
             val previous = _sources.value.firstOrNull { it.id == normalized.id }
             check(
@@ -70,7 +76,7 @@ internal class NetworkLibrarySourceStore(context: Context) {
         )
     }
 
-    fun remove(sourceId: String) {
+    suspend fun remove(sourceId: String) = withContext(ioDispatcher) {
         synchronized(mutationLock) {
             val next = _sources.value.filterNot { it.id == sourceId }
             save(next)

@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.data.library.MediaFailureDomain
 import elovaire.music.droidbeauty.app.data.library.MediaFailureKey
 import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
 import elovaire.music.droidbeauty.app.data.library.mediaFailureCategory
+import elovaire.music.droidbeauty.app.data.audio.MediaMetadataRetrieverAdmission
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
@@ -19,8 +20,9 @@ internal class NetworkMetadataReader(
     private val registry: NetworkFileSystemRegistry,
     private val failureRegistry: MediaFailureRegistry = MediaFailureRegistry(),
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val retrieverAdmission: MediaMetadataRetrieverAdmission = MediaMetadataRetrieverAdmission(),
 ) {
-    fun read(source: NetworkLibrarySource, entry: NetworkFileEntry, force: Boolean = false): NetworkMetadataReadResult? {
+    suspend fun read(source: NetworkLibrarySource, entry: NetworkFileEntry, force: Boolean = false): NetworkMetadataReadResult? {
         val size = entry.sizeBytes ?: return null
         if (size <= 0L) return null
         val failureKey = MediaFailureKey(
@@ -31,10 +33,11 @@ internal class NetworkMetadataReader(
         if (failureRegistry.shouldSuppress(failureKey, force)) return null
         val metadataResource = resourceTracker.acquire(BackendResourceKind.ActiveMetadataRead)
         return try {
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(RangeMediaDataSource(registry, source, entry, size))
-                NetworkMetadataReadResult(
+            retrieverAdmission.withPermit {
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(RangeMediaDataSource(registry, source, entry, size))
+                    NetworkMetadataReadResult(
                     succeeded = true,
                     durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                         ?.toLongOrNull()
@@ -55,9 +58,10 @@ internal class NetworkMetadataReader(
                         ?.substringBefore('/')
                         ?.toIntOrNull()
                         ?.takeIf { it > 0 },
-                ).also { failureRegistry.recordSuccess(failureKey) }
-            } finally {
-                retriever.release()
+                    ).also { failureRegistry.recordSuccess(failureKey) }
+                } finally {
+                    retriever.release()
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

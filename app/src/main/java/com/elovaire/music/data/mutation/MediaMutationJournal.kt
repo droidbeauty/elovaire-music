@@ -21,6 +21,8 @@ import elovaire.music.droidbeauty.app.domain.kernel.isTerminal
 import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
 import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
@@ -170,14 +172,17 @@ internal class MediaMutationJournal(
         }
     }
 
-    suspend fun recoverIncomplete(): MediaMutationRecoveryResult {
+    suspend fun recoverIncomplete(maxRecords: Int = MAX_RECOVERY_RECORDS): MediaMutationRecoveryResult {
+        require(maxRecords > 0) { "Recovery batch size must be positive." }
         val operation = BackendOperationContext(
             operationIdGenerator.nextId(), BackendSubsystem.MediaMutation, clock.elapsedTimeMs(),
         )
         val recovery = runCatching {
             transitionMutex.withLock {
                 var recoveredCount = 0
-                dao.recoverableMutations().forEach { mutation ->
+                val recoverable = dao.recoverableMutations()
+                recoverable.take(maxRecords).forEach { mutation ->
+                    currentCoroutineContext().ensureActive()
                     val current = mutation.status.toMediaMutationStatusOrNull()
                     if (current == null) {
                         dao.upsertMutation(
@@ -196,7 +201,7 @@ internal class MediaMutationJournal(
                         recoveredCount += 1
                     }
                 }
-                recoveredCount
+                recoveredCount to (recoverable.size - recoveredCount).coerceAtLeast(0)
             }
         }
         val failure = recovery.exceptionOrNull()
@@ -213,17 +218,20 @@ internal class MediaMutationJournal(
             }
             return MediaMutationRecoveryResult.Failure(failure)
         }
-        val recoveredCount = recovery.getOrThrow()
+        val (recoveredCount, remainingCount) = recovery.getOrThrow()
         backendEventSink.emitLazy {
             BackendEvent.MediaMutationCompleted(
                 operation.fields(
                     phase = "startup_recovery",
                     elapsedTimeMs = clock.elapsedTimeMs(),
-                    extra = mapOf("recovered" to recoveredCount.toString()),
+                    extra = mapOf(
+                        "recovered" to recoveredCount.toString(),
+                        "remaining" to remainingCount.toString(),
+                    ),
                 ),
             )
         }
-        return MediaMutationRecoveryResult.Success(recoveredCount)
+        return MediaMutationRecoveryResult.Success(recoveredCount, remainingCount)
     }
 
     override fun close() {
@@ -238,9 +246,14 @@ internal class MediaMutationJournal(
 }
 
 internal sealed interface MediaMutationRecoveryResult {
-    data class Success(val recoveredCount: Int) : MediaMutationRecoveryResult
+    data class Success(
+        val recoveredCount: Int,
+        val remainingCount: Int = 0,
+    ) : MediaMutationRecoveryResult
     data class Failure(val cause: Throwable) : MediaMutationRecoveryResult
 }
+
+private const val MAX_RECOVERY_RECORDS = 128
 
 private fun String.toMediaMutationStatusOrNull(): MediaMutationStatus? {
     return enumValues<MediaMutationStatus>().firstOrNull { it.name == this }

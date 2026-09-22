@@ -5,7 +5,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.domain.model.Song
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,33 +15,41 @@ internal class LyricsRepository(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: AppClock = AndroidAppClock,
 ) {
-    private val cache = LyricsCache(appContext.applicationContext, clock)
+    private val cache = LyricsCache(appContext.applicationContext, clock, ioDispatcher)
     private val localLyricsResolver = LocalLyricsResolver(appContext.applicationContext)
     private val lrclibClient = LrclibClient()
-    private val memoryPositiveCache = ConcurrentHashMap<String, LyricsCacheEntry>()
+    private data class MemoryEntry(
+        val keys: Set<String>,
+        val value: LyricsCacheEntry,
+    )
 
-    fun cachedLyrics(
+    private val memoryLock = Any()
+    private val memoryPositiveCache = LinkedHashMap<String, MemoryEntry>(MAX_MEMORY_CACHE_KEYS, 0.75f, true)
+
+    suspend fun cachedLyrics(
         song: Song,
         includeNotFound: Boolean,
         includeOnline: Boolean = true,
-    ): LyricsResult? {
+    ): LyricsResult? = withContext(ioDispatcher) {
         val identity = song.toLyricsIdentity()
-        return memoryCachedLyrics(identity)?.takeUnless { it.online && !includeOnline }?.result
+        memoryCachedLyrics(identity)?.takeUnless { it.online && !includeOnline }?.result
             ?: cache.get(identity, includeNotFound, includeOnline)
     }
 
-    fun localLyrics(song: Song): LyricsResult? {
+    suspend fun localLyrics(song: Song): LyricsResult? = withContext(ioDispatcher) {
         val identity = song.toLyricsIdentity()
-        val localMatch = localLyricsResolver.resolve(song) ?: return null
+        val localMatch = localLyricsResolver.resolve(song) ?: return@withContext null
         val entry = localMatch.toCacheEntry()
         rememberPositive(identity, entry)
         cache.put(identity, entry)
-        return entry.result
+        entry.result
     }
 
     fun clearCacheFor(song: Song) {
         val identity = song.toLyricsIdentity()
-        identity.cacheKeys.forEach(memoryPositiveCache::remove)
+        synchronized(memoryLock) {
+            memoryPositiveCache.entries.removeIf { (_, value) -> value.keys.any(identity.cacheKeys::contains) }
+        }
         cache.remove(identity)
     }
 
@@ -85,29 +93,46 @@ internal class LyricsRepository(
 
     private fun memoryCachedLyrics(identity: LyricsIdentity): LyricsCacheEntry? {
         val now = clock.wallTimeMs()
-        var entry: LyricsCacheEntry? = null
-        identity.cacheKeys.forEach { key ->
-            val cached = memoryPositiveCache[key] ?: return@forEach
-            if (cached.isExpired(now)) {
-                memoryPositiveCache.remove(key)
-            } else if (entry == null) {
-                entry = cached
+        return synchronized(memoryLock) {
+            val match = memoryPositiveCache.entries.firstOrNull { (_, value) ->
+                value.keys.any(identity.cacheKeys::contains)
+            } ?: return@synchronized null
+            if (match.value.value.isExpired(now)) {
+                memoryPositiveCache.remove(match.key)
+                return@synchronized null
             }
+            val touched = match.value
+            memoryPositiveCache.remove(match.key)
+            memoryPositiveCache[match.key] = touched
+            touched.value
         }
-        return entry
     }
 
     private fun rememberPositive(identity: LyricsIdentity, entry: LyricsCacheEntry) {
-        identity.cacheKeys.forEach { key -> memoryPositiveCache[key] = entry }
-        trimMemoryCache(MAX_MEMORY_CACHE_KEYS)
+        val canonicalKey = identity.cacheKeys.firstOrNull() ?: return
+        synchronized(memoryLock) {
+            memoryPositiveCache.entries.removeIf { (_, value) -> value.keys.any(identity.cacheKeys::contains) }
+            memoryPositiveCache[canonicalKey] = MemoryEntry(identity.cacheKeys.toSet(), entry)
+            trimMemoryCacheLocked(MAX_MEMORY_CACHE_KEYS)
+        }
     }
 
     private fun trimMemoryCache(maxKeys: Int) {
-        if (memoryPositiveCache.size <= maxKeys) return
+        synchronized(memoryLock) { trimMemoryCacheLocked(maxKeys) }
+    }
+
+    private fun trimMemoryCacheLocked(maxEntries: Int) {
+        if (memoryPositiveCache.size <= maxEntries) return
         val now = clock.wallTimeMs()
-        memoryPositiveCache.entries.removeIf { (_, entry) -> entry.isExpired(now) }
-        memoryPositiveCache.keys.take((memoryPositiveCache.size - maxKeys).coerceAtLeast(0))
-            .forEach(memoryPositiveCache::remove)
+        memoryPositiveCache.entries.removeIf { (_, entry) -> entry.value.isExpired(now) }
+        while (memoryPositiveCache.size > maxEntries) {
+            memoryPositiveCache.entries.iterator().apply {
+                if (hasNext()) {
+                    next()
+                    remove()
+                }
+            }
+        }
     }
 
     private companion object {

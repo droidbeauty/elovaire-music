@@ -1120,7 +1120,9 @@ private fun EqPresetMenu(
         selectedPresetName?.takeIf { selectedName ->
             presets.any { preset -> preset.name == selectedName } ||
                 customPresets.any { preset -> preset.name == selectedName }
-        } ?: currentSettings.matchingEqPresetName(presets)
+        } ?: customPresets.firstOrNull { preset ->
+            EqValuePolicy.sanitize(preset.settings) == EqValuePolicy.sanitize(currentSettings)
+        }?.name ?: currentSettings.matchingEqPresetName(presets)
     }
 
     Column(

@@ -8,10 +8,14 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal class LyricsCache(
     appContext: Context,
     private val clock: AppClock = AndroidAppClock,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val cacheFile = allowStrictModeDiskReads {
         // The lazy cache only needs its app-private file handle during service construction.
@@ -25,10 +29,18 @@ internal class LyricsCache(
     private var expiredEntriesPending = false
     private var cacheGeneration = 0L
 
-    fun get(
+    suspend fun get(
         identity: LyricsIdentity,
         includeNotFound: Boolean,
         includeOnline: Boolean = true,
+    ): LyricsResult? = withContext(ioDispatcher) {
+        getBlocking(identity, includeNotFound, includeOnline)
+    }
+
+    private fun getBlocking(
+        identity: LyricsIdentity,
+        includeNotFound: Boolean,
+        includeOnline: Boolean,
     ): LyricsResult? = ElovaireTrace.section("lyrics_cache_read") {
         synchronized(cacheLock) {
             ensureLoadedLocked()

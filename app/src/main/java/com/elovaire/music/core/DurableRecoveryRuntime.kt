@@ -13,7 +13,6 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRecoveryResult
 import java.security.GeneralSecurityException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withTimeout
 
 internal data class DurableRecoveryResult(
     val mediaMutationRecoverySucceeded: Boolean,
@@ -40,7 +39,7 @@ internal class DurableRecoveryRuntime(
                 credentialStore = networkCredentialStoreProvider(),
                 inventoryStore = networkInventoryStore,
                 invalidateRuntime = invalidateNetworkSourceRuntime,
-                perMarkerTimeoutMs = DURABLE_RECOVERY_TIMEOUT_MS,
+                perMarkerTimeoutMs = NETWORK_RECOVERY_PER_MARKER_TIMEOUT_MS,
             )
             emptySet()
         } catch (_: TimeoutCancellationException) {
@@ -82,12 +81,10 @@ internal class DurableRecoveryRuntime(
     @Suppress("TooGenericExceptionCaught")
     private suspend fun recoverCriticalMediaMutations(): Boolean {
         return try {
-            withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
-                mediaMutationJournal.recoverIncomplete() is MediaMutationRecoveryResult.Success
+            when (val result = mediaMutationJournal.recoverIncomplete()) {
+                is MediaMutationRecoveryResult.Success -> result.remainingCount == 0
+                is MediaMutationRecoveryResult.Failure -> false
             }
-        } catch (failure: TimeoutCancellationException) {
-            Log.w(TAG, "Media mutation recovery timed out", failure)
-            false
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: SQLiteException) {
@@ -103,7 +100,7 @@ internal class DurableRecoveryRuntime(
     }
 
     private companion object {
-        const val DURABLE_RECOVERY_TIMEOUT_MS = 15_000L
+        const val NETWORK_RECOVERY_PER_MARKER_TIMEOUT_MS = 15_000L
         const val TAG = "DurableRecovery"
     }
 }

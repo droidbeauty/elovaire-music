@@ -52,4 +52,29 @@ class EqValuePolicyTest {
             ),
         )
     }
+
+    @Test
+    fun sanitize_replacesNonFiniteValuesWithNeutralDefaults() {
+        val sanitized = EqValuePolicy.sanitize(
+            EqSettings(
+                bands = listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY),
+                preampDb = Float.NaN,
+                bass = Float.POSITIVE_INFINITY,
+                midrange = Float.NEGATIVE_INFINITY,
+                treble = Float.NaN,
+                spaciousness = Float.POSITIVE_INFINITY,
+            ),
+        )
+
+        assertTrue(sanitized.bands.all(Float::isFinite))
+        assertTrue(sanitized.preampDb.isFinite())
+        assertTrue(sanitized.bass.isFinite())
+        assertTrue(sanitized.midrange.isFinite())
+        assertTrue(sanitized.treble.isFinite())
+        assertTrue(sanitized.spaciousness.isFinite())
+        assertEquals(0f, sanitized.preampDb, 0f)
+        assertEquals(0f, sanitized.bass, 0f)
+        assertEquals(0f, sanitized.midrange, 0f)
+        assertEquals(0f, sanitized.treble, 0f)
+    }
 }

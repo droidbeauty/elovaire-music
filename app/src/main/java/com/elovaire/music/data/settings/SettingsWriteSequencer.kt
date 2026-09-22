@@ -6,12 +6,24 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+
+internal enum class SettingsWriteAdmission {
+    Accepted,
+    RejectedClosed,
+}
+
+internal sealed interface SettingsDrainResult {
+    data object Drained : SettingsDrainResult
+    data class Failed(val cause: Throwable?) : SettingsDrainResult
+    data class TimedOut(val cause: Throwable?) : SettingsDrainResult
+}
 
 /** Serializes settings writes and keeps bursty controls bounded by key. */
 internal class SettingsWriteSequencer(
@@ -36,6 +48,7 @@ internal class SettingsWriteSequencer(
     private var closed = false
     private var lastFailure: Throwable? = null
     private var closeWatchdog: Job? = null
+    private val closeResult = CompletableDeferred<SettingsDrainResult>()
     private val workerScope = CoroutineScope(
         ownerScope.coroutineContext.minusKey(Job) +
             SupervisorJob() +
@@ -47,15 +60,30 @@ internal class SettingsWriteSequencer(
     }
 
     init {
-        worker.invokeOnCompletion { workerScope.cancel() }
+        worker.invokeOnCompletion { cause ->
+            closeWatchdog?.cancel()
+            if (closed) {
+                val result = when {
+                    cause is CancellationException -> SettingsDrainResult.TimedOut(cause)
+                    cause != null -> SettingsDrainResult.Failed(cause)
+                    else -> synchronized(lock) {
+                        lastFailure?.let(SettingsDrainResult::Failed)
+                            ?: SettingsDrainResult.Drained
+                    }
+                }
+                closeResult.complete(result)
+            }
+            workerScope.cancel()
+        }
     }
 
-    fun enqueue(key: String, write: suspend () -> Unit) {
+    fun enqueue(key: String, write: suspend () -> Unit): SettingsWriteAdmission {
         synchronized(lock) {
-            if (closed) return
+            if (closed) return SettingsWriteAdmission.RejectedClosed
             check(ordered.size < MAX_ORDERED_WRITES) { "Settings write queue is full." }
             ordered += PendingWrite(key, nowMs(), write)
             signalLocked()
+            return SettingsWriteAdmission.Accepted
         }
     }
 
@@ -63,11 +91,12 @@ internal class SettingsWriteSequencer(
         key: String,
         debounceMs: Long = 0L,
         write: suspend () -> Unit,
-    ) {
+    ): SettingsWriteAdmission {
         synchronized(lock) {
-            if (closed) return
+            if (closed) return SettingsWriteAdmission.RejectedClosed
             latest[key] = PendingWrite(key, nowMs() + debounceMs.coerceAtLeast(0L), write)
             signalLocked()
+            return SettingsWriteAdmission.Accepted
         }
     }
 
@@ -93,16 +122,18 @@ internal class SettingsWriteSequencer(
         return failure == null
     }
 
-    fun close() {
+    /** Requests shutdown and returns the asynchronous durability outcome. */
+    fun close(): Deferred<SettingsDrainResult> {
         synchronized(lock) {
-            if (closed) return
+            if (closed) return closeResult
             closed = true
             signalLocked()
             closeWatchdog = workerScope.launch {
                 delay(CLOSE_DRAIN_TIMEOUT_MS)
-                worker.cancel()
+                if (worker.isActive) worker.cancel(CloseDrainTimeoutException())
             }
         }
+        return closeResult
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -192,4 +223,6 @@ internal class SettingsWriteSequencer(
         const val MAX_ORDERED_WRITES = 64
         const val CLOSE_DRAIN_TIMEOUT_MS = 15_000L
     }
+
+    private class CloseDrainTimeoutException : CancellationException("Settings write drain timed out.")
 }

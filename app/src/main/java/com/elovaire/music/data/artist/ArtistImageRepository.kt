@@ -15,6 +15,9 @@ import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
 import java.util.Locale
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -317,7 +320,22 @@ internal class ArtistImageRepository(
             )
             if (response.statusCode !in 200..299 || response.bytesWritten <= 0L) return null
             if (!isArtworkFileDecodable(temporaryFile)) return null
-            if (!temporaryFile.renameTo(cachedFile)) {
+            try {
+                Files.move(
+                    temporaryFile.toPath(),
+                    cachedFile.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(
+                    temporaryFile.toPath(),
+                    cachedFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            }
+            if (!cachedFile.isFile || cachedFile.length() <= 0L || !isArtworkFileDecodable(cachedFile)) {
+                cachedFile.delete()
                 return null
             }
             committed = true

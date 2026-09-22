@@ -22,19 +22,21 @@ internal object EqValuePolicy {
     }
 
     fun clampMacro(value: Float): Float {
-        val clamped = value.coerceIn(MIN_NORMALIZED, MAX_NORMALIZED)
+        val clamped = value.finiteOr(0f).coerceIn(MIN_NORMALIZED, MAX_NORMALIZED)
         return (round(clamped / MACRO_STEP) * MACRO_STEP).coerceIn(MIN_NORMALIZED, MAX_NORMALIZED)
     }
 
     fun clampPositiveMacro(value: Float): Float = clampMacro(value).coerceAtLeast(0f)
 
+    fun clampPreamp(value: Float): Float = value.finiteOr(0f).coerceIn(MIN_PREAMP_DB, MAX_PREAMP_DB)
+
     fun normalizedToDb(value: Float): Float {
-        val normalized = value.coerceIn(MIN_NORMALIZED, MAX_NORMALIZED)
+        val normalized = value.finiteOr(0f).coerceIn(MIN_NORMALIZED, MAX_NORMALIZED)
         return if (normalized >= 0f) normalized * MAX_GAIN_DB else -normalized * MIN_GAIN_DB
     }
 
     fun dbToNormalized(valueDb: Float): Float {
-        val clamped = valueDb.coerceIn(MIN_GAIN_DB, MAX_GAIN_DB)
+        val clamped = valueDb.finiteOr(0f).coerceIn(MIN_GAIN_DB, MAX_GAIN_DB)
         return if (clamped >= 0f) clamped / MAX_GAIN_DB else clamped / -MIN_GAIN_DB
     }
 
@@ -49,7 +51,7 @@ internal object EqValuePolicy {
             bands = List(EqualizerDspModel.BAND_COUNT) { index ->
                 clampBandNormalized(settings.bands.getOrElse(index) { 0f })
             },
-            preampDb = settings.preampDb.coerceIn(MIN_PREAMP_DB, MAX_PREAMP_DB),
+            preampDb = clampPreamp(settings.preampDb),
             bass = clampPositiveMacro(settings.bass),
             midrange = clampMacro(settings.midrange),
             treble = clampMacro(settings.treble),
@@ -58,6 +60,8 @@ internal object EqValuePolicy {
             reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
         )
     }
+
+    private fun Float.finiteOr(fallback: Float): Float = takeIf(Float::isFinite) ?: fallback
 
     fun hasSignalAlteringEffects(settings: EqSettings): Boolean {
         val sanitized = sanitize(settings)

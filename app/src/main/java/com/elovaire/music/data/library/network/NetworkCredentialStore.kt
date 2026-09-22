@@ -105,21 +105,42 @@ internal class NetworkCredentialStore(context: Context) {
                         NetworkCredentialCorruption.AuthenticationFailed
                     },
                 )
-            val credentials = available.value.credentials
-            if (available.value.needsMigration) {
-                val current = encrypt(sourceId, key, credentials, keyMaterial)
-                if (preferences.getString(key, null) == encoded) {
-                    preferences.edit()
-                        .putString(key, Base64.encodeToString(current, Base64.NO_WRAP))
-                        .commit()
-                }
-            }
-            NetworkCredentialReadResult.Available(credentials)
+            NetworkCredentialReadResult.Available(
+                credentials = available.value.credentials,
+                needsMigration = available.value.needsMigration,
+                migrationToken = encoded.takeIf { available.value.needsMigration },
+            )
         }
     }
 
-    fun get(sourceId: String, key: String): NetworkCredentials? =
-        (read(sourceId, key) as? NetworkCredentialReadResult.Available)?.credentials
+    fun get(sourceId: String, key: String): NetworkCredentials? {
+        return (read(sourceId, key) as? NetworkCredentialReadResult.Available)?.credentials
+    }
+
+    /** Completes a legacy-envelope upgrade only if the value read by the caller is still current. */
+    fun migrateIfNeeded(
+        sourceId: String,
+        key: String,
+        result: NetworkCredentialReadResult.Available,
+    ): Boolean {
+        if (!result.needsMigration || result.migrationToken == null) return true
+        validateIdentity(sourceId, key)
+        synchronized(lock) {
+            if (preferences.getString(key, null) != result.migrationToken) return false
+            val migrated = encrypt(
+                sourceId = sourceId,
+                key = key,
+                credentials = result.credentials,
+                keyMaterial = secretKey(createIfMissing = true),
+            )
+            check(
+                preferences.edit()
+                    .putString(key, Base64.encodeToString(migrated, Base64.NO_WRAP))
+                    .commit(),
+            ) { "Unable to persist migrated network credentials" }
+            return true
+        }
+    }
 
     fun remove(key: String) {
         require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
@@ -237,7 +258,11 @@ internal class NetworkCredentialStore(context: Context) {
 
 internal sealed interface NetworkCredentialReadResult {
     data object Missing : NetworkCredentialReadResult
-    data class Available(val credentials: NetworkCredentials) : NetworkCredentialReadResult
+    data class Available(
+        val credentials: NetworkCredentials,
+        val needsMigration: Boolean = false,
+        internal val migrationToken: String? = null,
+    ) : NetworkCredentialReadResult
     data object KeyUnavailable : NetworkCredentialReadResult
     data class Corrupt(val reason: NetworkCredentialCorruption) : NetworkCredentialReadResult
 }

@@ -174,9 +174,25 @@ data class EqSettings(
 )
 
 data class EqCustomPreset(
+    val id: String,
     val name: String,
     val settings: EqSettings,
-)
+) {
+    constructor(name: String, settings: EqSettings) : this(
+        id = stableEqPresetId(name),
+        name = name,
+        settings = settings,
+    )
+}
+
+internal fun normalizeEqPresetName(value: String): String = value.trim()
+
+internal fun stableEqPresetId(name: String): String {
+    val normalized = normalizeEqPresetName(name).lowercase(java.util.Locale.ROOT)
+    val digest = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(normalized.toByteArray(Charsets.UTF_8))
+    return "eq-" + digest.take(12).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
 
 enum class SpaciousnessMode {
     Off,

@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.library.isSupportedAudioExtension
+import elovaire.music.droidbeauty.app.data.audio.MediaMetadataRetrieverAdmission
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
@@ -36,10 +37,18 @@ internal class NetworkLibraryScanner(
     private val onAvailabilityChanged: (String, NetworkProbeResult) -> Unit = { _, _ -> },
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val failureRegistry: elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry =
+        elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry(),
+    private val retrieverAdmission: MediaMetadataRetrieverAdmission = MediaMetadataRetrieverAdmission(),
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val artworkCache = NetworkArtworkCache(context)
-    private val metadataReader = NetworkMetadataReader(registry, resourceTracker = resourceTracker)
+    private val metadataReader = NetworkMetadataReader(
+        registry,
+        failureRegistry = failureRegistry,
+        resourceTracker = resourceTracker,
+        retrieverAdmission = retrieverAdmission,
+    )
 
     suspend fun scan(
         sources: List<NetworkLibrarySource>,

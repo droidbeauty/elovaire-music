@@ -17,6 +17,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
+import elovaire.music.droidbeauty.app.data.library.queryCancellable
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import java.io.File
@@ -34,6 +35,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 internal object ExternalAudioIntentHandler {
     private const val EXTERNAL_ALBUM_ID_BASE = -9_000_000_000_000L
@@ -165,9 +167,9 @@ internal object ExternalAudioIntentHandler {
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
     }
 
-    private fun ContentResolver.queryDisplayName(uri: Uri): String? {
-        return runCatching {
-            query(
+    private suspend fun ContentResolver.queryDisplayName(uri: Uri): String? {
+        return try {
+            queryCancellable(
                 uri,
                 arrayOf(OpenableColumns.DISPLAY_NAME),
                 null,
@@ -178,7 +180,11 @@ internal object ExternalAudioIntentHandler {
                 val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (index >= 0) cursor.getString(index) else null
             }
-        }.getOrNull()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            null
+        }
     }
 
     private fun ContentResolver.safeType(uri: Uri): String? {
@@ -226,7 +232,7 @@ private object ExternalAudioPrivateCopy {
         val cacheKey = if (metadata.hasReliableRevision) {
             externalAudioStageKey(sourceUri, metadata)
         } else {
-            freshExternalAudioStageKey(sourceUri, clock)
+            freshExternalAudioStageKey(sourceUri)
         }
         return withStageLock(sourceUri.toString()) {
             ExternalAudioStageUsage.registerDirectory(context.noBackupFilesDir.resolve(DIRECTORY_NAME))
@@ -245,12 +251,7 @@ private object ExternalAudioPrivateCopy {
         val directory = context.noBackupFilesDir.resolve(DIRECTORY_NAME)
         if (!directory.exists() && !directory.mkdirs()) return null
         val target = directory.resolve("$cacheKey${extension(displayName)}")
-        if (
-            metadata.hasReliableRevision &&
-            target.isFile &&
-            target.length() > 0L &&
-            target.length() == metadata.sizeBytes
-        ) {
+        if (isReusableTarget(target, metadata, clock)) {
             prune(directory, target, clock)
             return Uri.fromFile(target)
         }
@@ -258,50 +259,16 @@ private object ExternalAudioPrivateCopy {
 
         val declaredSize = metadata.sizeBytes
         if (declaredSize != null && declaredSize > MAX_COPY_BYTES) return null
+        prune(directory, target, clock)
+        if (!hasFreeSpaceForCopy(directory, declaredSize)) return null
 
         val temporary = runCatching {
             File.createTempFile(".${target.name}.", ".tmp", directory)
         }.getOrNull() ?: return null
         return try {
-            context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                FileOutputStream(temporary).use { output ->
-                    val buffer = ByteArray(COPY_BUFFER_SIZE)
-                    var total = 0L
-                    var nextStorageCheck = 0L
-                    while (true) {
-                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        if (read == 0) continue
-                        if (total > MAX_COPY_BYTES - read) {
-                            throw IOException("External audio source exceeds the private copy limit.")
-                        }
-                        total += read
-                        if (total >= nextStorageCheck &&
-                            total + MIN_REMAINING_BYTES > StatFs(directory.path).availableBytes
-                        ) {
-                            throw IOException("Insufficient private storage for external audio.")
-                        }
-                        output.write(buffer, 0, read)
-                        nextStorageCheck = total + (1L * 1024L * 1024L)
-                    }
-                    output.fd.sync()
-                    if (total == 0L) throw IOException("External audio source is empty.")
-                    if (declaredSize != null && total != declaredSize) {
-                        throw IOException("External audio source changed while it was copied.")
-                    }
-                }
-            } ?: throw IOException("External audio source could not be opened.")
-            try {
-                Files.move(
-                    temporary.toPath(),
-                    target.toPath(),
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING,
-                )
-            } catch (unsupported: AtomicMoveNotSupportedException) {
-                throw IOException("The file system cannot atomically commit external audio.", unsupported)
-            }
+            copyToTemporary(context, sourceUri, temporary, directory, declaredSize)
+            commitTemporary(temporary, target)
+            verifyStagedTarget(target, declaredSize)
             prune(directory, target, clock)
             Uri.fromFile(target)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -316,6 +283,95 @@ private object ExternalAudioPrivateCopy {
         } catch (_: IllegalArgumentException) {
             temporary.delete()
             null
+        }
+    }
+
+    private fun isReusableTarget(
+        target: File,
+        metadata: ExternalAudioStageMetadata,
+        clock: AppClock,
+    ): Boolean {
+        if (!target.isFile || target.length() <= 0L) return false
+        return if (metadata.hasReliableRevision) {
+            target.length() == metadata.sizeBytes
+        } else {
+            clock.wallTimeMs() - target.lastModified() <= UNKNOWN_REVISION_TTL_MS
+        }
+    }
+
+    private fun hasFreeSpaceForCopy(directory: File, declaredSize: Long?): Boolean {
+        val required = declaredSize
+            ?.coerceAtMost(MAX_COPY_BYTES)
+            ?.let { it + MIN_REMAINING_BYTES }
+            ?: MIN_REMAINING_BYTES
+        return StatFs(directory.path).availableBytes >= required
+    }
+
+    private suspend fun copyToTemporary(
+        context: Context,
+        sourceUri: Uri,
+        temporary: File,
+        directory: File,
+        declaredSize: Long?,
+    ) {
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            FileOutputStream(temporary).use { output ->
+                val buffer = ByteArray(COPY_BUFFER_SIZE)
+                var total = 0L
+                var nextStorageCheck = 0L
+                while (true) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    if (read == 0) continue
+                    if (total > MAX_COPY_BYTES - read) {
+                        throw IOException("External audio source exceeds the private copy limit.")
+                    }
+                    total += read
+                    if (total >= nextStorageCheck &&
+                        total + MIN_REMAINING_BYTES > StatFs(directory.path).availableBytes
+                    ) {
+                        throw IOException("Insufficient private storage for external audio.")
+                    }
+                    output.write(buffer, 0, read)
+                    nextStorageCheck = total + (1L * 1024L * 1024L)
+                }
+                output.fd.sync()
+                if (total == 0L) throw IOException("External audio source is empty.")
+                if (declaredSize != null && total != declaredSize) {
+                    throw IOException("External audio source changed while it was copied.")
+                }
+            }
+        } ?: throw IOException("External audio source could not be opened.")
+    }
+
+    private fun commitTemporary(temporary: File, target: File) {
+        try {
+            Files.move(
+                temporary.toPath(),
+                target.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (unsupported: AtomicMoveNotSupportedException) {
+            try {
+                Files.move(
+                    temporary.toPath(),
+                    target.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            } catch (failure: IOException) {
+                failure.addSuppressed(unsupported)
+                throw failure
+            }
+        }
+    }
+
+    private fun verifyStagedTarget(target: File, declaredSize: Long?) {
+        if (!target.isFile || target.length() <= 0L ||
+            declaredSize != null && target.length() != declaredSize
+        ) {
+            throw IOException("External audio staging commit was incomplete.")
         }
     }
 
@@ -336,12 +392,12 @@ private object ExternalAudioPrivateCopy {
         }
     }
 
-    private fun queryMetadata(
+    private suspend fun queryMetadata(
         resolver: android.content.ContentResolver,
         uri: Uri,
     ): ExternalAudioStageMetadata {
-        return runCatching {
-            resolver.query(
+        return try {
+            resolver.queryCancellable(
                 uri,
                 arrayOf(OpenableColumns.SIZE, DocumentsContract.Document.COLUMN_LAST_MODIFIED),
                 null,
@@ -360,15 +416,19 @@ private object ExternalAudioPrivateCopy {
                         ?.takeIf { it >= 0L },
                 )
             } ?: ExternalAudioStageMetadata()
-        }.getOrDefault(ExternalAudioStageMetadata())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            ExternalAudioStageMetadata()
+        }
     }
 
-    private fun freshExternalAudioStageKey(sourceUri: Uri, clock: AppClock): String {
+    private fun freshExternalAudioStageKey(sourceUri: Uri): String {
         return externalAudioStageKey(
             sourceUri = sourceUri,
             metadata = ExternalAudioStageMetadata(
                 sizeBytes = null,
-                modifiedAtMs = clock.wallTimeMs(),
+                modifiedAtMs = null,
             ),
         )
     }
@@ -413,6 +473,7 @@ private object ExternalAudioPrivateCopy {
     private const val MAX_CACHE_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
     private const val MAX_TEMP_FILE_AGE_MS = 60L * 60L * 1_000L
     private const val MAX_CACHE_BYTES = 512L * 1024L * 1024L
+    private const val UNKNOWN_REVISION_TTL_MS = 15L * 60L * 1_000L
 
     private class StageLock {
         val mutex = Mutex()

@@ -52,7 +52,10 @@ internal data class AudioProbeCacheKey(
     val revisionKey: String,
 )
 
-internal class AudioFormatDetector(context: Context) {
+internal class AudioFormatDetector(
+    context: Context,
+    private val failureRegistry: MediaFailureRegistry = MediaFailureRegistry(),
+) {
     private val appContext = context.applicationContext
     private val decoderAvailabilityCache = object : LinkedHashMap<DeviceCodecProbeKey, Boolean>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<DeviceCodecProbeKey, Boolean>?): Boolean {
@@ -64,7 +67,6 @@ internal class AudioFormatDetector(context: Context) {
             return size > MAX_PROBE_CACHE_ENTRIES
         }
     }
-    private val failureRegistry = MediaFailureRegistry()
 
     @Suppress("TooGenericExceptionCaught")
     fun detect(

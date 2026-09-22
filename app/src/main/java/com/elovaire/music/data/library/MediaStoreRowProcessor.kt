@@ -164,7 +164,7 @@ internal class MediaStoreRowProcessor(
         )
     }
 
-    private fun effectiveDuration(row: MediaStoreAudioRow): Long {
+    private suspend fun effectiveDuration(row: MediaStoreAudioRow): Long {
         if (row.durationMs > 0L) return row.durationMs
         return if (
             row.extension.isBlank() ||

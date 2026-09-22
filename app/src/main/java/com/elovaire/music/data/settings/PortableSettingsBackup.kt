@@ -55,9 +55,6 @@ internal class PortableSettingsBackup(
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
             ioDispatcher + CoroutineName("portable-settings-backup"),
     )
-    private val bootSnapshotScope = CoroutineScope(
-        SupervisorJob() + ioDispatcher + CoroutineName("portable-settings-boot-snapshot"),
-    )
     private var settingsObservationJob: Job? = null
 
     /** Returns the last validated synchronous boot snapshot without touching DataStore. */
@@ -77,10 +74,10 @@ internal class PortableSettingsBackup(
     fun checkpointBootSettings(values: Map<String, Any?>) {
         if (released.get()) return
         val filtered = values.filterKeys { it in settingsPreferenceKeys }
-        pendingBootSnapshot.set(filtered)
-        synchronized(bootSnapshotJobLock) {
-            if (bootSnapshotJob?.isActive != true && !released.get()) {
-                bootSnapshotJob = bootSnapshotScope.launch {
+            pendingBootSnapshot.set(filtered)
+            synchronized(bootSnapshotJobLock) {
+                if (bootSnapshotJob?.isActive != true && !released.get()) {
+                bootSnapshotJob = mirrorScope.launch {
                     kotlinx.coroutines.delay(BOOT_SNAPSHOT_COALESCE_DELAY_MS)
                     flushPendingBootSnapshot()
                 }
@@ -127,8 +124,7 @@ internal class PortableSettingsBackup(
             settingsObservationJob?.cancel()
         }
         settingsObservationJob = null
-        mirrorScope.cancel()
-        bootSnapshotScope.launch {
+        mirrorScope.launch {
             try {
                 flushBootSnapshot()
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -136,7 +132,7 @@ internal class PortableSettingsBackup(
             } catch (failure: RuntimeException) {
                 android.util.Log.w(TAG, "Unable to flush settings boot snapshot during release.", failure)
             } finally {
-                bootSnapshotScope.cancel()
+                mirrorScope.cancel()
             }
         }
     }
@@ -155,19 +151,23 @@ internal class PortableSettingsBackup(
         synchronized(bootSnapshotJobLock) {
             bootSnapshotJob = null
             if (pendingBootSnapshot.get() != null && !released.get()) {
-                bootSnapshotJob = bootSnapshotScope.launch { flushPendingBootSnapshot() }
+                bootSnapshotJob = mirrorScope.launch { flushPendingBootSnapshot() }
             }
         }
     }
 
     private fun writeBootSnapshot(values: Map<String, Any?>) {
+        val mergedValues = readBootSnapshot().orEmpty() + values
+        val normalizedValues = mergedValues
+            .filterKeys { it in settingsPreferenceKeys }
+            .filterValues { it != null }
         val editor = bootSnapshot.edit()
         bootSnapshot.all.keys
             .filterNot { it == BOOT_FORMAT_VERSION_KEY || it == BOOT_CHECKSUM_KEY }
             .forEach(editor::remove)
-        values.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
+        normalizedValues.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
         editor.putInt(BOOT_FORMAT_VERSION_KEY, BOOT_FORMAT_VERSION)
-        editor.putString(BOOT_CHECKSUM_KEY, settingsBootSnapshotChecksum(values))
+        editor.putString(BOOT_CHECKSUM_KEY, settingsBootSnapshotChecksum(normalizedValues))
         check(editor.commit()) { "Unable to persist settings boot snapshot" }
     }
 
