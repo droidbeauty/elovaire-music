@@ -16,4 +16,15 @@ class AudioSinkRecoveryGuardTest {
         guard.reset()
         assertTrue(guard.claim(first))
     }
+
+    @Test
+    fun softwareFallbackStaysActiveForFailedRouteAndClearsForAnotherRoute() {
+        val guard = AudioSinkRecoveryGuard()
+
+        assertFalse(guard.isSoftwareFallbackActive(routeGeneration = 4L))
+        guard.activateSoftwareFallback(routeGeneration = 4L)
+
+        assertTrue(guard.isSoftwareFallbackActive(routeGeneration = 4L))
+        assertFalse(guard.isSoftwareFallbackActive(routeGeneration = 5L))
+    }
 }

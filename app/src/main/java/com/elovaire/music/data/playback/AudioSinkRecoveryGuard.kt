@@ -8,6 +8,7 @@ internal data class AudioSinkRecoveryKey(
 
 internal class AudioSinkRecoveryGuard {
     private var claimedKey: AudioSinkRecoveryKey? = null
+    private var softwareFallbackRouteGeneration: Long? = null
 
     fun claim(key: AudioSinkRecoveryKey): Boolean {
         if (claimedKey == key) return false
@@ -17,5 +18,13 @@ internal class AudioSinkRecoveryGuard {
 
     fun reset() {
         claimedKey = null
+    }
+
+    fun activateSoftwareFallback(routeGeneration: Long) {
+        softwareFallbackRouteGeneration = routeGeneration
+    }
+
+    fun isSoftwareFallbackActive(routeGeneration: Long): Boolean {
+        return softwareFallbackRouteGeneration == routeGeneration
     }
 }

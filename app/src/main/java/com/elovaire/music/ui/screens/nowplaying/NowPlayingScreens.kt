@@ -502,6 +502,9 @@ internal fun NowPlayingScreen(
     }
     var showLyricsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
+    var queueTimingBottomInRootPx by remember(currentSong?.id) { mutableFloatStateOf(0f) }
+    var queueRegionBottomInRootPx by remember(currentSong?.id) { mutableFloatStateOf(0f) }
+    var queueSurfaceTopInRootPx by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
@@ -1051,7 +1054,10 @@ internal fun NowPlayingScreen(
                                     secondaryContentColor = secondaryContentColor,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(top = 4.dp),
+                                        .padding(top = 4.dp)
+                                        .onGloballyPositioned { coordinates ->
+                                            queueTimingBottomInRootPx = coordinates.boundsInRoot().bottom
+                                        },
                                 )
                             }
                         }
@@ -1167,9 +1173,11 @@ internal fun NowPlayingScreen(
                     .align(Alignment.CenterHorizontally)
                     .offset(y = (-2).dp)
                     .then(playerSwipePushModifier)
-                    .weight(1f),
+                    .weight(1f)
+                    .onGloballyPositioned { coordinates ->
+                        queueRegionBottomInRootPx = coordinates.boundsInRoot().bottom
+                    },
             ) {
-                val queueSheetTopExtension = (1000.dp - buttonNavigationScrollBoost()).coerceAtLeast(0.dp)
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -1342,61 +1350,6 @@ internal fun NowPlayingScreen(
                     )
                 }
 
-                PopupCardMotionHost(
-                    surfaceId = "player.queue",
-                    visible = showQueueSheet,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter),
-                ) {
-                    QueueSheet(
-                        queue = playerUiState.queue,
-                        currentIndex = playerUiState.currentIndex,
-                        playlists = playlists,
-                        playlistSongsById = enrichedSongsById,
-                        currentSong = currentSong,
-                        audiobookMode = currentSong.mediaKind == AudioMediaKind.Audiobook,
-                        tint = contentColor,
-                        secondaryTint = secondaryContentColor,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(maxHeight + queueSheetTopExtension)
-                            .align(Alignment.BottomCenter),
-                        onSongSelected = onQueueItemSelected,
-                        onQueueItemRemoved = onQueueItemRemoved,
-                        shuffleEnabled = playerUiState.shuffleEnabled,
-                        onToggleShuffle = {
-                            queueStatusText = if (playerUiState.shuffleEnabled) {
-                                "Shuffle | Disabled"
-                            } else {
-                                "Shuffle | Enabled"
-                            }
-                            queueStatusVersion += 1L
-                            onToggleShuffle()
-                        },
-                        crossfadeEnabled = playerUiState.crossfadeEnabled,
-                        onToggleCrossfade = {
-                            queueStatusText = if (playerUiState.crossfadeEnabled) {
-                                "Crossfade | Disabled"
-                            } else {
-                                "Crossfade | Enabled"
-                            }
-                            queueStatusVersion += 1L
-                            onToggleCrossfade()
-                        },
-                        onOpenEqualizer = onOpenEqualizer,
-                        sleepTimerActive = playerUiState.sleepTimer.option != SleepTimerOption.Off,
-                        onOpenSleepTimer = {
-                            showAddToPlaylistDialog = false
-                            showSleepTimerDialog = true
-                        },
-                        onAddSongToPlaylist = onAddCurrentSongToPlaylist,
-                        onCreatePlaylist = onCreatePlaylist,
-                        statusText = queueStatusText,
-                        onDismiss = { showQueueSheet = false },
-                        isPlaying = playerUiState.isPlaying,
-                    )
-                }
             }
 
             VolumeControlBar(
@@ -1446,6 +1399,85 @@ internal fun NowPlayingScreen(
                         contentDescription = currentSong.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+        CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
+            val queueGapPx = with(density) { 30.dp.toPx() }
+            val queueSheetHeight = with(density) {
+                (queueRegionBottomInRootPx - queueTimingBottomInRootPx - queueGapPx)
+                    .coerceAtLeast(0f)
+                    .toDp()
+            }
+            val queueSheetTopOffset = with(density) {
+                (queueTimingBottomInRootPx - queueSurfaceTopInRootPx).toDp() + 30.dp
+            }
+            val queueGeometryReady = queueTimingBottomInRootPx > 0f &&
+                queueRegionBottomInRootPx > queueTimingBottomInRootPx + queueGapPx
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { coordinates ->
+                        queueSurfaceTopInRootPx = coordinates.boundsInRoot().top
+                    },
+            ) {
+                PopupCardMotionHost(
+                    surfaceId = "player.queue",
+                    visible = showQueueSheet && queueGeometryReady,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth(0.95f)
+                        .align(Alignment.TopCenter)
+                        .offset(y = queueSheetTopOffset)
+                        .alpha(playerContentAlpha),
+                ) {
+                    QueueSheet(
+                        queue = playerUiState.queue,
+                        currentIndex = playerUiState.currentIndex,
+                        playlists = playlists,
+                        playlistSongsById = enrichedSongsById,
+                        currentSong = currentSong,
+                        audiobookMode = currentSong?.mediaKind == AudioMediaKind.Audiobook,
+                        tint = contentColor,
+                        secondaryTint = secondaryContentColor,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(queueSheetHeight),
+                        onSongSelected = onQueueItemSelected,
+                        onQueueItemRemoved = onQueueItemRemoved,
+                        shuffleEnabled = playerUiState.shuffleEnabled,
+                        onToggleShuffle = {
+                            queueStatusText = if (playerUiState.shuffleEnabled) {
+                                "Shuffle | Disabled"
+                            } else {
+                                "Shuffle | Enabled"
+                            }
+                            queueStatusVersion += 1L
+                            onToggleShuffle()
+                        },
+                        crossfadeEnabled = playerUiState.crossfadeEnabled,
+                        onToggleCrossfade = {
+                            queueStatusText = if (playerUiState.crossfadeEnabled) {
+                                "Crossfade | Disabled"
+                            } else {
+                                "Crossfade | Enabled"
+                            }
+                            queueStatusVersion += 1L
+                            onToggleCrossfade()
+                        },
+                        onOpenEqualizer = onOpenEqualizer,
+                        sleepTimerActive = playerUiState.sleepTimer.option != SleepTimerOption.Off,
+                        onOpenSleepTimer = {
+                            showAddToPlaylistDialog = false
+                            showSleepTimerDialog = true
+                        },
+                        onAddSongToPlaylist = onAddCurrentSongToPlaylist,
+                        onCreatePlaylist = onCreatePlaylist,
+                        statusText = queueStatusText,
+                        onDismiss = { showQueueSheet = false },
+                        isPlaying = playerUiState.isPlaying,
                     )
                 }
             }

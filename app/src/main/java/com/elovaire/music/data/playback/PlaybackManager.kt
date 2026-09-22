@@ -545,7 +545,11 @@ internal class PlaybackManager internal constructor(
             audioSinkError: Exception,
         ) {
             if (released.get()) return
-            if (isDirectPlaybackActive && runtimeTransition is PlaybackRuntimeTransition.Idle) {
+            if (
+                hasActiveQueue() &&
+                (player.isPlaying || player.playWhenReady) &&
+                runtimeTransition is PlaybackRuntimeTransition.Idle
+            ) {
                 recoverFromAudioSinkError(audioSinkError)
             }
             player.volume = effectivePlayerGain()
@@ -1005,6 +1009,9 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun currentOffloadPolicy(): PlaybackOffloadPolicy {
+        if (audioSinkRecoveryGuard.isSoftwareFallbackActive(currentAudioRouteSnapshot.generation)) {
+            return PlaybackOffloadPolicy.Disabled
+        }
         val decision = AudioOutputPolicy.decide(
             capabilities = outputCapabilities,
             requirements = AudioProcessingRequirements(
@@ -1599,13 +1606,17 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun recoverFromAudioSinkError(audioSinkError: Exception) {
+        val routeGeneration = currentAudioRouteSnapshot.generation
+        if (audioSinkRecoveryGuard.isSoftwareFallbackActive(routeGeneration)) return
         val status = bitPerfectUsbManager.status.value
         val key = AudioSinkRecoveryKey(
             playbackRevision = playbackOperationRevision,
-            routeGeneration = currentAudioRouteSnapshot.generation,
+            routeGeneration = routeGeneration,
             failureCategory = audioSinkError::class.java.name,
         )
         if (!audioSinkRecoveryGuard.claim(key)) return
+        audioSinkRecoveryGuard.activateSoftwareFallback(routeGeneration)
+        logDebug("Audio sink error; rebuilding with offload disabled, category=${audioSinkError::class.java.simpleName}")
         bitPerfectUsbManager.clearPlaybackFormat()
         lastAppliedAudioPathDecisionKey = null
         switchPlayerAudioPath(
