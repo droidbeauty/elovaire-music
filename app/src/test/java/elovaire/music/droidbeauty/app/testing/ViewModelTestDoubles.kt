@@ -27,6 +27,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
@@ -86,11 +87,20 @@ internal class FakeEqualizerSettingsStore(
     initialSettings: EqSettings = EqSettings(),
 ) : EqualizerSettingsStore {
     override val eqSettings = MutableStateFlow(initialSettings)
+    override val eqCustomPresets = MutableStateFlow<List<EqCustomPreset>>(emptyList())
     val writes = mutableListOf<EqSettings>()
 
     override fun setEqSettings(settings: EqSettings) {
         writes += settings
         eqSettings.value = settings
+    }
+
+    override fun saveEqCustomPreset(name: String, settings: EqSettings) {
+        eqCustomPresets.value = eqCustomPresets.value.filterNot { it.name == name } + EqCustomPreset(name, settings)
+    }
+
+    override fun deleteEqCustomPreset(name: String) {
+        eqCustomPresets.value = eqCustomPresets.value.filterNot { it.name == name }
     }
 }
 

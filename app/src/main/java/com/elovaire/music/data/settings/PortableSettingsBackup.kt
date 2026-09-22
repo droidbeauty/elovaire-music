@@ -345,6 +345,7 @@ private val portableSettingKeys = setOf(
             "album_collection_sort_mode",
             "song_collection_sort_mode",
             "eq_bands",
+            "eq_preamp_db",
             "eq_bass",
             "eq_midrange",
             "eq_treble",
@@ -352,4 +353,5 @@ private val portableSettingKeys = setOf(
             "eq_spaciousness_mode",
             "eq_reverb_duration_ms",
             "eq_reverb_profile",
+            "eq_custom_presets",
 )

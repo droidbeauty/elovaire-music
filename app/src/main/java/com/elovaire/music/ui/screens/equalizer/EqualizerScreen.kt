@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -56,6 +57,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,11 +80,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -95,6 +100,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
@@ -114,9 +120,11 @@ import kotlinx.coroutines.launch
 internal fun EqualizerScreen(
     settings: EqSettings,
     selectedPresetName: String?,
+    customPresets: List<EqCustomPreset>,
     equalizerEnabled: Boolean,
     onBack: () -> Unit,
     onBandChanged: (Int, Float) -> Unit,
+    onPreampChanged: (Float) -> Unit,
     onBassChanged: (Float) -> Unit,
     onMidrangeChanged: (Float) -> Unit,
     onTrebleChanged: (Float) -> Unit,
@@ -126,6 +134,8 @@ internal fun EqualizerScreen(
     onReverbProfileChanged: (ReverbProfile) -> Unit,
     onResetReverb: () -> Unit,
     onApplyPreset: (String, EqSettings) -> Unit,
+    onSaveCustomPreset: (String) -> Unit,
+    onDeleteCustomPreset: (String) -> Unit,
     onReset: () -> Unit,
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
@@ -202,8 +212,11 @@ internal fun EqualizerScreen(
                 EqPresetMenu(
                     currentSettings = settings,
                     selectedPresetName = selectedPresetName,
+                    customPresets = customPresets,
                     equalizerEnabled = equalizerEnabled,
                     onApplyPreset = onApplyPreset,
+                    onSaveCustomPreset = onSaveCustomPreset,
+                    onDeleteCustomPreset = onDeleteCustomPreset,
                     onReset = onReset,
                 )
             }
@@ -217,6 +230,23 @@ internal fun EqualizerScreen(
                     .ensureSingleItemRubberBand(listState),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
+                item {
+                    ModuleCard {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            SettingsCategoryText(
+                                title = "Output",
+                                iconResId = R.drawable.ic_lucide_volume_2,
+                            )
+                            EqMacroSliderRow(
+                                title = "Preamp",
+                                value = settings.preampDb,
+                                valueText = formatPreampDb(settings.preampDb),
+                                onValueChange = onPreampChanged,
+                                valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
+                            )
+                        }
+                    }
+                }
                 item {
                     ModuleCard {
                         Column(
@@ -270,6 +300,7 @@ internal fun EqualizerScreen(
                                 currentMode = settings.spaciousnessMode,
                                 spaciousnessAmount = settings.spaciousness,
                                 onModeSelected = onSpaciousnessModeChanged,
+                                onReset = { onSpaciousnessModeChanged(SpaciousnessMode.Off) },
                             )
                             EqMacroSliderRow(
                                 title = uiPhrase(language, UiPhrase.EffectStrength),
@@ -1054,6 +1085,16 @@ private fun EqMacroSliderRow(
     }
 }
 
+private fun formatPreampDb(value: Float): String {
+    val rounded = (value * 2f).roundToInt() / 2f
+    val number = if (rounded == rounded.toInt().toFloat()) {
+        rounded.toInt().toString()
+    } else {
+        rounded.toString()
+    }
+    return if (rounded > 0f) "+$number dB" else "$number dB"
+}
+
 private data class EqPresetDefinition(
     val name: String,
     val settings: EqSettings,
@@ -1063,48 +1104,202 @@ private data class EqPresetDefinition(
 private fun EqPresetMenu(
     currentSettings: EqSettings,
     selectedPresetName: String?,
+    customPresets: List<EqCustomPreset>,
     equalizerEnabled: Boolean,
     onApplyPreset: (String, EqSettings) -> Unit,
+    onSaveCustomPreset: (String) -> Unit,
+    onDeleteCustomPreset: (String) -> Unit,
     onReset: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
     val presets = remember { eqPresetDefinitions() }
     val horizontalScrollState = rememberScrollState()
-    val activePresetName = remember(currentSettings, selectedPresetName, equalizerEnabled, presets) {
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+    val activePresetName = remember(currentSettings, selectedPresetName, equalizerEnabled, presets, customPresets) {
         if (!equalizerEnabled) return@remember null
         selectedPresetName?.takeIf { selectedName ->
-            presets.any { preset -> preset.name == selectedName }
+            presets.any { preset -> preset.name == selectedName } ||
+                customPresets.any { preset -> preset.name == selectedName }
         } ?: currentSettings.matchingEqPresetName(presets)
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalGestureSafe()
-            .horizontalScroll(horizontalScrollState, overscrollEffect = null)
-            .ensureHorizontalRubberBand(horizontalScrollState),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        EqPresetPill(
-            label = uiPhrase(language, UiPhrase.Reset),
-            selected = activePresetName == null && EqValuePolicy.hasSignalAlteringEffects(currentSettings),
-            emphasized = true,
-            onClick = onReset,
-        )
-        presets.forEach { preset ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalGestureSafe()
+                .horizontalScroll(horizontalScrollState, overscrollEffect = null)
+                .ensureHorizontalRubberBand(horizontalScrollState),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             EqPresetPill(
-                label = preset.name,
-                selected = preset.name == activePresetName,
-                onClick = {
-                    onApplyPreset(
-                        preset.name,
-                        currentSettings.copy(
-                            bands = preset.settings.bands,
-                        ),
-                    )
-                },
+                label = uiPhrase(language, UiPhrase.Reset),
+                selected = activePresetName == null && EqValuePolicy.hasSignalAlteringEffects(currentSettings),
+                emphasized = true,
+                onClick = onReset,
             )
+            presets.forEach { preset ->
+                EqPresetPill(
+                    label = preset.name,
+                    selected = preset.name == activePresetName,
+                    onClick = {
+                        onApplyPreset(
+                            preset.name,
+                            currentSettings.copy(
+                                bands = preset.settings.bands,
+                            ),
+                        )
+                    },
+                )
+            }
+            customPresets.forEach { preset ->
+                EqCustomPresetPill(
+                    preset = preset,
+                    selected = preset.name == activePresetName,
+                    onApply = { onApplyPreset(preset.name, preset.settings) },
+                    onDelete = { onDeleteCustomPreset(preset.name) },
+                )
+            }
+            EqPresetPill(
+                label = "Save preset",
+                selected = false,
+                emphasized = true,
+                onClick = { showSaveDialog = true },
+            )
+        }
+    }
+
+    if (showSaveDialog) {
+        SaveEqPresetDialog(
+            onDismiss = { showSaveDialog = false },
+            onSave = { name ->
+                onSaveCustomPreset(name)
+                showSaveDialog = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun EqCustomPresetPill(
+    preset: EqCustomPreset,
+    selected: Boolean,
+    onApply: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
+    }
+    Surface(
+        modifier = Modifier.elovairePillActionMotion(
+            interactionSource = interactionSource,
+            pressedScale = 0.96f,
+            label = "${preset.name}_eq_custom_preset_scale",
+        ),
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = backgroundColor,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = preset.name,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onApply,
+                    )
+                    .padding(start = 14.dp, top = 9.dp, bottom = 9.dp),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = contentColor,
+            )
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDelete,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_x),
+                    contentDescription = "Delete ${preset.name}",
+                    tint = contentColor.copy(alpha = 0.78f),
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SaveEqPresetDialog(
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(ElovaireRadii.card),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Save preset",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Preset name") },
+                    singleLine = true,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    EqPresetPill(
+                        label = "Cancel",
+                        selected = false,
+                        useSubtleIdleBackground = true,
+                        onClick = onDismiss,
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    EqPresetPill(
+                        label = "Save",
+                        selected = false,
+                        emphasized = true,
+                        onClick = { if (name.isNotBlank()) onSave(name) },
+                    )
+                }
+            }
         }
     }
 }
@@ -1136,6 +1331,7 @@ private fun SpaciousnessModeMenu(
     currentMode: SpaciousnessMode,
     spaciousnessAmount: Float,
     onModeSelected: (SpaciousnessMode) -> Unit,
+    onReset: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
     val horizontalScrollState = rememberScrollState()
@@ -1158,6 +1354,13 @@ private fun SpaciousnessModeMenu(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        EqPresetPill(
+            label = uiPhrase(language, UiPhrase.Reset),
+            selected = false,
+            emphasized = true,
+            useSubtleIdleBackground = true,
+            onClick = onReset,
+        )
         modes.forEach { mode ->
             EqPresetPill(
                 label = mode.displayLabel(language),

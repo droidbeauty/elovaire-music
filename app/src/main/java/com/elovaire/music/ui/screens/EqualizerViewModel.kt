@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.settings.EqualizerSettingsStore
+import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -35,6 +36,7 @@ internal data class EqBandUiState(
 internal data class EqualizerUiState(
     val enabled: Boolean = false,
     val bands: List<EqBandUiState> = defaultEqBandUiStates(),
+    val preampDb: Float = 0f,
     val bassBoost: Float = 0f,
     val midrange: Float = 0f,
     val treble: Float = 0f,
@@ -49,6 +51,7 @@ internal data class EqualizerUiState(
     fun toEqSettings(): EqSettings = EqValuePolicy.sanitize(
         EqSettings(
             bands = bands.map { EqValuePolicy.dbToNormalized(it.gainDb) },
+            preampDb = preampDb,
             bass = bassBoost,
             midrange = midrange,
             treble = treble,
@@ -66,6 +69,7 @@ internal class EqualizerViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(preferenceStore.eqSettings.value.toEqualizerUiState())
     val uiState: StateFlow<EqualizerUiState> = _uiState.asStateFlow()
+    val customPresets: StateFlow<List<EqCustomPreset>> = preferenceStore.eqCustomPresets
     private val pendingSettings = MutableSharedFlow<EqSettings>(
         extraBufferCapacity = 32,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -100,6 +104,10 @@ internal class EqualizerViewModel(
         }
     }
 
+    fun updatePreamp(valueDb: Float) = updateState {
+        it.copy(preampDb = valueDb.coerceIn(EqValuePolicy.MIN_PREAMP_DB, EqValuePolicy.MAX_PREAMP_DB))
+    }
+
     fun updateBass(value: Float) = updateState { it.copy(bassBoost = EqValuePolicy.clampPositiveMacro(value)) }
 
     fun updateMidrange(value: Float) = updateState { it.copy(midrange = EqValuePolicy.clampMacro(value)) }
@@ -132,6 +140,20 @@ internal class EqualizerViewModel(
     fun applyPreset(name: String, settings: EqSettings) {
         val next = EqValuePolicy.sanitize(settings).toEqualizerUiState(presetName = name, isDirty = true)
         publish(next)
+    }
+
+    fun saveCustomPreset(name: String) {
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank()) return
+        preferenceStore.saveEqCustomPreset(normalizedName, _uiState.value.toEqSettings())
+        updateState(presetName = normalizedName) { it }
+    }
+
+    fun deleteCustomPreset(name: String) {
+        preferenceStore.deleteEqCustomPreset(name)
+        if (_uiState.value.presetName == name) {
+            _uiState.value = _uiState.value.copy(presetName = "Custom")
+        }
     }
 
     fun resetEffects() {
@@ -182,6 +204,7 @@ private fun EqSettings.toEqualizerUiState(
         bands = defaultEqBandUiStates().mapIndexed { index, band ->
             band.copy(gainDb = EqValuePolicy.normalizedToDb(sanitized.bands[index]))
         },
+        preampDb = sanitized.preampDb,
         bassBoost = sanitized.bass,
         midrange = sanitized.midrange,
         treble = sanitized.treble,

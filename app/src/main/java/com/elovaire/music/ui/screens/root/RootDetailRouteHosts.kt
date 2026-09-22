@@ -407,12 +407,15 @@ internal fun EqualizerRouteHost(
 ) {
     val equalizerViewModel: EqualizerViewModel = viewModel(factory = viewModelFactory)
     val equalizerUiState by equalizerViewModel.uiState.collectAsStateWithLifecycle()
+    val customPresets by equalizerViewModel.customPresets.collectAsStateWithLifecycle()
     EqualizerScreen(
         settings = equalizerUiState.toEqSettings(),
         selectedPresetName = equalizerUiState.presetName,
+        customPresets = customPresets,
         equalizerEnabled = equalizerUiState.enabled,
         onBack = routeActions::navigateUp,
         onBandChanged = equalizerViewModel::updateBand,
+        onPreampChanged = equalizerViewModel::updatePreamp,
         onBassChanged = equalizerViewModel::updateBass,
         onMidrangeChanged = equalizerViewModel::updateMidrange,
         onTrebleChanged = equalizerViewModel::updateTreble,
@@ -422,6 +425,8 @@ internal fun EqualizerRouteHost(
         onReverbProfileChanged = equalizerViewModel::updateReverbProfile,
         onResetReverb = equalizerViewModel::resetReverb,
         onApplyPreset = equalizerViewModel::applyPreset,
+        onSaveCustomPreset = equalizerViewModel::saveCustomPreset,
+        onDeleteCustomPreset = equalizerViewModel::deleteCustomPreset,
         onReset = equalizerViewModel::resetEffects,
     )
 }

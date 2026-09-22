@@ -88,7 +88,7 @@ internal fun ElovaireAppShell(
 
         LaunchedEffect(showSplash, motionRuntime.reduceMotion) {
             if (showSplash) {
-                delay(motionRuntime.duration(1_500L))
+                delay(motionRuntime.duration(1_000L))
                 showSplash = false
             }
         }

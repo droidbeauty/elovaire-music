@@ -8,6 +8,8 @@ import kotlin.math.round
 internal object EqValuePolicy {
     const val MIN_GAIN_DB = -8f
     const val MAX_GAIN_DB = 8f
+    const val MIN_PREAMP_DB = -12f
+    const val MAX_PREAMP_DB = 6f
     const val GAIN_STEP_DB = 0.5f
     const val MIN_NORMALIZED = -1f
     const val MAX_NORMALIZED = 1f
@@ -47,6 +49,7 @@ internal object EqValuePolicy {
             bands = List(EqualizerDspModel.BAND_COUNT) { index ->
                 clampBandNormalized(settings.bands.getOrElse(index) { 0f })
             },
+            preampDb = settings.preampDb.coerceIn(MIN_PREAMP_DB, MAX_PREAMP_DB),
             bass = clampPositiveMacro(settings.bass),
             midrange = clampMacro(settings.midrange),
             treble = clampMacro(settings.treble),
@@ -59,6 +62,7 @@ internal object EqValuePolicy {
     fun hasSignalAlteringEffects(settings: EqSettings): Boolean {
         val sanitized = sanitize(settings)
         return sanitized.bands.any { abs(it) >= EFFECT_BYPASS_EPSILON } ||
+            abs(sanitized.preampDb) >= EFFECT_BYPASS_EPSILON ||
             abs(sanitized.bass) >= EFFECT_BYPASS_EPSILON ||
             abs(sanitized.midrange) >= EFFECT_BYPASS_EPSILON ||
             abs(sanitized.treble) >= EFFECT_BYPASS_EPSILON ||

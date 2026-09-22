@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistTy
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
@@ -68,7 +69,10 @@ internal interface PlaybackIntegrationSettings {
 /** Settings owned by the equalizer screen and consumed by the playback runtime. */
 internal interface EqualizerSettingsStore {
     val eqSettings: StateFlow<EqSettings>
+    val eqCustomPresets: StateFlow<List<EqCustomPreset>>
     fun setEqSettings(settings: EqSettings)
+    fun saveEqCustomPreset(name: String, settings: EqSettings)
+    fun deleteEqCustomPreset(name: String)
 }
 
 /** Settings that affect the player presentation and playback transition policy. */

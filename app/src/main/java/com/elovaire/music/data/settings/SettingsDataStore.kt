@@ -120,6 +120,7 @@ internal val settingsPreferenceKeys = setOf(
     "library_folder_path",
     "library_folders",
     "eq_bands",
+    "eq_preamp_db",
     "eq_bass",
     "eq_midrange",
     "eq_treble",
@@ -127,6 +128,7 @@ internal val settingsPreferenceKeys = setOf(
     "eq_spaciousness_mode",
     "eq_reverb_duration_ms",
     "eq_reverb_profile",
+    "eq_custom_presets",
     "dismissed_update_version",
     "last_automatic_update_check_at_ms",
 )

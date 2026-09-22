@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
@@ -42,6 +43,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlin.coroutines.EmptyCoroutineContext
 
 @Suppress("TooManyFunctions")
@@ -117,6 +120,8 @@ class PreferenceStore internal constructor(
 
     private val _eqSettings = MutableStateFlow(loadEqSettings())
     override val eqSettings: StateFlow<EqSettings> = _eqSettings.asStateFlow()
+    private val _eqCustomPresets = MutableStateFlow(loadEqCustomPresets())
+    override val eqCustomPresets: StateFlow<List<EqCustomPreset>> = _eqCustomPresets.asStateFlow()
 
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
@@ -290,6 +295,23 @@ class PreferenceStore internal constructor(
 
     override fun setEqSettings(settings: EqSettings) {
         persistEqSettings(EqValuePolicy.sanitize(settings))
+    }
+
+    override fun saveEqCustomPreset(name: String, settings: EqSettings) {
+        val normalizedName = name.trim().take(MAX_EQ_PRESET_NAME_LENGTH)
+        if (normalizedName.isBlank()) return
+        val preset = EqCustomPreset(normalizedName, EqValuePolicy.sanitize(settings))
+        val next = _eqCustomPresets.value
+            .filterNot { it.name.equals(normalizedName, ignoreCase = true) }
+            .plus(preset)
+            .takeLast(MAX_EQ_CUSTOM_PRESETS)
+        persistEqCustomPresets(next)
+    }
+
+    override fun deleteEqCustomPreset(name: String) {
+        val next = _eqCustomPresets.value.filterNot { it.name == name }
+        if (next.size == _eqCustomPresets.value.size) return
+        persistEqCustomPresets(next)
     }
 
     fun resetEqSettings() {
@@ -470,6 +492,7 @@ class PreferenceStore internal constructor(
         _eqSettings.value = normalizedSettings
         checkpointBootSettings(
             KEY_BANDS to normalizedSettings.bands.joinToString(","),
+            KEY_PREAMP to normalizedSettings.preampDb,
             KEY_BASS to normalizedSettings.bass,
             KEY_MIDRANGE to normalizedSettings.midrange,
             KEY_TREBLE to normalizedSettings.treble,
@@ -501,6 +524,7 @@ class PreferenceStore internal constructor(
     private suspend fun writeEqSettings(settings: EqSettings) {
         settingsDataStore.editSettings {
             putString(KEY_BANDS, settings.bands.joinToString(","))
+            putFloat(KEY_PREAMP, settings.preampDb)
             putFloat(KEY_BASS, settings.bass)
             putFloat(KEY_MIDRANGE, settings.midrange)
             putFloat(KEY_TREBLE, settings.treble)
@@ -508,6 +532,25 @@ class PreferenceStore internal constructor(
             putString(KEY_SPACIOUSNESS_MODE, settings.spaciousnessMode.name)
             putInt(KEY_REVERB_DURATION_MS, settings.reverbDurationMs)
             putString(KEY_REVERB_PROFILE, settings.reverbProfile.name)
+        }
+    }
+
+    private fun persistEqCustomPresets(presets: List<EqCustomPreset>) {
+        val normalized = presets
+            .mapNotNull { preset ->
+                val name = preset.name.trim().take(MAX_EQ_PRESET_NAME_LENGTH)
+                name.takeIf { it.isNotBlank() }?.let {
+                    EqCustomPreset(it, EqValuePolicy.sanitize(preset.settings))
+                }
+            }
+            .takeLast(MAX_EQ_CUSTOM_PRESETS)
+        val serialized = serializeEqCustomPresets(normalized)
+        _eqCustomPresets.value = normalized
+        checkpointBootSettings(KEY_EQ_CUSTOM_PRESETS to serialized)
+        settingsWriteSequencer.replaceLatest("equalizer-presets") {
+            settingsDataStore.editSettings {
+                putString(KEY_EQ_CUSTOM_PRESETS, serialized)
+            }
         }
     }
 
@@ -590,6 +633,7 @@ class PreferenceStore internal constructor(
         _textSizePreset.value = loadTextSizePreset()
         _appLanguage.value = loadAppLanguage()
         _eqSettings.value = loadEqSettings()
+        _eqCustomPresets.value = loadEqCustomPresets()
         _playbackVolume.value = loadPlaybackVolume()
         _crossfadeEnabled.value = loadCrossfadeEnabled()
         _crossfadeDurationMs.value = loadCrossfadeDurationMs()
@@ -632,6 +676,7 @@ class PreferenceStore internal constructor(
             this[KEY_TEXT_SIZE_PRESET] = _textSizePreset.value.name
             this[KEY_APP_LANGUAGE] = _appLanguage.value.name
             this[KEY_BANDS] = _eqSettings.value.bands.joinToString(",")
+            this[KEY_PREAMP] = _eqSettings.value.preampDb
             this[KEY_BASS] = _eqSettings.value.bass
             this[KEY_MIDRANGE] = _eqSettings.value.midrange
             this[KEY_TREBLE] = _eqSettings.value.treble
@@ -639,6 +684,7 @@ class PreferenceStore internal constructor(
             this[KEY_SPACIOUSNESS_MODE] = _eqSettings.value.spaciousnessMode.name
             this[KEY_REVERB_DURATION_MS] = _eqSettings.value.reverbDurationMs
             this[KEY_REVERB_PROFILE] = _eqSettings.value.reverbProfile.name
+            this[KEY_EQ_CUSTOM_PRESETS] = serializeEqCustomPresets(_eqCustomPresets.value)
             this[KEY_PLAYBACK_VOLUME] = _playbackVolume.value
             this[KEY_CROSSFADE_ENABLED] = _crossfadeEnabled.value
             this[KEY_CROSSFADE_DURATION_MS] = _crossfadeDurationMs.value
@@ -718,6 +764,7 @@ class PreferenceStore internal constructor(
         val bands = List(BAND_COUNT) { index -> parsedBands.getOrNull(index) ?: 0f }
         return EqValuePolicy.sanitize(EqSettings(
             bands = bands,
+            preampDb = preferences.getFloat(KEY_PREAMP, 0f),
             bass = preferences.getFloat(KEY_BASS, 0f),
             midrange = preferences.getFloat(KEY_MIDRANGE, 0f),
             treble = preferences.getFloat(KEY_TREBLE, 0f),
@@ -730,6 +777,73 @@ class PreferenceStore internal constructor(
                 ?.let { saved -> ReverbProfile.entries.firstOrNull { it.name == saved } }
                 ?: ReverbProfile.Dry,
         ))
+    }
+
+    private fun loadEqCustomPresets(): List<EqCustomPreset> {
+        val raw = preferences.getString(KEY_EQ_CUSTOM_PRESETS, null) ?: return emptyList()
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index) ?: continue
+                val name = item.optString("name").trim().take(MAX_EQ_PRESET_NAME_LENGTH)
+                if (name.isBlank()) continue
+                val settings = item.optJSONObject("settings") ?: continue
+                val bandsArray = settings.optJSONArray("bands")
+                val bands = List(BAND_COUNT) { bandIndex ->
+                    bandsArray?.optDouble(bandIndex, 0.0)?.toFloat() ?: 0f
+                }
+                val mode = settings.optString("spaciousnessMode", SpaciousnessMode.Off.name)
+                    .let { saved -> SpaciousnessMode.entries.firstOrNull { it.name == saved } }
+                    ?: SpaciousnessMode.Off
+                add(
+                    EqCustomPreset(
+                        name = name,
+                        settings = EqValuePolicy.sanitize(
+                            EqSettings(
+                                bands = bands,
+                                preampDb = settings.optDouble("preampDb", 0.0).toFloat(),
+                                bass = settings.optDouble("bass", 0.0).toFloat(),
+                                midrange = settings.optDouble("midrange", 0.0).toFloat(),
+                                treble = settings.optDouble("treble", 0.0).toFloat(),
+                                spaciousness = settings.optDouble("spaciousness", 0.0).toFloat(),
+                                spaciousnessMode = mode,
+                                reverbDurationMs = settings.optInt("reverbDurationMs", 0),
+                                reverbProfile = settings.optString("reverbProfile", ReverbProfile.Dry.name)
+                                    .let { saved -> ReverbProfile.entries.firstOrNull { it.name == saved } }
+                                    ?: ReverbProfile.Dry,
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }.distinctBy { it.name.lowercase() }.takeLast(MAX_EQ_CUSTOM_PRESETS)
+    }
+
+    private fun serializeEqCustomPresets(presets: List<EqCustomPreset>): String {
+        return JSONArray().apply {
+            presets.forEach { preset ->
+                val settings = preset.settings
+                put(
+                    JSONObject().apply {
+                        put("name", preset.name)
+                        put(
+                            "settings",
+                            JSONObject().apply {
+                                put("bands", JSONArray(settings.bands))
+                                put("preampDb", settings.preampDb)
+                                put("bass", settings.bass)
+                                put("midrange", settings.midrange)
+                                put("treble", settings.treble)
+                                put("spaciousness", settings.spaciousness)
+                                put("spaciousnessMode", settings.spaciousnessMode.name)
+                                put("reverbDurationMs", settings.reverbDurationMs)
+                                put("reverbProfile", settings.reverbProfile.name)
+                            },
+                        )
+                    },
+                )
+            }
+        }.toString()
     }
 
     private fun loadTextSizePreset(): TextSizePreset {
@@ -980,6 +1094,7 @@ class PreferenceStore internal constructor(
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
         const val KEY_LIBRARY_FOLDERS = "library_folders"
         const val KEY_BANDS = "eq_bands"
+        const val KEY_PREAMP = "eq_preamp_db"
         const val KEY_BASS = "eq_bass"
         const val KEY_MIDRANGE = "eq_midrange"
         const val KEY_TREBLE = "eq_treble"
@@ -987,12 +1102,15 @@ class PreferenceStore internal constructor(
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
         const val KEY_REVERB_DURATION_MS = "eq_reverb_duration_ms"
         const val KEY_REVERB_PROFILE = "eq_reverb_profile"
+        const val KEY_EQ_CUSTOM_PRESETS = "eq_custom_presets"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         const val KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS = "last_automatic_update_check_at_ms"
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
         const val EQ_SETTINGS_PERSIST_DEBOUNCE_MS = 120L
+        const val MAX_EQ_CUSTOM_PRESETS = 24
+        const val MAX_EQ_PRESET_NAME_LENGTH = 40
         const val TAG = "PreferenceStore"
     }
 }

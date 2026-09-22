@@ -318,9 +318,9 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
-    fun trailingCue_usesMinusEightyDbfsRmsFloor() {
-        val belowFloor = CrossfadeLevelWindow(0L, 20L, 3f / 32_768f)
-        val aboveFloor = CrossfadeLevelWindow(20L, 40L, 4f / 32_768f)
+    fun trailingCue_usesMinusNinetyDbfsRmsFloor() {
+        val belowFloor = CrossfadeLevelWindow(0L, 20L, 1f / 32_768f)
+        val aboveFloor = CrossfadeLevelWindow(20L, 40L, 2f / 32_768f)
 
         assertEquals(
             0L to 20L,

@@ -497,6 +497,7 @@ internal class EqualizerAudioProcessor(
             reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
             reverbProfile = settings.reverbProfile,
         )
+        manualPreampDb = currentSettings.preampDb.coerceIn(safeConfig.minPreampDb, safeConfig.maxPreampDb)
         settingsHaveSignalAlteringEffects = EqValuePolicy.hasSignalAlteringEffects(currentSettings)
         targetsDirty = true
     }

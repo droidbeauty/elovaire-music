@@ -163,6 +163,7 @@ data class SearchHistoryEntry(
 
 data class EqSettings(
     val bands: List<Float> = List(18) { 0f },
+    val preampDb: Float = 0f,
     val bass: Float = 0f,
     val midrange: Float = 0f,
     val treble: Float = 0f,
@@ -170,6 +171,11 @@ data class EqSettings(
     val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,
     val reverbDurationMs: Int = 0,
     val reverbProfile: ReverbProfile = ReverbProfile.Dry,
+)
+
+data class EqCustomPreset(
+    val name: String,
+    val settings: EqSettings,
 )
 
 enum class SpaciousnessMode {
