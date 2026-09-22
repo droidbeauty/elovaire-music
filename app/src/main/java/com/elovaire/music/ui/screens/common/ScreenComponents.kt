@@ -407,6 +407,7 @@ internal fun SortOptionsPopup(
         properties = PopupProperties(focusable = true),
     ) {
         PopupCardMotionHost(
+            surfaceId = "common.sort_options",
             visible = expanded,
             onExitFinished = { shouldRender = false },
         ) {

@@ -1055,6 +1055,7 @@ private fun AudiobookDescriptionDialog(
                     ),
             )
             PopupCardMotionHost(
+                surfaceId = "audiobooks.description_dialog",
                 visible = visible,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

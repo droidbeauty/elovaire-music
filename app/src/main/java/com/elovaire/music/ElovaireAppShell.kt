@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
 import elovaire.music.droidbeauty.app.ui.theme.themeBackgroundForMode
 import kotlinx.coroutines.delay
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 
 @Composable
@@ -108,10 +110,7 @@ internal fun ElovaireAppShell(
         ) {
             PerformanceState("animation", if (showSplash) "cold_start_reveal" else null)
             Box(modifier = Modifier.fillMaxSize()) {
-                ElovaireRoot(
-                    container = container,
-                    resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
-                )
+                AppRootSurface(container, resetHomeScrollOnColdStart)
                 if (themeOverlayAlpha.value > 0f) {
                     Box(
                         modifier = Modifier
@@ -164,5 +163,20 @@ internal fun ElovaireAppShell(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AppRootSurface(
+    container: AppContainer,
+    resetHomeScrollOnColdStart: Boolean,
+) {
+    CompositionLocalProvider(
+        LocalBackendResourceTracker provides container.backendDiagnosticsRuntime.resources,
+    ) {
+        ElovaireRoot(
+            container = container,
+            resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
+        )
     }
 }

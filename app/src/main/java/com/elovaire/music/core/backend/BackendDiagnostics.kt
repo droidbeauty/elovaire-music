@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 internal data class BackendEventSnapshot(
     val name: String,
     val fields: Map<String, String>,
+    val sequence: Long = 0L,
 )
 
 internal data class BackendDiagnosticContext(
@@ -63,10 +64,11 @@ internal class RecordingBackendEventSink(
 ) : BackendEventSink {
     private val lock = Any()
     private val events = ArrayDeque<BackendEventSnapshot>()
+    private var sequence = 0L
 
     override fun emit(event: BackendEvent) {
-        val snapshot = BackendEventSnapshot(event.name, sanitizeFields(event.fields))
         synchronized(lock) {
+            val snapshot = BackendEventSnapshot(event.name, sanitizeFields(event.fields), ++sequence)
             if (events.size == maxEvents) events.removeFirst()
             events.addLast(snapshot)
         }
@@ -81,6 +83,14 @@ internal interface BackendResourceTracker {
     fun adjust(kind: BackendResourceKind, delta: Int)
     fun snapshot(): Map<String, Int>
     fun clear()
+}
+
+internal object NoOpBackendResourceTracker : BackendResourceTracker {
+    override fun acquire(kind: BackendResourceKind): Closeable = Closeable {}
+    override fun set(kind: BackendResourceKind, count: Int) = Unit
+    override fun adjust(kind: BackendResourceKind, delta: Int) = Unit
+    override fun snapshot(): Map<String, Int> = emptyMap()
+    override fun clear() = Unit
 }
 
 internal class BackendResourceRuntime : BackendResourceTracker {
@@ -146,6 +156,7 @@ internal class BackendDiagnosticsRuntime(
     private val events = ArrayDeque<BackendEventSnapshot>()
     private val _resources = BackendResourceRuntime()
     private val released = AtomicBoolean(false)
+    private var eventSequence = 0L
     @Volatile private var lastContext: BackendDiagnosticContext? = null
     @Volatile private var breadcrumbCheckpoint: ((BackendDiagnosticContext) -> Unit)? = null
 
@@ -155,13 +166,15 @@ internal class BackendDiagnosticsRuntime(
 
     override fun record(event: BackendEvent) {
         if (released.get()) return
-        val snapshot = BackendEventSnapshot(
-            name = event.name.take(MAX_EVENT_NAME_LENGTH),
-            fields = sanitizeFields(event.fields),
-        )
-        synchronized(lock) {
+        val snapshot = synchronized(lock) {
+            val eventSnapshot = BackendEventSnapshot(
+                name = event.name.take(MAX_EVENT_NAME_LENGTH),
+                fields = sanitizeFields(event.fields),
+                sequence = ++eventSequence,
+            )
             if (events.size == maxEvents) events.removeFirst()
-            events.addLast(snapshot)
+            events.addLast(eventSnapshot)
+            eventSnapshot
         }
         val context = BackendDiagnosticContext(
             eventName = snapshot.name,
@@ -173,10 +186,16 @@ internal class BackendDiagnosticsRuntime(
     }
 
     override fun snapshot(): List<BackendEventSnapshot> = synchronized(lock) { events.toList() }
+    fun sequenceMarker(): Long = synchronized(lock) { eventSequence }
+    fun eventsAfter(sequence: Long): List<BackendEventSnapshot> = synchronized(lock) {
+        events.filter { it.sequence > sequence }
+    }
+    fun eventsSince(sequence: Long): Pair<Long, List<BackendEventSnapshot>> = synchronized(lock) {
+        eventSequence to events.filter { it.sequence > sequence }
+    }
     override fun clear() {
         synchronized(lock) { events.clear() }
         lastContext = null
-        resources.clear()
     }
     override fun lastContext(): BackendDiagnosticContext? = lastContext
     override fun installBreadcrumbCheckpoint(checkpoint: (BackendDiagnosticContext) -> Unit) {

@@ -104,3 +104,20 @@ internal data class UserDataRevisionEntity(
     @androidx.room.PrimaryKey val singletonId: Int = 0,
     val revision: Long,
 )
+
+@Entity(tableName = "library_commit_relocations")
+internal data class LibraryCommitRelocationEntity(
+    @androidx.room.PrimaryKey val commitId: String,
+    val appliedAtMs: Long,
+)
+
+@Entity(tableName = "audiobook_progress")
+internal data class AudiobookProgressEntity(
+    @androidx.room.PrimaryKey val bookKey: String,
+    val songId: Long,
+    val positionMs: Long,
+    val completed: Boolean,
+    val updatedAtMs: Long,
+    val bookElapsedMs: Long?,
+    val bookDurationMs: Long?,
+)

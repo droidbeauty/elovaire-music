@@ -84,6 +84,32 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun portableIdentityRevisionIgnoresLocatorAndArtworkChanges() {
+        val original = song(modifiedSeconds = 10L)
+        val relocated = original.copy(
+            uri = TestUri("content://media/external/audio/media/500"),
+            libraryPath = "/storage/emulated/0/Audiobooks/song.mp3",
+            artUri = TestUri("content://art/changed"),
+        )
+
+        assertEquals(
+            MediaIdentityResolver.portableIdentityRevision(listOf(original)),
+            MediaIdentityResolver.portableIdentityRevision(listOf(relocated)),
+        )
+    }
+
+    @Test
+    fun portableIdentityRevisionChangesWhenMatchFieldsChange() {
+        val original = song(modifiedSeconds = 10L)
+        val renamed = original.copy(title = "Renamed")
+
+        assertNotEquals(
+            MediaIdentityResolver.portableIdentityRevision(listOf(original)),
+            MediaIdentityResolver.portableIdentityRevision(listOf(renamed)),
+        )
+    }
+
+    @Test
     fun unknownContentProviderDoesNotFallBackToMutablePath() {
         val song = song(10L).copy(uri = TestUri("content://example.provider/item/1"))
 

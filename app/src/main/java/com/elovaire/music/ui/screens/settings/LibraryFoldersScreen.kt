@@ -433,6 +433,7 @@ private fun NetworkSourceRemovalDialog(
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
+                surfaceId = "folders.remove_confirmation",
                 visible = source != null,
                 onExitFinished = { if (source == null) mounted = false },
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -511,6 +512,7 @@ private fun LibrarySourceChooserSheet(
             )
         }
         PopupCardMotionHost(
+            surfaceId = "folders.source_chooser",
             visible = visible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)

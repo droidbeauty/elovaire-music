@@ -204,6 +204,7 @@ internal fun PlaylistArtworkPreview(
 @Composable
 internal fun PlaylistNameDialog(
     visible: Boolean,
+    surfaceId: String,
     title: String = rootUiCopy(AppLanguage.English).newPlaylist,
     confirmLabel: String = uiPhrase(AppLanguage.English, UiPhrase.Create),
     initialName: String = "",
@@ -238,6 +239,7 @@ internal fun PlaylistNameDialog(
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
+                surfaceId = surfaceId,
                 visible = visible,
                 onExitFinished = { mounted = false },
                 modifier = Modifier
@@ -502,6 +504,7 @@ internal fun PlaylistSelectionDialog(
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
+                surfaceId = "playlists.add_songs",
                 visible = visible,
                 onExitFinished = { mounted = false },
                 modifier = Modifier

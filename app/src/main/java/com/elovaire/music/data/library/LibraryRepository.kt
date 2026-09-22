@@ -20,7 +20,6 @@ import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
-import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
@@ -53,6 +52,7 @@ data class LibraryContentState(
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
     val contentRevision: String = "",
+    val portableMediaIdentityRevision: String = "",
 )
 
 data class LibraryScanState(
@@ -111,8 +111,7 @@ internal class LibraryRepository internal constructor(
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
-    private val libraryIndexStore: LibraryIndexStore? = null,
-    private val onSongRelocations: suspend (Map<Long, Long>) -> SongRelocationOutcome = {
+    private val onSongRelocations: suspend (String, Map<Long, Long>) -> SongRelocationOutcome = { _, _ ->
         SongRelocationOutcome.Applied
     },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -153,6 +152,7 @@ internal class LibraryRepository internal constructor(
         onObservedRefresh = ::scheduleMediaRefresh,
         clock = clock,
         ioDispatcher = ioDispatcher,
+        resourceTracker = resourceTracker,
     )
 
     override fun start() {
@@ -505,7 +505,14 @@ internal class LibraryRepository internal constructor(
             attempt = attempt,
         ) ?: return
         commitMutex.withLock {
-            if (!isCurrentScan(attempt)) return@withLock
+            // A queued refresh supersedes a prepared but unclaimed commit. Once this check
+            // succeeds, the mutex is the commit claim: later refreshes wait for this boundary.
+            if (!isCurrentScan(attempt) || refreshRequests.hasPending()) return@withLock
+            val commitId = operation.id
+            applyRelocations(
+                commitId = commitId,
+                changeSet = prepared.changeSet,
+            )
             val syncState = if (scanResult.isComplete) {
                 withContext(ioDispatcher) {
                     val state = scanner.currentSyncState()
@@ -516,20 +523,11 @@ internal class LibraryRepository internal constructor(
                             syncState = state,
                         )
                     }
-                    ElovaireTrace.section("library_room_index_commit") {
-                        libraryIndexStore?.applyChangeSet(
-                            changeSet = prepared.changeSet,
-                            snapshot = prepared.snapshot,
-                            fullRebuild = attempt.request.forceMediaIndex &&
-                                prepared.changeSet.added.size == prepared.snapshot.songs.size,
-                        )
-                    }
                     state
                 }
             } else {
                 null
             }
-            if (!isCurrentScan(attempt)) return@withLock
             val nextScanState = LibraryScanState(
                 permissionGranted = true,
                 isLoading = false,
@@ -570,6 +568,27 @@ internal class LibraryRepository internal constructor(
         val changeSet: LibraryChangeSet,
         val contentState: LibraryContentState,
     )
+
+    private suspend fun applyRelocations(
+        commitId: String,
+        changeSet: LibraryChangeSet,
+    ) {
+        if (changeSet.relocated.isEmpty()) return
+        when (val outcome = onSongRelocations(
+            commitId,
+            changeSet.relocated.associate { relocation ->
+                relocation.before.id to relocation.after.id
+            },
+        )) {
+            SongRelocationOutcome.Applied -> Unit
+            SongRelocationOutcome.RetryableFailure -> error(
+                "Unable to preserve user-data references during media relocation; retry is required.",
+            )
+            SongRelocationOutcome.UnrecoverableConflict -> error(
+                "Media relocation conflicts with existing user-data references.",
+            )
+        }
+    }
 
     private suspend fun prepareVisibleSnapshot(
         snapshot: LibrarySnapshot,
@@ -617,23 +636,6 @@ internal class LibraryRepository internal constructor(
         val nextSnapshot = snapshotPublisher.snapshotOf(nextContentState)
         val changeSet = ElovaireTrace.section("library_diff") {
             LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
-        }
-        if (changeSet.relocated.isNotEmpty()) {
-            if (!isCurrentScan(attempt)) return null
-            val relocationOutcome = onSongRelocations(
-                changeSet.relocated.associate { relocation ->
-                    relocation.before.id to relocation.after.id
-                },
-            )
-            when (relocationOutcome) {
-                SongRelocationOutcome.Applied -> Unit
-                SongRelocationOutcome.RetryableFailure -> error(
-                    "Unable to preserve user-data references during media relocation; retry is required.",
-                )
-                SongRelocationOutcome.UnrecoverableConflict -> error(
-                    "Media relocation conflicts with existing user-data references.",
-                )
-            }
         }
         if (!isCurrentScan(attempt)) return null
         return PreparedLibrarySnapshot(
@@ -836,20 +838,25 @@ internal class LibraryRepository internal constructor(
         scanner.invalidateMetadataCacheForSongIds(request.songIds)
         scanner.invalidateMetadataCacheForPaths(request.filePaths)
 
-        val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
-        val publication = publishLibraryContent(remainingSongs)
-        val updatedState = publication.state
-        withContext(ioDispatcher) {
+        val publication = commitMutex.withLock {
+            val previousState = _contentState.value
+            val remainingSongs = previousState.songs.filterNot { it.id in request.songIds }
+            val updatedState = snapshotPublisher.stateForSnapshot(
+                snapshot = snapshotPublisher.prepareSongs(remainingSongs),
+                removingSongIds = deletionMarkers.pendingSongIds.value,
+                removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
+            )
+            val changeSet = LibraryChangeSetCalculator.between(previousState.songs, updatedState.songs)
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
-            snapshotStore.save(
-                snapshot = updatedSnapshot,
-                filterFingerprint = scanner.currentFilterFingerprint(),
-                syncState = scanner.currentSyncState(),
-            )
-            libraryIndexStore?.applyChangeSet(
-                changeSet = publication.changeSet,
-                snapshot = updatedSnapshot,
-            )
+            withContext(ioDispatcher) {
+                snapshotStore.save(
+                    snapshot = updatedSnapshot,
+                    filterFingerprint = scanner.currentFilterFingerprint(),
+                    syncState = scanner.currentSyncState(),
+                )
+            }
+            snapshotPublisher.publishState(updatedState)
+            LibraryContentPublication(state = updatedState, changeSet = changeSet)
         }
         invalidateArtworkBitmapCache(publication.changeSet.artworkInvalidatedUris)
 
@@ -876,7 +883,7 @@ internal class LibraryRepository internal constructor(
         }
         val deletedSongIds = request.songIds - stillPresent
         val deletedAlbumIds = fullyDeletedAlbumIds.filterTo(linkedSetOf()) { albumId ->
-            updatedState.albums.none { it.id == albumId }
+            publication.state.albums.none { it.id == albumId }
         }
         deletionMarkers.confirmDeletedSongs(deletedSongIds)
         clearPendingDeletedSongs(request.songIds)
@@ -916,25 +923,26 @@ internal class LibraryRepository internal constructor(
 
     override suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
         if (editedSongs.isEmpty()) return
-        val current = _contentState.value
-        val updatedState = snapshotPublisher.patchSongs(
-            editedSongs = editedSongs,
-            removingSongIds = current.removingSongIds,
-            removingAlbumIds = current.removingAlbumIds,
-        )
-        val changeSet = snapshotPublisher.takeLastPatchChangeSet()
-        if (changeSet.isEmpty) return
-        withContext(ioDispatcher) {
+        val changeSet = commitMutex.withLock {
+            val current = _contentState.value
+            val updatedState = snapshotPublisher.patchSongs(
+                editedSongs = editedSongs,
+                removingSongIds = current.removingSongIds,
+                removingAlbumIds = current.removingAlbumIds,
+                publishResult = false,
+            )
+            val patchChangeSet = snapshotPublisher.takeLastPatchChangeSet()
+            if (patchChangeSet.isEmpty) return@withLock patchChangeSet
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
-            snapshotStore.save(
-                snapshot = updatedSnapshot,
-                filterFingerprint = scanner.currentFilterFingerprint(),
-                syncState = scanner.currentSyncState(),
-            )
-            libraryIndexStore?.applyChangeSet(
-                changeSet = changeSet,
-                snapshot = updatedSnapshot,
-            )
+            withContext(ioDispatcher) {
+                snapshotStore.save(
+                    snapshot = updatedSnapshot,
+                    filterFingerprint = scanner.currentFilterFingerprint(),
+                    syncState = scanner.currentSyncState(),
+                )
+            }
+            snapshotPublisher.publishState(updatedState)
+            patchChangeSet
         }
         invalidateArtworkBitmapCache(changeSet.artworkInvalidatedUris)
     }
@@ -1142,23 +1150,6 @@ internal class LibraryRepository internal constructor(
         val state: LibraryContentState,
         val changeSet: LibraryChangeSet,
     )
-
-    private fun publishLibraryContent(
-        songs: List<Song>,
-        removingSongIds: Set<Long> = deletionMarkers.pendingSongIds.value,
-        removingAlbumIds: Set<Long> = deletionMarkers.pendingAlbumIds.value,
-    ): LibraryContentPublication {
-        val previousSongs = _contentState.value.songs
-        val state = snapshotPublisher.publishSongs(
-            songs = songs,
-            removingSongIds = removingSongIds,
-            removingAlbumIds = removingAlbumIds,
-        )
-        return LibraryContentPublication(
-            state = state,
-            changeSet = LibraryChangeSetCalculator.between(previousSongs, state.songs),
-        )
-    }
 
     private companion object {
         const val AUTO_REFRESH_DEBOUNCE_MS = 350L

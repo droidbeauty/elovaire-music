@@ -8,7 +8,7 @@ import kotlin.math.round
 internal object EqValuePolicy {
     const val MIN_GAIN_DB = -8f
     const val MAX_GAIN_DB = 8f
-    const val MIN_PREAMP_DB = -12f
+    const val MIN_PREAMP_DB = -6f
     const val MAX_PREAMP_DB = 6f
     const val GAIN_STEP_DB = 0.5f
     const val MIN_NORMALIZED = -1f

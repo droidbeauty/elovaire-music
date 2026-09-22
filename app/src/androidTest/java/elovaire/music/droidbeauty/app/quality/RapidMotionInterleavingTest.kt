@@ -21,6 +21,7 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
 import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
+import elovaire.music.droidbeauty.app.core.performance.MotionDiagnosticRecorder
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,10 +40,13 @@ class RapidMotionInterleavingTest {
     fun visibilityReversalBeforeExitSettlesDoesNotReportAStaleExit() {
         val visible = mutableStateOf(true)
         val exitCallbacks = AtomicInteger()
+        val motionMarker = MotionDiagnosticRecorder.sequenceMarker()
+        MotionDiagnosticRecorder.recordInteractionState("navigation")
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
             MotionVisibilityHost(
                 visible = visible.value,
+                surfaceId = "test.motion_reversal",
                 enter = fadeIn(animationSpec = tween(300)),
                 exit = fadeOut(animationSpec = tween(200)),
                 onExitFinished = { exitCallbacks.incrementAndGet() },
@@ -60,6 +64,10 @@ class RapidMotionInterleavingTest {
         composeRule.mainClock.advanceTimeBy(500L)
         assertEquals(0, exitCallbacks.get())
         composeRule.onNodeWithTag("motion_surface").assertIsDisplayed()
+        MotionDiagnosticRecorder.recordInteractionState(null)
+        val motionEvents = MotionDiagnosticRecorder.eventsSince(motionMarker).second
+        assertTrue(motionEvents.any { it.surfaceId == "test.motion_reversal" && it.phase == "motion_reversed" })
+        assertTrue(motionEvents.any { it.surfaceId == "test.motion_reversal" && it.phase == "motion_settled" && it.visible == true })
     }
 
     @Test
@@ -72,6 +80,7 @@ class RapidMotionInterleavingTest {
                 val transitions = rememberMotionTransitions()
                 MotionVisibilityHost(
                     visible = visible.value,
+                    surfaceId = "test.zero_motion",
                     enter = transitions.standardEnter(),
                     exit = transitions.standardExit(),
                     onExitFinished = { exitCallbacks.incrementAndGet() },

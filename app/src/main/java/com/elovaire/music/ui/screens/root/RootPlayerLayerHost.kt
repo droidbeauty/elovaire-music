@@ -37,6 +37,7 @@ internal fun RootPlayerLayerHost(
 ) {
     PlayerOverlayMotionHost(
         visible = visible,
+        surfaceId = "root.full_player",
         onExitFinished = {
             onExitFinished(transitionGeneration)
             if (playerLayerState == PlayerLayerState.ReturningToCompact) {

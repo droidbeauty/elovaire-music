@@ -11,6 +11,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerNotificationManager
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
@@ -37,9 +39,10 @@ internal class PlaybackNotificationController(
     private val context: Context,
     private val playbackManager: PlaybackManager,
     private val scope: CoroutineScope,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val notificationJobs = mutableListOf<Job>()
-    private val artworkLoader = NotificationArtworkLoader(context, scope)
+    private val artworkLoader = NotificationArtworkLoader(context, scope, resourceTracker)
 
     private val notificationManager = PlayerNotificationManager.Builder(
         context,

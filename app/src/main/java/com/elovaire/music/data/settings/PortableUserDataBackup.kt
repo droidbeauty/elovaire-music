@@ -33,8 +33,7 @@ internal class PortableUserDataBackup(
         }
     }
     private val lock = Any()
-    private var preparedContentRevision: String? = null
-    private var preparedSongIdentities: Map<Long, TrackMatchIdentity>? = null
+    private var preparedMediaIdentitySnapshot: PortableMediaIdentitySnapshot? = null
 
     fun write(
         snapshot: UserDataSnapshot,
@@ -81,16 +80,19 @@ internal class PortableUserDataBackup(
         userDataRevision: Long,
         contentRevision: String,
     ): ByteArray {
-        val identities = if (contentRevision.isBlank()) {
+        val identityRevision = MediaIdentityResolver.portableIdentityRevision(songs)
+        val identitySnapshot = if (contentRevision.isBlank()) {
             null
-        } else if (preparedContentRevision == contentRevision) {
-            preparedSongIdentities
+        } else if (preparedMediaIdentitySnapshot?.revision == identityRevision) {
+            preparedMediaIdentitySnapshot
         } else {
-            songs.associate { song ->
-                song.id to MediaIdentityResolver.trackMatchIdentity(song).copy(sourceStableKey = null)
-            }.also {
-                preparedContentRevision = contentRevision
-                preparedSongIdentities = it
+            PortableMediaIdentitySnapshot(
+                revision = identityRevision,
+                identitiesBySongId = songs.associate { song ->
+                    song.id to MediaIdentityResolver.trackMatchIdentity(song).copy(sourceStableKey = null)
+                },
+            ).also {
+                preparedMediaIdentitySnapshot = it
             }
         }
         return encodePortableUserData(
@@ -99,7 +101,7 @@ internal class PortableUserDataBackup(
             createdAtMs = createdAtMs,
             appVersion = appVersion,
             userDataRevision = userDataRevision,
-            preparedSongIdentities = identities,
+            preparedSongIdentities = identitySnapshot?.identitiesBySongId,
         )
     }
 
@@ -116,6 +118,11 @@ internal class PortableUserDataBackup(
         songs: List<Song>,
     ): PortableUserDataImport? = read()?.mergeInto(current, songs)
 }
+
+internal data class PortableMediaIdentitySnapshot(
+    val revision: String,
+    val identitiesBySongId: Map<Long, TrackMatchIdentity>,
+)
 
 internal data class PortableUserData(
     val createdAtMs: Long,

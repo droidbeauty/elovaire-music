@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
 import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRuntime
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -35,6 +37,7 @@ internal class LyricsService internal constructor(
     mediaMutationRuntime: MediaMutationRuntime? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val onlineLyricsEnabled: () -> Boolean = { true },
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : LyricsReader, LyricsWriter {
     private val embeddedLyricsWriter = EmbeddedLyricsWriter(
         context.applicationContext,
@@ -44,6 +47,7 @@ internal class LyricsService internal constructor(
     private val repository = LyricsRepository(
         appContext = context.applicationContext,
         ioDispatcher = ioDispatcher,
+        resourceTracker = resourceTracker,
     )
 
     override suspend fun cachedLyrics(

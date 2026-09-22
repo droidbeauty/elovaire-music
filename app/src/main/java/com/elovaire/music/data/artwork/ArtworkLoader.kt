@@ -13,6 +13,7 @@ import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import elovaire.music.droidbeauty.app.data.audio.MediaMetadataRetrieverAdmission
@@ -31,11 +32,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-
-private val remoteArtworkTransport = BoundedHttpTransport(
-    connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
-    readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
-)
 
 internal data class ArtworkRequestKey(
     val uri: Uri,
@@ -114,10 +110,11 @@ internal fun loadArtworkBitmap(
     uri: Uri?,
     targetPx: Int,
     purpose: ArtworkPurpose = if (targetPx <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge,
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
     onAdmissionRejected: () -> Unit = {},
 ): Bitmap? {
     val requestUri = uri ?: return null
-    ArtworkBitmapCache.ensureRegistered(context.applicationContext)
+    ArtworkBitmapCache.ensureRegistered(context.applicationContext, resourceTracker)
     val size = normalizeArtworkRequestSize(targetPx)
     val key = artworkRequestKey(requestUri, size, purpose)
     val cached = key?.let {
@@ -126,7 +123,7 @@ internal fun loadArtworkBitmap(
     }
     if (cached != null) return cached
     val decode = {
-        val artworkResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveArtworkDecode)
+        val artworkResource = resourceTracker.acquire(BackendResourceKind.ActiveArtworkDecode)
         try {
             ElovaireTrace.section("artwork_decode") {
                 val targetSize = ImageTargetSize(size, size)
@@ -141,9 +138,9 @@ internal fun loadArtworkBitmap(
                     ?: if (isLikelyAudioMediaUri(requestUri)) {
                         null
                     } else {
-                        decodeBitmapStream(context, requestUri, targetSize, purpose)
+                        decodeBitmapStream(context, requestUri, targetSize, purpose, resourceTracker)
                     }
-                    ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
+                    ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose, resourceTracker)
             }
         } finally {
             artworkResource.close()
@@ -158,25 +155,30 @@ internal suspend fun loadArtworkBitmapAwaitingAdmission(
     uri: Uri?,
     targetPx: Int,
     purpose: ArtworkPurpose = if (targetPx <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge,
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ): Bitmap? = withContext(Dispatchers.IO) {
     var bitmap: Bitmap?
     do {
         val revision = ArtworkBitmapCache.completedDecodes.value
         var rejected = false
-        bitmap = loadArtworkBitmap(context, uri, targetPx, purpose) { rejected = true }
+        bitmap = loadArtworkBitmap(context, uri, targetPx, purpose, resourceTracker) { rejected = true }
         if (rejected) ArtworkBitmapCache.completedDecodes.first { it != revision }
     } while (rejected)
     bitmap
 }
 
-internal suspend fun loadArtworkBitmapAwaitingAdmission(context: Context, key: ArtworkRequestKey): Bitmap? =
-    loadArtworkBitmapAwaitingAdmission(context, key.uri, key.targetPx, key.purpose)
+internal suspend fun loadArtworkBitmapAwaitingAdmission(
+    context: Context,
+    key: ArtworkRequestKey,
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+): Bitmap? = loadArtworkBitmapAwaitingAdmission(context, key.uri, key.targetPx, key.purpose, resourceTracker)
 
 internal fun loadArtworkBitmap(
     context: Context,
     key: ArtworkRequestKey,
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ): Bitmap? {
-    return loadArtworkBitmap(context, key.uri, key.targetPx, key.purpose)
+    return loadArtworkBitmap(context, key.uri, key.targetPx, key.purpose, resourceTracker)
 }
 
 internal fun decodeArtworkBytes(
@@ -221,10 +223,11 @@ private fun decodeBitmapStream(
     uri: Uri,
     targetSize: ImageTargetSize,
     purpose: ArtworkPurpose,
+    resourceTracker: BackendResourceTracker,
 ): Bitmap? {
     return runCatching {
         if (uri.scheme == "https") {
-            return@runCatching downloadRemoteArtwork(uri)?.let { bytes ->
+            return@runCatching downloadRemoteArtwork(uri, resourceTracker)?.let { bytes ->
                 decodeArtworkBytes(bytes, targetSize.widthPx, purpose)
             }
         }
@@ -240,10 +243,14 @@ private fun decodeBitmapStream(
     }.getOrNull()
 }
 
-private fun downloadRemoteArtwork(uri: Uri): ByteArray? {
+private fun downloadRemoteArtwork(uri: Uri, resourceTracker: BackendResourceTracker): ByteArray? {
     val response = ElovaireTrace.section("artwork_remote_fetch") {
         runCatching {
-            remoteArtworkTransport.getBlocking(
+            BoundedHttpTransport(
+                connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
+                resourceTracker = resourceTracker,
+            ).getBlocking(
                 rawUrl = uri.toString(),
                 headers = mapOf("Accept" to "image/*"),
                 maxBytes = MAX_REMOTE_ARTWORK_BYTES,
@@ -266,11 +273,12 @@ private fun decodeEmbeddedArtwork(
     uri: Uri,
     targetSize: ImageTargetSize,
     purpose: ArtworkPurpose,
+    resourceTracker: BackendResourceTracker,
 ): Bitmap? {
     return ArtworkBitmapCache.tryWithRetrieverPermit {
         runCatching {
             val retriever = MediaMetadataRetriever()
-            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
+            val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
             try {
                 retriever.setDataSource(context, uri)
                 val bytes = retriever.embeddedPicture ?: return@runCatching null
@@ -399,7 +407,10 @@ internal object ArtworkBitmapCache {
     fun <T> tryWithRetrieverPermit(block: () -> T): T? = retrieverAdmission.tryWithPermit(block)
 
     @Synchronized
-    fun ensureRegistered(appContext: Context) {
+    fun ensureRegistered(
+        appContext: Context,
+        resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    ) {
         if (callbacksRegistered) return
         appContext.registerComponentCallbacks(object : ComponentCallbacks2 {
             override fun onConfigurationChanged(newConfig: Configuration) = Unit
@@ -412,7 +423,7 @@ internal object ArtworkBitmapCache {
             }
         })
         callbacksRegistered = true
-        callbackResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRegisteredCallback)
+        callbackResource = resourceTracker.acquire(BackendResourceKind.ActiveRegisteredCallback)
     }
 
     @Synchronized

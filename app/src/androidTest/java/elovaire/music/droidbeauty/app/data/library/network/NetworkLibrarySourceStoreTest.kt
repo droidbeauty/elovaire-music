@@ -6,6 +6,7 @@ import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 
 class NetworkLibrarySourceStoreTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
@@ -21,12 +22,12 @@ class NetworkLibrarySourceStoreTest {
     }
 
     @Test
-    fun upsertRejectsCredentialKeySharedByDifferentSources() {
+    fun upsertRejectsCredentialKeySharedByDifferentSources() = runBlocking {
         val store = NetworkLibrarySourceStore(context)
         store.upsert(source(id = "source-a"))
 
         assertThrows(IllegalStateException::class.java) {
-            store.upsert(source(id = "source-b"))
+            runBlocking { store.upsert(source(id = "source-b")) }
         }
     }
 

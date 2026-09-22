@@ -21,21 +21,29 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
+import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.performance.MotionDiagnosticRecorder
 
 @Composable
 fun MotionVisibilityHost(
     visible: Boolean,
+    surfaceId: String,
     enter: EnterTransition,
     exit: ExitTransition,
+    label: String = surfaceId,
     modifier: Modifier = Modifier,
     onExitFinished: (() -> Unit)? = null,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
     val exitCallbackGate = remember { MotionExitCallbackGate() }
+    val motionObservation = remember(surfaceId) {
+        if (BuildConfig.DEBUG) MotionVisibilityObservation(surfaceId) else null
+    }
     val currentOnExitFinished by rememberUpdatedState(onExitFinished)
     SideEffect {
         exitCallbackGate.onVisibilityTargetChanged(visible)
+        motionObservation?.onTargetChanged(visible)
         state.targetState = visible
     }
     AnimatedVisibility(
@@ -43,10 +51,12 @@ fun MotionVisibilityHost(
         modifier = modifier,
         enter = enter,
         exit = exit,
+        label = label,
         content = content,
     )
     LaunchedEffect(visible, state.currentState, state.targetState, state.isIdle) {
         exitCallbackGate.onCurrentStateChanged(state.currentState)
+        motionObservation?.onSettled(state.currentState, state.isIdle)
         if (
             state.isIdle &&
             !state.currentState &&
@@ -66,6 +76,7 @@ fun MotionVisibilityHost(
 @Composable
 fun PopupCardMotionHost(
     visible: Boolean,
+    surfaceId: String,
     modifier: Modifier = Modifier,
     onExitFinished: (() -> Unit)? = null,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
@@ -73,6 +84,7 @@ fun PopupCardMotionHost(
     val transitions = rememberMotionTransitions()
     MotionVisibilityHost(
         visible = visible,
+        surfaceId = surfaceId,
         enter = transitions.popupCardEnter(),
         exit = transitions.popupCardExit(),
         modifier = modifier
@@ -127,6 +139,7 @@ internal class MotionExitCallbackGate {
 @Composable
 fun PlayerOverlayMotionHost(
     visible: Boolean,
+    surfaceId: String,
     onExitFinished: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
@@ -134,8 +147,10 @@ fun PlayerOverlayMotionHost(
     val transitions = rememberMotionTransitions()
     MotionVisibilityHost(
         visible = visible,
+        surfaceId = surfaceId,
         enter = transitions.playerOverlayEnter(),
         exit = transitions.playerOverlayExit(),
+        label = surfaceId,
         modifier = modifier,
         onExitFinished = onExitFinished,
         content = content,
@@ -151,14 +166,43 @@ fun ElovaireAnimatedVisibility(
     label: String,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
-    AnimatedVisibility(
+    MotionVisibilityHost(
         visible = visible,
         modifier = modifier,
         enter = enter,
         exit = exit,
+        surfaceId = label,
         label = label,
         content = content,
     )
+}
+
+internal class MotionVisibilityObservation(private val surfaceId: String) {
+    private var lastTarget: Boolean? = null
+    private var settledTarget: Boolean? = null
+
+    fun onTargetChanged(visible: Boolean) {
+        if (lastTarget == visible) return
+        val previous = lastTarget
+        if (previous == null && !visible) {
+            lastTarget = false
+            settledTarget = false
+            return
+        }
+        val reversed = previous != null && settledTarget != previous
+        MotionDiagnosticRecorder.recordMotion(
+            surfaceId = surfaceId,
+            phase = if (reversed) "motion_reversed" else if (visible) "motion_enter" else "motion_exit",
+            visible = visible,
+        )
+        lastTarget = visible
+    }
+
+    fun onSettled(visible: Boolean, isIdle: Boolean) {
+        if (!isIdle || settledTarget == visible) return
+        settledTarget = visible
+        MotionDiagnosticRecorder.recordMotion(surfaceId, "motion_settled", visible)
+    }
 }
 
 @Composable

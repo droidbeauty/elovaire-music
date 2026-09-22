@@ -21,19 +21,6 @@ internal interface PersistenceMaintenanceDao {
     @Query("DELETE FROM media_mutations WHERE status IN ('Completed', 'Cancelled', 'Failed') AND updatedAtMs < :cutoffMs")
     suspend fun deleteTerminalMutationsBefore(cutoffMs: Long): Int
 
-    @Query(
-        "DELETE FROM scan_generations WHERE generationId NOT IN " +
-            "(SELECT generationId FROM scan_generations " +
-            "ORDER BY finishedAtMs DESC, generationId DESC LIMIT :retainCount)",
-    )
-    suspend fun pruneScanGenerations(retainCount: Int): Int
-
-    @Query(
-        "SELECT COUNT(*) FROM songs AS song LEFT JOIN albums AS album ON album.albumId = song.albumId " +
-            "WHERE song.removedAtMs IS NULL AND (album.albumId IS NULL OR album.removedAtMs IS NOT NULL)",
-    )
-    suspend fun activeOrphanSongCount(): Int
-
     @Query("SELECT COUNT(*) FROM media_mutations WHERE status = 'NeedsRepair'")
     suspend fun repairRequiredMutationCount(): Int
 
@@ -114,7 +101,6 @@ internal class PersistenceMaintenance(
             )
         }
         val foreignKeyViolationCount = dao.foreignKeyViolationCount()
-        val orphanCount = dao.activeOrphanSongCount()
         val repairRequired = dao.repairRequiredMutationCount() > 0
         val invalidSmartPlaylists = dao.invalidSmartPlaylistCount()
         val repairPlan = UserDataRepairer.plan(
@@ -134,10 +120,9 @@ internal class PersistenceMaintenance(
             dao.invalidRecentPositionCount() == 0 &&
             dao.invalidSmartPlaylistCount() == 0
         dao.deleteTerminalMutationsBefore(terminalMutationCutoff(clock.wallTimeMs()))
-        dao.pruneScanGenerations(SCAN_GENERATION_RETENTION_COUNT)
         return DatabaseHealth(
             foreignKeysValid = foreignKeyViolationCount == 0,
-            orphanCount = orphanCount,
+            orphanCount = 0,
             recoveryRequired = repairRequired || !userDataConsistent,
             userDataConsistent = userDataConsistent,
             physicalIntegrityValid = physicalIntegrityValid,
@@ -146,7 +131,6 @@ internal class PersistenceMaintenance(
                 repairRequired -> PersistenceHealthStatus.AmbiguousUserState
                 invalidSmartPlaylists > 0 -> PersistenceHealthStatus.AmbiguousUserState
                 !userDataConsistent -> PersistenceHealthStatus.RepairableUserState
-                orphanCount > 0 -> PersistenceHealthStatus.RebuildableDerivedState
                 else -> PersistenceHealthStatus.Healthy
             },
         )
@@ -171,4 +155,3 @@ internal fun terminalMutationCutoff(nowMs: Long): Long {
 }
 
 private const val TERMINAL_MUTATION_RETENTION_MS = 30L * 24L * 60L * 60L * 1_000L
-private const val SCAN_GENERATION_RETENTION_COUNT = 64

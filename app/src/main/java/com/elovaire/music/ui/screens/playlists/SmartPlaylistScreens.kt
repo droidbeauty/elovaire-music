@@ -610,6 +610,7 @@ private fun SimpleConfirmDialog(
             contentAlignment = Alignment.Center,
         ) {
             PopupCardMotionHost(
+                surfaceId = "playlists.delete_confirmation",
                 visible = visible,
                 onExitFinished = { if (!visible) mounted = false },
                 modifier = Modifier.padding(horizontal = 20.dp),

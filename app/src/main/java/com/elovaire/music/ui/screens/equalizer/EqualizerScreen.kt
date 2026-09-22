@@ -231,20 +231,41 @@ internal fun EqualizerScreen(
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 item {
-                    ModuleCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            SettingsCategoryText(
-                                title = "Output",
-                                iconResId = R.drawable.ic_lucide_volume_2,
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_volume_2),
+                                contentDescription = null,
+                                tint = readableMutedIconColor(),
+                                modifier = Modifier.size(15.dp),
                             )
-                            EqMacroSliderRow(
-                                title = "Preamp",
-                                value = settings.preampDb,
-                                valueText = formatPreampDb(settings.preampDb),
-                                onValueChange = onPreampChanged,
-                                valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
+                            Text(
+                                text = "Preamp",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = formatPreampDb(settings.preampDb),
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
                             )
                         }
+                        ThinContinuousSlider(
+                            value = settings.preampDb,
+                            onValueChange = onPreampChanged,
+                            valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
+                            centerValue = 0f,
+                        )
                     }
                 }
                 item {
@@ -535,16 +556,11 @@ private fun DigitalSoundKnob(
     modifier: Modifier = Modifier,
     onValueChange: (Float) -> Unit,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     var dragValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
     LaunchedEffect(value) {
         dragValue = value.coerceIn(0f, 1f)
     }
-    val animatedValue by animateFloatAsState(
-        targetValue = dragValue,
-        animationSpec = motionSpecs.tween(MotionDuration.Standard),
-        label = "${title}_sound_knob",
-    )
+    val displayedValue = dragValue
     val glowColor = Color(0xFF61F6A2)
     val inactiveDot = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.26f)
     val trackColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
@@ -615,7 +631,7 @@ private fun DigitalSoundKnob(
                 val center = Offset(size.width / 2f, topInset + radius)
                 val startAngle = 180f
                 val sweepAngle = 180f
-                val activeSweep = sweepAngle * animatedValue
+                val activeSweep = sweepAngle * displayedValue
                 val arcTopLeft = Offset(center.x - radius, center.y - radius)
                 val arcSize = Size(radius * 2f, radius * 2f)
 
@@ -657,7 +673,7 @@ private fun DigitalSoundKnob(
                         y = center.y + (sin(angleRadians) * tickOuterRadius).toFloat(),
                     )
                     drawLine(
-                        color = if (fraction > animatedValue) tickColor else Color.Transparent,
+                        color = if (fraction > displayedValue) tickColor else Color.Transparent,
                         start = start,
                         end = end,
                         strokeWidth = 1.2.dp.toPx(),
@@ -672,7 +688,7 @@ private fun DigitalSoundKnob(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = "${(animatedValue * 100f).roundToInt()}",
+                    text = "${(displayedValue * 100f).roundToInt()}",
                     style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(20f)),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                 )
@@ -680,7 +696,7 @@ private fun DigitalSoundKnob(
                     modifier = Modifier
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(if (animatedValue > 0f) glowColor else inactiveDot),
+                        .background(if (displayedValue > 0f) glowColor else inactiveDot),
                 )
             }
         }
@@ -774,7 +790,6 @@ internal fun EqToneKnob(
     modifier: Modifier = Modifier,
     onValueChange: (Float) -> Unit,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     val safeRange = remember(valueRange) {
         if (valueRange.endInclusive > valueRange.start) valueRange else 0f..1f
     }
@@ -786,11 +801,7 @@ internal fun EqToneKnob(
     LaunchedEffect(targetFraction) {
         dragFraction = targetFraction
     }
-    val animatedFraction by animateFloatAsState(
-        targetValue = dragFraction,
-        animationSpec = motionSpecs.tween(MotionDuration.Standard),
-        label = "${title}_eq_tone_knob",
-    )
+    val displayedFraction = dragFraction
     val tickIdleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
     val glowColor = accentColor.copy(alpha = 0.28f)
     val knobFaceColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
@@ -872,11 +883,11 @@ internal fun EqToneKnob(
                 val arcSize = Size(radius * 2f, radius * 2f)
                 val startAngle = 140f
                 val sweepAngle = 260f
-                val activeSweep = sweepAngle * animatedFraction
+                val activeSweep = sweepAngle * displayedFraction
                 val tickCount = 34
                 val tickOuterRadius = radius + 5.dp.toPx()
                 val tickInnerRadius = tickOuterRadius - 4.dp.toPx()
-                val activeTickCount = (animatedFraction * (tickCount - 1)).roundToInt()
+                val activeTickCount = (displayedFraction * (tickCount - 1)).roundToInt()
 
                 repeat(tickCount) { tickIndex ->
                     val fraction = tickIndex / (tickCount - 1).toFloat()
@@ -1898,6 +1909,7 @@ internal fun ThinContinuousSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
+    centerValue: Float? = null,
     lineThickness: Dp = 2.dp,
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
@@ -1907,6 +1919,13 @@ internal fun ThinContinuousSlider(
     val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
     val fraction = ((coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start))
         .coerceIn(0f, 1f)
+    val centerFraction = centerValue?.let {
+        ((it.coerceIn(valueRange.start, valueRange.endInclusive) - valueRange.start) /
+            (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+    }
+    val activeStartFraction = centerFraction?.let { minOf(it, fraction) } ?: 0f
+    val activeEndFraction = centerFraction?.let { maxOf(it, fraction) } ?: fraction
+    val markerSize = 4.dp
     val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
@@ -1932,8 +1951,13 @@ internal fun ThinContinuousSlider(
         val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
         val trackStart = with(density) { trackStartPx.toDp() }
         val trackWidth = with(density) { trackWidthPx.toDp() }
+        val animatedActiveStart by animateDpAsState(
+            targetValue = trackWidth * activeStartFraction,
+            animationSpec = motionSpecs.tween(durationMillis = 70),
+            label = "eq_macro_slider_fill_start",
+        )
         val animatedActiveWidth by animateDpAsState(
-            targetValue = trackWidth * fraction,
+            targetValue = trackWidth * (activeEndFraction - activeStartFraction),
             animationSpec = motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_fill",
         )
@@ -1942,7 +1966,12 @@ internal fun ThinContinuousSlider(
             animationSpec = motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_knob",
         )
-        val activeWidth = if (isDragging) trackWidth * fraction else animatedActiveWidth
+        val activeStart = if (isDragging) trackWidth * activeStartFraction else animatedActiveStart
+        val activeWidth = if (isDragging) {
+            trackWidth * (activeEndFraction - activeStartFraction)
+        } else {
+            animatedActiveWidth
+        }
         val knobOffset = if (isDragging) {
             with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() }
         } else {
@@ -1993,7 +2022,7 @@ internal fun ThinContinuousSlider(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .offset(x = trackStart)
+                    .offset(x = trackStart + activeStart)
                     .width(activeWidth)
                     .height(lineThickness)
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
@@ -2007,6 +2036,16 @@ internal fun ThinContinuousSlider(
                     .background(knobColor)
                     .align(Alignment.CenterStart),
             )
+            if (centerFraction != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = trackStart + (trackWidth * centerFraction) - (markerSize / 2f))
+                        .size(markerSize)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .align(Alignment.CenterStart),
+                )
+            }
         }
     }
 }

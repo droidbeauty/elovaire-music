@@ -256,6 +256,7 @@ internal fun PlaylistsScreen(
         val copy = rootUiCopy(LocalAppLanguage.current)
         PlaylistNameDialog(
             visible = playlistToRename != null,
+            surfaceId = "playlists.rename_dialog",
             title = copy.renamePlaylistTitle,
             confirmLabel = copy.save,
             initialName = playlistToRename?.name.orEmpty(),

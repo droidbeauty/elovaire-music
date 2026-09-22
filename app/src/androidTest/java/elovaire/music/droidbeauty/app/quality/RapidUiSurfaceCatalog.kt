@@ -13,11 +13,36 @@ internal enum class RapidUiSurfaceKind {
     SystemUi,
 }
 
+internal enum class RapidUiMotionIntent {
+    Navigation,
+    Overlay,
+    Selection,
+    DirectManipulation,
+    ListMutation,
+    StateFeedback,
+    AsyncState,
+    MediaContinuity,
+    SystemBoundary,
+    StaticImmediate,
+}
+
+internal data class RapidUiMotionExpectation(
+    val entry: RapidUiMotionIntent,
+    val exit: RapidUiMotionIntent,
+    val feedback: RapidUiMotionIntent,
+    val directManipulation: Boolean,
+    val systemOwnedBoundary: Boolean,
+    val supportsReversal: Boolean,
+    val resolvesImmediatelyAtZeroScale: Boolean,
+)
+
 internal data class RapidUiSurface(
     val id: String,
     val kind: RapidUiSurfaceKind,
     val entryJourney: String,
     val exitJourney: String,
+    val qualificationJourney: String,
+    val motion: RapidUiMotionExpectation,
     val routePattern: String? = null,
     val requiresDeterministicContent: Boolean = false,
     val involvesSystemUi: Boolean = false,
@@ -191,6 +216,8 @@ internal object RapidUiSurfaceCatalog {
         exitJourney = exit,
         routePattern = pattern,
         requiresDeterministicContent = true,
+        qualificationJourney = "navigation_storm",
+        motion = motionExpectation(id, RapidUiSurfaceKind.Route, systemUi = false),
     )
 
     private fun surface(
@@ -204,7 +231,113 @@ internal object RapidUiSurfaceCatalog {
         kind = kind,
         entryJourney = entry,
         exitJourney = exit,
+        qualificationJourney = qualificationJourney(id),
+        motion = motionExpectation(id, kind, systemUi),
         requiresDeterministicContent = kind != RapidUiSurfaceKind.Chrome,
         involvesSystemUi = systemUi,
+    )
+
+    private fun qualificationJourney(id: String): String = when (id.substringBefore('.')) {
+        "root" -> "root_layers"
+        "common" -> "common_controls"
+        "library" -> "library"
+        "audiobooks" -> "audiobooks"
+        "playlists" -> "playlists"
+        "search" -> "search"
+        "settings" -> "settings"
+        "folders" -> "network_folders"
+        "manage_playlists" -> "manage_playlists"
+        "tag" -> "tag_editors"
+        "equalizer" -> "equalizer"
+        "crossfade" -> "settings_descendants"
+        "audiobook_settings" -> "settings_descendants"
+        "smart_playlist_settings" -> "settings_descendants"
+        "now_playing_style" -> "settings_descendants"
+        "changelog", "about", "privacy" -> "secondary_routes"
+        "player" -> "player"
+        else -> error("No qualification journey for $id")
+    }
+
+    private fun motionExpectation(
+        id: String,
+        kind: RapidUiSurfaceKind,
+        systemUi: Boolean,
+    ): RapidUiMotionExpectation {
+        val directManipulation = id in DIRECT_MANIPULATION_SURFACES
+        val intent = when {
+            systemUi -> RapidUiMotionIntent.SystemBoundary
+            id == "root.full_player" || id == "root.compact_player" || id == "library.playback_artwork" ->
+                RapidUiMotionIntent.MediaContinuity
+            id == "root.permission_loading" || id.endsWith(".loading") || id.endsWith(".probe_state") ||
+                id == "settings.library_scan" || id.startsWith("player.lyrics_") -> RapidUiMotionIntent.AsyncState
+            id == "library.selection" || id == "audiobooks.selection" || id == "playlists.selection" ->
+                RapidUiMotionIntent.Selection
+            id in LIST_MUTATION_SURFACES -> RapidUiMotionIntent.ListMutation
+            id in STATIC_IMMEDIATE_SURFACES -> RapidUiMotionIntent.StaticImmediate
+            directManipulation -> RapidUiMotionIntent.DirectManipulation
+            kind == RapidUiSurfaceKind.Route -> RapidUiMotionIntent.Navigation
+            kind in setOf(RapidUiSurfaceKind.Popup, RapidUiSurfaceKind.Dialog, RapidUiSurfaceKind.Sheet) ->
+                RapidUiMotionIntent.Overlay
+            kind == RapidUiSurfaceKind.FullScreenLayer -> RapidUiMotionIntent.Overlay
+            else -> RapidUiMotionIntent.StateFeedback
+        }
+        val feedback = when {
+            systemUi || intent == RapidUiMotionIntent.StaticImmediate -> RapidUiMotionIntent.StaticImmediate
+            directManipulation -> RapidUiMotionIntent.DirectManipulation
+            else -> RapidUiMotionIntent.StateFeedback
+        }
+        return RapidUiMotionExpectation(
+            entry = intent,
+            exit = intent,
+            feedback = feedback,
+            directManipulation = directManipulation,
+            systemOwnedBoundary = systemUi,
+            supportsReversal = !systemUi && intent !in setOf(
+                RapidUiMotionIntent.StaticImmediate,
+                RapidUiMotionIntent.SystemBoundary,
+            ),
+            resolvesImmediatelyAtZeroScale = true,
+        )
+    }
+
+    private val DIRECT_MANIPULATION_SURFACES = setOf(
+        "common.fast_scrollbar",
+        "search.query_input",
+        "playlists.smart_rule_value",
+        "settings.text_size",
+        "tag.album_fields",
+        "tag.album_track_fields",
+        "tag.audiobook_fields",
+        "equalizer.graph",
+        "equalizer.bands",
+        "equalizer.bass",
+        "equalizer.midrange",
+        "equalizer.treble",
+        "player.gesture",
+        "player.seek",
+        "player.volume",
+    )
+
+    private val LIST_MUTATION_SURFACES = setOf(
+        "library.collection.songs",
+        "library.collection.albums",
+        "library.collection.artists",
+        "library.collection.genres",
+        "library.artist_gallery",
+        "library.recently_added_search",
+        "audiobooks.chapter_rows",
+        "search.category_grids",
+        "search.history",
+        "search.quick_picks",
+        "manage_playlists.empty",
+        "manage_playlists.populated",
+        "player.queue",
+        "player.lyrics_ready",
+        "privacy.scroll",
+    )
+
+    private val STATIC_IMMEDIATE_SURFACES = setOf(
+        "about.links",
+        "changelog.full_screen",
     )
 }

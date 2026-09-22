@@ -86,6 +86,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
@@ -207,6 +208,7 @@ internal fun ChangelogBottomSheetOverlay(
                 ),
         )
         PopupCardMotionHost(
+            surfaceId = "root.changelog_sheet",
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -460,6 +462,7 @@ internal fun UpdateAvailableDialog(
             )
         }
         PopupCardMotionHost(
+            surfaceId = "root.update_dialog.card",
             visible = visible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -862,6 +865,7 @@ private fun AboutEntryLogo(
     size: Dp = 60.dp,
 ) {
     val context = LocalContext.current
+    val resourceTracker = LocalBackendResourceTracker.current
     val drawableRes = remember(context, logoUri, title) {
         if (title == "Droid Beauty") {
             R.drawable.droid_beauty_logo
@@ -873,6 +877,7 @@ private fun AboutEntryLogo(
         initialValue = logoUri?.trim()?.let(aboutLogoImageCache::get),
         key1 = logoUri,
         key2 = drawableRes,
+        key3 = resourceTracker,
     ) {
         val source = logoUri?.trim()?.takeIf { it.isNotBlank() } ?: return@produceState
         if (drawableRes != null) return@produceState
@@ -888,6 +893,7 @@ private fun AboutEntryLogo(
                     uri = Uri.parse(source),
                     targetPx = ABOUT_LOGO_TARGET_PX,
                     purpose = ArtworkPurpose.AboutLogo,
+                    resourceTracker = resourceTracker,
                 )?.asImageBitmap()?.also { bitmap ->
                     aboutLogoImageCache.put(source, bitmap)
                 }

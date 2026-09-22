@@ -57,6 +57,7 @@ internal class MainIntentHandler(
                 context = activity.applicationContext,
                 intent = request,
                 ioDispatcher = container.dispatchers.io,
+                resourceTracker = container.backendDiagnosticsRuntime.resources,
             ) ?: return@launch
             container.externalIntentPlayback(song)
             container.requestOpenNowPlaying()

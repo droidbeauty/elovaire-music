@@ -45,6 +45,17 @@ class NetworkOperationAdmissionTest {
     }
 
     @Test
+    fun closeRejectsNewOperations() {
+        val admission = NetworkOperationAdmission(backgroundCapacity = 1, playbackCapacity = 1)
+
+        admission.close()
+
+        assertThrows(IOException::class.java) {
+            admission.acquire(NetworkReadPurpose.Metadata)
+        }
+    }
+
+    @Test
     fun readHandleClosesInputAndPermitExactlyOnce() {
         val inputCloses = AtomicInteger()
         val handleCloses = AtomicInteger()

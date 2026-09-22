@@ -6,6 +6,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.library.network.NetworkPathPolicy
 import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import java.util.Locale
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 
 internal sealed interface MediaSourceIdentity {
     val stableKey: String
@@ -162,6 +164,33 @@ internal object MediaIdentityResolver {
             discNumber = song.discNumber.takeIf { it > 0 },
             sourceStableKey = stableKey(song),
         )
+    }
+
+    /** Revision for the exact locator-free projection consumed by portable user-data backup. */
+    fun portableIdentityRevision(songs: List<Song>): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        songs.asSequence()
+            .sortedBy(Song::id)
+            .forEach { song ->
+                val identity = trackMatchIdentity(song).copy(sourceStableKey = null)
+                listOf(
+                    song.id.toString(),
+                    identity.version.toString(),
+                    identity.sizeBytes?.toString().orEmpty(),
+                    identity.durationMs?.toString().orEmpty(),
+                    identity.normalizedTitle,
+                    identity.normalizedArtist,
+                    identity.normalizedAlbum,
+                    identity.normalizedAlbumArtist.orEmpty(),
+                    identity.normalizedFileName.orEmpty(),
+                    identity.trackNumber?.toString().orEmpty(),
+                    identity.discNumber?.toString().orEmpty(),
+                ).joinToString("\u001f").let { value ->
+                    digest.update(value.toByteArray(StandardCharsets.UTF_8))
+                    digest.update(0)
+                }
+            }
+        return digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
     }
 
     /** Resolves only a unique candidate; an equally good duplicate remains ambiguous. */

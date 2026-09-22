@@ -17,9 +17,10 @@ import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.Job
@@ -33,11 +34,13 @@ enum class AppShortcutCommand {
 }
 
 @OptIn(UnstableApi::class)
-class AppContainer(
+class AppContainer internal constructor(
     appContext: Context,
+    private val backendDiagnostics: BackendDiagnosticsRuntime,
 ) {
     private val applicationContext = appContext.applicationContext
-    private val backendDiagnostics = BackendDiagnosticsRuntime()
+    internal val backendDiagnosticsRuntime: BackendDiagnosticsRuntime
+        get() = backendDiagnostics
     private val appForegroundTracker = ElovaireTrace.section("app_foreground_tracker_init") {
         AppForegroundTracker(
             application = applicationContext as Application,
@@ -66,6 +69,8 @@ class AppContainer(
             backendDiagnostics = backendDiagnostics,
         )
     }
+    private val releaseStarted = AtomicBoolean(false)
+    private val releaseCompletion = CompletableDeferred<AppShutdownResult>()
     private val bridgeCoordinator = AppBridgeCoordinator(
         scope = appScope,
         applicationContext = services.applicationContext,
@@ -120,6 +125,7 @@ class AppContainer(
             context = applicationContext,
             playbackManager = services.playbackManager,
             scope = appScope,
+            resourceTracker = backendDiagnostics.resources,
         )
     }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
@@ -140,16 +146,25 @@ class AppContainer(
         },
         memoryPressureAction = services::onMemoryPressure,
         releaseAction = {
-            releaseBestEffort(
-                { openNowPlayingChannel.close() },
-                { appShortcutChannel.close() },
-                { bridgeCoordinator.release() },
-                { notificationControllerHolder.release() },
-                { services.release() },
-                { appRuntimeScope.close() },
-                { appForegroundTracker.close() },
-                { backendDiagnostics.close() },
-            )
+            val failures = mutableListOf<Throwable>()
+            runCatching { openNowPlayingChannel.close() }.onFailure(failures::add)
+            runCatching { appShortcutChannel.close() }.onFailure(failures::add)
+            runCatching { notificationControllerHolder.release() }.onFailure(failures::add)
+            val bridgeDrain = runCatching { bridgeCoordinator.release() }
+                .onFailure(failures::add)
+                .getOrNull()
+            val servicesDrain = runCatching { services.release() }
+                .onFailure(failures::add)
+                .getOrNull()
+            appScope.launch {
+                bridgeDrain?.let { drain -> runCatching { drain.await() }.onFailure(failures::add) }
+                servicesDrain?.let { drain -> runCatching { drain.await() }.onFailure(failures::add) }
+                failures.forEach { failure -> backendDiagnostics.recordWorkerFailure("app-shutdown", failure) }
+                releaseCompletion.complete(AppShutdownResult(failures.toList()))
+                appRuntimeScope.close()
+                appForegroundTracker.close()
+                backendDiagnostics.close()
+            }
         },
     )
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
@@ -187,11 +202,17 @@ class AppContainer(
         runtimeCoordinator.onMemoryPressure(pressure)
     }
 
-    fun release() {
+    internal fun release(): Deferred<AppShutdownResult> {
+        if (!releaseStarted.compareAndSet(false, true)) return releaseCompletion
         runtimeCoordinator.release()
+        return releaseCompletion
     }
 
     private fun notificationController(): PlaybackNotificationController {
         return notificationControllerHolder.get()
     }
 }
+
+internal data class AppShutdownResult(
+    val failures: List<Throwable>,
+)

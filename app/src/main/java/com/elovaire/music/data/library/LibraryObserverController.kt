@@ -11,6 +11,7 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import java.io.File
@@ -34,6 +35,7 @@ internal class LibraryObserverController(
     private val onObservedRefresh: (LibraryObservedChange) -> Unit,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val appContext = appContext
     private val contentResolver = appContext.contentResolver
@@ -161,7 +163,7 @@ internal class LibraryObserverController(
         }
         mediaObserverUris = registeredUris
         if (registeredUris.isNotEmpty()) {
-            mediaObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+            mediaObserverLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
         }
         mediaObserverRegistered = registeredUris.isNotEmpty()
         logDebug("media store observers active=${registeredUris.size}/${requestedUris.size}")
@@ -210,7 +212,7 @@ internal class LibraryObserverController(
                 stopLibraryFolderObservers()
                 libraryFolderObservers = observers
                 libraryFolderObserverLeases = observers.map {
-                    BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+                    resourceTracker.acquire(BackendResourceKind.ActiveObserver)
                 }
                 installed = true
             } finally {
@@ -239,7 +241,7 @@ internal class LibraryObserverController(
         }.toSet()
         safObserverUris = registeredUris
         if (registeredUris.isNotEmpty()) {
-            safObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+            safObserverLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
         }
         logDebug("saf observers active=${registeredUris.size}/${currentUris.size}")
     }

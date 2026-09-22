@@ -554,6 +554,7 @@ internal fun PlaylistDetailScreen(
     }
     PlaylistNameDialog(
         visible = showRenameDialog && !playlistState.isSystem,
+        surfaceId = "playlists.rename_dialog",
         title = rootUiCopy(LocalAppLanguage.current).renamePlaylistTitle,
         confirmLabel = rootUiCopy(LocalAppLanguage.current).save,
         initialName = playlistState.name,

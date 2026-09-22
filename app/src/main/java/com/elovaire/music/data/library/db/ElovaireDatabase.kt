@@ -9,11 +9,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
-        SongEntity::class,
-        AlbumEntity::class,
-        MediaFileEntity::class,
-        LibraryScanGenerationEntity::class,
-        MetadataEnrichmentEntity::class,
         LibraryMutationEntity::class,
         UserPlaylistEntity::class,
         UserPlaylistEntryEntity::class,
@@ -28,12 +23,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserDataRevisionEntity::class,
         NetworkInventoryEntity::class,
         NetworkInventorySourceEntity::class,
+        LibraryCommitRelocationEntity::class,
+        AudiobookProgressEntity::class,
     ],
-    version = 7,
+    version = 10,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
-    abstract fun libraryIndexDao(): LibraryIndexDao
     abstract fun mediaMutationDao(): MediaMutationDao
     abstract fun networkInventoryDao(): NetworkInventoryDao
     abstract fun persistenceMaintenanceDao(): PersistenceMaintenanceDao
@@ -58,6 +54,9 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10,
                 )
                 .build()
         }
@@ -178,6 +177,40 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS `user_data_revision` " +
                         "(`singletonId` INTEGER NOT NULL, `revision` INTEGER NOT NULL, " +
                         "PRIMARY KEY(`singletonId`))",
+                )
+            }
+        }
+
+        internal val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // The JSON snapshot is the only runtime library authority. These tables were
+                // write-only derived duplicates and are safe to remove without touching user
+                // data, mutation journals, or network inventory.
+                db.execSQL("DROP TABLE IF EXISTS `metadata_enrichment_state`")
+                db.execSQL("DROP TABLE IF EXISTS `media_files`")
+                db.execSQL("DROP TABLE IF EXISTS `songs`")
+                db.execSQL("DROP TABLE IF EXISTS `albums`")
+                db.execSQL("DROP TABLE IF EXISTS `scan_generations`")
+            }
+        }
+
+        internal val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `library_commit_relocations` " +
+                        "(`commitId` TEXT NOT NULL, `appliedAtMs` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`commitId`))",
+                )
+            }
+        }
+
+        internal val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `audiobook_progress` " +
+                        "(`bookKey` TEXT NOT NULL, `songId` INTEGER NOT NULL, `positionMs` INTEGER NOT NULL, " +
+                        "`completed` INTEGER NOT NULL, `updatedAtMs` INTEGER NOT NULL, " +
+                        "`bookElapsedMs` INTEGER, `bookDurationMs` INTEGER, PRIMARY KEY(`bookKey`))",
                 )
             }
         }

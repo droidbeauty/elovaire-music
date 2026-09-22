@@ -98,6 +98,7 @@ internal val settingsPreferenceKeys = setOf(
     "text_size_preset",
     "app_language",
     "playback_volume",
+    "audiobook_playback_speed",
     "crossfade_enabled",
     "crossfade_duration_ms",
     "crossfade_silence_threshold_db",

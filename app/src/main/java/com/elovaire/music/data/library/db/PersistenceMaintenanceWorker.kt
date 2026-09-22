@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.ElovaireApp
 import elovaire.music.droidbeauty.app.core.backend.classifyBackendFailure
 import elovaire.music.droidbeauty.app.core.backend.shouldRetry
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
@@ -24,9 +25,14 @@ class PersistenceMaintenanceWorker(
     override suspend fun doWork(): Result {
         var database: ElovaireDatabase? = null
         var mutationJournal: MediaMutationJournal? = null
+        val diagnostics = (applicationContext as ElovaireApp).diagnosticsRuntime
         return try {
             database = ElovaireDatabase.create(applicationContext)
-            val journal = MediaMutationJournal(database.mediaMutationDao())
+            val journal = MediaMutationJournal(
+                dao = database.mediaMutationDao(),
+                backendEventSink = diagnostics,
+                resourceTracker = diagnostics.resources,
+            )
             mutationJournal = journal
             val maintenance = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
@@ -57,6 +63,7 @@ class PersistenceMaintenanceWorker(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
+            diagnostics.recordWorkerFailure("persistence-maintenance", failure)
             if (classifyBackendFailure(failure).shouldRetry(runAttemptCount, MAX_RETRY_COUNT)) {
                 Result.retry()
             } else {

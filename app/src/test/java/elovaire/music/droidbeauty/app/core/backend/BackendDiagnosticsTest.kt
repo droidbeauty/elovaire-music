@@ -127,6 +127,24 @@ class BackendDiagnosticsTest {
         assertTrue(first.snapshot().isEmpty())
     }
 
+    @Test
+    fun appRuntimeKeepsASequencedBoundedPrivacySafeEventWindow() {
+        val runtime = BackendDiagnosticsRuntime(maxEvents = 2)
+        runtime.emit(BackendEvent.WorkerFailed(mapOf("owner" to "worker-one", "uri" to "content://private/item")))
+        val baseline = runtime.sequenceMarker()
+        runtime.emit(BackendEvent.WorkerFailed(mapOf("owner" to "worker-two")))
+        runtime.emit(BackendEvent.WorkerFailed(mapOf("owner" to "worker-three")))
+        runtime.emit(BackendEvent.WorkerFailed(mapOf("owner" to "worker-four")))
+
+        val (latest, delta) = runtime.eventsSince(baseline)
+        assertEquals(2, runtime.snapshot().size)
+        assertEquals(3L, latest - baseline)
+        assertEquals(2, delta.size)
+        assertEquals(setOf("worker-three", "worker-four"), delta.map { it.fields["owner"] }.toSet())
+        assertTrue(delta.all { "uri" !in it.fields })
+        runtime.close()
+    }
+
     private class TestClock : AppClock {
         override fun wallTimeMs(): Long = 1_000L
         override fun elapsedTimeMs(): Long = 100L

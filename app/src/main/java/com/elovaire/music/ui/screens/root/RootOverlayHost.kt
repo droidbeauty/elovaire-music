@@ -76,6 +76,7 @@ internal fun BoxScope.RootOverlayHost(
     }
     PlaylistNameDialog(
         visible = showPlaylistCreateDialog,
+        surfaceId = "playlists.create_dialog",
         onDismiss = onDismissPlaylistCreateDialog,
         onConfirm = { name ->
             if (!isCreatingPlaylist) {
@@ -93,6 +94,7 @@ internal fun BoxScope.RootOverlayHost(
     if (updateController.isSupported) {
         MotionVisibilityHost(
             visible = updateState.availableRelease != null,
+            surfaceId = "root.update_dialog",
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(RootLayerZ.UpdateDialog),

@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.settings.MediaLibraryUserDataReader
+import elovaire.music.droidbeauty.app.data.settings.RevisionedUserDataSnapshot
 import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -52,6 +53,8 @@ class ElovaireMediaTreeSearchInstrumentedTest {
     }
 
     private class FakeUserDataReader(snapshot: UserDataSnapshot) : MediaLibraryUserDataReader {
+        override val revisionedUserDataSnapshot: StateFlow<RevisionedUserDataSnapshot> =
+            MutableStateFlow(RevisionedUserDataSnapshot(0L, snapshot))
         override val userDataSnapshot: StateFlow<UserDataSnapshot> = MutableStateFlow(snapshot)
         override val favoriteSongIds: StateFlow<List<Long>> = MutableStateFlow(snapshot.favoriteSongIds)
         override val playlists: StateFlow<List<Playlist>> = MutableStateFlow(snapshot.playlists)

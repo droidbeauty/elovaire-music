@@ -35,4 +35,52 @@ class RapidUiSurfaceCatalogTest {
         assertTrue(all.any { it.kind == RapidUiSurfaceKind.FullScreenLayer && it.id == "root.full_player" })
         assertTrue(all.any { it.kind == RapidUiSurfaceKind.Chrome && it.id == "root.compact_player" })
     }
+
+    @Test
+    fun everySurfaceDeclaresMotionIntentAndAQualificationJourney() {
+        val surfaces = RapidUiSurfaceCatalog.all
+        val declaredJourneys = setOf(
+            "navigation_storm",
+            "root_layers",
+            "common_controls",
+            "library",
+            "audiobooks",
+            "playlists",
+            "search",
+            "settings",
+            "network_folders",
+            "manage_playlists",
+            "tag_editors",
+            "equalizer",
+            "settings_descendants",
+            "secondary_routes",
+            "player",
+        )
+
+        assertTrue(surfaces.all { it.qualificationJourney in declaredJourneys })
+        assertTrue(surfaces.all { surface ->
+            surface.motion.resolvesImmediatelyAtZeroScale &&
+                (!surface.motion.directManipulation ||
+                    surface.motion.feedback == RapidUiMotionIntent.DirectManipulation) &&
+                (surface.motion.systemOwnedBoundary == surface.involvesSystemUi) &&
+                (surface.motion.systemOwnedBoundary ||
+                    surface.motion.entry != RapidUiMotionIntent.SystemBoundary)
+        })
+        assertTrue(
+            RapidUiSurfaceCatalog.routes.all {
+                it.motion.entry == RapidUiMotionIntent.Navigation &&
+                    it.motion.exit == RapidUiMotionIntent.Navigation
+            },
+        )
+        assertTrue(
+            surfaces.filter { it.involvesSystemUi }.all {
+                it.motion.entry == RapidUiMotionIntent.SystemBoundary && !it.motion.supportsReversal
+            },
+        )
+        assertTrue(
+            surfaces.filter { it.motion.directManipulation }.all {
+                it.motion.feedback == RapidUiMotionIntent.DirectManipulation
+            },
+        )
+    }
 }

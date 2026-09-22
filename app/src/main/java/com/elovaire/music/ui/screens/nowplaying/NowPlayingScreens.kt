@@ -1343,6 +1343,7 @@ internal fun NowPlayingScreen(
                 }
 
                 PopupCardMotionHost(
+                    surfaceId = "player.queue",
                     visible = showQueueSheet,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2182,6 +2183,7 @@ internal fun SleepTimerDialog(
                 ),
         )
         PopupCardMotionHost(
+            surfaceId = "player.sleep_timer",
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
@@ -2666,6 +2668,7 @@ private fun QueueSongOverflowMenuButton(
         if (shouldRenderMenu) {
             OverflowContextMenuPopup(
                 expanded = expanded,
+                surfaceId = "player.queue_overflow",
                 onDismissRequest = { expanded = false },
                 onExitFinished = { shouldRenderMenu = false },
             ) {
@@ -3165,6 +3168,7 @@ private object OverflowContextMenuPositionProvider : PopupPositionProvider {
 @Composable
 private fun OverflowContextMenuPopup(
     expanded: Boolean,
+    surfaceId: String,
     onDismissRequest: () -> Unit,
     onExitFinished: () -> Unit,
     content: @Composable () -> Unit,
@@ -3175,6 +3179,7 @@ private fun OverflowContextMenuPopup(
         properties = PopupProperties(focusable = true),
     ) {
         PopupCardMotionHost(
+            surfaceId = surfaceId,
             visible = expanded,
             onExitFinished = onExitFinished,
         ) {
@@ -3232,6 +3237,7 @@ internal fun AlbumOverflowMenuButton(
         if (shouldRenderMenu) {
             OverflowContextMenuPopup(
                 expanded = expanded,
+                surfaceId = "player.album_overflow",
                 onDismissRequest = { expanded = false },
                 onExitFinished = { shouldRenderMenu = false },
             ) {
@@ -3333,6 +3339,7 @@ internal fun SongOverflowMenuButton(
         if (shouldRenderMenu) {
             OverflowContextMenuPopup(
                 expanded = expanded,
+                surfaceId = "player.song_overflow",
                 onDismissRequest = { expanded = false },
                 onExitFinished = { shouldRenderMenu = false },
             ) {
@@ -3451,6 +3458,7 @@ internal fun TopBarContextMenuOverlay(
             )
         }
         PopupCardMotionHost(
+            surfaceId = "root.top_bar_menu",
             visible = expanded,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -3733,7 +3741,7 @@ private fun LyricsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(lyricsHazeState),
+                .hazeSource(lyricsHazeState, zIndex = -1f),
         ) {
             Column(
                 modifier = Modifier
@@ -4143,7 +4151,6 @@ private fun LyricsOverlay(
                         LyricsSkipControl(
                             lyricsHazeState = lyricsHazeState,
                             contentColor = contentColor,
-                            accentColor = MaterialTheme.colorScheme.primary,
                             onSkipPrevious = onSkipPrevious,
                             onSkipNext = onSkipNext,
                         )
@@ -4286,7 +4293,6 @@ private fun LyricsUnavailableContent(
 private fun LyricsSkipControl(
     lyricsHazeState: HazeState,
     contentColor: Color,
-    accentColor: Color,
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
 ) {
@@ -4353,7 +4359,7 @@ private fun LyricsSkipControl(
                     modifier = Modifier
                         .width(2.dp)
                         .height(20.dp)
-                        .background(accentColor.copy(alpha = 0.3f)),
+                        .background(contentColor.copy(alpha = 0.3f)),
                 )
                 val nextInteractionSource = rememberElovaireInteractionSource()
                 Surface(

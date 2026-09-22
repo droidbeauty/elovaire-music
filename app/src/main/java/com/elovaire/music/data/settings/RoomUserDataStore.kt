@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.data.library.db.AlbumPlayCountEntity
+import elovaire.music.droidbeauty.app.data.library.db.AudiobookProgressEntity
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
 import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
@@ -21,11 +22,15 @@ import elovaire.music.droidbeauty.app.data.library.db.SongPlayCountEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserDataDao
 import elovaire.music.droidbeauty.app.data.library.db.UserDataMigrationEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserDataRepairer
+import elovaire.music.droidbeauty.app.data.library.db.LibraryCommitRelocationEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserSmartPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgressRepository
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgressStore
 import elovaire.music.droidbeauty.app.data.playlists.addSongsToPlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.createPlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.deletePlaylistEntries
@@ -62,6 +67,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,11 +91,14 @@ internal class RoomUserDataStore(
     private val database: ElovaireDatabase? = null,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : CollectionSettingsStore, MediaLibraryUserDataReader, PlaylistStore, FavoritesStore, PlaybackHistoryStore,
-    SearchHistoryStore {
+    SearchHistoryStore, AudiobookProgressRepository {
     private val preferences = allowStrictModeDiskReads {
         PreferenceStorage(context.applicationContext).preferences
     }
+    private val legacyAudiobookProgress = AudiobookProgressStore(context.applicationContext)
+    private val audiobookProgressByBookKey = AtomicReference<Map<String, AudiobookProgress>>(emptyMap())
     private val released = AtomicBoolean(false)
+    private val releaseCompletion = CompletableDeferred<Unit>()
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
     private val userDataRevision = AtomicLong(0L)
@@ -138,6 +147,10 @@ internal class RoomUserDataStore(
     private val _userDataSnapshot = MutableStateFlow(UserDataSnapshot())
     override val userDataSnapshot: StateFlow<UserDataSnapshot> = _userDataSnapshot.asStateFlow()
 
+    private val _revisionedUserDataSnapshot = MutableStateFlow(RevisionedUserDataSnapshot(0L, UserDataSnapshot()))
+    override val revisionedUserDataSnapshot: StateFlow<RevisionedUserDataSnapshot> =
+        _revisionedUserDataSnapshot.asStateFlow()
+
     override val albumPlayCounts get() = playbackHistoryStore.albumPlayCounts
     override val songPlayCounts get() = playbackHistoryStore.songPlayCounts
     override val recentSongIds get() = playbackHistoryStore.recentSongIds
@@ -146,8 +159,69 @@ internal class RoomUserDataStore(
     override val lastPlayedCollectionId get() = playbackHistoryStore.lastPlayedCollectionId
     override val searchHistory get() = searchHistoryStore.searchHistory
 
-    internal val currentUserDataRevision: Long
-        get() = userDataRevision.get()
+    override fun load(bookKey: String): AudiobookProgress? {
+        if (bookKey.isBlank()) return null
+        return audiobookProgressByBookKey.get()[AudiobookProgressStore.storageKey(bookKey)]
+    }
+
+    override fun save(bookKey: String, progress: AudiobookProgress, force: Boolean) {
+        if (bookKey.isBlank() || progress.songId <= 0L) return
+        val storageKey = AudiobookProgressStore.storageKey(bookKey)
+        val normalized = progress.copy(
+            positionMs = progress.positionMs.coerceAtLeast(0L),
+            updatedAtMs = progress.updatedAtMs.coerceAtLeast(0L),
+            bookElapsedMs = progress.bookElapsedMs?.coerceAtLeast(0L),
+            bookDurationMs = progress.bookDurationMs?.takeIf { it > 0L },
+        )
+        val entity = normalized.toEntity(storageKey)
+        val accepted = enqueueCoalescedOperation(
+            name = "audiobook-progress:$storageKey",
+            advancesUserDataRevision = false,
+            onCommitted = {
+                audiobookProgressByBookKey.updateAndGet { current -> current + (storageKey to normalized) }
+            },
+        ) {
+            if (dao.audiobookProgress(storageKey) == entity) {
+                false
+            } else {
+                dao.upsertAudiobookProgress(entity)
+                true
+            }
+        }
+        if (!accepted) {
+            Log.w(TAG, "Audiobook progress checkpoint could not be queued.")
+        } else if (force || normalized.completed || normalized.positionMs == 0L) {
+            schedulePendingCoalescedWrites()
+        }
+    }
+
+    override fun remapBookKey(oldBookKey: String, newBookKey: String): Deferred<Unit> = operationScope.async {
+        if (oldBookKey.isBlank() || newBookKey.isBlank() || oldBookKey == newBookKey) return@async
+        val oldKey = AudiobookProgressStore.storageKey(oldBookKey)
+        val newKey = AudiobookProgressStore.storageKey(newBookKey)
+        val nextCache = AtomicReference<Map<String, AudiobookProgress>?>(null)
+        when (
+            val result = enqueueMutation(
+                name = "audiobook_progress.rekey",
+                advancesUserDataRevision = false,
+                onCommitted = { nextCache.get()?.let(audiobookProgressByBookKey::set) },
+            ) {
+                val oldRow = dao.audiobookProgress(oldKey)
+                    ?: return@enqueueMutation PlaylistMutationResult.Success(changed = false)
+                val newRow = dao.audiobookProgress(newKey)
+                val selected = if (newRow != null && newRow.updatedAtMs >= oldRow.updatedAtMs) newRow else oldRow
+                val rewritten = selected.copy(bookKey = newKey)
+                dao.upsertAudiobookProgress(rewritten)
+                dao.deleteAudiobookProgress(oldKey)
+                nextCache.set(audiobookProgressByBookKey.get() - oldKey + (newKey to rewritten.toDomain()))
+                PlaylistMutationResult.Success(changed = oldKey != newKey)
+            }.await()
+        ) {
+            is PlaylistMutationResult.Success -> Unit
+            is PlaylistMutationResult.Failure -> throw result.cause ?: IllegalStateException(result.reason)
+            else -> error("Audiobook progress could not be re-keyed.")
+        }
+    }
 
     // Start only after every state flow is initialized. The actor may run on another
     // thread immediately, so starting it during an earlier property initializer can
@@ -409,13 +483,37 @@ internal class RoomUserDataStore(
     }
 
     /** Re-keys persisted media references after library reconciliation proves a relocation. */
-    fun relocateSongReferences(replacements: Map<Long, Long>): Deferred<PlaylistMutationResult> =
-        enqueueMutation("library.relocate_song_references") {
+    fun relocateSongReferences(
+        commitId: String,
+        replacements: Map<Long, Long>,
+    ): Deferred<PlaylistMutationResult> = run {
+        val nextAudiobookProgress = AtomicReference<Map<String, AudiobookProgress>?>(null)
+        enqueueMutation(
+            name = "library.relocate_song_references",
+            advancesUserDataRevision = true,
+            onCommitted = { nextAudiobookProgress.get()?.let(audiobookProgressByBookKey::set) },
+        ) {
+            if (commitId.isBlank()) return@enqueueMutation PlaylistMutationResult.InvalidInput
             val normalized = canonicalizeMediaIdRelocations(replacements)
                 ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             if (normalized.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
 
+            if (dao.libraryCommitRelocationApplied(commitId)) {
+                return@enqueueMutation PlaylistMutationResult.Success(changed = false)
+            }
+            check(
+                dao.insertLibraryCommitRelocation(
+                    LibraryCommitRelocationEntity(commitId, clock.wallTimeMs()),
+                ) >= 0L,
+            ) { "Unable to record library relocation commit." }
+
             dao.relocateSongReferences(normalized)
+            dao.relocateAudiobookProgress(normalized)
+            nextAudiobookProgress.set(
+                audiobookProgressByBookKey.get().mapValues { (_, progress) ->
+                    progress.copy(songId = normalized[progress.songId] ?: progress.songId)
+                },
+            )
             val playlists = _userPlaylists.value.map { playlist ->
                 playlist.copy(
                     songIds = playlist.songIds
@@ -428,6 +526,7 @@ internal class RoomUserDataStore(
             playbackHistoryStore.relocateSongIds(normalized)
             PlaylistMutationResult.Success(changed = true)
         }
+    }
 
     /** Imports only validated, portable user data; unresolved media remains in the backup. */
     fun restorePortableUserData(
@@ -492,9 +591,9 @@ internal class RoomUserDataStore(
         }
     }
 
-    fun release(onDrained: () -> Unit = {}) {
+    fun release(onDrained: () -> Unit = {}): Deferred<Unit> {
         synchronized(submissionLock) {
-            if (released.get()) return
+            if (released.get()) return releaseCompletion
             schedulePendingCoalescedWrites()
             released.set(true)
             lifecycle.set(StoreLifecycle.Releasing)
@@ -511,11 +610,18 @@ internal class RoomUserDataStore(
             }
             operationScope.cancel()
             _userDataReadiness.value = UserDataReadiness.Released
-            onDrained()
+            try {
+                onDrained()
+                releaseCompletion.complete(Unit)
+            } catch (failure: Throwable) {
+                releaseCompletion.completeExceptionally(failure)
+            }
         }
+        return releaseCompletion
     }
 
     private suspend fun initialize() {
+        migrateLegacyAudiobookProgress()
         var migrationRequired = false
         var legacy = UserDataSnapshot()
         try {
@@ -555,6 +661,20 @@ internal class RoomUserDataStore(
             if (!migrationRequired && restoreFromRecoverySnapshot()) return
             onMigrationFailure(legacy, failure)
         }
+    }
+
+    private suspend fun migrateLegacyAudiobookProgress() {
+        if (!dao.migrationComplete(AUDIOBOOK_PROGRESS_MIGRATION_ID)) {
+            val legacyRows = legacyAudiobookProgress.readLegacyRows()
+            dao.migrateLegacyAudiobookProgress(
+                rows = legacyRows.map { (key, progress) -> progress.toEntity(key) },
+                migration = UserDataMigrationEntity(AUDIOBOOK_PROGRESS_MIGRATION_ID, clock.wallTimeMs()),
+            )
+            legacyAudiobookProgress.clearLegacyRows()
+        }
+        audiobookProgressByBookKey.set(
+            dao.audiobookProgressRows().associate { row -> row.bookKey to row.toDomain() },
+        )
     }
 
     private suspend fun restoreFromRecoverySnapshot(): Boolean {
@@ -641,7 +761,14 @@ internal class RoomUserDataStore(
     }
 
     private fun publishSnapshot(snapshot: UserDataSnapshot) {
-        if (_userDataSnapshot.value == snapshot) return
+        publishCommittedSnapshot(snapshot, userDataRevision.get())
+    }
+
+    private fun publishCommittedSnapshot(snapshot: UserDataSnapshot, revision: Long) {
+        val previous = _revisionedUserDataSnapshot.value
+        if (previous.snapshot == snapshot && previous.revision == revision) return
+        _revisionedUserDataSnapshot.value = RevisionedUserDataSnapshot(revision, snapshot)
+        if (previous.snapshot == snapshot) return
         _userDataSnapshot.value = snapshot
         publishPlaylists(snapshot.playlists)
         publishSmartPlaylists(snapshot.smartPlaylists)
@@ -761,11 +888,21 @@ internal class RoomUserDataStore(
 
 
     private fun enqueueCoalesced(name: String, operation: suspend () -> Boolean) {
-        tryEnqueue(
+        enqueueCoalescedOperation(name, operation = operation)
+    }
+
+    private fun enqueueCoalescedOperation(
+        name: String,
+        advancesUserDataRevision: Boolean = true,
+        onCommitted: () -> Unit = {},
+        operation: suspend () -> Boolean,
+    ): Boolean {
+        return tryEnqueue(
             RoomOperation(
                 name = name,
                 execute = { PlaylistMutationResult.Success(changed = operation()) },
-                advancesUserDataRevision = true,
+                advancesUserDataRevision = advancesUserDataRevision,
+                onCommitted = onCommitted,
             ),
             coalescible = true,
         )
@@ -781,6 +918,18 @@ internal class RoomUserDataStore(
     private fun enqueueMutation(
         name: String,
         operation: suspend () -> PlaylistMutationResult,
+    ): Deferred<PlaylistMutationResult> = enqueueMutation(
+        name = name,
+        advancesUserDataRevision = true,
+        onCommitted = {},
+        operation = operation,
+    )
+
+    private fun enqueueMutation(
+        name: String,
+        advancesUserDataRevision: Boolean,
+        onCommitted: () -> Unit,
+        operation: suspend () -> PlaylistMutationResult,
     ): Deferred<PlaylistMutationResult> {
         schedulePendingCoalescedWrites()
         val completion = CompletableDeferred<PlaylistMutationResult>()
@@ -789,7 +938,8 @@ internal class RoomUserDataStore(
                 name = name,
                 execute = operation,
                 completion = completion,
-                advancesUserDataRevision = true,
+                advancesUserDataRevision = advancesUserDataRevision,
+                onCommitted = onCommitted,
             ),
         )
         if (!accepted) {
@@ -870,9 +1020,10 @@ internal class RoomUserDataStore(
                 revisionToPublish?.let(::persistLegacyUserDataRevision)
             }
             committed = true
+            operation.onCommitted()
             revisionToPublish?.let(userDataRevision::set)
             val snapshot = currentSnapshot()
-            publishSnapshot(snapshot)
+            publishCommittedSnapshot(snapshot, userDataRevision.get())
             persistRecoverySnapshot(snapshot)
             operation.completion?.complete(
                 operationResult
@@ -993,6 +1144,7 @@ internal class RoomUserDataStore(
     private companion object {
         const val TAG = "RoomUserDataStore"
         const val MIGRATION_ID = "shared_preferences_domain_data_v1"
+        const val AUDIOBOOK_PROGRESS_MIGRATION_ID = "audiobook_progress_shared_preferences_v1"
         const val RECENT_KIND_SONG = "song"
         const val RECENT_KIND_ALBUM = "album"
         const val MAX_OPERATION_QUEUE_DEPTH = 128
@@ -1021,6 +1173,7 @@ private data class RoomOperation(
     val execute: suspend () -> PlaylistMutationResult,
     val completion: CompletableDeferred<PlaylistMutationResult>? = null,
     val advancesUserDataRevision: Boolean = false,
+    val onCommitted: () -> Unit = {},
 )
 
 internal fun nextPersistentUserDataId(current: Long): Long {
@@ -1154,6 +1307,25 @@ private fun SharedPreferences.longOrNull(key: String): Long? {
 }
 
 private fun Playlist.toEntity(): UserPlaylistEntity = UserPlaylistEntity(id, name, isSystem)
+
+private fun AudiobookProgress.toEntity(bookKey: String): AudiobookProgressEntity = AudiobookProgressEntity(
+    bookKey = bookKey,
+    songId = songId,
+    positionMs = positionMs,
+    completed = completed,
+    updatedAtMs = updatedAtMs,
+    bookElapsedMs = bookElapsedMs,
+    bookDurationMs = bookDurationMs,
+)
+
+private fun AudiobookProgressEntity.toDomain(): AudiobookProgress = AudiobookProgress(
+    songId = songId,
+    positionMs = positionMs.coerceAtLeast(0L),
+    completed = completed,
+    updatedAtMs = updatedAtMs.coerceAtLeast(0L),
+    bookElapsedMs = bookElapsedMs?.coerceAtLeast(0L),
+    bookDurationMs = bookDurationMs?.takeIf { it > 0L },
+)
 
 
 private fun Playlist.toEntryEntities(): List<UserPlaylistEntryEntity> = songIds.distinct().mapIndexed { index, songId ->

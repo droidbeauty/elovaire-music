@@ -19,8 +19,10 @@ import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
@@ -32,14 +34,17 @@ import kotlinx.coroutines.launch
 internal class SmbNetworkFileSystem(
     private val scope: CoroutineScope,
     private val clock: AppClock = AndroidAppClock,
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : NetworkFileSystem {
     private val sessionMapLock = Any()
     private val sessions = mutableMapOf<String, SourceSession>()
+    private val released = AtomicBoolean(false)
 
     override fun probeBlocking(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ): NetworkProbeResult {
+        checkNotReleased()
         return runCatching {
             withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
             NetworkProbeResult(NetworkAvailability.Available)
@@ -113,6 +118,7 @@ internal class SmbNetworkFileSystem(
         position: Long,
         length: Long,
     ): NetworkReadHandle {
+        checkNotReleased()
         val session = sessionFor(source, credentials)
         val lease = session.acquire()
         var file: com.hierynomus.smbj.share.File? = null
@@ -173,10 +179,15 @@ internal class SmbNetworkFileSystem(
     }
 
     override fun release() {
+        if (!released.compareAndSet(false, true)) return
         val activeSessions = synchronized(sessionMapLock) {
             sessions.values.toList().also { sessions.clear() }
         }
         activeSessions.forEach(SourceSession::release)
+    }
+
+    private fun checkNotReleased() {
+        check(!released.get()) { "SMB file system is released" }
     }
 
     private fun smbPath(source: NetworkLibrarySource): String {
@@ -194,6 +205,7 @@ internal class SmbNetworkFileSystem(
         credentials: NetworkCredentials,
         block: (DiskShare) -> T,
     ): T {
+        checkNotReleased()
         val session = sessionFor(source, credentials)
         val lease = session.acquire()
         return try {
@@ -220,6 +232,7 @@ internal class SmbNetworkFileSystem(
         )
         val staleSessions = mutableListOf<SourceSession>()
         val selected = synchronized(sessionMapLock) {
+            check(!released.get()) { "SMB file system is released" }
             sessions.values.filterTo(staleSessions) { it.isIdle(clock.elapsedTimeMs()) }
             staleSessions.forEach { session -> sessions.remove(session.key.sourceKey, session) }
             val current = sessions[source.id]
@@ -257,7 +270,7 @@ internal class SmbNetworkFileSystem(
             )
             share = session.connectShare(shareName) as? DiskShare
                 ?: throw IOException("SMB share is not a disk share")
-            SessionResources(client, connection, session, share)
+            SessionResources(client, connection, session, share, resourceTracker)
         } catch (failure: Exception) {
             listOf(share, session, connection, client)
                 .forEach { resource -> resource?.let { runCatching { it.close() } } }
@@ -436,8 +449,9 @@ internal class SmbNetworkFileSystem(
         val connection: com.hierynomus.smbj.connection.Connection,
         val session: com.hierynomus.smbj.session.Session,
         val share: DiskShare,
+        private val resourceTracker: BackendResourceTracker,
     ) : AutoCloseable {
-        private val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveSmbSession)
+        private val resource = resourceTracker.acquire(BackendResourceKind.ActiveSmbSession)
 
         override fun close() {
             try {

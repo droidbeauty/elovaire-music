@@ -152,6 +152,7 @@ private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
     var treble: Float? = null
 
     override fun setPlaybackVolume(value: Float) = Unit
+    override fun setAudiobookPlaybackSpeed(value: Float) = Unit
     override fun setCrossfadeEnabled(enabled: Boolean) = Unit
     override fun setCrossfadeDurationMs(value: Long) = Unit
     override fun setCrossfadeSilenceThresholdDb(value: Float) = Unit

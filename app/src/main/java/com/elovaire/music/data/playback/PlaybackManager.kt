@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -86,13 +87,13 @@ enum class PlaybackCommandOrigin {
     BecomingNoisy,
 }
 
-private enum class InterruptionResumeReason {
+internal enum class InterruptionResumeReason {
     None,
     TransientFocusLoss,
     PermanentLossWithActiveExternalMedia,
 }
 
-private data class InterruptionResumeState(
+internal data class InterruptionResumeState(
     val shouldResume: Boolean = false,
     val reason: InterruptionResumeReason = InterruptionResumeReason.None,
     val startedAtElapsedMs: Long = 0L,
@@ -180,6 +181,9 @@ data class PlaybackFormatFailure(
 internal class PlaybackManager internal constructor(
     context: Context,
     scope: CoroutineScope,
+    private val audiobookProgressRepository: AudiobookProgressRepository = AudiobookProgressStore(context),
+    private val audiobookPlaybackSpeedPreferences: StateFlow<Float> = MutableStateFlow(1f),
+    private val onAudiobookPlaybackSpeedChanged: (Float) -> Unit = {},
     audioProcessorsProvider: () -> Array<AudioProcessor> = { emptyArray() },
     hasSignalAlteringEffects: () -> Boolean = { false },
     initialRecentSongIds: List<Long> = emptyList(),
@@ -201,8 +205,7 @@ internal class PlaybackManager internal constructor(
     private val audioProcessorsProvider = audioProcessorsProvider
     private val hasSignalAlteringEffects = hasSignalAlteringEffects
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
-    private val audiobookProgressStore = AudiobookProgressStore(context, clock)
-    private var audiobookPlaybackSpeed = 1f
+    private var audiobookPlaybackSpeed = audiobookPlaybackSpeedPreferences.value.coerceIn(0.5f, 2.5f)
     @Volatile
     private var activeAudiobookContext: AudiobookPlaybackContext? = null
     private var lastAudiobookCheckpointElapsedMs = 0L
@@ -218,19 +221,24 @@ internal class PlaybackManager internal constructor(
         .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
         .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
         .build()
-    private var userVolume = currentSystemVolumeFraction()
-    private var volumeFineGain = 1f
-    private var ignoreObservedSystemVolumeStep: Int? = null
-    private val usbDacHardwareVolumeManager = UsbDacHardwareVolumeManager(
+    private val audioOutputController = PlaybackAudioOutputController(
         context = appContext,
         audioManager = audioManager,
         usbManager = usbManager,
         scope = scope,
-    )
-    private val bitPerfectUsbManager = BitPerfectUsbManager(
-        audioManager = audioManager,
         playbackAudioAttributes = platformPlaybackAudioAttributes,
     )
+    private var userVolume: Float
+        get() = audioOutputController.userVolume
+        set(value) { audioOutputController.userVolume = value }
+    private var volumeFineGain: Float
+        get() = audioOutputController.volumeFineGain
+        set(value) { audioOutputController.volumeFineGain = value }
+    private var ignoreObservedSystemVolumeStep: Int?
+        get() = audioOutputController.ignoreObservedSystemVolumeStep
+        set(value) { audioOutputController.ignoreObservedSystemVolumeStep = value }
+    private val usbDacHardwareVolumeManager get() = audioOutputController.usbDacHardwareVolumeManager
+    private val bitPerfectUsbManager get() = audioOutputController.bitPerfectUsbManager
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
     private val dataSourceFactory: DataSource.Factory = playbackDataSourceFactory ?: DefaultDataSource.Factory(appContext)
@@ -249,31 +257,48 @@ internal class PlaybackManager internal constructor(
         offloadPolicyProvider = ::currentOffloadPolicy,
     )
     private val playbackHandler = Handler(Looper.getMainLooper())
-    private val audiobookPlaybackSpeedLoadJob = scope.launch(Dispatchers.IO) {
-        val loadedSpeed = audiobookProgressStore.loadPlaybackSpeed()
-        playbackHandler.post {
-            if (released.get()) return@post
-            audiobookPlaybackSpeed = loadedSpeed
-            if (currentSong()?.mediaKind == AudioMediaKind.Audiobook) {
-                player.playbackParameters = PlaybackParameters(audiobookPlaybackSpeed)
+    private val audiobookPlaybackSpeedSyncJob = scope.launch {
+        audiobookPlaybackSpeedPreferences.collect { speed ->
+            playbackHandler.post {
+                if (released.get()) return@post
+                val normalized = speed.coerceIn(0.5f, 2.5f)
+                if (audiobookPlaybackSpeed == normalized) return@post
+                audiobookPlaybackSpeed = normalized
+                if (currentSong()?.mediaKind == AudioMediaKind.Audiobook) {
+                    player.playbackParameters = PlaybackParameters(normalized)
+                }
             }
         }
     }
     private var pendingAudioPathReason: String? = null
-    private var isDirectPlaybackActive = false
+    private var isDirectPlaybackActive: Boolean
+        get() = audioOutputController.isDirectPlaybackActive
+        set(value) { audioOutputController.isDirectPlaybackActive = value }
     private val runtimeStateMachine = PlaybackRuntimeStateMachine()
     private val runtimeTransition: PlaybackRuntimeTransition
         get() = runtimeStateMachine.state
-    private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
-    private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
+    private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey?
+        get() = audioOutputController.lastAppliedPreferredDeviceKey
+        set(value) { audioOutputController.lastAppliedPreferredDeviceKey = value }
+    private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey?
+        get() = audioOutputController.lastAppliedAudioPathDecisionKey
+        set(value) { audioOutputController.lastAppliedAudioPathDecisionKey = value }
     private var crossfadeEnabled = false
     private var crossfadeDurationMs = CrossfadeDurationPolicy.DEFAULT_DURATION_MS
     private var crossfadeSilenceThresholdDb = CrossfadeSilencePolicy.BASE_LEVEL_DB
     private var volumeNormalizationEnabled = false
-    private var outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
-    private var audioRouteGeneration = 0L
-    private var audioRouteIdentity: List<AudioRouteDeviceIdentity> = emptyList()
-    private var currentAudioRouteSnapshot = AudioOutputRouteSnapshot(0L, emptyList(), null, emptyList())
+    private var outputCapabilities: AudioOutputCapabilitySnapshot
+        get() = audioOutputController.outputCapabilities
+        set(value) { audioOutputController.outputCapabilities = value }
+    private var audioRouteGeneration: Long
+        get() = audioOutputController.audioRouteGeneration
+        set(value) { audioOutputController.audioRouteGeneration = value }
+    private var audioRouteIdentity: List<AudioRouteDeviceIdentity>
+        get() = audioOutputController.audioRouteIdentity
+        set(value) { audioOutputController.audioRouteIdentity = value }
+    private var currentAudioRouteSnapshot: AudioOutputRouteSnapshot
+        get() = audioOutputController.currentAudioRouteSnapshot
+        set(value) { audioOutputController.currentAudioRouteSnapshot = value }
     private val playerResourceLeases = IdentityHashMap<ExoPlayer, Closeable>()
     private var player = createPlayer(enableSignalProcessing = true)
     private val playerGenerationGate = PlaybackPlayerGenerationGate<ExoPlayer>()
@@ -334,13 +359,26 @@ internal class PlaybackManager internal constructor(
             }
         }
     }
-    private var duckedForAudioFocus = false
+    private val interruptionController = PlaybackInterruptionController()
+    private var duckedForAudioFocus: Boolean
+        get() = interruptionController.duckedForAudioFocus
+        set(value) { interruptionController.duckedForAudioFocus = value }
     private var isPauseTransitioningToStopped = false
-    private var isManualPausePending = false
-    private var shouldResumeAfterTransientFocusLoss = false
-    private var pausedForAudioFocusLoss = false
-    private var pendingResumeAfterExternalInterruption = false
-    private var interruptionResumeState = InterruptionResumeState()
+    private var isManualPausePending: Boolean
+        get() = interruptionController.isManualPausePending
+        set(value) { interruptionController.isManualPausePending = value }
+    private var shouldResumeAfterTransientFocusLoss: Boolean
+        get() = interruptionController.shouldResumeAfterTransientFocusLoss
+        set(value) { interruptionController.shouldResumeAfterTransientFocusLoss = value }
+    private var pausedForAudioFocusLoss: Boolean
+        get() = interruptionController.pausedForAudioFocusLoss
+        set(value) { interruptionController.pausedForAudioFocusLoss = value }
+    private var pendingResumeAfterExternalInterruption: Boolean
+        get() = interruptionController.pendingResumeAfterExternalInterruption
+        set(value) { interruptionController.pendingResumeAfterExternalInterruption = value }
+    private var interruptionResumeState: InterruptionResumeState
+        get() = interruptionController.interruptionResumeState
+        set(value) { interruptionController.interruptionResumeState = value }
     private var isStoppingQueue = false
     private val released = AtomicBoolean(false)
     private var playbackOperationRevision = 0L
@@ -365,8 +403,12 @@ internal class PlaybackManager internal constructor(
         onRecentPlaybackChanged = onRecentPlaybackChanged,
     )
     private var pauseFadeJob: Job? = null
-    private var externalInterruptionResumeJob: Job? = null
-    private var pendingAutoResumeRetryJob: Job? = null
+    private var externalInterruptionResumeJob: Job?
+        get() = interruptionController.externalInterruptionResumeJob
+        set(value) { interruptionController.externalInterruptionResumeJob = value }
+    private var pendingAutoResumeRetryJob: Job?
+        get() = interruptionController.pendingAutoResumeRetryJob
+        set(value) { interruptionController.pendingAutoResumeRetryJob = value }
     private var statePublishScheduled = false
     private val _playerInstanceVersion = MutableStateFlow(0L)
     val playerInstanceVersion: StateFlow<Long> = _playerInstanceVersion.asStateFlow()
@@ -1029,18 +1071,18 @@ internal class PlaybackManager internal constructor(
     }
 
     override fun audiobookProgress(bookKey: String, songId: Long): Long {
-        return audiobookProgressStore.load(bookKey)
+        return audiobookProgressRepository.load(bookKey)
             ?.takeIf { it.songId == songId }
             ?.positionMs
             ?: 0L
     }
 
     override fun audiobookResumeSongId(bookKey: String): Long? {
-        return audiobookProgressStore.load(bookKey)?.songId
+        return audiobookProgressRepository.load(bookKey)?.songId
     }
 
     override fun audiobookProgress(bookKey: String): AudiobookProgress? {
-        return audiobookProgressStore.load(bookKey)
+        return audiobookProgressRepository.load(bookKey)
     }
 
     override fun checkpointAudiobookProgress(force: Boolean) {
@@ -1075,8 +1117,7 @@ internal class PlaybackManager internal constructor(
             songId = song.id,
             positionMs = positionMs,
         )
-        audiobookProgressStore.save(
-            bookKey = context.bookKey,
+        val progress = AudiobookProgressStore.snapshot(
             songId = song.id,
             positionMs = positionMs,
             durationMs = durationMs,
@@ -1084,16 +1125,17 @@ internal class PlaybackManager internal constructor(
             bookElapsedMs = bookElapsedMs,
             bookDurationMs = context.bookDurationMs,
         )
+        audiobookProgressRepository.save(
+            bookKey = context.bookKey,
+            progress = progress,
+            force = force || progress.completed || progress.positionMs == 0L,
+        )
         lastAudiobookCheckpointElapsedMs = nowElapsedMs
         _audiobookProgressRevision.update { revision -> revision + 1L }
     }
 
-    internal fun remapAudiobookProgress(replacements: Map<Long, Long>) {
-        audiobookProgressStore.remapSongIds(replacements)
-    }
-
-    internal fun remapAudiobookProgressKey(oldBookKey: String, newBookKey: String) {
-        audiobookProgressStore.remapBookKey(oldBookKey, newBookKey)
+    internal suspend fun remapAudiobookProgressKey(oldBookKey: String, newBookKey: String) {
+        audiobookProgressRepository.remapBookKey(oldBookKey, newBookKey).await()
         if (activeAudiobookContext?.bookKey == oldBookKey) {
             activeAudiobookContext = activeAudiobookContext?.copy(bookKey = newBookKey)
         }
@@ -1190,7 +1232,7 @@ internal class PlaybackManager internal constructor(
         if (released.get()) return
         if (currentSong()?.mediaKind != AudioMediaKind.Audiobook) return
         audiobookPlaybackSpeed = speed.coerceIn(0.5f, 2.5f)
-        audiobookProgressStore.savePlaybackSpeed(audiobookPlaybackSpeed)
+        onAudiobookPlaybackSpeedChanged(audiobookPlaybackSpeed)
         player.playbackParameters = PlaybackParameters(audiobookPlaybackSpeed)
     }
 
@@ -1398,14 +1440,12 @@ internal class PlaybackManager internal constructor(
         beginPlaybackOperation()
         runtimeStateMachine.release()
         pauseFadeJob?.cancel()
-        audiobookPlaybackSpeedLoadJob.cancel()
+        audiobookPlaybackSpeedSyncJob.cancel()
         crossfadeController.release()
         sleepTimerController.release()
         progressDemandController.clear()
         playbackProgressTicker.release()
-        externalInterruptionResumeJob?.cancel()
-        pendingAutoResumeRetryJob?.cancel()
-        pendingAutoResumeRetryJob = null
+        interruptionController.release()
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         playbackHandler.removeCallbacks(statePublishRunnable)
         statePublishScheduled = false
@@ -2167,10 +2207,7 @@ internal class PlaybackManager internal constructor(
         pausedForAudioFocusLoss = false
         pendingResumeAfterExternalInterruption = false
         interruptionResumeState = InterruptionResumeState()
-        externalInterruptionResumeJob?.cancel()
-        externalInterruptionResumeJob = null
-        pendingAutoResumeRetryJob?.cancel()
-        pendingAutoResumeRetryJob = null
+        interruptionController.clearResumeJobs()
     }
 
     private fun markInterruptedForResume(reason: InterruptionResumeReason) {
@@ -2312,7 +2349,7 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun effectivePlayerGain(song: Song? = currentSong()): Float {
-        val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
+        val baseGain = if (audioOutputController.usesFixedVolumeOutput()) userVolume else volumeFineGain
         val gain = effectiveDspState(baseGain, song).fineGain
         return if (duckedForAudioFocus) gain * DUCK_GAIN else gain
     }
@@ -2365,10 +2402,10 @@ internal class PlaybackManager internal constructor(
             ignoreObservedSystemVolumeStep = targetSystemStep
             runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0) }
             volumeFineGain = if (targetSystemStep <= 0) 0f else 1f
-            userVolume = currentSystemVolumeFraction().quantizedVolume()
+            userVolume = audioOutputController.currentSystemVolumeFraction().quantizedVolume()
             return
         }
-        if (usesFixedVolumeOutput()) {
+        if (audioOutputController.usesFixedVolumeOutput()) {
             userVolume = targetVolume
             volumeFineGain = targetVolume
             player.volume = targetPlayerOutputGain()
@@ -2414,19 +2451,19 @@ internal class PlaybackManager internal constructor(
             updateState()
             return
         }
-        if (usesFixedVolumeOutput()) {
+        if (audioOutputController.usesFixedVolumeOutput()) {
             ignoreObservedSystemVolumeStep = null
             player.volume = targetPlayerOutputGain()
             updateState()
             return
         }
-        val observedSystemStep = currentSystemVolumeStep()
+        val observedSystemStep = audioOutputController.currentSystemVolumeStep()
         if (ignoreObservedSystemVolumeStep == observedSystemStep) {
             ignoreObservedSystemVolumeStep = null
             userVolume = currentEffectiveVolumeFraction()
         } else {
             volumeFineGain = if (observedSystemStep <= 0) 0f else 1f
-            userVolume = currentSystemVolumeFraction().quantizedVolume()
+            userVolume = audioOutputController.currentSystemVolumeFraction().quantizedVolume()
         }
         player.volume = targetPlayerOutputGain()
         updateState()
@@ -2450,36 +2487,16 @@ internal class PlaybackManager internal constructor(
             return usbDacHardwareVolumeManager.currentHardwareVolume() ?: userVolume
         }
         if (isDirectPlaybackActive) {
-            return currentSystemVolumeFraction().quantizedVolume()
+            return audioOutputController.currentSystemVolumeFraction().quantizedVolume()
         }
         if (shouldBypassSystemStreamVolume()) return userVolume
-        val currentSystemFraction = currentSystemVolumeFraction()
+        val currentSystemFraction = audioOutputController.currentSystemVolumeFraction()
         return (currentSystemFraction * volumeFineGain).coerceIn(0f, 1f).quantizedVolume()
     }
 
     private fun shouldBypassSystemStreamVolume(): Boolean {
         return usbDacHardwareVolumeManager.shouldOwnVolumeControls() ||
-            usesFixedVolumeOutput()
-    }
-
-    private fun usesFixedVolumeOutput(): Boolean {
-        return runCatching { audioManager?.isVolumeFixed == true }.getOrDefault(false)
-    }
-
-    private fun currentSystemVolumeStep(): Int {
-        val manager = audioManager ?: return 0
-        return runCatching {
-            manager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        }.getOrDefault(0).coerceAtLeast(0)
-    }
-
-    private fun currentSystemVolumeFraction(): Float {
-        val manager = audioManager ?: return 1f
-        val maxStep = runCatching {
-            manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        }.getOrDefault(1).coerceAtLeast(1)
-        val currentStep = currentSystemVolumeStep()
-        return currentStep.toFloat() / maxStep.toFloat()
+            audioOutputController.usesFixedVolumeOutput()
     }
 
     private fun resolveAudioRouteSnapshot(): AudioOutputRouteSnapshot {
@@ -2549,7 +2566,7 @@ internal class PlaybackManager internal constructor(
     }
 }
 
-private data class AudioPathDecisionKey(
+internal data class AudioPathDecisionKey(
     val useDirectPlayback: Boolean,
     val directive: BitPerfectPlaybackDirective,
     val evaluationKey: DirectPlaybackEvaluationKey?,
@@ -2653,7 +2670,7 @@ internal sealed interface PlaybackRuntimeTransition {
     data object Released : PlaybackRuntimeTransition
 }
 
-private data class PreferredAudioDeviceKey(
+internal data class PreferredAudioDeviceKey(
     val id: Int,
     val type: Int,
 )

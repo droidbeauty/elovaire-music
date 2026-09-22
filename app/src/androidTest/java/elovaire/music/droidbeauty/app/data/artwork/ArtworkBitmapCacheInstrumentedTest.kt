@@ -7,8 +7,9 @@ import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
-import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
-import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.quality.appDiagnostics
+import elovaire.music.droidbeauty.app.quality.captureJourneyBaseline
+import elovaire.music.droidbeauty.app.quality.captureJourneyDelta
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -32,37 +33,42 @@ class ArtworkBitmapCacheInstrumentedTest {
     @Test
     fun missingArtwork_decodesOnlyOncePerRequest() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val diagnostics = appDiagnostics(context)
+        val baseline = diagnostics.captureJourneyBaseline()
         val uri = Uri.fromFile(File(context.cacheDir, "missing-artwork-${System.nanoTime()}.mp3"))
-        ElovaireTrace.clearRecordedSections()
-        val before = BackendResourceRegistry.snapshot()
 
-        repeat(5) { assertNull(loadArtworkBitmap(context, uri, 512)) }
+        repeat(5) { assertNull(loadArtworkBitmap(context, uri, 512, resourceTracker = diagnostics.resources)) }
 
-        assertEquals(5, ElovaireTrace.recordedSectionNames().count { it == "artwork_decode" })
-        val after = BackendResourceRegistry.snapshot()
-        listOf(BackendResourceKind.ActiveArtworkDecode, BackendResourceKind.ActiveRetriever).forEach {
-            assertEquals(before[it.key], after[it.key])
+        val delta = diagnostics.captureJourneyDelta(baseline)
+        assertEquals(5, delta.traceSections.count { it == "artwork_decode" })
+        listOf(BackendResourceKind.ActiveArtworkDecode, BackendResourceKind.ActiveRetriever).forEach { kind ->
+            assertFalse(kind.key in delta.resourceDeltas)
         }
     }
 
     @Test
     fun successfulArtwork_preservesPixelsAndReusesCachedDecode() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val diagnostics = appDiagnostics(context)
+        val baseline = diagnostics.captureJourneyBaseline()
         val file = File.createTempFile("artwork-cache-", ".png", context.cacheDir)
         val source = Bitmap.createBitmap(32, 16, Bitmap.Config.ARGB_8888)
         val uri = Uri.fromFile(file)
         try {
             source.eraseColor(0xff336699.toInt())
             file.outputStream().use { assertTrue(source.compress(Bitmap.CompressFormat.PNG, 100, it)) }
-            ElovaireTrace.clearRecordedSections()
-            val loaded = requireNotNull(loadArtworkBitmap(context, uri, 96, ArtworkPurpose.Notification))
+            val loaded = requireNotNull(
+                loadArtworkBitmap(context, uri, 96, ArtworkPurpose.Notification, diagnostics.resources),
+            )
 
-            repeat(5) { assertSame(loaded, loadArtworkBitmap(context, uri, 96, ArtworkPurpose.Notification)) }
+            repeat(5) {
+                assertSame(loaded, loadArtworkBitmap(context, uri, 96, ArtworkPurpose.Notification, diagnostics.resources))
+            }
 
             assertEquals(32, loaded.width)
             assertEquals(16, loaded.height)
             assertEquals(source.getPixel(16, 8), loaded.getPixel(16, 8))
-            assertEquals(1, ElovaireTrace.recordedSectionNames().count { it == "artwork_decode" })
+            assertEquals(1, diagnostics.captureJourneyDelta(baseline).traceSections.count { it == "artwork_decode" })
         } finally {
             ArtworkBitmapCache.removeAllMatchingUris(listOf(uri.toString()))
             source.recycle()
@@ -75,7 +81,9 @@ class ArtworkBitmapCacheInstrumentedTest {
     fun memoryPressure_shedsIndexedBitmapsWithoutRecyclingOrDecoding() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val application = instrumentation.targetContext.applicationContext as Application
-        ArtworkBitmapCache.ensureRegistered(application)
+        val diagnostics = appDiagnostics(application)
+        val baseline = diagnostics.captureJourneyBaseline()
+        ArtworkBitmapCache.ensureRegistered(application, diagnostics.resources)
         val prefix = "content://artwork/trim-${System.nanoTime()}"
         val uris = List(8) { Uri.parse("$prefix/$it") }
         val bitmaps = List(8) { Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888) }
@@ -84,7 +92,6 @@ class ArtworkBitmapCacheInstrumentedTest {
         try {
             keys.forEachIndexed { index, key -> ArtworkBitmapCache.put(key.cacheKey, bitmaps[index]) }
             val before = cachedCount()
-            ElovaireTrace.clearRecordedSections()
             instrumentation.runOnMainSync { application.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) }
             assertEquals(before, cachedCount())
             instrumentation.runOnMainSync { application.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) }
@@ -93,7 +100,7 @@ class ArtworkBitmapCacheInstrumentedTest {
             assertEquals(0, cachedCount())
             uris.forEach { assertNull(ArtworkBitmapCache.bestForUri(it, 512, ArtworkPurpose.UiLarge)) }
             bitmaps.forEach { assertFalse(it.isRecycled) }
-            assertEquals(0, ElovaireTrace.recordedSectionNames().count { it == "artwork_decode" })
+            assertEquals(0, diagnostics.captureJourneyDelta(baseline).traceSections.count { it == "artwork_decode" })
         } finally {
             ArtworkBitmapCache.removeAllMatchingUris(uris.map(Uri::toString))
             bitmaps.forEach(Bitmap::recycle)
@@ -103,6 +110,8 @@ class ArtworkBitmapCacheInstrumentedTest {
     @Test
     fun fullAdmission_doesNotDecodeOutsideCache() = runBlocking(Dispatchers.IO) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val diagnostics = appDiagnostics(context)
+        val baseline = diagnostics.captureJourneyBaseline()
         val started = CountDownLatch(8)
         val release = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(8)
@@ -123,23 +132,27 @@ class ArtworkBitmapCacheInstrumentedTest {
             }
             assertTrue(started.await(10, TimeUnit.SECONDS))
             val uri = Uri.fromFile(File(context.cacheDir, "missing-admission-${System.nanoTime()}.mp3"))
-            ElovaireTrace.clearRecordedSections()
-
-            assertNull(loadArtworkBitmap(context, uri, 512))
-            assertEquals(0, ElovaireTrace.recordedSectionNames().count { it == "artwork_decode" })
+            assertNull(loadArtworkBitmap(context, uri, 512, resourceTracker = diagnostics.resources))
+            assertEquals(0, diagnostics.captureJourneyDelta(baseline).traceSections.count { it == "artwork_decode" })
 
             val cancelled = async(start = CoroutineStart.UNDISPATCHED) {
-                loadArtworkBitmapAwaitingAdmission(context, uri, 512)
+                loadArtworkBitmapAwaitingAdmission(context, uri, 512, resourceTracker = diagnostics.resources)
             }
             assertFalse(cancelled.isCompleted)
             withTimeout(5_000L) { cancelled.cancelAndJoin() }
             val visibleRequests = List(16) {
                 async(start = CoroutineStart.UNDISPATCHED) {
-                    loadArtworkBitmapAwaitingAdmission(context, fixtureUri, 96, ArtworkPurpose.Notification)
+                    loadArtworkBitmapAwaitingAdmission(
+                        context,
+                        fixtureUri,
+                        96,
+                        ArtworkPurpose.Notification,
+                        diagnostics.resources,
+                    )
                 }
             }
             visibleRequests.forEach { assertFalse(it.isCompleted) }
-            assertEquals(0, ElovaireTrace.recordedSectionNames().count { it == "artwork_decode" })
+            assertEquals(0, diagnostics.captureJourneyDelta(baseline).traceSections.count { it == "artwork_decode" })
 
             release.countDown()
             pending.forEach { it.get(10, TimeUnit.SECONDS) }
@@ -148,7 +161,7 @@ class ArtworkBitmapCacheInstrumentedTest {
                 assertEquals(source.getPixel(16, 8), loaded.getPixel(16, 8))
                 visibleRequests.forEach { assertSame(loaded, it.await()) }
             }
-            assertEquals(1, ElovaireTrace.recordedSectionNames().count { it == "artwork_decode" })
+            assertEquals(1, diagnostics.captureJourneyDelta(baseline).traceSections.count { it == "artwork_decode" })
         } finally {
             release.countDown()
             executor.shutdownNow()

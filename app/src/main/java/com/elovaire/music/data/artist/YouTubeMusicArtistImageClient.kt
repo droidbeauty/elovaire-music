@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.artist
 
 import android.net.Uri
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
@@ -18,9 +20,11 @@ internal fun interface ArtistImageClient {
 }
 
 internal class YouTubeMusicArtistImageClient(
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
     private val transport: BoundedHttpTransport = BoundedHttpTransport(
         connectTimeoutMs = 6_000,
         readTimeoutMs = 8_000,
+        resourceTracker = resourceTracker,
     ),
 ) : ArtistImageClient {
     override suspend fun findArtistImage(artistName: String): ArtistImageLookup {

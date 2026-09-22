@@ -45,6 +45,7 @@ import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkCaches as invalidateDataArtworkCaches
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmission
 import elovaire.music.droidbeauty.app.data.artwork.normalizeArtworkRequestSize
+import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.ui.res.painterResource
@@ -161,6 +162,7 @@ fun rememberArtworkBitmap(
     size: Int,
 ): State<ImageBitmap?> {
     val context = LocalContext.current
+    val resourceTracker = LocalBackendResourceTracker.current
     val normalizedSize = normalizeArtworkRequestSize(size)
     val requestKey = artworkRequestKey(
         uri = uri,
@@ -171,7 +173,7 @@ fun rememberArtworkBitmap(
     val fallbackImage = requestKey?.let {
         ArtworkBitmapCache.bestForUri(it.uri, it.targetPx, it.purpose)?.asImageBitmap()
     }
-    return produceState<ImageBitmap?>(initialValue = cachedImage ?: fallbackImage, uri, normalizedSize) {
+    return produceState<ImageBitmap?>(initialValue = cachedImage ?: fallbackImage, uri, normalizedSize, resourceTracker) {
         val cached = requestKey?.let { ArtworkBitmapCache[it.cacheKey] }
         if (cached != null) {
             value = cached.asImageBitmap()
@@ -179,7 +181,7 @@ fun rememberArtworkBitmap(
         }
         value = value ?: fallbackImage
         val loaded = withContext(Dispatchers.IO) {
-            requestKey?.let { loadArtworkBitmapAwaitingAdmission(context, it) }?.also { bitmap ->
+            requestKey?.let { loadArtworkBitmapAwaitingAdmission(context, it, resourceTracker) }?.also { bitmap ->
                 bitmap.prepareToDraw()
             }?.asImageBitmap()
         }
@@ -190,6 +192,7 @@ fun rememberArtworkBitmap(
 @Composable
 fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     val context = LocalContext.current
+    val resourceTracker = LocalBackendResourceTracker.current
     val fallbackColor = MaterialTheme.colorScheme.primary
     val foundation = MaterialTheme.colorScheme.background
     val cacheKey = rememberGradientCacheKey(uri, 512)
@@ -197,6 +200,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
         initialValue = ArtworkGradientCache.gradient(cacheKey)?.toComposeColors()
             ?: defaultArtworkGradient(fallbackColor, foundation),
         key1 = uri,
+        key2 = resourceTracker,
     ) {
         val cached = ArtworkGradientCache.gradient(cacheKey)
         if (cached != null) {
@@ -204,7 +208,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
             return@produceState
         }
         value = withContext(Dispatchers.IO) {
-            val bitmap = loadArtworkBitmapAwaitingAdmission(context, uri, 512)
+            val bitmap = loadArtworkBitmapAwaitingAdmission(context, uri, 512, resourceTracker = resourceTracker)
             (bitmap?.let { paletteFromBitmap(it, foundation) } ?: defaultArtworkGradient(fallbackColor, foundation)).also { gradient ->
                 ArtworkGradientCache.putGradient(cacheKey, gradient.map { it.toArgb() })
             }
@@ -218,6 +222,7 @@ fun rememberArtworkPaletteAccent(
     size: Int = 512,
 ): State<Color?> {
     val context = LocalContext.current
+    val resourceTracker = LocalBackendResourceTracker.current
     val normalizedSize = normalizeArtworkRequestSize(size)
     val cacheKey = rememberPaletteAccentCacheKey(uri, normalizedSize)
     val cachedAccent = cacheKey?.let { ArtworkGradientCache.accent(it) }
@@ -225,6 +230,7 @@ fun rememberArtworkPaletteAccent(
         initialValue = cachedAccent?.let(::Color),
         key1 = uri,
         key2 = normalizedSize,
+        key3 = resourceTracker,
     ) {
         val cached = cacheKey?.let { ArtworkGradientCache.accent(it) }
         if (cached != null) {
@@ -232,7 +238,7 @@ fun rememberArtworkPaletteAccent(
             return@produceState
         }
         val bitmap = withContext(Dispatchers.IO) {
-            loadArtworkBitmapAwaitingAdmission(context, uri, normalizedSize)
+            loadArtworkBitmapAwaitingAdmission(context, uri, normalizedSize, resourceTracker = resourceTracker)
         }
         val accent = bitmap?.let {
             withContext(Dispatchers.Default) {

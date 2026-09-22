@@ -38,26 +38,26 @@ internal class PortableUserDataBackupRuntime(
         job = appScope.launch {
             var restoreChecked = false
             val contentSongs = libraryRepository.contentState
-                .map { content -> content.contentRevision to content.songs }
-                .distinctUntilChanged()
+                .map { content -> content.portableMediaIdentityRevision to content.songs }
+                .distinctUntilChanged { previous, next -> previous.first == next.first }
             val scanReadiness = libraryRepository.scanState
                 .map { scan -> scan.permissionGranted to scan.isAuthoritative }
                 .distinctUntilChanged()
             combine(
-                userDataStore.userDataSnapshot,
+                userDataStore.revisionedUserDataSnapshot,
                 userDataStore.userDataReadiness,
                 contentSongs,
                 scanReadiness,
-            ) { snapshot, readiness, content, scan ->
+            ) { revisionedSnapshot, readiness, content, scan ->
                 PortableUserDataBackupState(
-                    snapshot = snapshot,
+                    revisionedSnapshot = revisionedSnapshot,
                     readiness = readiness,
                     songs = content.second,
-                    contentRevision = content.first,
+                    portableMediaIdentityRevision = content.first,
                     permissionGranted = scan.first,
                     isAuthoritative = scan.second,
                 )
-            }.map { state -> state.copy(userDataRevision = userDataStore.currentUserDataRevision) }
+            }.map { state -> state.copy(userDataRevision = state.revisionedSnapshot.revision) }
                 .distinctUntilChanged()
                 .debounce(PORTABLE_USER_DATA_BACKUP_COALESCE_DELAY_MS)
                 .collect { state ->
@@ -98,7 +98,7 @@ internal class PortableUserDataBackupRuntime(
                                 snapshot = state.snapshot,
                                 songs = state.songs,
                                 userDataRevision = state.userDataRevision,
-                                contentRevision = state.contentRevision,
+                                contentRevision = state.portableMediaIdentityRevision,
                             )
                         }
                     } catch (cancelled: CancellationException) {
@@ -123,14 +123,16 @@ internal class PortableUserDataBackupRuntime(
 }
 
 private data class PortableUserDataBackupState(
-    val snapshot: UserDataSnapshot,
+    val revisionedSnapshot: elovaire.music.droidbeauty.app.data.settings.RevisionedUserDataSnapshot,
     val readiness: UserDataReadiness,
     val songs: List<elovaire.music.droidbeauty.app.domain.model.Song>,
-    val contentRevision: String = "",
+    val portableMediaIdentityRevision: String = "",
     val permissionGranted: Boolean,
     val isAuthoritative: Boolean,
-    val userDataRevision: Long = 0L,
-)
+    val userDataRevision: Long = revisionedSnapshot.revision,
+) {
+    val snapshot: UserDataSnapshot get() = revisionedSnapshot.snapshot
+}
 
 internal fun shouldRestorePortableUserData(
     localRevision: Long,

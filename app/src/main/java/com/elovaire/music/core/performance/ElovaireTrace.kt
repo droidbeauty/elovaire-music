@@ -61,10 +61,20 @@ internal object ElovaireTrace {
     }
 
     private val nextAsyncCookie = AtomicInteger(1)
-    private val recordedSections = ArrayDeque<String>()
+    private data class RecordedSection(val sequence: Long, val name: String)
+
+    private val recordedSections = ArrayDeque<RecordedSection>()
+    private var recordSequence = 0L
 
     @Synchronized
-    fun recordedSectionNames(): List<String> = recordedSections.toList()
+    fun recordedSectionNames(): List<String> = recordedSections.map { it.name }
+
+    @Synchronized
+    fun sequenceMarker(): Long = recordSequence
+
+    @Synchronized
+    fun sectionNamesAfter(marker: Long): List<String> =
+        recordedSections.filter { it.sequence > marker }.map { it.name }
 
     @Synchronized
     fun clearRecordedSections() {
@@ -75,7 +85,7 @@ internal object ElovaireTrace {
     private fun record(name: String) {
         if (!BuildConfig.DEBUG) return
         if (recordedSections.size == MAX_RECORDED_SECTIONS) recordedSections.removeFirst()
-        recordedSections.addLast(name.take(MAX_TRACE_NAME_LENGTH))
+        recordedSections.addLast(RecordedSection(++recordSequence, name.take(MAX_TRACE_NAME_LENGTH)))
     }
 
     private const val MAX_RECORDED_SECTIONS = 128

@@ -12,6 +12,8 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.AppWorkKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
@@ -45,11 +47,13 @@ internal class GitHubUpdateController(
     private val preferences: UpdatePreferencesStore,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val clock: AppClock = AndroidAppClock,
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) : UpdateController {
     private val appContext = context.applicationContext
     private val boundedHttpTransport = BoundedHttpTransport(
         connectTimeoutMs = 12_000,
         readTimeoutMs = 12_000,
+        resourceTracker = resourceTracker,
     )
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     override val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
@@ -121,7 +125,7 @@ internal class GitHubUpdateController(
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     ElovaireTrace.section("update_release_fetch") {
-                        GitHubReleaseClient.fetchNewerRelease(BuildConfig.VERSION_NAME)
+                        GitHubReleaseClient.fetchNewerRelease(BuildConfig.VERSION_NAME, boundedHttpTransport)
                     }
                 }
             }
@@ -581,17 +585,15 @@ internal class GitHubUpdateController(
 }
 
 private object GitHubReleaseClient {
-    private val transport = BoundedHttpTransport(
-        connectTimeoutMs = 12_000,
-        readTimeoutMs = 12_000,
-    )
-
-    suspend fun fetchNewerRelease(installedVersion: String): AppReleaseInfo? {
-        val latest = runNetworkCatching { parseRelease(JSONObject(getText(LATEST_RELEASE_URL))) }.getOrNull()
+    suspend fun fetchNewerRelease(
+        installedVersion: String,
+        transport: BoundedHttpTransport,
+    ): AppReleaseInfo? {
+        val latest = runNetworkCatching { parseRelease(JSONObject(getText(LATEST_RELEASE_URL, transport))) }.getOrNull()
         if (latest != null && AppVersionPolicy.isNewer(latest.versionName, installedVersion)) {
             return latest
         }
-        val releases = runNetworkCatching { JSONArray(getText(RELEASES_URL)) }.getOrNull() ?: return null
+        val releases = runNetworkCatching { JSONArray(getText(RELEASES_URL, transport)) }.getOrNull() ?: return null
         return buildList {
             for (index in 0 until releases.length()) {
                 parseRelease(releases.optJSONObject(index))?.let(::add)
@@ -655,6 +657,7 @@ private object GitHubReleaseClient {
 
     private suspend fun getText(
         url: String,
+        transport: BoundedHttpTransport,
         accept: String = "application/vnd.github+json",
         maxBytes: Int = MAX_RELEASE_METADATA_BYTES,
     ): String {

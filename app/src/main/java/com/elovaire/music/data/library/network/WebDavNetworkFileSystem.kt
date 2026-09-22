@@ -12,19 +12,26 @@ import java.time.format.DateTimeFormatter
 import java.util.Base64
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import org.w3c.dom.Element
 
-internal class WebDavNetworkFileSystem : NetworkFileSystem {
+internal class WebDavNetworkFileSystem(
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+) : NetworkFileSystem {
     private val rangeCapabilities = ConcurrentHashMap<String, NetworkRangeCapability>()
+    private val activeConnections = ConcurrentHashMap.newKeySet<HttpURLConnection>()
+    private val released = AtomicBoolean(false)
 
     override fun probeBlocking(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ): NetworkProbeResult {
+        checkNotReleased()
         return runCatching {
             propFind(source, credentials, source.shareOrPath, depth = 0)
             NetworkProbeResult(NetworkAvailability.Available)
@@ -39,6 +46,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         maxEntries: Int,
         maxDepth: Int,
     ): NetworkListingResult {
+        checkNotReleased()
         require(maxEntries > 0)
         val results = ArrayList<NetworkFileEntry>()
         val pending = ArrayDeque<Pair<String, Int>>()
@@ -82,6 +90,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         position: Long,
         length: Long,
     ): NetworkReadHandle {
+        checkNotReleased()
         require(position >= 0L)
         require(length == -1L || length >= 0L)
         val requestedEnd = if (length > 0L) {
@@ -99,10 +108,14 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
             path = path,
             range = if (requestsRange) "bytes=$position-${requestedEnd ?: ""}" else null,
         )
+        if (released.get()) {
+            disconnect(connection)
+            throw IllegalStateException("WebDAV file system is released")
+        }
         val status = connection.responseCode
         if (status == HTTP_RANGE_NOT_SATISFIABLE) {
             val totalLength = parseUnsatisfiedContentRange(connection.getHeaderField("Content-Range"))
-            connection.disconnect()
+            disconnect(connection)
             if (totalLength != null && position == totalLength) {
                 rangeCapabilities[source.id] = NetworkRangeCapability.Supported
                 return NetworkReadHandle(
@@ -117,7 +130,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
             throw IOException("WebDAV media range is not satisfiable")
         }
         if (status !in 200..299) {
-            connection.disconnect()
+            disconnect(connection)
             throw WebDavHttpException(status)
         }
         val responseLength = connection.contentLengthLong.takeIf { it >= 0L }
@@ -134,7 +147,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                     (responseLength == null || responseLength == rangeLength) &&
                     (contentRange.totalLength == null || contentRange.end < contentRange.totalLength)
                 if (!valid) {
-                    connection.disconnect()
+                    disconnect(connection)
                     throw IOException("WebDAV server returned an invalid Content-Range")
                 }
                 rangeCapabilities[source.id] = NetworkRangeCapability.Supported
@@ -143,7 +156,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
             }
             HttpURLConnection.HTTP_OK -> {
                 if (position > 0L) {
-                    connection.disconnect()
+                    disconnect(connection)
                     rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
                     throw NetworkRangeUnsupportedException("WebDAV server did not honor the requested byte range")
                 }
@@ -163,17 +176,17 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                 handleLength = boundedLength
             }
             else -> {
-                connection.disconnect()
+                disconnect(connection)
                 throw IOException("WebDAV media request returned unsupported HTTP $status")
             }
         }
-        val requestResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveWebDavRequest)
+        val requestResource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
         return NetworkReadHandle(
             input = input,
             length = handleLength,
             closeHandle = {
                 try {
-                    connection.disconnect()
+                    disconnect(connection)
                 } finally {
                     requestResource.close()
                 }
@@ -189,13 +202,19 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         rangeCapabilities.clear()
     }
 
+    override fun release() {
+        if (!released.compareAndSet(false, true)) return
+        rangeCapabilities.clear()
+        activeConnections.toList().forEach(::disconnect)
+    }
+
     private fun propFind(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
         path: String,
         depth: Int,
     ): List<NetworkFileEntry> {
-        val requestResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveWebDavRequest)
+        val requestResource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
         var connection: HttpURLConnection? = null
         return try {
             val establishedConnection = executePropFind(source, credentials, path, depth)
@@ -204,7 +223,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                 parseMultiStatus(input.readBounded(MAX_PROPFIND_BYTES), source, path)
             }
         } finally {
-            connection?.disconnect()
+            disconnect(connection)
             requestResource.close()
         }
     }
@@ -216,6 +235,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         path: String,
         range: String?,
     ): HttpURLConnection {
+        checkNotReleased()
         var url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
             ?: throw IOException("WebDAV requires an HTTPS server URL")
         val visited = hashSetOf(url.toString())
@@ -230,16 +250,16 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                 if (status !in REDIRECT_STATUSES) return connection
                 val next = connection.getHeaderField("Location")
                     ?.let { resolveRedirect(url, it, source) }
-                connection.disconnect()
+                disconnect(connection)
                 if (++redirects > MAX_REDIRECTS || next == null || !visited.add(next.toString())) {
                     throw NetworkRedirectException("WebDAV redirect policy rejected the response")
                 }
                 url = next
             } catch (failure: IOException) {
-                connection.disconnect()
+                disconnect(connection)
                 throw failure
             } catch (failure: RuntimeException) {
-                connection.disconnect()
+                disconnect(connection)
                 throw failure
             }
         }
@@ -252,6 +272,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         path: String,
         depth: Int,
     ): HttpURLConnection {
+        checkNotReleased()
         var url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
             ?: throw IOException("WebDAV requires an HTTPS server URL")
         val visited = hashSetOf(url.toString())
@@ -274,22 +295,23 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                 }
                 val next = connection.getHeaderField("Location")
                     ?.let { resolveRedirect(url, it, source) }
-                connection.disconnect()
+                disconnect(connection)
                 if (++redirects > MAX_REDIRECTS || next == null || !visited.add(next.toString())) {
                     throw NetworkRedirectException("WebDAV redirect policy rejected the response")
                 }
                 url = next
             } catch (failure: IOException) {
-                connection.disconnect()
+                disconnect(connection)
                 throw failure
             } catch (failure: RuntimeException) {
-                connection.disconnect()
+                disconnect(connection)
                 throw failure
             }
         }
     }
 
     private fun openConnection(url: URL, credentials: NetworkCredentials): HttpURLConnection {
+        checkNotReleased()
         if (!url.protocol.equals("https", ignoreCase = true)) throw IOException("WebDAV requires HTTPS")
         return (url.openConnection() as? HttpURLConnection)?.apply {
             connectTimeout = TIMEOUT_MS
@@ -297,7 +319,17 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
             instanceFollowRedirects = false
             setRequestProperty("Authorization", basicAuth(credentials))
             setRequestProperty("Accept", "application/xml, text/xml, */*")
-        } ?: throw IOException("Unsupported WebDAV connection")
+        }?.also(activeConnections::add) ?: throw IOException("Unsupported WebDAV connection")
+    }
+
+    private fun checkNotReleased() {
+        check(!released.get()) { "WebDAV file system is released" }
+    }
+
+    private fun disconnect(connection: HttpURLConnection?) {
+        if (connection == null) return
+        activeConnections.remove(connection)
+        runCatching { connection.disconnect() }
     }
 
     private fun resolveRedirect(current: URL, location: String, source: NetworkLibrarySource): URL? {

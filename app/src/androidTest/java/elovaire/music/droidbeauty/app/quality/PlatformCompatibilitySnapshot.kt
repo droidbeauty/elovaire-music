@@ -10,11 +10,11 @@ import android.os.PowerManager
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.ElovaireApp
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.AppExitCategory
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.StrictModeViolationRecorder
-import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 
 internal enum class PlatformPermissionState {
@@ -174,7 +174,7 @@ internal fun Context.platformCompatibilitySnapshot(
         memoryPressureMode = runtimeState.memoryPressureMode,
         lastExitCategory = runtimeState.lastExitCategory,
         strictModeViolationCount = StrictModeViolationRecorder.snapshot().sumOf { it.count },
-        resourceCounters = BackendResourceRegistry.snapshot()
+        resourceCounters = (applicationContext as ElovaireApp).container.backendDiagnosticsRuntime.resources.snapshot()
             .asSequence()
             .sortedBy { (name, _) -> name }
             .take(MAX_DIAGNOSTIC_ENTRIES)

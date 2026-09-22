@@ -41,6 +41,46 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     @Query("INSERT OR REPLACE INTO user_data_revision(singletonId, revision) VALUES(0, :revision)")
     suspend fun writeUserDataRevision(revision: Long)
 
+    @Query("SELECT EXISTS(SELECT 1 FROM library_commit_relocations WHERE commitId = :commitId)")
+    suspend fun libraryCommitRelocationApplied(commitId: String): Boolean
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertLibraryCommitRelocation(commit: LibraryCommitRelocationEntity): Long
+
+    @Query("SELECT * FROM audiobook_progress ORDER BY bookKey")
+    suspend fun audiobookProgressRows(): List<AudiobookProgressEntity>
+
+    @Query("SELECT * FROM audiobook_progress WHERE bookKey = :bookKey")
+    suspend fun audiobookProgress(bookKey: String): AudiobookProgressEntity?
+
+    @Upsert
+    suspend fun upsertAudiobookProgress(progress: AudiobookProgressEntity)
+
+    @Upsert
+    suspend fun upsertAudiobookProgressRows(progress: List<AudiobookProgressEntity>)
+
+    @Query("DELETE FROM audiobook_progress WHERE bookKey = :bookKey")
+    suspend fun deleteAudiobookProgress(bookKey: String)
+
+    @Query("UPDATE audiobook_progress SET songId = :newSongId WHERE songId = :oldSongId")
+    suspend fun relocateAudiobookProgress(oldSongId: Long, newSongId: Long)
+
+    @Transaction
+    suspend fun relocateAudiobookProgress(replacements: Map<Long, Long>) {
+        replacements.forEach { (oldSongId, newSongId) ->
+            relocateAudiobookProgress(oldSongId, newSongId)
+        }
+    }
+
+    @Transaction
+    suspend fun migrateLegacyAudiobookProgress(
+        rows: List<AudiobookProgressEntity>,
+        migration: UserDataMigrationEntity,
+    ) {
+        if (rows.isNotEmpty()) upsertAudiobookProgressRows(rows)
+        insertMigration(migration)
+    }
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlaylist(playlist: UserPlaylistEntity)
 

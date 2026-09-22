@@ -4,6 +4,8 @@ import android.content.Context
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.LinkedHashMap
 import kotlinx.coroutines.CoroutineDispatcher
@@ -14,10 +16,11 @@ internal class LyricsRepository(
     appContext: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: AppClock = AndroidAppClock,
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val cache = LyricsCache(appContext.applicationContext, clock, ioDispatcher)
     private val localLyricsResolver = LocalLyricsResolver(appContext.applicationContext)
-    private val lrclibClient = LrclibClient()
+    private val lrclibClient = LrclibClient(resourceTracker = resourceTracker)
     private data class MemoryEntry(
         val keys: Set<String>,
         val value: LyricsCacheEntry,

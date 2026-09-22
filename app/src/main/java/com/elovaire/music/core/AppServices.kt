@@ -33,7 +33,6 @@ import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
 import androidx.media3.datasource.DefaultDataSource
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
-import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
@@ -57,6 +56,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PortableUserDataBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
+import elovaire.music.droidbeauty.app.data.settings.SettingsDrainResult
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
@@ -64,7 +64,10 @@ import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(UnstableApi::class)
@@ -77,6 +80,8 @@ internal class AppServices(
     private val portableSettingsBackup: PortableSettingsBackup,
     internal val backendDiagnostics: BackendDiagnosticsRuntime,
 ) {
+    private val releaseStarted = AtomicBoolean(false)
+    private val releaseCompletion = CompletableDeferred<AppServicesShutdownResult>()
     private val serviceScopes = AppServiceScopes(appScope, backendDiagnostics)
     private val playbackScope = serviceScopes.playback
     private val libraryScope = serviceScopes.library
@@ -126,8 +131,11 @@ internal class AppServices(
             sourceStore = networkSourceStore,
             credentialStore = networkCredentialStoreDelegate.value,
             fileSystems = mapOf(
-                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(optionalScope),
-                NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
+                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(
+                    scope = optionalScope,
+                    resourceTracker = backendDiagnostics.resources,
+                ),
+                NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(backendDiagnostics.resources),
             ),
             localNetworkAccessAllowed = { applicationContext.hasLocalNetworkPermission() },
             applicationContext = applicationContext,
@@ -155,6 +163,7 @@ internal class AppServices(
     )
     val audiobookChapterReader: AudiobookChapterReader = Media3AudiobookChapterReader(
         dataSourceFactory = networkDataSourceFactory,
+        backendEventSink = backendEventSink,
     )
     val audiobookDescriptionReader: AudiobookDescriptionReader = GoogleBooksAudiobookDescriptionReader(
         transport = elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport(
@@ -175,11 +184,13 @@ internal class AppServices(
             scope = optionalScope,
             preferences = preferenceStore,
             backgroundWorkPolicy = backgroundWorkPolicy,
+            resourceTracker = backendDiagnostics.resources,
         )
     }
     val updateController: UpdateController get() = updateControllerDelegate.value
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         ArtistImageRepository(
+            resourceTracker = backendDiagnostics.resources,
             appContext = applicationContext,
             scope = optionalScope,
             ioDispatcher = appDispatchers.io,
@@ -202,6 +213,9 @@ internal class AppServices(
     val playbackManager = PlaybackManager(
         context = applicationContext,
         scope = playbackScope,
+        audiobookProgressRepository = userDataStore,
+        audiobookPlaybackSpeedPreferences = preferenceStore.audiobookPlaybackSpeed,
+        onAudiobookPlaybackSpeedChanged = preferenceStore::setAudiobookPlaybackSpeed,
         audioProcessorsProvider = playbackEffectsController::audioProcessors,
         hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,
         initialRecentSongIds = userDataStore.recentSongIds.value,
@@ -242,15 +256,13 @@ internal class AppServices(
         },
         scope = libraryScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
-        libraryIndexStore = LibraryIndexStore(database.libraryIndexDao()),
         ioDispatcher = appDispatchers.io,
         defaultDispatcher = appDispatchers.default,
         backendEventSink = backendEventSink,
         resourceTracker = backendDiagnostics.resources,
-        onSongRelocations = { replacements ->
-            when (val result = userDataStore.relocateSongReferences(replacements).await()) {
+        onSongRelocations = { commitId, replacements ->
+            when (val result = userDataStore.relocateSongReferences(commitId, replacements).await()) {
                 is PlaylistMutationResult.Success -> {
-                    playbackManager.remapAudiobookProgress(replacements)
                     SongRelocationOutcome.Applied
                 }
                 is PlaylistMutationResult.Failure -> SongRelocationOutcome.RetryableFailure
@@ -297,6 +309,7 @@ internal class AppServices(
             context = applicationContext,
             mediaMutationJournal = mediaMutationJournal,
             mediaMutationRuntime = mediaMutationRuntime,
+            resourceTracker = backendDiagnostics.resources,
             onlineLyricsEnabled = { preferenceStore.onlineLyricsEnabled.value },
         )
     }
@@ -369,13 +382,14 @@ internal class AppServices(
             "The library is not ready for portable user-data export."
         }
         val content = libraryRepository.contentState.value
+        val revisionedUserData = userDataStore.revisionedUserDataSnapshot.value
         return portableUserDataBackup.encode(
-            snapshot = userDataStore.userDataSnapshot.value,
+            snapshot = revisionedUserData.snapshot,
             songs = content.songs,
             createdAtMs = AndroidAppClock.wallTimeMs(),
             appVersion = BuildConfig.VERSION_NAME,
-            userDataRevision = userDataStore.currentUserDataRevision,
-            contentRevision = content.contentRevision,
+            userDataRevision = revisionedUserData.revision,
+            contentRevision = content.portableMediaIdentityRevision,
         )
     }
 
@@ -399,7 +413,8 @@ internal class AppServices(
         mediaTree.onMemoryPressure(pressure)
     }
 
-    fun release() {
+    fun release(): Deferred<AppServicesShutdownResult> {
+        if (!releaseStarted.compareAndSet(false, true)) return releaseCompletion
         val databaseClosed = AtomicBoolean(false)
         val closeDatabase = {
             if (databaseClosed.compareAndSet(false, true)) {
@@ -410,40 +425,61 @@ internal class AppServices(
                 }
             }
         }
-        releaseBestEffort(
-            { startupCoordinator.release() },
-            { portableUserDataBackupRuntime.release() },
-            { networkBackend.close() },
-            { mediaLibraryInvalidationCoordinator.close() },
-            { serviceScopes.cancelOptional() },
-            { playbackManager.release() },
-            { serviceScopes.cancelPlayback() },
-            { if (updateControllerDelegate.isInitialized()) updateController.release() },
-            { if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release() },
-            { libraryRepository.release() },
-            { serviceScopes.cancelLibrary() },
-            {
-                if (networkFileSystemRegistryDelegate.isInitialized()) {
-                    networkFileSystemRegistryDelegate.value.release()
-                }
-            },
-            { mediaMutationRuntime.close() },
-            { mediaMutationJournal.close() },
-            { preferenceStore.release() },
-            {
-                try {
-                    userDataStore.release(closeDatabase)
-                } catch (failure: Throwable) {
-                    try {
-                        closeDatabase()
-                    } catch (cleanupFailure: Throwable) {
-                        if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+        val failures = mutableListOf<Throwable>()
+        try {
+            releaseBestEffort(
+                { startupCoordinator.release() },
+                { portableUserDataBackupRuntime.release() },
+                { networkBackend.close() },
+                { mediaLibraryInvalidationCoordinator.close() },
+                { serviceScopes.cancelOptional() },
+                { playbackManager.release() },
+                { serviceScopes.cancelPlayback() },
+                { if (updateControllerDelegate.isInitialized()) updateController.release() },
+                { if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release() },
+                { libraryRepository.release() },
+                { serviceScopes.cancelLibrary() },
+                {
+                    if (networkFileSystemRegistryDelegate.isInitialized()) {
+                        networkFileSystemRegistryDelegate.value.release()
                     }
-                    throw failure
-                }
-            },
-            { portableSettingsBackup.release() },
-            { mediaLibraryReadExecutor.close() },
-        )
+                },
+                { mediaMutationRuntime.close() },
+                { mediaMutationJournal.close() },
+                { portableSettingsBackup.release() },
+                { mediaLibraryReadExecutor.close() },
+            )
+        } catch (failure: Throwable) {
+            failures += failure
+        }
+
+        var settingsDrain: Deferred<SettingsDrainResult>? = null
+        var userDataDrain: Deferred<Unit>? = null
+        try {
+            settingsDrain = preferenceStore.release()
+        } catch (failure: Throwable) {
+            failures += failure
+        }
+        try {
+            userDataDrain = userDataStore.release(closeDatabase)
+        } catch (failure: Throwable) {
+            failures += failure
+            runCatching { closeDatabase() }.onFailure(failures::add)
+        }
+        appScope.launch {
+            settingsDrain?.let { drain ->
+                runCatching { drain.await() }.onFailure(failures::add)
+            }
+            userDataDrain?.let { drain ->
+                runCatching { drain.await() }.onFailure(failures::add)
+            }
+            failures.forEach { failure -> backendDiagnostics.recordWorkerFailure("app-shutdown", failure) }
+            releaseCompletion.complete(AppServicesShutdownResult(failures.toList()))
+        }
+        return releaseCompletion
     }
 }
+
+internal data class AppServicesShutdownResult(
+    val failures: List<Throwable>,
+)

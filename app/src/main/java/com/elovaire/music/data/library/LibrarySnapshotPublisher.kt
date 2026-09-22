@@ -45,6 +45,7 @@ internal class LibrarySnapshotPublisher(
             contentRevision = snapshot.contentRevision.ifBlank {
                 librarySongsContentRevision(snapshot.songs)
             },
+            portableMediaIdentityRevision = MediaIdentityResolver.portableIdentityRevision(snapshot.songs),
         )
     }
 
@@ -75,6 +76,7 @@ internal class LibrarySnapshotPublisher(
         editedSongs: List<Song>,
         removingSongIds: Set<Long>,
         removingAlbumIds: Set<Long>,
+        publishResult: Boolean = true,
     ): LibraryContentState {
         lastPatchChangeSet = LibraryChangeSet.Empty
         if (editedSongs.isEmpty()) return currentState()
@@ -159,8 +161,9 @@ internal class LibrarySnapshotPublisher(
                 previousRevision = current.contentRevision,
                 patches = patches,
             ),
+            portableMediaIdentityRevision = MediaIdentityResolver.portableIdentityRevision(canonicalUpdatedSongs),
         )
-        if (!hasSamePublishedState(current, nextState)) publish(nextState)
+        if (publishResult && !hasSamePublishedState(current, nextState)) publish(nextState)
         return nextState
     }
 

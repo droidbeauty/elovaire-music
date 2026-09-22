@@ -20,6 +20,7 @@ import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import elovaire.music.droidbeauty.app.data.library.queryCancellable
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -53,6 +54,7 @@ internal object ExternalAudioIntentHandler {
         intent: Intent?,
         ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
         clock: AppClock = AndroidAppClock,
+        resourceTracker: BackendResourceTracker = BackendResourceRegistry,
     ): Song? = withContext(ioDispatcher) {
         if (!canHandle(intent)) return@withContext null
         val uri = intent?.data ?: return@withContext null
@@ -84,7 +86,7 @@ internal object ExternalAudioIntentHandler {
         }
 
         val title = ExternalAudioMetadataPolicy.titleFromDisplayName(displayName)
-        val durationMs = detected.durationMs ?: contentResolver.readDurationMs(context, playbackUri)
+        val durationMs = detected.durationMs ?: contentResolver.readDurationMs(context, playbackUri, resourceTracker)
         val uriValue = playbackUri.toString()
 
         Song(
@@ -197,10 +199,11 @@ internal object ExternalAudioIntentHandler {
     private fun ContentResolver.readDurationMs(
         context: Context,
         uri: Uri,
+        resourceTracker: BackendResourceTracker,
     ): Long {
         return runCatching {
             val retriever = MediaMetadataRetriever()
-            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
+            val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
             try {
                 retriever.setDataSource(context, uri)
                 ExternalAudioMetadataPolicy.boundedDurationMs(

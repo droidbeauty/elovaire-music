@@ -12,6 +12,8 @@ import elovaire.music.droidbeauty.app.data.library.db.RecentPlaybackEntity
 import elovaire.music.droidbeauty.app.data.library.db.SongPlayCountEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgressRepository
 import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
@@ -148,7 +150,7 @@ class RoomUserDataStoreTest {
         )
 
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
-        val result = store.relocateSongReferences(mapOf(11L to 22L)).await()
+        val result = store.relocateSongReferences("test-library-commit", mapOf(11L to 22L)).await()
 
         assertTrue(result is PlaylistMutationResult.Success)
         assertEquals(listOf(22L), database.userDataDao().playlistEntries(41L).map(UserPlaylistEntryEntity::songId))
@@ -159,6 +161,32 @@ class RoomUserDataStoreTest {
         assertEquals(listOf(22L), store.favoriteSongIds.value)
         assertEquals(listOf(22L), store.recentSongIds.value)
         store.release()
+    }
+
+    @Test
+    fun audiobookProgressIsCoalescedDrainedAndRelocatedWithUserReferences() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
+        withTimeout(10_000L) {
+            store.userDataReadiness.first { it == UserDataReadiness.Ready }
+        }
+        val repository = store as AudiobookProgressRepository
+        repository.save(
+            "book-key",
+            AudiobookProgress(songId = 11L, positionMs = 120_000L, completed = false, updatedAtMs = 10L),
+        )
+        repository.save(
+            "book-key",
+            AudiobookProgress(songId = 11L, positionMs = 0L, completed = false, updatedAtMs = 20L),
+            force = true,
+        )
+
+        assertTrue(store.relocateSongReferences("audiobook-relocation", mapOf(11L to 22L)).await() is PlaylistMutationResult.Success)
+        assertEquals(22L, repository.load("book-key")?.songId)
+        assertEquals(0L, repository.load("book-key")?.positionMs)
+        assertEquals(22L, database.userDataDao().audiobookProgressRows().single().songId)
+        assertEquals(0L, database.userDataDao().audiobookProgressRows().single().positionMs)
+
+        store.release().await()
     }
 
     @Test
@@ -183,16 +211,16 @@ class RoomUserDataStoreTest {
     fun userDataRevisionAdvancesOnlyAfterAnAcceptedMutation() = runBlocking {
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
 
-        assertEquals(0L, store.currentUserDataRevision)
+        assertEquals(0L, store.revisionedUserDataSnapshot.value.revision)
         val result = store.createPlaylist("Revisioned").await()
 
         assertTrue(result is PlaylistMutationResult.Success)
-        assertEquals(1L, store.currentUserDataRevision)
+        assertEquals(1L, store.revisionedUserDataSnapshot.value.revision)
         assertEquals(1L, database.userDataDao().userDataRevision())
 
         val invalid = store.updatePlaylistSongIds(999_999L, listOf(1L)).await()
         assertTrue(invalid is PlaylistMutationResult.NotFound)
-        assertEquals(1L, store.currentUserDataRevision)
+        assertEquals(1L, store.revisionedUserDataSnapshot.value.revision)
         assertEquals(1L, database.userDataDao().userDataRevision())
         store.release()
     }

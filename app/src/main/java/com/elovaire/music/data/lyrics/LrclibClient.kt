@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.IOException
 import java.net.URLEncoder
@@ -8,7 +10,8 @@ import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 
 internal class LrclibClient(
-    private val transport: BoundedHttpTransport = BoundedHttpTransport(),
+    resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val transport: BoundedHttpTransport = BoundedHttpTransport(resourceTracker = resourceTracker),
 ) {
     suspend fun fetch(song: Song): LyricsResult {
         return try {

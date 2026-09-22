@@ -15,10 +15,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.isActive
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticRecorder
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
@@ -54,6 +56,7 @@ internal class AppBridgeCoordinator(
     private val lifecycleLock = Any()
     private var deferredStartupJob: Job? = null
     private var libraryFoldersJob: Job? = null
+    private var releaseDrain: Deferred<PlaybackSessionDrainResult>? = null
 
     fun startPlayback() {
         if (!bridgeScope.isActive) return
@@ -94,20 +97,33 @@ internal class AppBridgeCoordinator(
         }
     }
 
-    fun release() {
+    fun release(): Deferred<PlaybackSessionDrainResult> {
         synchronized(lifecycleLock) {
-            releaseBestEffort(
-                {
-                    libraryFoldersJob?.cancel()
-                    libraryFoldersJob = null
-                },
-                {
-                    deferredStartupJob?.cancel()
-                    deferredStartupJob = null
-                },
-                { playbackIntegration.release() },
-                { bridgeScope.cancel() },
-            )
+            releaseDrain?.let { return it }
+            runCatching {
+                releaseBestEffort(
+                    {
+                        libraryFoldersJob?.cancel()
+                        libraryFoldersJob = null
+                    },
+                    {
+                        deferredStartupJob?.cancel()
+                        deferredStartupJob = null
+                    },
+                )
+            }.onFailure { failure -> diagnostics.recordWorkerFailure("app-bridge-release", failure) }
+            val drain = runCatching { playbackIntegration.release() }.getOrElse { failure ->
+                diagnostics.recordWorkerFailure("app-bridge-release", failure)
+                CompletableDeferred<PlaybackSessionDrainResult>().apply {
+                    complete(PlaybackSessionDrainResult.Failed(failure))
+                }
+            }
+            releaseDrain = drain
+            bridgeScope.launch {
+                runCatching { drain.await() }
+                bridgeScope.cancel()
+            }
+            return drain
         }
     }
 }

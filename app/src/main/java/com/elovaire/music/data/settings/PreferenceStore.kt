@@ -29,17 +29,21 @@ import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgressStore
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsPolicy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,9 +96,18 @@ class PreferenceStore internal constructor(
     private val legacyPreferences: SharedPreferences = allowStrictModeDiskReads {
         PreferenceStorage(appContext).preferences
     }
+    private val legacyAudiobookPreferences: SharedPreferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        allowStrictModeDiskReads {
+            appContext.getSharedPreferences(AudiobookProgressStore.LEGACY_FILE_NAME, Context.MODE_PRIVATE)
+        }
+    }
     private var pendingCrossfadeDurationMs: Long? = null
     private var pendingCrossfadeSilenceThresholdDb: Float? = null
     private val released = AtomicBoolean(false)
+    private val releaseLock = Any()
+    private var releaseDrain: Deferred<SettingsDrainResult>? = null
+    private val audiobookSpeedMigrationLock = Any()
+    private var audiobookSpeedWasChanged = false
 
     private val _dismissedUpdateVersion = MutableStateFlow(
         preferences.getString(KEY_DISMISSED_UPDATE_VERSION, null)
@@ -128,6 +141,9 @@ class PreferenceStore internal constructor(
 
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
+
+    private val _audiobookPlaybackSpeed = MutableStateFlow(loadAudiobookPlaybackSpeed())
+    override val audiobookPlaybackSpeed: StateFlow<Float> = _audiobookPlaybackSpeed.asStateFlow()
 
     private val _crossfadeEnabled = MutableStateFlow(loadCrossfadeEnabled())
     override val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled.asStateFlow()
@@ -174,6 +190,7 @@ class PreferenceStore internal constructor(
 
     init {
         migrateLegacyUpdatePreferencesIfNeeded()
+        migrateLegacyAudiobookPlaybackSpeed()
         persistenceScope.launch {
             settingsDataStore.data.collect(::applyDataStoreSettings)
         }
@@ -333,6 +350,20 @@ class PreferenceStore internal constructor(
         }
     }
 
+    override fun setAudiobookPlaybackSpeed(value: Float) {
+        val normalized = value.takeIf(Float::isFinite)?.coerceIn(0.5f, 2.5f) ?: 1f
+        synchronized(audiobookSpeedMigrationLock) {
+            audiobookSpeedWasChanged = true
+            updateStateAndPreference(
+                _audiobookPlaybackSpeed,
+                normalized,
+                KEY_AUDIOBOOK_PLAYBACK_SPEED to normalized,
+            ) {
+                putFloat(KEY_AUDIOBOOK_PLAYBACK_SPEED, normalized)
+            }
+        }
+    }
+
     override fun setCrossfadeEnabled(enabled: Boolean) {
         updateStateAndPreference(_crossfadeEnabled, enabled, KEY_CROSSFADE_ENABLED to enabled) {
             putBoolean(KEY_CROSSFADE_ENABLED, enabled)
@@ -485,17 +516,22 @@ class PreferenceStore internal constructor(
         setLibraryFolders(listOf(LibraryFolderSelectionResolver.defaultMusicFolder()))
     }
 
-    fun release() {
-        if (!released.compareAndSet(false, true)) return
-        val drain = settingsWriteSequencer.close()
-        persistenceScope.launch {
-            when (val result = drain.await()) {
-                SettingsDrainResult.Drained -> Unit
-                is SettingsDrainResult.Failed,
-                is SettingsDrainResult.TimedOut,
-                -> Log.w(TAG, "Settings persistence did not fully drain: $result")
+    internal fun release(): Deferred<SettingsDrainResult> {
+        synchronized(releaseLock) {
+            releaseDrain?.let { return it }
+            check(released.compareAndSet(false, true)) { "Settings store release state is inconsistent." }
+            val drain = settingsWriteSequencer.close()
+            releaseDrain = drain
+            persistenceScope.launch {
+                when (val result = drain.await()) {
+                    SettingsDrainResult.Drained -> Unit
+                    is SettingsDrainResult.Failed,
+                    is SettingsDrainResult.TimedOut,
+                    -> Log.w(TAG, "Settings persistence did not fully drain: $result")
+                }
+                persistenceScope.cancel()
             }
-            persistenceScope.cancel()
+            return drain
         }
     }
 
@@ -639,6 +675,12 @@ class PreferenceStore internal constructor(
         _eqSettings.value = loadEqSettings()
         _eqCustomPresets.value = loadEqCustomPresets()
         _playbackVolume.value = loadPlaybackVolume()
+        _audiobookPlaybackSpeed.value = loadAudiobookPlaybackSpeed()
+        if (nextSettings.contains(KEY_AUDIOBOOK_PLAYBACK_SPEED)) {
+            legacyAudiobookPreferences.edit()
+                .remove(AudiobookProgressStore.LEGACY_SPEED_KEY)
+                .apply()
+        }
         _crossfadeEnabled.value = loadCrossfadeEnabled()
         _crossfadeDurationMs.value = loadCrossfadeDurationMs()
         _crossfadeSilenceThresholdDb.value = loadCrossfadeSilenceThresholdDb()
@@ -690,6 +732,7 @@ class PreferenceStore internal constructor(
             this[KEY_REVERB_PROFILE] = _eqSettings.value.reverbProfile.name
             this[KEY_EQ_CUSTOM_PRESETS] = serializeEqCustomPresets(_eqCustomPresets.value)
             this[KEY_PLAYBACK_VOLUME] = _playbackVolume.value
+            this[KEY_AUDIOBOOK_PLAYBACK_SPEED] = _audiobookPlaybackSpeed.value
             this[KEY_CROSSFADE_ENABLED] = _crossfadeEnabled.value
             this[KEY_CROSSFADE_DURATION_MS] = _crossfadeDurationMs.value
             this[KEY_CROSSFADE_SILENCE_THRESHOLD_DB] = _crossfadeSilenceThresholdDb.value
@@ -910,6 +953,44 @@ class PreferenceStore internal constructor(
         return preferences.getFloat(KEY_PLAYBACK_VOLUME, 1f).coerceIn(0f, 1f)
     }
 
+    private fun loadAudiobookPlaybackSpeed(): Float {
+        return preferences.getFloat(KEY_AUDIOBOOK_PLAYBACK_SPEED, 1f).coerceIn(0.5f, 2.5f)
+    }
+
+    private fun migrateLegacyAudiobookPlaybackSpeed() {
+        persistenceScope.launch {
+            val speedExistsInDataStore = withContext(ioDispatcher) {
+                settingsDataStore.data.first().contains(
+                    androidx.datastore.preferences.core.floatPreferencesKey(KEY_AUDIOBOOK_PLAYBACK_SPEED),
+                )
+            }
+            if (speedExistsInDataStore) return@launch
+            val legacySpeed = withContext(ioDispatcher) {
+                if (!legacyAudiobookPreferences.contains(AudiobookProgressStore.LEGACY_SPEED_KEY)) {
+                    null
+                } else {
+                    try {
+                        legacyAudiobookPreferences.getFloat(AudiobookProgressStore.LEGACY_SPEED_KEY, 1f)
+                            .coerceIn(0.5f, 2.5f)
+                    } catch (_: ClassCastException) {
+                        null
+                    }
+                }
+            } ?: return@launch
+            synchronized(audiobookSpeedMigrationLock) {
+                if (audiobookSpeedWasChanged) return@launch
+                if (_audiobookPlaybackSpeed.value == legacySpeed) {
+                    checkpointBootSettings(KEY_AUDIOBOOK_PLAYBACK_SPEED to legacySpeed)
+                    enqueueSettingsWrite {
+                        settingsDataStore.editSettings { putFloat(KEY_AUDIOBOOK_PLAYBACK_SPEED, legacySpeed) }
+                    }
+                } else {
+                    setAudiobookPlaybackSpeed(legacySpeed)
+                }
+            }
+        }
+    }
+
     private fun loadCrossfadeEnabled(): Boolean {
         val enabled = if (preferences.contains(KEY_CROSSFADE_ENABLED)) {
             preferences.getBoolean(KEY_CROSSFADE_ENABLED, false)
@@ -1079,6 +1160,7 @@ class PreferenceStore internal constructor(
         const val KEY_TEXT_SIZE_PRESET = "text_size_preset"
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
+        const val KEY_AUDIOBOOK_PLAYBACK_SPEED = "audiobook_playback_speed"
         const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         const val KEY_CROSSFADE_DURATION_MS = "crossfade_duration_ms"
         const val KEY_CROSSFADE_SILENCE_THRESHOLD_DB = "crossfade_silence_threshold_db"

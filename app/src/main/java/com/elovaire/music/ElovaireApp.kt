@@ -4,15 +4,17 @@ import android.app.Application
 import android.util.Log
 import androidx.work.Configuration
 import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.PlatformCompatibilityGuard
 import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 
 class ElovaireApp : Application(), Configuration.Provider {
+    internal val diagnosticsRuntime = BackendDiagnosticsRuntime()
     private val containerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         ElovaireTrace.section("app_container_create") {
-            AppContainer(this)
+            AppContainer(this, diagnosticsRuntime)
         }
     }
     val container: AppContainer get() = containerDelegate.value

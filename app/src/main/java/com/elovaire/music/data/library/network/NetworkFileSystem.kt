@@ -5,11 +5,14 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.IOException
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.ConcurrentHashMap
 
 internal sealed interface NetworkListingResult {
     val entries: List<NetworkFileEntry>
@@ -59,6 +62,9 @@ internal class NetworkFileSystemRegistry(
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val operationAdmission = NetworkOperationAdmission(resourceTracker = resourceTracker)
+    private val released = AtomicBoolean(false)
+    private val activeHandlesLock = Any()
+    private val activeHandles = Collections.newSetFromMap(IdentityHashMap<NetworkReadHandle, Boolean>())
     private val permissionAllowed = AtomicBoolean(localNetworkAccessAllowed())
     private val networkGeneration = AtomicLong(0L)
     private val connectivityObserver = applicationContext?.let { context ->
@@ -82,16 +88,20 @@ internal class NetworkFileSystemRegistry(
     fun isCurrent(source: NetworkLibrarySource, generation: Long): Boolean =
         sourceStore.isCurrent(source, generation)
 
-    fun credentials(source: NetworkLibrarySource): NetworkCredentials? =
-        credentialStore.get(source.id, source.credentialKey)
+    fun credentials(source: NetworkLibrarySource): NetworkCredentials? {
+        if (released.get()) return null
+        return credentialStore.get(source.id, source.credentialKey)
+    }
 
     fun probeBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkProbeResult {
+        checkNotReleased()
         if (!checkLocalNetworkAccess(throwOnDenied = false)) {
             return NetworkProbeResult(NetworkAvailability.LocalNetworkPermissionRequired)
         }
         return operationAdmission.withPermit(NetworkReadPurpose.Listing) {
             val resource = resourceTracker.acquire(BackendResourceKind.ActiveNetworkListing)
             try {
+                checkNotReleased()
                 fileSystems[source.protocol]?.probeBlocking(source, credentials)
                     ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
             } finally {
@@ -101,10 +111,12 @@ internal class NetworkFileSystemRegistry(
     }
 
     fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkListingResult {
+        checkNotReleased()
         checkLocalNetworkAccess()
         return operationAdmission.withPermit(NetworkReadPurpose.Listing) {
             val resource = resourceTracker.acquire(BackendResourceKind.ActiveNetworkListing)
             try {
+                checkNotReleased()
                 fileSystems[source.protocol]?.listBlocking(source, credentials)
                     ?: throw IOException("Network protocol is unavailable")
             } finally {
@@ -120,6 +132,7 @@ internal class NetworkFileSystemRegistry(
         length: Long,
         purpose: NetworkReadPurpose,
     ): NetworkReadHandle {
+        checkNotReleased()
         checkLocalNetworkAccess()
         val sourceRecord = source(sourceId) ?: throw NetworkRemoteIoException(
             kind = RemoteIoFailureKind.SourceRemoved,
@@ -133,6 +146,7 @@ internal class NetworkFileSystemRegistry(
         val permit = operationAdmission.acquire(purpose)
         var handedOff = false
         return try {
+            checkNotReleased()
             if (
                 source(sourceId) == null ||
                     !isCurrent(sourceRecord, sourceGeneration) ||
@@ -147,7 +161,8 @@ internal class NetworkFileSystemRegistry(
                 ?: throw IOException("Network protocol is unavailable")
             val released = AtomicBoolean(false)
             val resource = resourceTracker.acquire(purpose.resourceKind())
-            NetworkReadHandle(
+            val handleReference = java.util.concurrent.atomic.AtomicReference<NetworkReadHandle?>()
+            val wrapped = NetworkReadHandle(
                 input = handle.input,
                 length = handle.length,
                 closeHandle = {
@@ -157,10 +172,25 @@ internal class NetworkFileSystemRegistry(
                         } finally {
                             permit.release()
                             resource.close()
+                            synchronized(activeHandlesLock) {
+                                handleReference.get()?.let(activeHandles::remove)
+                            }
                         }
                     }
                 },
-            ).also { handedOff = true }
+            )
+            handleReference.set(wrapped)
+            synchronized(activeHandlesLock) {
+                if (this@NetworkFileSystemRegistry.released.get()) {
+                    wrapped.close()
+                    throw NetworkRemoteIoException(
+                        kind = RemoteIoFailureKind.SourceRemoved,
+                        message = "Network registry is released",
+                    )
+                }
+                activeHandles += wrapped
+            }
+            wrapped.also { handedOff = true }
         } finally {
             if (!handedOff) permit.release()
         }
@@ -179,8 +209,18 @@ internal class NetworkFileSystemRegistry(
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
         connectivityObserver?.close()
+        operationAdmission.close()
+        val handles = synchronized(activeHandlesLock) {
+            activeHandles.toList().also { activeHandles.clear() }
+        }
+        handles.forEach { handle -> runCatching { handle.close() } }
         fileSystems.values.forEach(NetworkFileSystem::release)
+    }
+
+    private fun checkNotReleased() {
+        check(!released.get()) { "Network file-system registry is released" }
     }
 
     private fun checkLocalNetworkAccess() {
@@ -231,6 +271,8 @@ internal class NetworkOperationAdmission(
     private val activePlayback = AtomicInteger()
     private val waitingBackground = AtomicInteger()
     private val waitingPlayback = AtomicInteger()
+    private val closed = AtomicBoolean(false)
+    private val waitingThreads = ConcurrentHashMap.newKeySet<Thread>()
 
     fun <T> withPermit(purpose: NetworkReadPurpose, block: () -> T): T {
         acquire(purpose).use {
@@ -239,6 +281,7 @@ internal class NetworkOperationAdmission(
     }
 
     fun acquire(purpose: NetworkReadPurpose): Permit {
+        if (closed.get()) throw IOException("Network operation admission is closed")
         val semaphore = if (purpose == NetworkReadPurpose.Playback) playback else background
         val active = if (purpose == NetworkReadPurpose.Playback) activePlayback else activeBackground
         val waiting = if (purpose == NetworkReadPurpose.Playback) waitingPlayback else waitingBackground
@@ -255,14 +298,34 @@ internal class NetworkOperationAdmission(
     }
 
     private fun acquire(semaphore: Semaphore) {
+        val thread = Thread.currentThread()
+        waitingThreads += thread
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(maxWaitMs)
         try {
-            if (!semaphore.tryAcquire(maxWaitMs, TimeUnit.MILLISECONDS)) {
-                throw IOException("Network operation capacity is temporarily exhausted")
+            while (true) {
+                if (closed.get()) throw IOException("Network operation admission is closed")
+                val remainingNs = deadline - System.nanoTime()
+                if (remainingNs < 0L) throw IOException("Network operation capacity is temporarily exhausted")
+                if (semaphore.tryAcquire(minOf(remainingNs, TimeUnit.MILLISECONDS.toNanos(100L)), TimeUnit.NANOSECONDS)) {
+                    if (closed.get()) {
+                        semaphore.release()
+                        throw IOException("Network operation admission is closed")
+                    }
+                    return
+                }
             }
         } catch (interrupted: InterruptedException) {
+            if (closed.get()) throw IOException("Network operation admission is closed", interrupted)
             Thread.currentThread().interrupt()
             throw IOException("Network operation admission interrupted", interrupted)
+        } finally {
+            waitingThreads.remove(thread)
         }
+    }
+
+    fun close() {
+        if (!closed.compareAndSet(false, true)) return
+        waitingThreads.toList().forEach(Thread::interrupt)
     }
 
     internal data class Snapshot(

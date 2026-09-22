@@ -526,6 +526,7 @@ private fun LanguageSelectionDialog(
             contentAlignment = Alignment.BottomCenter,
         ) {
             PopupCardMotionHost(
+                surfaceId = "settings.language",
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()

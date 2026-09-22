@@ -71,6 +71,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -418,11 +419,17 @@ private fun rememberPreviewBitmap(
 ): ImageBitmap? {
     var bitmap by remember(selectedUri, artworkBytes) { mutableStateOf<ImageBitmap?>(null) }
     val context = LocalContext.current
+    val resourceTracker = LocalBackendResourceTracker.current
     LaunchedEffect(selectedUri, artworkBytes) {
         bitmap = withContext(Dispatchers.IO) {
             when {
                 artworkBytes != null -> decodeArtworkBytes(artworkBytes, TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX)
-                selectedUri != null -> loadArtworkBitmapAwaitingAdmission(context, selectedUri, TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX)
+                selectedUri != null -> loadArtworkBitmapAwaitingAdmission(
+                    context,
+                    selectedUri,
+                    TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX,
+                    resourceTracker = resourceTracker,
+                )
                 else -> null
             }?.also { decoded -> decoded.prepareToDraw() }?.asImageBitmap()
         }

@@ -215,6 +215,9 @@ internal class LibraryRefreshRequests {
     }
 
     @Synchronized
+    fun hasPending(): Boolean = pending != null
+
+    @Synchronized
     fun clearIndexRefresh() {
         pending = pending?.copy(
             forceMediaIndex = false,

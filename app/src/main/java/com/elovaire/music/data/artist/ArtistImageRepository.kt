@@ -5,6 +5,8 @@ import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.data.artwork.isArtworkFileDecodable
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.MemoryPressure
@@ -68,7 +70,8 @@ internal fun selectLocalArtistArtwork(
 }
 
 internal class ArtistImageRepository(
-    private val client: ArtistImageClient = YouTubeMusicArtistImageClient(),
+    private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val client: ArtistImageClient = YouTubeMusicArtistImageClient(resourceTracker),
     private val scope: CoroutineScope,
     private val appContext: Context? = null,
     private val clock: AppClock = AndroidAppClock,
@@ -92,6 +95,7 @@ internal class ArtistImageRepository(
     private val artworkTransport = BoundedHttpTransport(
         connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
         readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
+        resourceTracker = resourceTracker,
     )
 
     override fun imageState(

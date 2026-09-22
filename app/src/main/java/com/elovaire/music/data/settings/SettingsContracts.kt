@@ -56,10 +56,17 @@ internal interface MediaLibraryInvalidationReader {
 
 internal interface MediaLibraryUserDataReader : MediaLibraryInvalidationReader {
     val userDataSnapshot: StateFlow<UserDataSnapshot>
+    val revisionedUserDataSnapshot: StateFlow<RevisionedUserDataSnapshot>
 }
+
+internal data class RevisionedUserDataSnapshot(
+    val revision: Long,
+    val snapshot: UserDataSnapshot,
+)
 
 internal interface PlaybackIntegrationSettings {
     val eqSettings: StateFlow<EqSettings>
+    val audiobookPlaybackSpeed: StateFlow<Float>
     val crossfadeEnabled: StateFlow<Boolean>
     val crossfadeDurationMs: StateFlow<Long>
     val crossfadeSilenceThresholdDb: StateFlow<Float>
@@ -103,6 +110,7 @@ internal interface LibrarySettingsWriter {
 
 internal interface PlaybackSettingsWriter {
     fun setPlaybackVolume(value: Float)
+    fun setAudiobookPlaybackSpeed(value: Float)
     fun setCrossfadeEnabled(enabled: Boolean)
     fun setCrossfadeDurationMs(value: Long)
     fun setCrossfadeSilenceThresholdDb(value: Float)
