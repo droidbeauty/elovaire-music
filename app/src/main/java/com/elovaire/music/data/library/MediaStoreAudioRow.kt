@@ -52,6 +52,7 @@ internal class MediaStoreAudioRowMapper(
     private val context: Context,
     cursor: Cursor,
 ) {
+    private val scanPathResolver = MediaStoreScanPathResolver(context)
     private val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
     private val fileNameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
     private val albumIdIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
@@ -101,8 +102,7 @@ internal class MediaStoreAudioRowMapper(
                 ?.takeIf { it > 0 },
             relativePath = relativePath,
             volumeName = volumeName,
-            filePath = MediaFilePathResolver.resolveMediaStoreFilePath(
-                context = context,
+            filePath = scanPathResolver.resolve(
                 relativePath = relativePath,
                 displayName = fileName,
                 volumeName = volumeName,

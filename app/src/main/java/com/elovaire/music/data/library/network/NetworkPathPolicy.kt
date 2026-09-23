@@ -25,15 +25,37 @@ internal object NetworkPathPolicy {
     }
 
     fun join(base: String, child: String): String {
-        return normalizeRelativePath(listOf(base, child).filter(String::isNotBlank).joinToString("/"))
+        return when {
+            base.isBlank() -> normalizeRelativePath(child)
+            child.isBlank() -> normalizeRelativePath(base)
+            else -> normalizeRelativePath("$base/$child")
+        }
     }
 
     /** Returns a root-relative path only when it cannot escape or change path segmentation. */
     fun validateRelativePath(path: String): String? {
         if (path.indexOf('\\') >= 0) return null
-        val normalized = path.trim('/').split('/').filter(String::isNotEmpty)
-        if (normalized.any { it == "." || it == ".." || it.indexOf('\u0000') >= 0 }) return null
-        return normalized.joinToString("/")
+        val normalized = StringBuilder(path.length)
+        var segmentStart = 0
+        var index = 0
+        while (index <= path.length) {
+            if (index == path.length || path[index] == '/') {
+                if (index > segmentStart) {
+                    val segmentLength = index - segmentStart
+                    if (segmentLength == 1 && path[segmentStart] == '.') return null
+                    if (segmentLength == 2 &&
+                        path[segmentStart] == '.' &&
+                        path[segmentStart + 1] == '.'
+                    ) return null
+                    if (path.indexOf('\u0000', segmentStart) in segmentStart until index) return null
+                    if (normalized.isNotEmpty()) normalized.append('/')
+                    normalized.append(path, segmentStart, index)
+                }
+                segmentStart = index + 1
+            }
+            index += 1
+        }
+        return normalized.toString()
     }
 
     fun encodePath(path: String): String {

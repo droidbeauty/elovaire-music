@@ -61,6 +61,41 @@ class SmartPlaylistEngineTest {
     }
 
     @Test
+    fun resolveAllMatchesIndependentResolution() {
+        val playlists = listOf(
+            SmartPlaylist(
+                id = 1L,
+                name = "Titles",
+                rules = listOf(SmartPlaylistRule.TitleContains("a")),
+                sort = SmartPlaylistSort(SmartPlaylistSortField.Title, SortDirection.Ascending),
+                limit = 1,
+                createdAtMs = 1L,
+                updatedAtMs = 1L,
+            ),
+            SmartPlaylist(
+                id = 2L,
+                name = "Formats",
+                rules = listOf(SmartPlaylistRule.FileFormatIs("mp3")),
+                sort = SmartPlaylistSort(SmartPlaylistSortField.Duration, SortDirection.Descending),
+                createdAtMs = 1L,
+                updatedAtMs = 1L,
+            ),
+        )
+        val songs = listOf(
+            song(1L, "Bravo").copy(durationMs = 100L),
+            song(2L, "Alpha").copy(durationMs = 200L, fileName = "2.flac", audioFormat = "FLAC"),
+            song(3L, "Gamma").copy(durationMs = 300L),
+        )
+
+        val batch = engine.resolveAll(playlists, songs, emptySet(), emptyMap(), nowMs = 10_000L)
+        val independent = playlists.map {
+            engine.resolve(it, songs, emptySet(), emptyMap(), nowMs = 10_000L)
+        }
+
+        assertEquals(independent, batch)
+    }
+
+    @Test
     fun serialize_roundTripsUserDefinitionsAndIgnoresBuiltIns() {
         val playlist = SmartPlaylist(
             id = 12L,

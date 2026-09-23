@@ -4576,6 +4576,26 @@ private fun LyricsReadyContent(
     val density = LocalDensity.current
     val autoScrollCenterOffsetPx = with(density) { 180.dp.roundToPx() }
     val lineEntryOffsetPx = with(density) { 10.dp.toPx() }
+    val lineEntryDurationMs = MotionDuration.Standard.toFloat()
+    val lineEntryMaxStaggerMs = 6 * 16f
+    val lineEntryClock = remember(song?.id, animateTrackChange) {
+        Animatable(if (animateTrackChange) 0f else 1f)
+    }
+    val lineEntryStartIndex = remember(song?.id) { listState.firstVisibleItemIndex }
+    LaunchedEffect(song?.id, animateTrackChange) {
+        if (animateTrackChange) {
+            lineEntryClock.snapTo(0f)
+            lineEntryClock.animateTo(
+                targetValue = 1f,
+                animationSpec = motionSpecs.tween(
+                    durationMillis = (lineEntryDurationMs + lineEntryMaxStaggerMs).roundToInt(),
+                    easing = LinearEasing,
+                ),
+            )
+        } else {
+            lineEntryClock.snapTo(1f)
+        }
+    }
     LaunchedEffect(song?.id) {
         if (animateTrackChange) onTrackChangeAnimationStarted()
     }
@@ -4626,21 +4646,15 @@ private fun LyricsReadyContent(
             items = payload.lines,
             key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
         ) { index, line ->
-            val lineEntryProgress = remember(song?.id, index) {
-                Animatable(if (animateTrackChange) 0f else 1f)
-            }
-            LaunchedEffect(song?.id, index) {
-                if (animateTrackChange) {
-                    val staggerIndex = (index - listState.firstVisibleItemIndex).coerceIn(0, 6)
-                    delay(staggerIndex * 16L)
-                    lineEntryProgress.animateTo(
-                        targetValue = 1f,
-                        animationSpec = motionSpecs.tween(
-                            durationMillis = MotionDuration.Standard,
-                            easing = MotionEasing.RefinedDecelerate,
-                        ),
-                    )
-                }
+            val latestLyricsLines by rememberUpdatedState(payload.lines)
+            val latestLyricsSynced by rememberUpdatedState(payload.isSynced)
+            val lineEntryProgress = if (animateTrackChange) {
+                val staggerMs = (index - lineEntryStartIndex).coerceIn(0, 6) * 16f
+                val elapsedMs = lineEntryClock.value * (lineEntryDurationMs + lineEntryMaxStaggerMs)
+                val lineProgress = ((elapsedMs - staggerMs) / lineEntryDurationMs).coerceIn(0f, 1f)
+                MotionEasing.RefinedDecelerate.transform(lineProgress)
+            } else {
+                1f
             }
             val isActive = payload.isSynced && index == activeLyricLineIndex
             val lineFontSize by animateFloatAsState(
@@ -4668,15 +4682,15 @@ private fun LyricsReadyContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        alpha = lineEntryProgress.value
-                        translationY = (1f - lineEntryProgress.value) * -lineEntryOffsetPx
+                        alpha = lineEntryProgress
+                        translationY = (1f - lineEntryProgress) * -lineEntryOffsetPx
                     }
-                    .pointerInput(song?.id, payload.lines.size, payload.isSynced, activeLyricLineIndex) {
+                    .pointerInput(song?.id, payload.lines.size) {
                         detectTapGestures {
                             lyricsSeekPositionMs(
-                                lines = payload.lines,
+                                lines = latestLyricsLines,
                                 index = index,
-                                isSynced = payload.isSynced,
+                                isSynced = latestLyricsSynced,
                             )?.let { seekPositionMs ->
                                 setAutoScrollHeld(false)
                                 setUserLyricsScrollActive(false)
@@ -4801,7 +4815,7 @@ private fun PlaybackProgressBar(
             val maxWidthPx = with(density) { maxWidth.toPx() }
             val clampedProgress = progress.coerceIn(0f, 1f)
 
-            Box(
+            Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(32.dp)
@@ -4826,25 +4840,23 @@ private fun PlaybackProgressBar(
                             latestOnScrubFinished(latestFraction)
                         }
                     },
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(contentColor.copy(alpha = 0.1f))
-                    .align(Alignment.CenterStart),
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(clampedProgress)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(contentColor)
-                    .align(Alignment.CenterStart),
-            )
+            ) {
+                val barHeight = 6.dp.toPx()
+                val top = (size.height - barHeight) / 2f
+                val cornerRadius = CornerRadius(barHeight / 2f)
+                drawRoundRect(
+                    color = contentColor.copy(alpha = 0.1f),
+                    topLeft = Offset(0f, top),
+                    size = Size(size.width, barHeight),
+                    cornerRadius = cornerRadius,
+                )
+                drawRoundRect(
+                    color = contentColor,
+                    topLeft = Offset(0f, top),
+                    size = Size(size.width * clampedProgress, barHeight),
+                    cornerRadius = cornerRadius,
+                )
+            }
         }
     }
 }
@@ -4857,6 +4869,7 @@ private fun VolumeControlBar(
     modifier: Modifier = Modifier,
 ) {
     val motionSpecs = rememberMotionSpecs()
+    var isDragging by remember { mutableStateOf(false) }
     val animatedVolume by animateFloatAsState(
         targetValue = volume.coerceIn(0f, 1f),
         animationSpec = motionSpecs.spring(
@@ -4865,6 +4878,8 @@ private fun VolumeControlBar(
         ),
         label = "player_volume_slider",
     )
+    val displayedVolume = if (isDragging) volume.coerceIn(0f, 1f) else animatedVolume
+    val latestOnVolumeChanged by rememberUpdatedState(onVolumeChanged)
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -4893,16 +4908,21 @@ private fun VolumeControlBar(
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             if (maxWidthPx <= 0f) return@awaitEachGesture
-                            var latestFraction = (down.position.x / maxWidthPx).coerceIn(0f, 1f)
-                            onVolumeChanged(latestFraction)
+                            isDragging = true
+                            try {
+                                var latestFraction = (down.position.x / maxWidthPx).coerceIn(0f, 1f)
+                                latestOnVolumeChanged(latestFraction)
 
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull() ?: break
-                                if (!change.pressed) break
-                                latestFraction = (change.position.x / maxWidthPx).coerceIn(0f, 1f)
-                                onVolumeChanged(latestFraction)
-                                change.consume()
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull() ?: break
+                                    if (!change.pressed) break
+                                    latestFraction = (change.position.x / maxWidthPx).coerceIn(0f, 1f)
+                                    latestOnVolumeChanged(latestFraction)
+                                    change.consume()
+                                }
+                            } finally {
+                                isDragging = false
                             }
                         }
                     },
@@ -4918,7 +4938,7 @@ private fun VolumeControlBar(
 
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(animatedVolume.coerceIn(0f, 1f))
+                        .fillMaxWidth(displayedVolume)
                         .height(6.dp)
                         .clip(RoundedCornerShape(ElovaireRadii.pill))
                         .background(contentColor)

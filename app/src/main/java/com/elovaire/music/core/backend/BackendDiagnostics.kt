@@ -5,8 +5,8 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import java.io.Closeable
-import java.util.EnumMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicIntegerArray
 import kotlinx.coroutines.CancellationException
 
 internal data class BackendEventSnapshot(
@@ -94,53 +94,50 @@ internal object NoOpBackendResourceTracker : BackendResourceTracker {
 }
 
 internal class BackendResourceRuntime : BackendResourceTracker {
-    private val lock = Any()
-    private val counts = EnumMap<BackendResourceKind, Int>(BackendResourceKind::class.java)
+    private val counts = AtomicIntegerArray(BackendResourceKind.values().size)
 
     override fun acquire(kind: BackendResourceKind): Closeable {
-        synchronized(lock) { counts[kind] = (counts[kind] ?: 0) + 1 }
+        counts.incrementAndGet(kind.ordinal)
         return ResourceLease(kind)
     }
 
     private inner class ResourceLease(
         private val kind: BackendResourceKind,
     ) : Closeable {
-        private var released = false
+        private val released = AtomicBoolean(false)
 
         override fun close() {
-            synchronized(this) {
-                if (released) return
-                released = true
-            }
+            if (!released.compareAndSet(false, true)) return
             release(kind)
         }
     }
 
     override fun set(kind: BackendResourceKind, count: Int) {
-        synchronized(lock) {
-            if (count <= 0) counts.remove(kind) else counts[kind] = count
-        }
+        counts.set(kind.ordinal, count.coerceAtLeast(0))
     }
 
     override fun adjust(kind: BackendResourceKind, delta: Int) {
         require(delta != 0)
-        synchronized(lock) {
-            val next = (counts[kind] ?: 0) + delta
-            if (next <= 0) counts.remove(kind) else counts[kind] = next
+        val index = kind.ordinal
+        while (true) {
+            val current = counts.get(index)
+            val next = (current + delta).coerceAtLeast(0)
+            if (counts.compareAndSet(index, current, next)) return
         }
     }
 
-    override fun snapshot(): Map<String, Int> = synchronized(lock) {
-        counts.entries.associate { (kind, count) -> kind.key to count }
+    override fun snapshot(): Map<String, Int> = buildMap {
+        BackendResourceKind.values().forEach { kind ->
+            counts.get(kind.ordinal).takeIf { it > 0 }?.let { put(kind.key, it) }
+        }
     }
 
-    override fun clear() = synchronized(lock) { counts.clear() }
+    override fun clear() {
+        BackendResourceKind.values().forEach { kind -> counts.set(kind.ordinal, 0) }
+    }
 
     private fun release(kind: BackendResourceKind) {
-        synchronized(lock) {
-            val count = counts[kind] ?: return
-            if (count <= 1) counts.remove(kind) else counts[kind] = count - 1
-        }
+        adjust(kind, -1)
     }
 }
 

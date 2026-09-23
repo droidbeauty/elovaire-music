@@ -587,6 +587,8 @@ internal class PlaybackManager internal constructor(
             lastPlayedCollectionId = initialLastPlayedCollectionId,
         ),
     )
+    private var persistenceQueueReference: List<Song>? = null
+    private var persistenceQueueSongIds: List<Long> = emptyList()
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
     override val nowPlayingState: StateFlow<PlaybackNowPlayingState> = state
         .map { snapshot ->
@@ -796,8 +798,16 @@ internal class PlaybackManager internal constructor(
 
     override fun capturePersistenceSnapshot(): PlaybackPersistenceSnapshot {
         val snapshot = _state.value
+        val queueSongIds = if (snapshot.queue === persistenceQueueReference) {
+            persistenceQueueSongIds
+        } else {
+            snapshot.queue.map(Song::id).also {
+                persistenceQueueReference = snapshot.queue
+                persistenceQueueSongIds = it
+            }
+        }
         return PlaybackPersistenceSnapshot(
-            queueSongIds = snapshot.queue.map(Song::id),
+            queueSongIds = queueSongIds,
             currentSongId = snapshot.queue.getOrNull(snapshot.currentIndex)?.id,
             currentIndex = snapshot.currentIndex,
             positionMs = player.currentPosition.coerceAtLeast(0L),

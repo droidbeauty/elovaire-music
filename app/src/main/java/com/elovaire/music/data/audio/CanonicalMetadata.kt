@@ -36,24 +36,43 @@ internal object CanonicalMetadataResolver {
         platform: MetadataSourceValues? = null,
         indexed: MetadataSourceValues? = null,
     ): CanonicalMetadataValues {
-        val sources = listOfNotNull(embedded, platform, indexed)
         return CanonicalMetadataValues(
-            title = sources.firstValue { it.title },
-            artist = sources.firstValue { it.artist },
-            albumArtist = sources.firstValue { it.albumArtist },
-            album = sources.firstValue { it.album },
-            description = sources.firstValue { it.description },
-            releaseYear = sources.firstNotNullOfOrNull { it.releaseYear?.takeIf(::isValidYear) },
-            genre = sources.firstValue { it.genre },
-            trackNumber = sources.firstNotNullOfOrNull { it.trackNumber?.parsePositiveTagNumber() },
-            discNumber = sources.firstNotNullOfOrNull { it.discNumber?.parsePositiveTagNumber() },
-            volumeNormalization = sources.resolveVolumeNormalization(),
+            title = firstText(embedded, platform, indexed) { it.title },
+            artist = firstText(embedded, platform, indexed) { it.artist },
+            albumArtist = firstText(embedded, platform, indexed) { it.albumArtist },
+            album = firstText(embedded, platform, indexed) { it.album },
+            description = firstText(embedded, platform, indexed) { it.description },
+            releaseYear = firstValue(embedded, platform, indexed) { it.releaseYear?.takeIf(::isValidYear) },
+            genre = firstText(embedded, platform, indexed) { it.genre },
+            trackNumber = firstValue(embedded, platform, indexed) { it.trackNumber?.parsePositiveTagNumber() },
+            discNumber = firstValue(embedded, platform, indexed) { it.discNumber?.parsePositiveTagNumber() },
+            volumeNormalization = firstValue(embedded, platform, indexed) {
+                it.volumeNormalization?.sanitizeVolumeNormalization()
+            },
         )
     }
 
-    private fun List<MetadataSourceValues>.firstValue(
+    private inline fun firstText(
+        embedded: MetadataSourceValues?,
+        platform: MetadataSourceValues?,
+        indexed: MetadataSourceValues?,
         selector: (MetadataSourceValues) -> String?,
-    ): String? = firstNotNullOfOrNull { source -> selector(source).canonicalText() }
+    ): String? {
+        return embedded?.let { selector(it).canonicalText() }
+            ?: platform?.let { selector(it).canonicalText() }
+            ?: indexed?.let { selector(it).canonicalText() }
+    }
+
+    private inline fun <T> firstValue(
+        embedded: MetadataSourceValues?,
+        platform: MetadataSourceValues?,
+        indexed: MetadataSourceValues?,
+        selector: (MetadataSourceValues) -> T?,
+    ): T? {
+        return embedded?.let(selector)
+            ?: platform?.let(selector)
+            ?: indexed?.let(selector)
+    }
 
     private fun String?.canonicalText(): String? {
         val normalized = this
@@ -87,14 +106,6 @@ internal object CanonicalMetadataResolver {
         .trim()
         .toIntOrNull()
         ?.takeIf { it > 0 }
-
-    private fun List<MetadataSourceValues>.resolveVolumeNormalization(): VolumeNormalizationMetadata? {
-        // Gain and peak values describe one mastering record. Do not combine fields
-        // from different sources: a stale peak could otherwise constrain a newer gain.
-        return firstNotNullOfOrNull { values ->
-            values.volumeNormalization?.sanitizeVolumeNormalization()
-        }
-    }
 
     private fun VolumeNormalizationMetadata.sanitizeVolumeNormalization(): VolumeNormalizationMetadata? {
         val sanitized = copy(

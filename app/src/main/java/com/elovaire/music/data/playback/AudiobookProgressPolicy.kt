@@ -10,15 +10,25 @@ data class AudiobookPlaybackContext(
     val bookDurationMs: Long,
     val orderedSongDurationsMs: List<Long> = emptyList(),
 ) {
-    val normalizedSongIds: List<Long> = orderedSongIds.filter { it > 0L }.distinct()
-    val normalizedSongDurationsMs: List<Long> = if (orderedSongDurationsMs.size == orderedSongIds.size) {
-        buildList {
-            val durationByPosition = orderedSongIds.withIndex()
-                .associate { (index, songId) -> songId to orderedSongDurationsMs[index].orZero() }
-            normalizedSongIds.forEach { songId -> add(durationByPosition[songId].orZero()) }
+    val normalizedSongIds: List<Long>
+    val normalizedSongDurationsMs: List<Long>
+
+    init {
+        val uniqueSongIds = ArrayList<Long>(orderedSongIds.size)
+        val seenSongIds = HashSet<Long>(orderedSongIds.size)
+        val durationBySongId = if (orderedSongDurationsMs.size == orderedSongIds.size) {
+            HashMap<Long, Long>(orderedSongIds.size)
+        } else {
+            null
         }
-    } else {
-        emptyList()
+        orderedSongIds.forEachIndexed { index, songId ->
+            if (songId > 0L && seenSongIds.add(songId)) uniqueSongIds += songId
+            durationBySongId?.set(songId, orderedSongDurationsMs[index].orZero())
+        }
+        normalizedSongIds = uniqueSongIds
+        normalizedSongDurationsMs = durationBySongId?.let { durations ->
+            uniqueSongIds.map { songId -> durations[songId].orZero() }
+        } ?: emptyList()
     }
     private val normalizedPrefixDurationsMs: LongArray by lazy(LazyThreadSafetyMode.NONE) {
         LongArray(normalizedSongDurationsMs.size).also { prefixDurations ->

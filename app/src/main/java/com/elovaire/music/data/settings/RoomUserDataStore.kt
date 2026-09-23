@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 import java.util.LinkedHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -96,7 +97,8 @@ internal class RoomUserDataStore(
         PreferenceStorage(context.applicationContext).preferences
     }
     private val legacyAudiobookProgress = AudiobookProgressStore(context.applicationContext)
-    private val audiobookProgressByBookKey = AtomicReference<Map<String, AudiobookProgress>>(emptyMap())
+    private val audiobookProgressByBookKey = ConcurrentHashMap<String, AudiobookProgress>()
+    private val audiobookStorageKeyCache = AtomicReference<Pair<String, String>?>(null)
     private val released = AtomicBoolean(false)
     private val releaseCompletion = CompletableDeferred<Unit>()
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
@@ -161,12 +163,12 @@ internal class RoomUserDataStore(
 
     override fun load(bookKey: String): AudiobookProgress? {
         if (bookKey.isBlank()) return null
-        return audiobookProgressByBookKey.get()[AudiobookProgressStore.storageKey(bookKey)]
+        return audiobookProgressByBookKey[storageKeyForBook(bookKey)]
     }
 
     override fun save(bookKey: String, progress: AudiobookProgress, force: Boolean) {
         if (bookKey.isBlank() || progress.songId <= 0L) return
-        val storageKey = AudiobookProgressStore.storageKey(bookKey)
+        val storageKey = storageKeyForBook(bookKey)
         val normalized = progress.copy(
             positionMs = progress.positionMs.coerceAtLeast(0L),
             updatedAtMs = progress.updatedAtMs.coerceAtLeast(0L),
@@ -178,7 +180,7 @@ internal class RoomUserDataStore(
             name = "audiobook-progress:$storageKey",
             advancesUserDataRevision = false,
             onCommitted = {
-                audiobookProgressByBookKey.updateAndGet { current -> current + (storageKey to normalized) }
+                audiobookProgressByBookKey[storageKey] = normalized
             },
         ) {
             if (dao.audiobookProgress(storageKey) == entity) {
@@ -197,14 +199,17 @@ internal class RoomUserDataStore(
 
     override fun remapBookKey(oldBookKey: String, newBookKey: String): Deferred<Unit> = operationScope.async {
         if (oldBookKey.isBlank() || newBookKey.isBlank() || oldBookKey == newBookKey) return@async
-        val oldKey = AudiobookProgressStore.storageKey(oldBookKey)
-        val newKey = AudiobookProgressStore.storageKey(newBookKey)
-        val nextCache = AtomicReference<Map<String, AudiobookProgress>?>(null)
+        val oldKey = storageKeyForBook(oldBookKey)
+        val newKey = storageKeyForBook(newBookKey)
+        val remappedProgress = AtomicReference<AudiobookProgress?>(null)
         when (
             val result = enqueueMutation(
                 name = "audiobook_progress.rekey",
                 advancesUserDataRevision = false,
-                onCommitted = { nextCache.get()?.let(audiobookProgressByBookKey::set) },
+                onCommitted = {
+                    audiobookProgressByBookKey.remove(oldKey)
+                    remappedProgress.get()?.let { audiobookProgressByBookKey[newKey] = it }
+                },
             ) {
                 val oldRow = dao.audiobookProgress(oldKey)
                     ?: return@enqueueMutation PlaylistMutationResult.Success(changed = false)
@@ -213,7 +218,7 @@ internal class RoomUserDataStore(
                 val rewritten = selected.copy(bookKey = newKey)
                 dao.upsertAudiobookProgress(rewritten)
                 dao.deleteAudiobookProgress(oldKey)
-                nextCache.set(audiobookProgressByBookKey.get() - oldKey + (newKey to rewritten.toDomain()))
+                remappedProgress.set(rewritten.toDomain())
                 PlaylistMutationResult.Success(changed = oldKey != newKey)
             }.await()
         ) {
@@ -487,11 +492,20 @@ internal class RoomUserDataStore(
         commitId: String,
         replacements: Map<Long, Long>,
     ): Deferred<PlaylistMutationResult> = run {
-        val nextAudiobookProgress = AtomicReference<Map<String, AudiobookProgress>?>(null)
+        val relocatedSongIds = AtomicReference<Map<Long, Long>?>(null)
         enqueueMutation(
             name = "library.relocate_song_references",
             advancesUserDataRevision = true,
-            onCommitted = { nextAudiobookProgress.get()?.let(audiobookProgressByBookKey::set) },
+            onCommitted = {
+                relocatedSongIds.get()?.let { replacementsBySongId ->
+                    audiobookProgressByBookKey.forEach { (bookKey, progress) ->
+                        val replacementSongId = replacementsBySongId[progress.songId]
+                        if (replacementSongId != null && replacementSongId != progress.songId) {
+                            audiobookProgressByBookKey[bookKey] = progress.copy(songId = replacementSongId)
+                        }
+                    }
+                }
+            },
         ) {
             if (commitId.isBlank()) return@enqueueMutation PlaylistMutationResult.InvalidInput
             val normalized = canonicalizeMediaIdRelocations(replacements)
@@ -509,11 +523,7 @@ internal class RoomUserDataStore(
 
             dao.relocateSongReferences(normalized)
             dao.relocateAudiobookProgress(normalized)
-            nextAudiobookProgress.set(
-                audiobookProgressByBookKey.get().mapValues { (_, progress) ->
-                    progress.copy(songId = normalized[progress.songId] ?: progress.songId)
-                },
-            )
+            relocatedSongIds.set(normalized)
             val playlists = _userPlaylists.value.map { playlist ->
                 playlist.copy(
                     songIds = playlist.songIds
@@ -672,7 +682,7 @@ internal class RoomUserDataStore(
             )
             legacyAudiobookProgress.clearLegacyRows()
         }
-        audiobookProgressByBookKey.set(
+        audiobookProgressByBookKey.putAll(
             dao.audiobookProgressRows().associate { row -> row.bookKey to row.toDomain() },
         )
     }
@@ -1101,6 +1111,13 @@ internal class RoomUserDataStore(
 
     private fun newId(): Long {
         return nextId.getAndUpdate(::nextPersistentUserDataId)
+    }
+
+    private fun storageKeyForBook(bookKey: String): String {
+        audiobookStorageKeyCache.get()?.takeIf { it.first == bookKey }?.let { return it.second }
+        return AudiobookProgressStore.storageKey(bookKey).also { storageKey ->
+            audiobookStorageKeyCache.set(bookKey to storageKey)
+        }
     }
 
     private suspend fun establishUserDataRevision(

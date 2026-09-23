@@ -110,6 +110,17 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun portableIdentityRevisionIncludesTrailingMatchFields() {
+        val original = song(modifiedSeconds = 10L)
+        val changed = original.copy(trackNumber = original.trackNumber + 1)
+
+        assertNotEquals(
+            MediaIdentityResolver.portableIdentityRevision(listOf(original)),
+            MediaIdentityResolver.portableIdentityRevision(listOf(changed)),
+        )
+    }
+
+    @Test
     fun unknownContentProviderDoesNotFallBackToMutablePath() {
         val song = song(10L).copy(uri = TestUri("content://example.provider/item/1"))
 

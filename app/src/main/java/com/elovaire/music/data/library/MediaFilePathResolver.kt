@@ -41,13 +41,25 @@ internal object MediaFilePathResolver {
         displayName: String?,
         volumeName: String?,
     ): String? {
+        return resolveMediaStoreFilePath(
+            relativePath = relativePath,
+            displayName = displayName,
+            roots = sharedStorageRoots(context, volumeName),
+        )
+    }
+
+    internal fun resolveMediaStoreFilePath(
+        relativePath: String?,
+        displayName: String?,
+        roots: List<File>,
+    ): String? {
         val normalizedName = displayName?.trim()?.ifBlank { null } ?: return null
         val normalizedRelativePath = relativePath
             ?.trim()
             ?.replace('\\', '/')
             ?.trim('/')
             ?.ifBlank { null }
-        sharedStorageRoots(context, volumeName).forEach { root ->
+        roots.forEach { root ->
             val candidate = normalizedRelativePath
                 ?.let { File(File(root, it), normalizedName) }
                 ?: File(root, normalizedName)
@@ -109,10 +121,44 @@ internal object MediaFilePathResolver {
         }
     }
 
+    internal fun sharedStorageRootsForScan(context: Context, volumeName: String?): List<File> {
+        return sharedStorageRoots(context, volumeName)
+    }
+
     private fun android.database.Cursor.optionalString(columnName: String): String? {
         val columnIndex = getColumnIndex(columnName)
         if (columnIndex < 0 || isNull(columnIndex)) return null
         return getString(columnIndex)?.trim()?.ifBlank { null }
+    }
+}
+
+internal class MediaStoreScanPathResolver(
+    private val context: Context,
+) {
+    private val rootsByVolume = HashMap<String, List<File>>()
+
+    fun resolve(
+        relativePath: String?,
+        displayName: String?,
+        volumeName: String?,
+    ): String? {
+        val cacheKey = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
+        val roots = rootsByVolume[cacheKey] ?: run {
+            val resolved = MediaFilePathResolver.sharedStorageRootsForScan(context, volumeName)
+            if (rootsByVolume.size < MAX_VOLUME_ROOT_CACHE_ENTRIES) {
+                rootsByVolume[cacheKey] = resolved
+            }
+            resolved
+        }
+        return MediaFilePathResolver.resolveMediaStoreFilePath(
+            relativePath = relativePath,
+            displayName = displayName,
+            roots = roots,
+        )
+    }
+
+    private companion object {
+        const val MAX_VOLUME_ROOT_CACHE_ENTRIES = 8
     }
 }
 

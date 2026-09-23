@@ -6,7 +6,6 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.library.network.NetworkPathPolicy
 import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import java.util.Locale
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 internal sealed interface MediaSourceIdentity {
@@ -74,6 +73,11 @@ internal data class TrackMatchIdentity(
     val trackNumber: Int?,
     val discNumber: Int?,
     val sourceStableKey: String? = null,
+)
+
+internal data class PortableMediaIdentityProjection(
+    val revision: String,
+    val identitiesBySongId: Map<Long, TrackMatchIdentity>,
 )
 
 internal enum class TrackMatchConfidence {
@@ -151,7 +155,11 @@ internal object MediaIdentityResolver {
         return song.id.takeIf { it != 0L }?.let(::LogicalTrackId)
     }
 
-    fun trackMatchIdentity(song: Song, sizeBytes: Long? = null): TrackMatchIdentity {
+    fun trackMatchIdentity(
+        song: Song,
+        sizeBytes: Long? = null,
+        includeSourceStableKey: Boolean = true,
+    ): TrackMatchIdentity {
         return TrackMatchIdentity(
             sizeBytes = sizeBytes?.takeIf { it >= 0L },
             durationMs = song.durationMs.takeIf { it > 0L },
@@ -162,35 +170,62 @@ internal object MediaIdentityResolver {
             normalizedFileName = song.fileName.matchIdentityText().takeIf(String::isNotBlank),
             trackNumber = song.trackNumber.takeIf { it > 0 },
             discNumber = song.discNumber.takeIf { it > 0 },
-            sourceStableKey = stableKey(song),
+            sourceStableKey = if (includeSourceStableKey) stableKey(song) else null,
         )
     }
 
     /** Revision for the exact locator-free projection consumed by portable user-data backup. */
     fun portableIdentityRevision(songs: List<Song>): String {
         val digest = MessageDigest.getInstance("SHA-256")
+        val appender = PortableIdentityDigestAppender(digest)
         songs.asSequence()
             .sortedBy(Song::id)
             .forEach { song ->
-                val identity = trackMatchIdentity(song).copy(sourceStableKey = null)
-                listOf(
-                    song.id.toString(),
-                    identity.version.toString(),
-                    identity.sizeBytes?.toString().orEmpty(),
-                    identity.durationMs?.toString().orEmpty(),
-                    identity.normalizedTitle,
-                    identity.normalizedArtist,
-                    identity.normalizedAlbum,
-                    identity.normalizedAlbumArtist.orEmpty(),
-                    identity.normalizedFileName.orEmpty(),
-                    identity.trackNumber?.toString().orEmpty(),
-                    identity.discNumber?.toString().orEmpty(),
-                ).joinToString("\u001f").let { value ->
-                    digest.update(value.toByteArray(StandardCharsets.UTF_8))
-                    digest.update(0)
+                appender.appendLong(song.id)
+                appender.appendInt(TRACK_MATCH_IDENTITY_VERSION)
+                appender.appendNullableLong(null)
+                appender.appendNullableLong(song.durationMs.takeIf { it > 0L })
+                appender.appendString(song.title.matchIdentityText())
+                appender.appendString(song.artist.matchIdentityText())
+                appender.appendString(song.album.matchIdentityText())
+                appender.appendString(song.albumArtist?.matchIdentityText().orEmpty())
+                appender.appendString(song.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty())
+                appender.appendNullableInt(song.trackNumber.takeIf { it > 0 })
+                appender.appendNullableInt(song.discNumber.takeIf { it > 0 })
+            }
+        appender.finish()
+        return digest.digest().let { bytes ->
+            buildString(bytes.size * 2) {
+                bytes.forEach { byte ->
+                    val value = byte.toInt() and 0xff
+                    append(HEX_DIGITS[value ushr 4])
+                    append(HEX_DIGITS[value and 0x0f])
                 }
             }
-        return digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        }
+    }
+
+    fun portableIdentityProjection(
+        songs: List<Song>,
+        revision: String = portableIdentityRevision(songs),
+    ): PortableMediaIdentityProjection = PortableMediaIdentityProjection(
+        revision = revision,
+        identitiesBySongId = songs.associate { song ->
+            song.id to trackMatchIdentity(song, includeSourceStableKey = false)
+        },
+    )
+
+    fun portableIdentityChanged(before: Song, after: Song): Boolean {
+        return before.id != after.id ||
+            before.durationMs.takeIf { it > 0L } != after.durationMs.takeIf { it > 0L } ||
+            before.title.matchIdentityText() != after.title.matchIdentityText() ||
+            before.artist.matchIdentityText() != after.artist.matchIdentityText() ||
+            before.album.matchIdentityText() != after.album.matchIdentityText() ||
+            before.albumArtist?.matchIdentityText().orEmpty() != after.albumArtist?.matchIdentityText().orEmpty() ||
+            before.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty() !=
+            after.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty() ||
+            before.trackNumber.takeIf { it > 0 } != after.trackNumber.takeIf { it > 0 } ||
+            before.discNumber.takeIf { it > 0 } != after.discNumber.takeIf { it > 0 }
     }
 
     /** Resolves only a unique candidate; an equally good duplicate remains ambiguous. */
@@ -420,6 +455,133 @@ private const val STRONG_TRACK_MATCH_SCORE = 12
 private const val PROBABLE_TRACK_MATCH_SCORE = 8
 private const val DURATION_TOLERANCE_MS = 2_000L
 private val MATCH_IDENTITY_WHITESPACE = Regex("\\s+")
+private const val DIGEST_STRING_TAG: Byte = 1
+private const val DIGEST_INT_TAG: Byte = 2
+private const val DIGEST_LONG_TAG: Byte = 3
+private const val DIGEST_NULL_TAG: Byte = 4
+private const val HEX_DIGITS = "0123456789abcdef"
+
+private class PortableIdentityDigestAppender(
+    private val digest: MessageDigest,
+) {
+    private val buffer = ByteArray(1024)
+    private var bufferedBytes = 0
+
+    fun appendInt(value: Int) {
+        put(DIGEST_INT_TAG)
+        appendFixedInt(value)
+    }
+
+    fun appendNullableInt(value: Int?) {
+        if (value == null) {
+            put(DIGEST_NULL_TAG)
+        } else {
+            appendInt(value)
+        }
+    }
+
+    fun appendLong(value: Long) {
+        put(DIGEST_LONG_TAG)
+        appendFixedLong(value)
+    }
+
+    fun appendNullableLong(value: Long?) {
+        if (value == null) {
+            put(DIGEST_NULL_TAG)
+        } else {
+            appendLong(value)
+        }
+    }
+
+    fun appendString(value: String) {
+        put(DIGEST_STRING_TAG)
+        appendFixedInt(utf8Length(value))
+        var index = 0
+        while (index < value.length) {
+            val character = value[index]
+            if (character.isHighSurrogate() && index + 1 < value.length && value[index + 1].isLowSurrogate()) {
+                appendCodePoint(Character.toCodePoint(character, value[index + 1]))
+                index += 2
+            } else {
+                appendCodePoint(if (character.isSurrogate()) 0xfffd else character.code)
+                index += 1
+            }
+        }
+        flush()
+    }
+
+    private fun appendFixedInt(value: Int) {
+        put((value ushr 24).toByte())
+        put((value ushr 16).toByte())
+        put((value ushr 8).toByte())
+        put(value.toByte())
+    }
+
+    private fun appendFixedLong(value: Long) {
+        put((value ushr 56).toByte())
+        put((value ushr 48).toByte())
+        put((value ushr 40).toByte())
+        put((value ushr 32).toByte())
+        put((value ushr 24).toByte())
+        put((value ushr 16).toByte())
+        put((value ushr 8).toByte())
+        put(value.toByte())
+    }
+
+    private fun appendCodePoint(codePoint: Int) {
+        when {
+            codePoint <= 0x7f -> put(codePoint.toByte())
+            codePoint <= 0x7ff -> {
+                put((0xc0 or (codePoint ushr 6)).toByte())
+                put((0x80 or (codePoint and 0x3f)).toByte())
+            }
+            codePoint <= 0xffff -> {
+                put((0xe0 or (codePoint ushr 12)).toByte())
+                put((0x80 or ((codePoint ushr 6) and 0x3f)).toByte())
+                put((0x80 or (codePoint and 0x3f)).toByte())
+            }
+            else -> {
+                put((0xf0 or (codePoint ushr 18)).toByte())
+                put((0x80 or ((codePoint ushr 12) and 0x3f)).toByte())
+                put((0x80 or ((codePoint ushr 6) and 0x3f)).toByte())
+                put((0x80 or (codePoint and 0x3f)).toByte())
+            }
+        }
+    }
+
+    private fun put(value: Byte) {
+        buffer[bufferedBytes++] = value
+        if (bufferedBytes == buffer.size) flush()
+    }
+
+    private fun flush() {
+        if (bufferedBytes == 0) return
+        digest.update(buffer, 0, bufferedBytes)
+        bufferedBytes = 0
+    }
+
+    fun finish() = flush()
+}
+
+private fun utf8Length(value: String): Int {
+    var length = 0
+    var index = 0
+    while (index < value.length) {
+        val character = value[index]
+        when {
+            character.code <= 0x7f -> length += 1
+            character.code <= 0x7ff -> length += 2
+            character.isHighSurrogate() && index + 1 < value.length && value[index + 1].isLowSurrogate() -> {
+                length += 4
+                index += 1
+            }
+            character.isSurrogate() -> length += 3
+            else -> length += 3
+        }
+        index += 1
+    }
+    return length
+}
 
 private fun String.matchIdentityText(): String {
     return trim().lowercase(Locale.ROOT).replace(MATCH_IDENTITY_WHITESPACE, " ")

@@ -82,22 +82,17 @@ internal class LibrarySnapshotPublisher(
         if (editedSongs.isEmpty()) return currentState()
         val current = currentState()
         updateIndices(current)
-        val replacements = editedSongs.associateBy(Song::id)
-        val replacementsByIdentity = editedSongs.associateBy(MediaIdentityResolver::stableKey)
-        val replacementPositions = editedSongs.asSequence()
-            .mapNotNull { edited ->
-                songPositionsById[edited.id]
-                    ?: songPositionsByStableKey[MediaIdentityResolver.stableKey(edited)]
-            }
-            .distinct()
-            .sorted()
-            .toList()
+        val replacementsByPosition = hashMapOf<Int, Song>()
+        editedSongs.forEach { edited ->
+            val position = songPositionsById[edited.id]
+                ?: songPositionsByStableKey[MediaIdentityResolver.stableKey(edited)]
+            if (position != null) replacementsByPosition[position] = edited
+        }
+        val replacementPositions = replacementsByPosition.keys.sorted()
         if (replacementPositions.isEmpty()) return current
         val updatedSongs = current.songs.toMutableList()
         replacementPositions.forEach { position ->
-            val currentSong = current.songs[position]
-            updatedSongs[position] = replacements[currentSong.id]
-                ?: replacementsByIdentity.getValue(MediaIdentityResolver.stableKey(currentSong))
+            updatedSongs[position] = replacementsByPosition.getValue(position)
         }
         val canonicalUpdatedSongs = LibrarySnapshotAssembler.canonicalizeAlbumIdsAfterPatch(
             previousSongs = current.songs,
@@ -161,7 +156,14 @@ internal class LibrarySnapshotPublisher(
                 previousRevision = current.contentRevision,
                 patches = patches,
             ),
-            portableMediaIdentityRevision = MediaIdentityResolver.portableIdentityRevision(canonicalUpdatedSongs),
+            portableMediaIdentityRevision = if (
+                current.portableMediaIdentityRevision.isNotBlank() &&
+                    patches.none { patch -> MediaIdentityResolver.portableIdentityChanged(patch.before, patch.after) }
+            ) {
+                current.portableMediaIdentityRevision
+            } else {
+                MediaIdentityResolver.portableIdentityRevision(canonicalUpdatedSongs)
+            },
         )
         if (publishResult && !hasSamePublishedState(current, nextState)) publish(nextState)
         return nextState

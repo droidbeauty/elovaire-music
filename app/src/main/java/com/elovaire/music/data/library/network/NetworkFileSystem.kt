@@ -138,6 +138,7 @@ internal class NetworkFileSystemRegistry(
             kind = RemoteIoFailureKind.SourceRemoved,
             message = "Network library source is unavailable",
         )
+        val credentialGeneration = credentialStore.generation(sourceRecord.credentialKey)
         val credentialRecord = credentials(sourceRecord) ?: throw NetworkRemoteIoException(
             kind = RemoteIoFailureKind.Authentication,
             message = "Network library credentials are unavailable",
@@ -148,9 +149,8 @@ internal class NetworkFileSystemRegistry(
         return try {
             checkNotReleased()
             if (
-                source(sourceId) == null ||
-                    !isCurrent(sourceRecord, sourceGeneration) ||
-                    this.credentials(sourceRecord) != credentialRecord
+                !isCurrent(sourceRecord, sourceGeneration) ||
+                    credentialStore.generation(sourceRecord.credentialKey) != credentialGeneration
             ) {
                 throw NetworkRemoteIoException(
                     kind = RemoteIoFailureKind.SourceRemoved,
@@ -302,18 +302,16 @@ internal class NetworkOperationAdmission(
         waitingThreads += thread
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(maxWaitMs)
         try {
-            while (true) {
-                if (closed.get()) throw IOException("Network operation admission is closed")
-                val remainingNs = deadline - System.nanoTime()
-                if (remainingNs < 0L) throw IOException("Network operation capacity is temporarily exhausted")
-                if (semaphore.tryAcquire(minOf(remainingNs, TimeUnit.MILLISECONDS.toNanos(100L)), TimeUnit.NANOSECONDS)) {
-                    if (closed.get()) {
-                        semaphore.release()
-                        throw IOException("Network operation admission is closed")
-                    }
-                    return
-                }
+            if (closed.get()) throw IOException("Network operation admission is closed")
+            val remainingNs = deadline - System.nanoTime()
+            if (remainingNs < 0L || !semaphore.tryAcquire(remainingNs, TimeUnit.NANOSECONDS)) {
+                throw IOException("Network operation capacity is temporarily exhausted")
             }
+            if (closed.get()) {
+                semaphore.release()
+                throw IOException("Network operation admission is closed")
+            }
+            return
         } catch (interrupted: InterruptedException) {
             if (closed.get()) throw IOException("Network operation admission is closed", interrupted)
             Thread.currentThread().interrupt()

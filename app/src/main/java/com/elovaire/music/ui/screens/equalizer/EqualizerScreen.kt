@@ -412,8 +412,8 @@ private fun ReverbStepSlider(
     val motionSpecs = rememberMotionSpecs()
     val steps = remember { (0..500 step 50).toList() }
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val selectedValue = steps.minByOrNull { kotlin.math.abs(it - valueMs.coerceIn(0, 500)) } ?: 0
-    val selectedIndex = steps.indexOf(selectedValue).coerceAtLeast(0)
+    val selectedIndex = ((valueMs.coerceIn(0, 500) + 24) / 50).coerceIn(0, steps.lastIndex)
+    val selectedValue = selectedIndex * 50
     val maxIndex = (steps.size - 1).coerceAtLeast(1)
     val knobSize = 20.dp
     val dotColor = MaterialTheme.colorScheme.onSurface
@@ -441,15 +441,6 @@ private fun ReverbStepSlider(
         val trackStartPx = knobSizePx / 2f
         val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
         val selectedCenterPx = trackStartPx + (trackWidthPx * (selectedIndex.toFloat() / maxIndex.toFloat()))
-        val stepCenters = remember(maxWidthPx, maxIndex) {
-            steps.indices.map { index ->
-                if (maxIndex == 0) {
-                    maxWidthPx / 2f
-                } else {
-                    trackStartPx + (trackWidthPx * (index.toFloat() / maxIndex.toFloat()))
-                }
-            }
-        }
         LaunchedEffect(selectedCenterPx, maxWidthPx) {
             if (!isDragging) {
                 dragCenterPx = selectedCenterPx
@@ -472,11 +463,11 @@ private fun ReverbStepSlider(
         val updateFromPosition: (Float) -> Unit = { xPosition ->
             val clampedX = xPosition.coerceIn(trackStartPx, trackStartPx + trackWidthPx)
             dragCenterPx = clampedX
-            val targetIndex = stepCenters
-                .withIndex()
-                .minByOrNull { (_, center) -> kotlin.math.abs(center - clampedX) }
-                ?.index
-                ?: selectedIndex
+            val position = ((clampedX - trackStartPx) / trackWidthPx * maxIndex).coerceIn(0f, maxIndex.toFloat())
+            val lowerIndex = position.toInt()
+            val targetIndex = (lowerIndex + (position - lowerIndex).let { fraction ->
+                if (fraction > 0.5f) 1 else 0
+            }).coerceIn(0, maxIndex)
             val targetValue = steps[targetIndex]
             if (targetValue != selectedValue) {
                 currentOnValueChange(targetValue)

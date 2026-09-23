@@ -19,6 +19,7 @@ import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.IdentityHashMap
 
 internal enum class BitPerfectPlaybackState {
     UnsupportedAndroidVersion,
@@ -312,15 +313,19 @@ private fun resolveRouteSnapshot(
     val routeQuerySupported =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
-    val availableDevices = audioManager.safeOutputDevices()
     val resolvedRoutedDevices = routedDevices ?: if (routeQuerySupported) {
-        audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes)
+        audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes).ifEmpty {
+            audioManager.safeOutputDevices()
+        }
     } else {
-        availableDevices
+        audioManager.safeOutputDevices()
     }
-    val fingerprint = resolvedRoutedDevices
-        .mapNotNull { device -> runCatching { device.toRouteFingerprint() }.getOrNull() }
-        .sortedWith(compareBy(RouteFingerprint::type, RouteFingerprint::id))
+    val fingerprintsByDevice = IdentityHashMap<AudioDeviceInfo, RouteFingerprint>(resolvedRoutedDevices.size)
+    resolvedRoutedDevices.forEach { device ->
+        runCatching { device.toRouteFingerprint() }
+            .onSuccess { fingerprintsByDevice[device] = it }
+    }
+    val fingerprint = fingerprintsByDevice.values.sortedWith(compareBy(RouteFingerprint::type, RouteFingerprint::id))
     val preferredUsbDevice = resolvedRoutedDevices.firstOrNull { device ->
         runCatching { device.type.isEligibleUsbOutputType() }.getOrDefault(false)
     }
@@ -328,9 +333,9 @@ private fun resolveRouteSnapshot(
     return DirectPlaybackRouteSnapshot(
         fingerprint = fingerprint,
         preferredUsbDevice = preferredUsbDevice,
-        preferredUsbFingerprint = preferredUsbDevice?.let { runCatching { it.toRouteFingerprint() }.getOrNull() },
+        preferredUsbFingerprint = preferredUsbDevice?.let(fingerprintsByDevice::get),
         primaryRoutedDevice = primaryRoutedDevice,
-        primaryRouteFingerprint = primaryRoutedDevice?.let { runCatching { it.toRouteFingerprint() }.getOrNull() },
+        primaryRouteFingerprint = primaryRoutedDevice?.let(fingerprintsByDevice::get),
         hasBluetoothRoute = resolvedRoutedDevices.any { device ->
             runCatching { device.type.isBluetoothOutputType() }.getOrDefault(false)
         },

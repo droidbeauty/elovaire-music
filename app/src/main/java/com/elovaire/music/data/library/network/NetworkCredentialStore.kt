@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Base64
 import java.security.GeneralSecurityException
 import java.security.KeyStore
+import java.util.HashMap
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -14,6 +15,8 @@ import org.json.JSONObject
 internal class NetworkCredentialStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
     private val lock = Any()
+    private var cachedSecretKey: SecretKey? = null
+    private val generations = HashMap<String, Long>()
 
     fun put(sourceId: String, key: String, credentials: NetworkCredentials) {
         validateIdentity(sourceId, key)
@@ -35,8 +38,11 @@ internal class NetworkCredentialStore(context: Context) {
                     .putString(key, Base64.encodeToString(value, Base64.NO_WRAP))
                     .commit(),
             ) { "Unable to persist network credentials" }
+            generations[key] = (generations[key] ?: 0L) + 1L
         }
     }
+
+    fun generation(key: String): Long = synchronized(lock) { generations[key] ?: 0L }
 
     fun read(sourceId: String, key: String): NetworkCredentialReadResult {
         validateIdentity(sourceId, key)
@@ -146,12 +152,17 @@ internal class NetworkCredentialStore(context: Context) {
         require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
         synchronized(lock) {
             check(preferences.edit().remove(key).commit()) { "Unable to remove network credentials" }
+            generations[key] = (generations[key] ?: 0L) + 1L
         }
     }
 
     private fun secretKey(createIfMissing: Boolean): SecretKey {
+        cachedSecretKey?.let { return it }
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let {
+            cachedSecretKey = it
+            return it
+        }
         check(createIfMissing) { "Network credential key is unavailable" }
         val generator = KeyGenerator.getInstance("AES", ANDROID_KEYSTORE)
         generator.init(
@@ -164,7 +175,7 @@ internal class NetworkCredentialStore(context: Context) {
                 .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
                 .build(),
         )
-        return generator.generateKey()
+        return generator.generateKey().also { cachedSecretKey = it }
     }
 
     private fun encrypt(

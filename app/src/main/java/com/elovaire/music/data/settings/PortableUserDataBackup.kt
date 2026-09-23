@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
+import elovaire.music.droidbeauty.app.data.library.PortableMediaIdentityProjection
 import elovaire.music.droidbeauty.app.data.library.TrackMatchConfidence
 import elovaire.music.droidbeauty.app.data.library.TrackMatchIdentity
 import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistName
@@ -33,7 +34,7 @@ internal class PortableUserDataBackup(
         }
     }
     private val lock = Any()
-    private var preparedMediaIdentitySnapshot: PortableMediaIdentitySnapshot? = null
+    private var preparedMediaIdentityProjection: PortableMediaIdentityProjection? = null
 
     fun write(
         snapshot: UserDataSnapshot,
@@ -80,20 +81,14 @@ internal class PortableUserDataBackup(
         userDataRevision: Long,
         contentRevision: String,
     ): ByteArray {
-        val identityRevision = MediaIdentityResolver.portableIdentityRevision(songs)
-        val identitySnapshot = if (contentRevision.isBlank()) {
-            null
-        } else if (preparedMediaIdentitySnapshot?.revision == identityRevision) {
-            preparedMediaIdentitySnapshot
-        } else {
-            PortableMediaIdentitySnapshot(
-                revision = identityRevision,
-                identitiesBySongId = songs.associate { song ->
-                    song.id to MediaIdentityResolver.trackMatchIdentity(song).copy(sourceStableKey = null)
-                },
-            ).also {
-                preparedMediaIdentitySnapshot = it
-            }
+        val identityProjection = contentRevision.takeIf(String::isNotBlank)?.let { revision ->
+            preparedMediaIdentityProjection?.takeIf { it.revision == revision }
+                ?: MediaIdentityResolver.portableIdentityProjection(
+                    songs = songs,
+                    revision = revision,
+                ).also {
+                    preparedMediaIdentityProjection = it
+                }
         }
         return encodePortableUserData(
             snapshot = snapshot,
@@ -101,7 +96,7 @@ internal class PortableUserDataBackup(
             createdAtMs = createdAtMs,
             appVersion = appVersion,
             userDataRevision = userDataRevision,
-            preparedSongIdentities = identitySnapshot?.identitiesBySongId,
+            preparedSongIdentities = identityProjection?.identitiesBySongId,
         )
     }
 
@@ -118,11 +113,6 @@ internal class PortableUserDataBackup(
         songs: List<Song>,
     ): PortableUserDataImport? = read()?.mergeInto(current, songs)
 }
-
-internal data class PortableMediaIdentitySnapshot(
-    val revision: String,
-    val identitiesBySongId: Map<Long, TrackMatchIdentity>,
-)
 
 internal data class PortableUserData(
     val createdAtMs: Long,
@@ -160,10 +150,13 @@ internal fun encodePortableUserData(
     preparedSongIdentities: Map<Long, TrackMatchIdentity>? = null,
 ): ByteArray {
     require(appVersion.length <= MAX_APP_VERSION_CHARS)
-    val songsById = songs.associateBy(Song::id)
+    val songsById = if (preparedSongIdentities == null) songs.associateBy(Song::id) else null
     fun reference(songId: Long): TrackMatchIdentity? {
         return preparedSongIdentities?.get(songId)
-            ?: songsById[songId]?.let(MediaIdentityResolver::trackMatchIdentity)?.copy(sourceStableKey = null)
+            ?: songsById?.get(songId)?.let(MediaIdentityResolver::trackMatchIdentity)?.copy(sourceStableKey = null)
+    }
+    fun JSONArray.putReferences(songIds: Iterable<Long>) {
+        songIds.forEach { songId -> reference(songId)?.let { put(it.toJson()) } }
     }
 
     val root = JSONObject()
@@ -179,39 +172,24 @@ internal fun encodePortableUserData(
                         JSONObject()
                             .put(KEY_ID, playlist.id)
                             .put(KEY_NAME, normalizePlaylistName(playlist.name))
-                            .put(
-                                KEY_SONGS,
-                                JSONArray().apply {
-                                    playlist.songIds.mapNotNull(::reference).map(TrackMatchIdentity::toJson).forEach(::put)
-                                },
-                            ),
+                            .put(KEY_SONGS, JSONArray().apply { putReferences(playlist.songIds) }),
                     )
                 }
             },
         )
         .put(KEY_SMART_PLAYLISTS, serializeSmartPlaylists(snapshot.smartPlaylists))
-        .put(
-            KEY_FAVORITES,
-            JSONArray().apply {
-                snapshot.favoriteSongIds.mapNotNull(::reference).map(TrackMatchIdentity::toJson).forEach(::put)
-            },
-        )
+        .put(KEY_FAVORITES, JSONArray().apply { putReferences(snapshot.favoriteSongIds) })
         .put(
             KEY_SONG_COUNTS,
             JSONArray().apply {
-                snapshot.songPlayCounts.entries.mapNotNull { (songId, count) ->
+                snapshot.songPlayCounts.forEach { (songId, count) ->
                     reference(songId)?.let { identity ->
-                        JSONObject().put(KEY_SONG, identity.toJson()).put(KEY_COUNT, count.coerceAtLeast(0))
+                        put(JSONObject().put(KEY_SONG, identity.toJson()).put(KEY_COUNT, count.coerceAtLeast(0)))
                     }
-                }.forEach(::put)
+                }
             },
         )
-        .put(
-            KEY_RECENT_SONGS,
-            JSONArray().apply {
-                snapshot.recentSongIds.mapNotNull(::reference).map(TrackMatchIdentity::toJson).forEach(::put)
-            },
-        )
+        .put(KEY_RECENT_SONGS, JSONArray().apply { putReferences(snapshot.recentSongIds) })
     val withChecksum = root.put(KEY_CHECKSUM, portableUserDataChecksum(root, CHECKSUM_KEYS_V2))
     return withChecksum.toString().toByteArray(StandardCharsets.UTF_8).also { bytes ->
         require(bytes.size <= MAX_FILE_BYTES) { "Portable user-data backup is too large." }
@@ -293,56 +271,106 @@ internal fun PortableUserData.mergeInto(
     }
 
     val mergedPlaylists = current.playlists.toMutableList()
+    val playlistIndexById = hashMapOf<Long, Int>()
+    val playlistIndexByName = hashMapOf<String, Int>()
+    val occupiedPlaylistIds = hashSetOf<Long>()
+    mergedPlaylists.forEachIndexed { index, playlist ->
+        occupiedPlaylistIds += playlist.id
+        if (!playlist.isSystem) {
+            playlistIndexById.putIfAbsent(playlist.id, index)
+            playlistIndexByName.putIfAbsent(normalizePlaylistName(playlist.name), index)
+        }
+    }
     var nextPlaylistId = sequenceOf(
         mergedPlaylists.maxOfOrNull(Playlist::id),
         current.smartPlaylists.maxOfOrNull(SmartPlaylist::id),
         playlists.maxOfOrNull(PortablePlaylist::id),
     ).filterNotNull().maxOrNull()?.let { if (it == Long.MAX_VALUE) Long.MAX_VALUE else it + 1L } ?: 1L
     playlists.forEach { portable ->
-        val resolvedSongs = portable.songs.mapNotNull(::resolve).distinct()
-        val existingIndex = mergedPlaylists.indexOfFirst { playlist ->
-            !playlist.isSystem &&
-                (playlist.id == portable.id || normalizePlaylistName(playlist.name) == portable.name)
-        }
-        if (existingIndex >= 0) {
+        val resolvedSongs = linkedSetOf<Long>()
+        portable.songs.forEach { identity -> resolve(identity)?.let(resolvedSongs::add) }
+        val existingIndex = findPortablePlaylistIndex(
+            playlistId = portable.id,
+            playlistName = portable.name,
+            playlistIndexById = playlistIndexById,
+            playlistIndexByName = playlistIndexByName,
+        )
+        if (existingIndex != null) {
             val existing = mergedPlaylists[existingIndex]
-            mergedPlaylists[existingIndex] = existing.copy(songIds = (existing.songIds + resolvedSongs).distinct())
+            val mergedSongIds = linkedSetOf<Long>().apply {
+                addAll(existing.songIds)
+                addAll(resolvedSongs)
+            }
+            mergedPlaylists[existingIndex] = existing.copy(songIds = mergedSongIds.toList())
         } else {
-            val id = portable.id.takeIf { it > 0L && mergedPlaylists.none { playlist -> playlist.id == it } }
+            val id = portable.id.takeIf { it > 0L && it !in occupiedPlaylistIds }
                 ?: nextPlaylistId
             if (nextPlaylistId < Long.MAX_VALUE) nextPlaylistId += 1L
-            mergedPlaylists += Playlist(id = id, name = portable.name, songIds = resolvedSongs)
+            val index = mergedPlaylists.size
+            mergedPlaylists += Playlist(id = id, name = portable.name, songIds = resolvedSongs.toList())
+            occupiedPlaylistIds += id
+            playlistIndexById.putIfAbsent(id, index)
+            playlistIndexByName.putIfAbsent(portable.name, index)
         }
     }
 
     val mergedSmartPlaylists = current.smartPlaylists.toMutableList()
+    val smartPlaylistIds = current.smartPlaylists.mapTo(hashSetOf(), SmartPlaylist::id)
+    val smartPlaylistNames = current.smartPlaylists.mapTo(hashSetOf(), SmartPlaylist::name)
     var nextSmartId = sequenceOf(
         mergedSmartPlaylists.maxOfOrNull(SmartPlaylist::id),
         mergedPlaylists.maxOfOrNull(Playlist::id),
     ).filterNotNull().maxOrNull()?.let { if (it == Long.MAX_VALUE) Long.MAX_VALUE else it + 1L } ?: 1L
     smartPlaylists.forEach { imported ->
-        if (mergedSmartPlaylists.none { existing -> existing.id == imported.id || existing.name == imported.name }) {
-            val id = imported.id.takeIf { candidate -> mergedSmartPlaylists.none { it.id == candidate } } ?: nextSmartId
+        if (imported.id !in smartPlaylistIds && imported.name !in smartPlaylistNames) {
+            val id = imported.id.takeIf { candidate -> candidate !in smartPlaylistIds } ?: nextSmartId
             if (nextSmartId < Long.MAX_VALUE) nextSmartId += 1L
             mergedSmartPlaylists += imported.copy(id = id)
+            smartPlaylistIds += id
+            smartPlaylistNames += imported.name
         }
     }
 
-    val importedFavorites = favoriteSongs.mapNotNull(::resolve)
-    val importedCounts = songPlayCounts.mapNotNull { item -> resolve(item.song)?.let { it to item.count } }
+    val favoriteIds = linkedSetOf<Long>().apply { addAll(current.favoriteSongIds) }
+    favoriteSongs.forEach { identity -> resolve(identity)?.let(favoriteIds::add) }
     val mergedCounts = current.songPlayCounts.toMutableMap()
-    importedCounts.forEach { (songId, count) -> mergedCounts[songId] = maxOf(mergedCounts[songId] ?: 0, count) }
-    val importedRecent = recentSongs.mapNotNull(::resolve)
+    songPlayCounts.forEach { item ->
+        resolve(item.song)?.let { songId ->
+            mergedCounts[songId] = maxOf(mergedCounts[songId] ?: 0, item.count)
+        }
+    }
+    val recentIds = linkedSetOf<Long>()
+    recentSongs.forEach { identity ->
+        if (recentIds.size < MAX_RECENT_ITEMS) resolve(identity)?.let(recentIds::add)
+    }
+    current.recentSongIds.forEach { songId ->
+        if (recentIds.size < MAX_RECENT_ITEMS) recentIds += songId
+    }
     return PortableUserDataImport(
         snapshot = current.copy(
             playlists = mergedPlaylists,
             smartPlaylists = mergedSmartPlaylists,
-            favoriteSongIds = (current.favoriteSongIds + importedFavorites).distinct(),
+            favoriteSongIds = favoriteIds.toList(),
             songPlayCounts = mergedCounts,
-            recentSongIds = (importedRecent + current.recentSongIds).distinct().take(MAX_RECENT_ITEMS),
+            recentSongIds = recentIds.toList(),
         ),
         unresolvedReferenceCount = unresolved,
     )
+}
+
+private fun findPortablePlaylistIndex(
+    playlistId: Long,
+    playlistName: String,
+    playlistIndexById: Map<Long, Int>,
+    playlistIndexByName: Map<String, Int>,
+): Int? {
+    val indexById = playlistIndexById[playlistId]
+    val indexByName = playlistIndexByName[playlistName]
+    return if (indexById != null && indexByName != null) {
+        minOf(indexById, indexByName)
+    } else {
+        indexById ?: indexByName
+    }
 }
 
 private fun TrackMatchIdentity.toJson(): JSONObject = JSONObject()
@@ -392,9 +420,15 @@ private fun portableUserDataChecksum(root: JSONObject, keys: List<String>): Stri
         val value = root.opt(key)?.toString().orEmpty()
         "$key:${value.length}:$value"
     }
-    return MessageDigest.getInstance("SHA-256")
+    val digest = MessageDigest.getInstance("SHA-256")
         .digest(canonical.toByteArray(StandardCharsets.UTF_8))
-        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    return buildString(digest.size * 2) {
+        digest.forEach { byte ->
+            val value = byte.toInt() and 0xff
+            append("0123456789abcdef"[value ushr 4])
+            append("0123456789abcdef"[value and 0x0f])
+        }
+    }
 }
 
 private const val DEFAULT_FILE_NAME = "portable_user_data_v1.json"

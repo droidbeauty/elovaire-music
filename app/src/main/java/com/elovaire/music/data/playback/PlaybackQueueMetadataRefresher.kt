@@ -56,17 +56,26 @@ internal class PlaybackQueueMetadataRefresher {
     ): PlaybackQueueReconciliation? {
         if (queue.isEmpty()) return null
 
-        val songsByIdentity = librarySongs
-            .groupBy(MediaIdentityResolver::stableKey)
-            .filterValues { it.size == 1 }
-            .mapValues { (_, songs) -> songs.single() }
-        val songsByPath = librarySongs
-            .mapNotNull { song ->
-                LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { it to song }
+        val songsByIdentity = HashMap<String, Song>(librarySongs.size)
+        val ambiguousIdentities = HashSet<String>()
+        val songsByPath = HashMap<String, Song>(librarySongs.size)
+        val ambiguousPaths = HashSet<String>()
+        librarySongs.forEach { song ->
+            val identity = MediaIdentityResolver.stableKey(song)
+            if (identity !in ambiguousIdentities) {
+                if (songsByIdentity.putIfAbsent(identity, song) != null) {
+                    songsByIdentity.remove(identity)
+                    ambiguousIdentities += identity
+                }
             }
-            .groupBy({ it.first }, { it.second })
-            .filterValues { it.size == 1 }
-            .mapValues { (_, songs) -> songs.single() }
+            val path = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
+            if (path != null && path !in ambiguousPaths) {
+                if (songsByPath.putIfAbsent(path, song) != null) {
+                    songsByPath.remove(path)
+                    ambiguousPaths += path
+                }
+            }
+        }
         val trackMatcher by lazy { MediaIdentityResolver.prepareTrackMatcher(librarySongs) }
 
         val retained = ArrayList<Song>(queue.size)
@@ -78,7 +87,7 @@ internal class PlaybackQueueMetadataRefresher {
                 ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
                     ?.let(songsByPath::get)
                 ?: trackMatcher.resolve(
-                    MediaIdentityResolver.trackMatchIdentity(queuedSong).copy(sourceStableKey = null),
+                    MediaIdentityResolver.trackMatchIdentity(queuedSong, includeSourceStableKey = false),
                 ).takeIf { it.confidence == TrackMatchConfidence.Strong }
                     ?.song
             if (match == null) {

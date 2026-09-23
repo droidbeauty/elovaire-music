@@ -27,7 +27,7 @@ internal object SmartPlaylistEngine {
         val preparedDefinition = PreparedSmartPlaylist(definition)
         val matched = songs.asSequence()
             .filter { it.mediaKind == AudioMediaKind.Music }
-            .map { song -> NormalizedSong(song, preparedDefinition) }
+            .map { song -> NormalizedSong.create(song, preparedDefinition.normalizationNeeds) }
             .filter { it.matches(preparedDefinition, context) }
             .toList()
         val sorted = sort(definition, matched, context)
@@ -37,6 +37,42 @@ internal object SmartPlaylistEngine {
             songs = limited.map(NormalizedSong::song),
             totalMatchedBeforeLimit = matched.size,
         )
+    }
+
+    fun resolveAll(
+        definitions: List<SmartPlaylist>,
+        songs: List<Song>,
+        favoriteSongIds: Set<Long>,
+        playCounts: Map<Long, Int>,
+        nowMs: Long = AndroidAppClock.wallTimeMs(),
+    ): List<SmartPlaylistResult> {
+        if (definitions.isEmpty()) return emptyList()
+        val preparedDefinitions = definitions.map(::PreparedSmartPlaylist)
+        val normalizationNeeds = preparedDefinitions
+            .map(PreparedSmartPlaylist::normalizationNeeds)
+            .fold(NormalizationNeeds()) { accumulated, needs -> accumulated + needs }
+        val normalizedSongs = songs.asSequence()
+            .filter { it.mediaKind == AudioMediaKind.Music }
+            .map { song -> NormalizedSong.create(song, normalizationNeeds) }
+            .toList()
+        val context = ResolutionContext(
+            favoriteSongIds = favoriteSongIds,
+            playCounts = playCounts,
+            nowMs = nowMs,
+        )
+        return preparedDefinitions.map { preparedDefinition ->
+            val matched = normalizedSongs.filter { it.matches(preparedDefinition, context) }
+            val sorted = sort(preparedDefinition.source, matched, context)
+            val limited = preparedDefinition.source.limit
+                ?.takeIf { it > 0 }
+                ?.let(sorted::take)
+                ?: sorted
+            SmartPlaylistResult(
+                playlist = preparedDefinition.source,
+                songs = limited.map(NormalizedSong::song),
+                totalMatchedBeforeLimit = matched.size,
+            )
+        }
     }
 
     private fun NormalizedSong.matches(
@@ -121,42 +157,38 @@ private data class ResolutionContext(
 
 private class NormalizedSong(
     val song: Song,
-    definition: PreparedSmartPlaylist,
+    val normalizedTitle: String,
+    val normalizedArtist: String,
+    val normalizedAlbum: String,
+    val normalizedGenre: String,
+    val normalizedAudioFormat: String,
+    val normalizedFileExtension: String,
+    val normalizedLibraryPath: String,
 ) {
-    val normalizedTitle = if (definition.needsNormalizedTitle) {
-        song.title.normalizeSmartText()
-    } else {
-        ""
-    }
-    val normalizedArtist = if (definition.needsNormalizedArtist) {
-        (song.albumArtist ?: song.artist).normalizeSmartText()
-    } else {
-        ""
-    }
-    val normalizedAlbum = if (definition.needsNormalizedAlbum) {
-        song.album.normalizeSmartText()
-    } else {
-        ""
-    }
-    val normalizedGenre = if (definition.needsNormalizedGenre) {
-        song.genre.normalizeSmartText()
-    } else {
-        ""
-    }
-    val normalizedAudioFormat = if (definition.hasFileFormatRule) {
-        song.audioFormat.lowercase(Locale.ROOT)
-    } else {
-        ""
-    }
-    val normalizedFileExtension = if (definition.hasFileFormatRule) {
-        song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-    } else {
-        ""
-    }
-    val normalizedLibraryPath = if (definition.hasFolderRule) {
-        song.libraryPath.orEmpty().normalizeSmartText()
-    } else {
-        ""
+    companion object {
+        fun create(song: Song, needs: NormalizationNeeds): NormalizedSong {
+            val hasFileFormat = needs.fileFormat
+            return NormalizedSong(
+                song = song,
+                normalizedTitle = song.title.takeIf { needs.title }?.normalizeSmartText().orEmpty(),
+                normalizedArtist = (song.albumArtist ?: song.artist)
+                    .takeIf { needs.artist }
+                    ?.normalizeSmartText()
+                    .orEmpty(),
+                normalizedAlbum = song.album.takeIf { needs.album }?.normalizeSmartText().orEmpty(),
+                normalizedGenre = song.genre.takeIf { needs.genre }?.normalizeSmartText().orEmpty(),
+                normalizedAudioFormat = song.audioFormat.takeIf { hasFileFormat }?.lowercase(Locale.ROOT).orEmpty(),
+                normalizedFileExtension = song.fileName
+                    .takeIf { hasFileFormat }
+                    ?.substringAfterLast('.', "")
+                    ?.lowercase(Locale.ROOT)
+                    .orEmpty(),
+                normalizedLibraryPath = song.libraryPath
+                    ?.takeIf { needs.folder }
+                    ?.normalizeSmartText()
+                    .orEmpty(),
+            )
+        }
     }
 }
 
@@ -174,6 +206,32 @@ private data class PreparedSmartPlaylist(
         rules.any { it.source is SmartPlaylistRule.AlbumContains }
     val needsNormalizedGenre = source.sort.field == SmartPlaylistSortField.Genre ||
         rules.any { it.source is SmartPlaylistRule.GenreMatches }
+    val normalizationNeeds = NormalizationNeeds(
+        title = needsNormalizedTitle,
+        artist = needsNormalizedArtist,
+        album = needsNormalizedAlbum,
+        genre = needsNormalizedGenre,
+        fileFormat = hasFileFormatRule,
+        folder = hasFolderRule,
+    )
+}
+
+private data class NormalizationNeeds(
+    val title: Boolean = false,
+    val artist: Boolean = false,
+    val album: Boolean = false,
+    val genre: Boolean = false,
+    val fileFormat: Boolean = false,
+    val folder: Boolean = false,
+) {
+    operator fun plus(other: NormalizationNeeds): NormalizationNeeds = NormalizationNeeds(
+        title = title || other.title,
+        artist = artist || other.artist,
+        album = album || other.album,
+        genre = genre || other.genre,
+        fileFormat = fileFormat || other.fileFormat,
+        folder = folder || other.folder,
+    )
 }
 
 private data class PreparedSmartPlaylistRule(

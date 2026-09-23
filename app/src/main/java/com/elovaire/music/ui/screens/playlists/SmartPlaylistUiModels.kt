@@ -16,15 +16,14 @@ internal fun buildSmartPlaylistSummaries(
     favoriteSongIds: Set<Long>,
     songPlayCounts: Map<Long, Int>,
 ): List<SmartPlaylistSummary> {
-    return playlists.map { playlist ->
-        val result = SmartPlaylistEngine.resolve(
-            definition = playlist,
-            songs = songs,
-            favoriteSongIds = favoriteSongIds,
-            playCounts = songPlayCounts,
-        )
+    return SmartPlaylistEngine.resolveAll(
+        definitions = playlists,
+        songs = songs,
+        favoriteSongIds = favoriteSongIds,
+        playCounts = songPlayCounts,
+    ).map { result ->
         SmartPlaylistSummary(
-            playlist = playlist,
+            playlist = result.playlist,
             result = result,
         )
     }

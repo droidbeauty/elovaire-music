@@ -81,11 +81,12 @@ internal object ElovaireTrace {
         recordedSections.clear()
     }
 
-    @Synchronized
     private fun record(name: String) {
         if (!BuildConfig.DEBUG) return
-        if (recordedSections.size == MAX_RECORDED_SECTIONS) recordedSections.removeFirst()
-        recordedSections.addLast(RecordedSection(++recordSequence, name.take(MAX_TRACE_NAME_LENGTH)))
+        synchronized(this) {
+            if (recordedSections.size == MAX_RECORDED_SECTIONS) recordedSections.removeFirst()
+            recordedSections.addLast(RecordedSection(++recordSequence, name.take(MAX_TRACE_NAME_LENGTH)))
+        }
     }
 
     private const val MAX_RECORDED_SECTIONS = 128

@@ -29,10 +29,8 @@ internal data class LibraryChangeSet(
 internal data class LibrarySongUpdate(
     val before: Song,
     val after: Song,
-) {
-    val stableKey: String
-        get() = MediaIdentityResolver.stableKey(after)
-}
+    val stableKey: String = MediaIdentityResolver.stableKey(after),
+)
 
 internal data class LibrarySongRelocation(
     val before: Song,
@@ -47,21 +45,33 @@ internal data class LibrarySongPatch(
 internal object LibraryChangeSetCalculator {
     fun fromPatches(patches: List<LibrarySongPatch>): LibraryChangeSet {
         if (patches.isEmpty()) return LibraryChangeSet.Empty
-        val relocated = patches.mapNotNull { patch ->
-            if (locatorChanged(patch.before, patch.after) && sameLogicalContent(patch.before, patch.after)) {
-                LibrarySongRelocation(patch.before, patch.after)
+        val indexedPatches = patches.map { patch ->
+            val before = index(patch.before)
+            val after = index(patch.after)
+            IndexedLibrarySongPatch(
+                before = before,
+                after = after,
+                isRelocation = locatorChanged(before.song, after.song) &&
+                    sameLogicalContent(before.song, after.song),
+            )
+        }
+        val relocated = indexedPatches.mapNotNull { patch ->
+            if (patch.isRelocation) {
+                LibrarySongRelocation(patch.before.song, patch.after.song)
             } else {
                 null
             }
         }
-        val relocatedBeforeKeys = relocated.mapTo(hashSetOf()) { MediaIdentityResolver.stableKey(it.before) }
-        val updated = patches.mapNotNull { patch ->
-            if (sameSong(patch.before, patch.after) ||
-                MediaIdentityResolver.stableKey(patch.before) in relocatedBeforeKeys
+        val relocatedBeforeKeys = indexedPatches.asSequence()
+            .filter(IndexedLibrarySongPatch::isRelocation)
+            .mapTo(hashSetOf()) { it.before.stableKey }
+        val updated = indexedPatches.mapNotNull { patch ->
+            if (sameSong(patch.before.song, patch.after.song) ||
+                patch.before.stableKey in relocatedBeforeKeys
             ) {
                 null
             } else {
-                LibrarySongUpdate(patch.before, patch.after)
+                LibrarySongUpdate(patch.before.song, patch.after.song, patch.after.stableKey)
             }
         }
         return buildChangeSet(
@@ -76,12 +86,12 @@ internal object LibraryChangeSetCalculator {
         previous: List<Song>,
         next: List<Song>,
     ): LibraryChangeSet {
-        val previousByKey = previous.associateBy(MediaIdentityResolver::stableKey)
-        val nextByKey = next.associateBy(MediaIdentityResolver::stableKey)
+        val previousByKey = previous.map(::index).associateBy(IndexedLibrarySong::stableKey)
+        val nextByKey = next.map(::index).associateBy(IndexedLibrarySong::stableKey)
         val directRelocations = nextByKey.mapNotNull { (key, after) ->
             val before = previousByKey[key] ?: return@mapNotNull null
-            if (locatorChanged(before, after) && sameLogicalContent(before, after)) {
-                LibrarySongRelocation(before, after)
+            if (locatorChanged(before.song, after.song) && sameLogicalContent(before.song, after.song)) {
+                IndexedLibrarySongRelocation(before, after)
             } else {
                 null
             }
@@ -90,37 +100,37 @@ internal object LibraryChangeSetCalculator {
             .filterKeys { it !in nextByKey }
             .values
             .mapNotNull { song ->
-                LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { it to song }
+                song.normalizedRealPath?.let { it to song }
             }
             .toMap()
         val reindexedRelocations = nextByKey
             .filterKeys { it !in previousByKey }
             .values
             .mapNotNull { after ->
-                val path = LibrarySongDuplicateResolver.normalizedRealPath(after.libraryPath)
-                    ?: return@mapNotNull null
+                val path = after.normalizedRealPath ?: return@mapNotNull null
                 val before = previousUnmatchedByPath[path] ?: return@mapNotNull null
-                if (sameLogicalContent(before, after)) {
-                    LibrarySongRelocation(before, after)
+                if (sameLogicalContent(before.song, after.song)) {
+                    IndexedLibrarySongRelocation(before, after)
                 } else {
                     null
                 }
             }
-        val relocated = directRelocations + reindexedRelocations
-        val relocatedBeforeKeys = relocated.mapTo(hashSetOf()) { MediaIdentityResolver.stableKey(it.before) }
-        val relocatedAfterKeys = relocated.mapTo(hashSetOf()) { MediaIdentityResolver.stableKey(it.after) }
+        val relocatedCandidates = directRelocations + reindexedRelocations
+        val relocated = relocatedCandidates.map { LibrarySongRelocation(it.before.song, it.after.song) }
+        val relocatedBeforeKeys = relocatedCandidates.mapTo(hashSetOf()) { it.before.stableKey }
+        val relocatedAfterKeys = relocatedCandidates.mapTo(hashSetOf()) { it.after.stableKey }
         val added = nextByKey
             .filterKeys { it !in previousByKey && it !in relocatedAfterKeys }
             .values
-            .toList()
+            .map(IndexedLibrarySong::song)
         val removed = previousByKey
             .filterKeys { it !in nextByKey && it !in relocatedBeforeKeys }
             .values
-            .toList()
+            .map(IndexedLibrarySong::song)
         val updated = nextByKey.mapNotNull { (key, after) ->
             val before = previousByKey[key] ?: return@mapNotNull null
-            after.takeIf { !sameSong(before, it) && key !in relocatedBeforeKeys }
-                ?.let { LibrarySongUpdate(before, it) }
+            after.song.takeIf { !sameSong(before.song, it) && key !in relocatedBeforeKeys }
+                ?.let { LibrarySongUpdate(before.song, it, after.stableKey) }
         }
         return buildChangeSet(added, updated, relocated, removed)
     }
@@ -149,9 +159,11 @@ internal object LibraryChangeSetCalculator {
                 update.after.artUri?.toString()?.takeIf(String::isNotBlank)?.let(::add)
             }
             relocated.forEach { relocation ->
-                if (relocation.before.artUri?.toString() != relocation.after.artUri?.toString()) {
-                    relocation.before.artUri?.toString()?.takeIf(String::isNotBlank)?.let(::add)
-                    relocation.after.artUri?.toString()?.takeIf(String::isNotBlank)?.let(::add)
+                val beforeArtUri = relocation.before.artUri?.toString()
+                val afterArtUri = relocation.after.artUri?.toString()
+                if (beforeArtUri != afterArtUri) {
+                    beforeArtUri?.takeIf(String::isNotBlank)?.let(::add)
+                    afterArtUri?.takeIf(String::isNotBlank)?.let(::add)
                 }
             }
             removed.forEach { song ->
@@ -205,4 +217,27 @@ internal object LibraryChangeSetCalculator {
             first.libraryPath != second.libraryPath ||
             first.uri.toString() != second.uri.toString()
     }
+
+    private fun index(song: Song): IndexedLibrarySong = IndexedLibrarySong(
+        song = song,
+        stableKey = MediaIdentityResolver.stableKey(song),
+        normalizedRealPath = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath),
+    )
 }
+
+private data class IndexedLibrarySong(
+    val song: Song,
+    val stableKey: String,
+    val normalizedRealPath: String?,
+)
+
+private data class IndexedLibrarySongPatch(
+    val before: IndexedLibrarySong,
+    val after: IndexedLibrarySong,
+    val isRelocation: Boolean,
+)
+
+private data class IndexedLibrarySongRelocation(
+    val before: IndexedLibrarySong,
+    val after: IndexedLibrarySong,
+)

@@ -37,6 +37,8 @@ internal class MediaStoreRowProcessor(
     private val genreCache: MutableMap<MediaStoreGenreKey, String?>,
     private val decisionMap: ScannerDebugLogger.ScannerDecisionMap,
 ) {
+    private val albumArtworkUris = HashMap<String?, HashMap<Long, Uri>>()
+
     @Suppress("LongMethod")
     suspend fun process(row: MediaStoreAudioRow): MediaStoreProcessedSong? {
         val preflightCandidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat = null)
@@ -55,9 +57,9 @@ internal class MediaStoreRowProcessor(
         decisionMap.recordPreflightPassed()
 
         val effectiveDurationMs = effectiveDuration(row)
-        val uriKey = MediaIdentityResolver.mediaStore(row.volumeName, row.id)
-            ?.stableKey
-            ?: row.uri.toString()
+        val mediaStoreIdentityKey = MediaIdentityResolver.mediaStore(row.volumeName, row.id)?.stableKey
+        val uriKey = mediaStoreIdentityKey ?: row.uri.toString()
+        val revisionKey = sourceRevisionKey(row)
         val cachedMetadata = metadataCache[uriKey]
             ?.takeIf { cached ->
                 cached.matches(
@@ -70,7 +72,7 @@ internal class MediaStoreRowProcessor(
                     requireEnriched = enrichMetadata,
                 )
             }
-        val detectedFormat = detectFormat(row)
+        val detectedFormat = detectFormat(row, revisionKey, mediaStoreIdentityKey)
         val candidate = AudioScanCandidateMapper
             .toCandidate(row, detectedFormat)
             .copy(durationMs = effectiveDurationMs)
@@ -94,6 +96,7 @@ internal class MediaStoreRowProcessor(
                         durationMs = effectiveDurationMs,
                         detectedFormat = detectedFormat,
                         identityKey = uriKey,
+                        revisionKey = revisionKey,
                     )
                 }
             } else {
@@ -153,7 +156,13 @@ internal class MediaStoreRowProcessor(
                 dateModifiedSeconds = row.dateModifiedSeconds,
                 libraryPath = row.filePath,
                 uri = row.uri,
-                artUri = mediaStoreAlbumArtworkUri(row.volumeName, row.albumId),
+                artUri = if (row.albumId >= 0L) {
+                    albumArtworkUris
+                        .getOrPut(row.volumeName) { HashMap() }
+                        .getOrPut(row.albumId) { mediaStoreAlbumArtworkUri(row.volumeName, row.albumId)!! }
+                } else {
+                    null
+                },
                 metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                 albumArtist = songMetadata.albumArtist,
                 volumeNormalization = songMetadata.volumeNormalization,
@@ -177,7 +186,11 @@ internal class MediaStoreRowProcessor(
         }
     }
 
-    private fun detectFormat(row: MediaStoreAudioRow): DetectedAudioFormat {
+    private fun detectFormat(
+        row: MediaStoreAudioRow,
+        revisionKey: String?,
+        identityKey: String?,
+    ): DetectedAudioFormat {
         return if (
             row.extension.isBlank() ||
             row.extension !in AudioFormatPolicy.scannerExtensions ||
@@ -187,8 +200,8 @@ internal class MediaStoreRowProcessor(
                 uri = row.uri,
                 fileName = row.fileName,
                 mediaStoreMimeType = row.mimeType,
-                revisionKey = sourceRevisionKey(row),
-                identityKey = MediaIdentityResolver.mediaStore(row.volumeName, row.id)?.stableKey,
+                revisionKey = revisionKey,
+                identityKey = identityKey,
             )
         } else {
             AudioScanCandidateMapper.fastDetectedFormat(
@@ -203,6 +216,7 @@ internal class MediaStoreRowProcessor(
         durationMs: Long,
         detectedFormat: DetectedAudioFormat,
         identityKey: String,
+        revisionKey: String?,
     ): SongMetadata {
         val metadata = localMetadataReader.read(
             uri = row.uri,
@@ -215,7 +229,7 @@ internal class MediaStoreRowProcessor(
                 releaseYear = row.mediaStoreYear,
             ),
             identityKey = identityKey,
-            revisionKey = sourceRevisionKey(row),
+            revisionKey = revisionKey,
         )
         val resolvedGenre = metadata.genre ?: run {
             val genreKey = MediaStoreGenreKey(row.id, row.volumeName)
@@ -271,9 +285,15 @@ internal class MediaStoreRowProcessor(
                     null,
                 )?.use { cursor ->
                     val nameIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Genres.NAME)
-                    generateSequence {
-                        if (cursor.moveToNext()) cursor.getString(nameIndex) else null
-                    }.map(String::trim).firstOrNull { it.isNotBlank() }
+                    var resolved: String? = null
+                    while (cursor.moveToNext()) {
+                        val candidate = cursor.getString(nameIndex).trim()
+                        if (candidate.isNotBlank()) {
+                            resolved = candidate
+                            break
+                        }
+                    }
+                    resolved
                 }
             } catch (failure: CancellationException) {
                 throw failure
@@ -312,10 +332,8 @@ internal class MediaStoreRowProcessor(
     }
 
     private fun detectExplicit(title: String, fileName: String): Boolean {
-        val normalizedTitle = title.lowercase(Locale.ROOT)
-        val normalizedFileName = fileName.lowercase(Locale.ROOT)
         return EXPLICIT_MARKERS.any { marker ->
-            normalizedTitle.contains(marker) || normalizedFileName.contains(marker)
+            title.contains(marker, ignoreCase = true) || fileName.contains(marker, ignoreCase = true)
         } || EXPLICIT_ADVISORY_SUFFIX.containsMatchIn(title)
     }
 
