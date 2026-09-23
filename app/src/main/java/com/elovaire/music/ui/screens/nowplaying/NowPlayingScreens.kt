@@ -2088,6 +2088,7 @@ private fun QueueSongList(
             hazeState = queueEdgeHazeState,
             startIntensity = 0f,
             endIntensity = 1f,
+            edgeHeight = 30.dp,
         )
     }
 }
@@ -2101,6 +2102,7 @@ internal fun BoxScope.QueueEdgeHaze(
     hazeState: HazeState,
     startIntensity: Float,
     endIntensity: Float,
+    edgeHeight: Dp = 20.dp,
 ) {
     if (!visible) return
     val surface = MaterialTheme.colorScheme.surface
@@ -2112,7 +2114,7 @@ internal fun BoxScope.QueueEdgeHaze(
         modifier = Modifier
             .align(alignment)
             .fillMaxWidth()
-            .height(20.dp)
+            .height(edgeHeight)
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .hazeEffect(hazeState) {
                 progressive = softEdgeBlurProgressive(
@@ -3637,6 +3639,8 @@ private fun LyricsOverlay(
         }
     }
     var overlayEntered by remember(song?.id) { mutableStateOf(false) }
+    var displayedLyricsSongId by remember { mutableStateOf(song?.id) }
+    val animateLyricsForTrackChange = song?.id != displayedLyricsSongId
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 92.dp
     val lyricsButtonArea = 72.dp
@@ -3960,6 +3964,8 @@ private fun LyricsOverlay(
                                     LyricsReadyContent(
                                         song = song,
                                         payload = state.payload,
+                                        animateTrackChange = animateLyricsForTrackChange,
+                                        onTrackChangeAnimationStarted = { displayedLyricsSongId = song?.id },
                                         activeLyricLineIndex = activeLyricsLineIndex,
                                         listState = listState,
                                         autoScrollHeld = autoScrollHeld,
@@ -4329,94 +4335,84 @@ private fun LyricsSkipControl(
     onSkipNext: () -> Unit,
 ) {
     val shape = RoundedCornerShape(ElovaireRadii.pill)
-    val surface = MaterialTheme.colorScheme.surface
     Box(
         modifier = Modifier
             .width(160.dp)
-            .height(44.dp)
-            .clip(shape)
-            .then(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Modifier.hazeEffect(lyricsHazeState) {
-                        blurRadius = 34.dp
-                        backgroundColor = surface.copy(alpha = 0.18f)
-                        tints = listOf(
-                            HazeTint(surface.copy(alpha = 0.08f)),
-                            HazeTint(contentColor.copy(alpha = 0.02f)),
-                        )
-                        noiseFactor = 0.012f
-                    }
-                } else {
-                    Modifier
-                },
-            ),
+            .height(44.dp),
     ) {
-        Surface(
+        DynamicBackdropSurface(
             modifier = Modifier.fillMaxSize(),
             shape = shape,
-            color = contentColor.copy(alpha = 0.18f),
-            contentColor = contentColor,
+            overlayAlpha = 0f,
+            hazeState = lyricsHazeState,
         ) {
-            Row(
+            Surface(
                 modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
+                shape = shape,
+                color = contentColor.copy(alpha = 0.18f),
+                contentColor = contentColor,
             ) {
-                val previousInteractionSource = rememberElovaireInteractionSource()
-                Surface(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier
-                        .width(80.dp)
-                        .fillMaxHeight()
-                        .elovaireActionBump(
-                            interactionSource = previousInteractionSource,
-                            label = "lyrics_previous_bump",
-                        ),
-                    shape = RoundedCornerShape(0.dp),
-                    color = Color.Transparent,
-                    contentColor = contentColor,
-                    interactionSource = previousInteractionSource,
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
+                    val previousInteractionSource = rememberElovaireInteractionSource()
+                    Surface(
+                        onClick = onSkipPrevious,
+                        modifier = Modifier
+                            .width(80.dp)
+                            .fillMaxHeight()
+                            .elovaireActionBump(
+                                interactionSource = previousInteractionSource,
+                                label = "lyrics_previous_bump",
+                            ),
+                        shape = RoundedCornerShape(0.dp),
+                        color = Color.Transparent,
+                        contentColor = contentColor,
+                        interactionSource = previousInteractionSource,
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_elovaire_backward_filled),
-                            contentDescription = "Previous",
-                            modifier = Modifier.size(20.dp),
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_elovaire_backward_filled),
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
-                }
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(20.dp)
-                        .background(contentColor.copy(alpha = 0.3f)),
-                )
-                val nextInteractionSource = rememberElovaireInteractionSource()
-                Surface(
-                    onClick = onSkipNext,
-                    modifier = Modifier
-                        .width(80.dp)
-                        .fillMaxHeight()
-                        .elovaireActionBump(
-                            interactionSource = nextInteractionSource,
-                            label = "lyrics_next_bump",
-                        ),
-                    shape = RoundedCornerShape(0.dp),
-                    color = Color.Transparent,
-                    contentColor = contentColor,
-                    interactionSource = nextInteractionSource,
-                ) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(20.dp)
+                            .background(contentColor.copy(alpha = 0.3f)),
+                    )
+                    val nextInteractionSource = rememberElovaireInteractionSource()
+                    Surface(
+                        onClick = onSkipNext,
+                        modifier = Modifier
+                            .width(80.dp)
+                            .fillMaxHeight()
+                            .elovaireActionBump(
+                                interactionSource = nextInteractionSource,
+                                label = "lyrics_next_bump",
+                            ),
+                        shape = RoundedCornerShape(0.dp),
+                        color = Color.Transparent,
+                        contentColor = contentColor,
+                        interactionSource = nextInteractionSource,
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_elovaire_forward_filled),
-                            contentDescription = "Next",
-                            modifier = Modifier.size(20.dp),
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_elovaire_forward_filled),
+                                contentDescription = "Next",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -4436,44 +4432,34 @@ private fun LyricsControlButton(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
-    val surface = MaterialTheme.colorScheme.surface
     Box(
-        modifier = modifier
-            .clip(shape)
-            .then(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Modifier.hazeEffect(lyricsHazeState) {
-                        blurRadius = 34.dp
-                        backgroundColor = surface.copy(alpha = 0.18f)
-                        tints = listOf(
-                            HazeTint(surface.copy(alpha = 0.08f)),
-                            HazeTint(contentColor.copy(alpha = 0.02f)),
-                        )
-                        noiseFactor = 0.012f
-                    }
-                } else {
-                    Modifier
-                },
-            ),
+        modifier = modifier,
     ) {
-        Surface(
-            onClick = onClick,
-            interactionSource = interactionSource,
-            modifier = Modifier
-                .fillMaxSize()
-                .elovaireActionBump(
-                    interactionSource = interactionSource,
-                    label = label,
-                ),
+        DynamicBackdropSurface(
+            modifier = Modifier.fillMaxSize(),
             shape = shape,
-            color = contentColor.copy(alpha = 0.18f),
-            contentColor = contentColor,
+            overlayAlpha = 0f,
+            hazeState = lyricsHazeState,
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
+            Surface(
+                onClick = onClick,
+                interactionSource = interactionSource,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .elovaireActionBump(
+                        interactionSource = interactionSource,
+                        label = label,
+                    ),
+                shape = shape,
+                color = contentColor.copy(alpha = 0.18f),
+                contentColor = contentColor,
             ) {
-                content()
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    content()
+                }
             }
         }
     }
@@ -4570,6 +4556,8 @@ private fun LyricsTextEditor(
 private fun LyricsReadyContent(
     song: Song?,
     payload: LyricsPayload,
+    animateTrackChange: Boolean,
+    onTrackChangeAnimationStarted: () -> Unit,
     activeLyricLineIndex: Int,
     listState: LazyListState,
     autoScrollHeld: Boolean,
@@ -4585,7 +4573,12 @@ private fun LyricsReadyContent(
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
     val motionSpecs = rememberMotionSpecs()
-    val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
+    val density = LocalDensity.current
+    val autoScrollCenterOffsetPx = with(density) { 180.dp.roundToPx() }
+    val lineEntryOffsetPx = with(density) { 10.dp.toPx() }
+    LaunchedEffect(song?.id) {
+        if (animateTrackChange) onTrackChangeAnimationStarted()
+    }
     LaunchedEffect(activeLyricLineIndex, payload.isSynced, autoScrollHeld) {
         if (!autoScrollHeld && payload.isSynced && activeLyricLineIndex >= 0) {
             listState.animateLyricJumpToItem(
@@ -4633,6 +4626,22 @@ private fun LyricsReadyContent(
             items = payload.lines,
             key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
         ) { index, line ->
+            val lineEntryProgress = remember(song?.id, index) {
+                Animatable(if (animateTrackChange) 0f else 1f)
+            }
+            LaunchedEffect(song?.id, index) {
+                if (animateTrackChange) {
+                    val staggerIndex = (index - listState.firstVisibleItemIndex).coerceIn(0, 6)
+                    delay(staggerIndex * 16L)
+                    lineEntryProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = MotionDuration.Standard,
+                            easing = MotionEasing.RefinedDecelerate,
+                        ),
+                    )
+                }
+            }
             val isActive = payload.isSynced && index == activeLyricLineIndex
             val lineFontSize by animateFloatAsState(
                 targetValue = if (isActive) 24f else 22f,
@@ -4658,6 +4667,10 @@ private fun LyricsReadyContent(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = lineEntryProgress.value
+                        translationY = (1f - lineEntryProgress.value) * -lineEntryOffsetPx
+                    }
                     .pointerInput(song?.id, payload.lines.size, payload.isSynced, activeLyricLineIndex) {
                         detectTapGestures {
                             lyricsSeekPositionMs(

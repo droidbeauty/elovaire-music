@@ -8,6 +8,7 @@
     -->
     <release version="2.8.9">
         <item>Redesigned playlist preview UI</item>
+        <item>UI tweaks in queue menu</item>
         <item>New features in EQ - custom presets and preamp level control</item>
         <item>Improved tag editing system for audiobooks</item>
         <item>General performance and efficiency upgrades</item>
