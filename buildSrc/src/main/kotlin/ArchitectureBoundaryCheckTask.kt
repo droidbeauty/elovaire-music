@@ -108,6 +108,18 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if (path.endsWith("ViewModel.kt") && "AppContainer" in code) {
                 violations += "$path depends on the broad application container"
             }
+            if ("/widget/" in path) {
+                val forbiddenWidgetDependencies = listOf(
+                    "elovaire.music.droidbeauty.app.core.AppContainer",
+                    "elovaire.music.droidbeauty.app.core.AppServices",
+                    "elovaire.music.droidbeauty.app.data.playback.PlaybackManager",
+                    "androidx.compose.ui",
+                    "androidx.compose.material",
+                )
+                forbiddenWidgetDependencies.firstOrNull(code::contains)?.let { dependency ->
+                    violations += "$path depends on $dependency instead of the widget boundary"
+                }
+            }
             if (
                 "CoroutineScope(SupervisorJob" in code &&
                 !isGuardrailPathAllowed(path, SUPERVISOR_SCOPE_ALLOWED)

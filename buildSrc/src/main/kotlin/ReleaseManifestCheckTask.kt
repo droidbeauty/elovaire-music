@@ -92,6 +92,8 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "androidx.profileinstaller.ProfileInstallReceiver",
             "android.intent.action.INSTALL_PACKAGE",
             "android.settings.MANAGE_UNKNOWN_APP_SOURCES",
+            "android.appwidget.action.APPWIDGET_UPDATE",
+            "android.appwidget.provider",
         )
         forbiddenEntries.forEach { value ->
             if (value in text) {
@@ -204,6 +206,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "${AppBuildConfig.Application.packageName}.MainActivity" to null,
             "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaLibraryService" to null,
             "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaButtonReceiver" to null,
+            "androidx.glance.appwidget.GlanceRemoteViewsService" to "android.permission.BIND_REMOTEVIEWS",
             "androidx.media3.session.BluetoothValidationActivity" to "android.permission.BLUETOOTH_PRIVILEGED",
             "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
         )

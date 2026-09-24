@@ -72,24 +72,19 @@ internal fun ElovaireRootShell(
                         LocalUseSharedTopBarBackdrop provides chromeVisibility.showSharedTopBarBackdrop,
                         LocalSharedTopBarController provides sharedTopBarController,
                     ) {
-                        Box(
-                            modifier = Modifier
+                        routeHost(
+                            layout.routePadding,
+                            Modifier
                                 .fillMaxSize()
+                                .blur(navHostBlur)
                                 .hazeSource(chromeHazeState, zIndex = -1f),
-                        ) {
-                            routeHost(
-                                layout.routePadding,
-                                Modifier
+                        )
+                        if (navHostScrimAlpha > 0f) {
+                            Box(
+                                modifier = Modifier
                                     .fillMaxSize()
-                                    .blur(navHostBlur),
+                                    .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
                             )
-                            if (navHostScrimAlpha > 0f) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
-                                )
-                            }
                         }
                     }
                     chromeHost(layout)

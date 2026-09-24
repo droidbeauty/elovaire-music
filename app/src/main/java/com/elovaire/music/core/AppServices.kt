@@ -63,6 +63,9 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
+import elovaire.music.droidbeauty.app.widget.AtomicWidgetSnapshotStore
+import elovaire.music.droidbeauty.app.widget.WidgetProviderRegistry
+import elovaire.music.droidbeauty.app.widget.WidgetUpdateRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
@@ -226,6 +229,15 @@ internal class AppServices(
         playbackDataSourceFactory = networkDataSourceFactory,
         resourceTracker = backendDiagnostics.resources,
     )
+    private val widgetUpdateRuntimeDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        WidgetUpdateRuntime(
+            playbackReader = playbackManager,
+            snapshotStore = AtomicWidgetSnapshotStore(applicationContext, appDispatchers.io),
+            scope = appScope,
+            providers = WidgetProviderRegistry.productionProviders,
+            diagnostics = backendDiagnostics,
+        )
+    }
     val playbackSessionStore = PlaybackSessionStore(applicationContext)
     private val librarySnapshotStore = LibrarySnapshotStore(applicationContext)
     val playbackResumptionGateway = DefaultPlaybackResumptionGateway(
@@ -368,6 +380,9 @@ internal class AppServices(
     }
 
     fun startPlayback() {
+        if (WidgetProviderRegistry.productionProviders.isNotEmpty()) {
+            widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
+        }
         networkBackend.start()
         mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.startPlayback()
@@ -428,6 +443,7 @@ internal class AppServices(
         val failures = mutableListOf<Throwable>()
         try {
             releaseBestEffort(
+                { if (widgetUpdateRuntimeDelegate.isInitialized()) widgetUpdateRuntimeDelegate.value.release() },
                 { startupCoordinator.release() },
                 { portableUserDataBackupRuntime.release() },
                 { networkBackend.close() },

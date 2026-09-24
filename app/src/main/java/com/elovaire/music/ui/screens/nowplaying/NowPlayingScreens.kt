@@ -175,8 +175,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.graphics.TransformOrigin
@@ -292,6 +294,7 @@ import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
+import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
@@ -395,6 +398,7 @@ internal fun NowPlayingScreen(
     val playerHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val queueGapPx = with(density) { 30.dp.toPx() }
     var playerDismissTriggered by rememberSaveable { mutableStateOf(false) }
     var playerHasRenderedSong by rememberSaveable { mutableStateOf(liveCurrentSong != null) }
     LaunchedEffect(liveCurrentSong?.id) {
@@ -505,6 +509,7 @@ internal fun NowPlayingScreen(
     var queueTimingBottomInRootPx by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var queueRegionBottomInRootPx by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var queueSurfaceTopInRootPx by remember(currentSong?.id) { mutableFloatStateOf(0f) }
+    var queueGeometryReady by remember(currentSong?.id) { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
@@ -1057,6 +1062,12 @@ internal fun NowPlayingScreen(
                                         .padding(top = 4.dp)
                                         .onGloballyPositioned { coordinates ->
                                             queueTimingBottomInRootPx = coordinates.boundsInRoot().bottom
+                                            if (
+                                                !queueGeometryReady &&
+                                                queueRegionBottomInRootPx > queueTimingBottomInRootPx + queueGapPx
+                                            ) {
+                                                queueGeometryReady = true
+                                            }
                                         },
                                 )
                             }
@@ -1167,7 +1178,7 @@ internal fun NowPlayingScreen(
                 }
             }
 
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth(centeredInfoWidth)
                     .align(Alignment.CenterHorizontally)
@@ -1176,6 +1187,13 @@ internal fun NowPlayingScreen(
                     .weight(1f)
                     .onGloballyPositioned { coordinates ->
                         queueRegionBottomInRootPx = coordinates.boundsInRoot().bottom
+                        if (
+                            !queueGeometryReady &&
+                            queueTimingBottomInRootPx > 0f &&
+                            queueRegionBottomInRootPx > queueTimingBottomInRootPx + queueGapPx
+                        ) {
+                            queueGeometryReady = true
+                        }
                     },
             ) {
                 Column(
@@ -1404,17 +1422,6 @@ internal fun NowPlayingScreen(
             }
         }
         CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
-            val queueGapPx = with(density) { 30.dp.toPx() }
-            val queueSheetHeight = with(density) {
-                (queueRegionBottomInRootPx - queueTimingBottomInRootPx - queueGapPx)
-                    .coerceAtLeast(0f)
-                    .toDp()
-            }
-            val queueSheetTopOffset = with(density) {
-                (queueTimingBottomInRootPx - queueSurfaceTopInRootPx).toDp() + 30.dp
-            }
-            val queueGeometryReady = queueTimingBottomInRootPx > 0f &&
-                queueRegionBottomInRootPx > queueTimingBottomInRootPx + queueGapPx
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1422,17 +1429,69 @@ internal fun NowPlayingScreen(
                         queueSurfaceTopInRootPx = coordinates.boundsInRoot().top
                     },
             ) {
-                PopupCardMotionHost(
+                MotionVisibilityHost(
                     surfaceId = "player.queue",
                     visible = showQueueSheet && queueGeometryReady,
+                    enter = fadeIn(
+                        initialAlpha = 0f,
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = MotionDuration.Medium,
+                            easing = LinearOutSlowInEasing,
+                        ),
+                    ),
+                    exit = fadeOut(
+                        targetAlpha = 0f,
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = MotionDuration.Quick,
+                            easing = FastOutLinearInEasing,
+                        ),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                         .fillMaxWidth(0.95f)
                         .align(Alignment.TopCenter)
-                        .offset(y = queueSheetTopOffset)
-                        .alpha(playerContentAlpha),
+                        .offset {
+                            IntOffset(
+                                x = 0,
+                                y = (
+                                    queueTimingBottomInRootPx - queueSurfaceTopInRootPx + queueGapPx
+                                ).roundToInt(),
+                            )
+                        }
+                        .alpha(playerContentAlpha)
+                        .semantics {
+                            if (!showQueueSheet) hideFromAccessibility()
+                        }
+                        .pointerInput(showQueueSheet) {
+                            if (!showQueueSheet) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        awaitPointerEvent().changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        },
                 ) {
+                    val queueVerticalScale by transition.animateFloat(
+                        transitionSpec = {
+                            motionSpecs.tween(
+                                durationMillis = if (targetState == EnterExitState.Visible) {
+                                    MotionDuration.Medium
+                                } else {
+                                    MotionDuration.Quick
+                                },
+                                easing = if (targetState == EnterExitState.Visible) {
+                                    MotionEasing.RefinedDecelerate
+                                } else {
+                                    MotionEasing.RefinedAccelerate
+                                },
+                            )
+                        },
+                        label = "queue_vertical_scale",
+                    ) { state ->
+                        if (state == EnterExitState.Visible) 1f else 0.97f
+                    }
                     QueueSheet(
                         queue = playerUiState.queue,
                         currentIndex = playerUiState.currentIndex,
@@ -1444,7 +1503,24 @@ internal fun NowPlayingScreen(
                         secondaryTint = secondaryContentColor,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(queueSheetHeight),
+                            .layout { measurable, constraints ->
+                                val targetHeight = (
+                                    queueRegionBottomInRootPx - queueTimingBottomInRootPx - queueGapPx
+                                ).roundToInt().coerceIn(constraints.minHeight, constraints.maxHeight)
+                                val placeable = measurable.measure(
+                                    constraints.copy(
+                                        minHeight = targetHeight,
+                                        maxHeight = targetHeight,
+                                    ),
+                                )
+                                layout(placeable.width, placeable.height) {
+                                    placeable.placeRelative(0, 0)
+                                }
+                            }
+                            .graphicsLayer {
+                                scaleY = queueVerticalScale
+                                transformOrigin = TransformOrigin(0.5f, 1f)
+                            },
                         onSongSelected = onQueueItemSelected,
                         onQueueItemRemoved = onQueueItemRemoved,
                         shuffleEnabled = playerUiState.shuffleEnabled,
