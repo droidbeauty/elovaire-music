@@ -1,7 +1,10 @@
 package elovaire.music.droidbeauty.app.data.mutation
 
+import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaMutationFaultInjectorTest {
@@ -26,5 +29,38 @@ class MediaMutationFaultInjectorTest {
                 injector.checkpoint(selectedPhase)
             }
         }
+    }
+
+    @Test
+    fun rollbackIoFailureIsReportedAsUnrecovered() {
+        assertTrue(
+            runMediaMutationRollback(onAbort = {}, rollback = { throw IOException("rollback failed") }),
+        )
+    }
+
+    @Test
+    fun rollbackCancellationPreservesBackupAndPropagates() {
+        var preserveBackup = false
+
+        assertThrows(CancellationException::class.java) {
+            runMediaMutationRollback(onAbort = { preserveBackup = true }) {
+                throw CancellationException("cancelled")
+            }
+        }
+
+        assertTrue(preserveBackup)
+    }
+
+    @Test
+    fun fatalRollbackFailurePreservesBackupAndPropagates() {
+        var preserveBackup = false
+
+        assertThrows(AssertionError::class.java) {
+            runMediaMutationRollback(onAbort = { preserveBackup = true }) {
+                throw AssertionError("fatal rollback failure")
+            }
+        }
+
+        assertTrue(preserveBackup)
     }
 }

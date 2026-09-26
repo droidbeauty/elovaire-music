@@ -27,9 +27,9 @@ internal class PlaybackPlayerFactory(
 ) {
     fun create(enableSignalProcessing: Boolean): ExoPlayer {
         return ElovaireTrace.section("playback_player_create") {
-            runCatching {
+            try {
                 createConfiguredPlayer(enableSignalProcessing)
-            }.getOrElse { failure ->
+            } catch (failure: Exception) {
                 if (!enableSignalProcessing) throw failure
                 createFallbackPlayer()
             }

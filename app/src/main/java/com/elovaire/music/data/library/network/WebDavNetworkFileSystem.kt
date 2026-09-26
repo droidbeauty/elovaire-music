@@ -167,8 +167,8 @@ internal class WebDavNetworkFileSystem(
                     responseLength
                 }
                 input = connection.inputStream.let { stream ->
-                    if (boundedLength != null && length > 0L) {
-                        LimitedInputStream(stream, boundedLength)
+                    if (boundedLength != null) {
+                        limitWebDavRead(stream, boundedLength)
                     } else {
                         stream
                     }
@@ -651,3 +651,6 @@ private class LimitedInputStream(
         return count
     }
 }
+
+internal fun limitWebDavRead(input: InputStream, length: Long): InputStream =
+    if (length >= 0L) LimitedInputStream(input, length) else input

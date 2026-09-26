@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import java.io.File
+import kotlinx.coroutines.CancellationException
 
 /** Checks exact targets so removable-volume IDs and SAF documents stay distinct. */
 internal class MediaTargetExistenceProbe(
@@ -23,7 +24,7 @@ internal class MediaTargetExistenceProbe(
             } else {
                 arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
             }
-            val exists = runCatching {
+            val exists = queryTargetExists {
                 val selection = if (uri.authority.equals(MediaStore.AUTHORITY, ignoreCase = true)) {
                     MediaStoreAudioQuery.selection
                 } else {
@@ -31,8 +32,16 @@ internal class MediaTargetExistenceProbe(
                 }
                 resolver.queryCancellable(uri, projection, selection, null, null)?.use { it.moveToFirst() }
                     ?: false
-            }.getOrDefault(false)
+            }
             songId.takeIf { exists }
         }
     }
+}
+
+internal suspend fun queryTargetExists(query: suspend () -> Boolean): Boolean = try {
+    query()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    false
 }

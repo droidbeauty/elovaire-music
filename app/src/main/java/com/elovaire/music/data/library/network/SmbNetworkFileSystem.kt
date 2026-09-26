@@ -25,6 +25,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -477,6 +478,7 @@ internal class SmbNetworkFileSystem(
         .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun Throwable.asRemoteIoFailure(): NetworkRemoteIoException {
+        if (this is CancellationException || this !is Exception) throw this
         if (this is NetworkRemoteIoException) return this
         val kind = when (this) {
             is SMBApiException -> when (getStatus()) {

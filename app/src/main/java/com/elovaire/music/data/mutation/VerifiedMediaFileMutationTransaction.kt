@@ -58,15 +58,12 @@ internal class VerifiedMediaFileMutationTransaction(
             val backup = backupFile ?: return
             if (!originalOverwriteStarted || rollbackAttempted) return
             rollbackAttempted = true
-            rollbackFailed = try {
+            rollbackFailed = runMediaMutationRollback(
+                onAbort = { rollbackFailed = true },
+            ) {
                 faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
                 mutationRunner.overwriteOriginal(song.uri, backup)
                 mutationRunner.verifyOriginalBytes(song.uri, backup)
-                false
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: RuntimeException) {
-                true
             }
         }
 
@@ -139,4 +136,20 @@ internal class VerifiedMediaFileMutationTransaction(
             // Cleanup faults must not hide the durable mutation result.
         }
     }
+}
+
+internal inline fun runMediaMutationRollback(
+    onAbort: () -> Unit,
+    rollback: () -> Unit,
+): Boolean = try {
+    rollback()
+    false
+} catch (cancelled: CancellationException) {
+    onAbort()
+    throw cancelled
+} catch (_: Exception) {
+    true
+} catch (failure: Throwable) {
+    onAbort()
+    throw failure
 }

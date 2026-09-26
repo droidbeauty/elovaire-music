@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import java.io.ByteArrayInputStream
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -40,5 +42,19 @@ class WebDavMultiStatusTest {
         assertEquals("song.mp3", entries.single().path)
         assertEquals(10L, entries.single().sizeBytes)
         assertNull(entries.single().etag)
+    }
+
+    @Test
+    fun zeroLengthReadDoesNotExposeResponseBody() {
+        val input = limitWebDavRead(ByteArrayInputStream(byteArrayOf(1, 2, 3)), 0L)
+
+        assertEquals(-1, input.read())
+    }
+
+    @Test
+    fun boundedReadStopsAtRequestedLength() {
+        val input = limitWebDavRead(ByteArrayInputStream(byteArrayOf(1, 2, 3)), 2L)
+
+        assertArrayEquals(byteArrayOf(1, 2), input.readBytes())
     }
 }
