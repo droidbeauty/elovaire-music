@@ -75,7 +75,7 @@ private data class FastScrollbarMetrics(
 )
 
 internal val FastScrollbarTouchWidth = 40.dp
-internal val FastScrollbarGestureWidth = 6.dp
+internal val FastScrollbarGestureWidth = 14.dp
 internal val FastScrollbarEdgePadding = 0.dp
 internal val FastScrollbarTrackWidth = 1.dp
 internal val FastScrollbarThumbWidth = 3.dp

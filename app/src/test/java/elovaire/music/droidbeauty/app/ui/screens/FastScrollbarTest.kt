@@ -8,8 +8,10 @@ class FastScrollbarTest {
     @Test
     fun visualChromeIsThinnerThanTouchTarget() {
         assertEquals(40f, FastScrollbarTouchWidth.value)
+        assertEquals(14f, FastScrollbarGestureWidth.value)
         assertEquals(1f, FastScrollbarTrackWidth.value)
         assertEquals(3f, FastScrollbarThumbWidth.value)
+        assertTrue(FastScrollbarGestureWidth < FastScrollbarTouchWidth)
         assertTrue(FastScrollbarThumbWidth < FastScrollbarTouchWidth)
         assertTrue(FastScrollbarTrackWidth < FastScrollbarTouchWidth)
     }
