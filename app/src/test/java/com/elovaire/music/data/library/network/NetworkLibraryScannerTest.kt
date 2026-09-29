@@ -4,7 +4,10 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.Song
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Test
 
 class NetworkLibraryScannerTest {
@@ -26,6 +29,22 @@ class NetworkLibraryScannerTest {
         val songs = mergePartialNetworkInventory(cached, discovered)
 
         assertEquals(listOf(9L), songs.map(Song::id))
+    }
+
+    @Test
+    fun inventoryFallbackDoesNotTurnCancellationIntoAnEmptySuccessfulRead() = runTest {
+        assertEquals(emptyList<NetworkInventoryEntry>(), loadNetworkInventoryOrEmpty { emptyList() })
+        assertEquals(emptyList<NetworkInventoryEntry>(), loadNetworkInventoryOrEmpty {
+            throw IllegalStateException("inventory unavailable")
+        })
+        try {
+            loadNetworkInventoryOrEmpty {
+                throw CancellationException("scan cancelled")
+            }
+            fail("Cancellation must propagate")
+        } catch (cancelled: CancellationException) {
+            assertEquals("scan cancelled", cancelled.message)
+        }
     }
 
     @Test

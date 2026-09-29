@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -12,6 +13,9 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.test.runTest
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -70,6 +74,27 @@ class NetworkScanWorkTest {
         assertEquals(2, started)
         assertEquals(2, released)
         assertTrue(result.children.none())
+    }
+
+    @Test
+    fun blockingNetworkWorkIsInterruptedWhenScanIsCancelled() = runTest {
+        val started = CountDownLatch(1)
+        val interrupted = AtomicBoolean(false)
+        val result = async(Dispatchers.IO) {
+            runInterruptibleNetworkWork(Dispatchers.IO) {
+                started.countDown()
+                try {
+                    Thread.sleep(30_000L)
+                } catch (failure: InterruptedException) {
+                    interrupted.set(true)
+                    throw failure
+                }
+            }
+        }
+
+        assertTrue(started.await(2, TimeUnit.SECONDS))
+        result.cancelAndJoin()
+        assertTrue(interrupted.get())
     }
 
     @Test

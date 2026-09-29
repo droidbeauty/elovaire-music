@@ -174,7 +174,7 @@ internal fun Context.platformCompatibilitySnapshot(
         memoryPressureMode = runtimeState.memoryPressureMode,
         lastExitCategory = runtimeState.lastExitCategory,
         strictModeViolationCount = StrictModeViolationRecorder.snapshot().sumOf { it.count },
-        resourceCounters = (applicationContext as ElovaireApp).container.backendDiagnosticsRuntime.resources.snapshot()
+        resourceCounters = (applicationContext as ElovaireApp).diagnosticsRuntime.resources.snapshot()
             .asSequence()
             .sortedBy { (name, _) -> name }
             .take(MAX_DIAGNOSTIC_ENTRIES)

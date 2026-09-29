@@ -14,7 +14,7 @@ internal object AudiobookCatalog {
             .asSequence()
             .filter { it.mediaKind == AudioMediaKind.Audiobook }
             .groupBy(::groupKey)
-            .mapNotNull { (stableKey, parts) -> buildBook(stableKey, parts) }
+            .mapNotNull { (_, parts) -> buildBook(parts) }
             .sortedWith(AUDIOBOOK_COMPARATOR)
             .toList()
     }
@@ -37,7 +37,7 @@ internal object AudiobookCatalog {
         }
         return matchingParts
             .asSequence()
-            .mapNotNull { (stableKey, parts) -> buildBook(stableKey, parts) }
+            .mapNotNull { (_, parts) -> buildBook(parts) }
             .minWithOrNull(AUDIOBOOK_COMPARATOR)
     }
 
@@ -64,15 +64,18 @@ internal object AudiobookCatalog {
 
     fun routeKey(book: Audiobook): String = book.stableKey
 
+    fun legacyStableKey(book: Audiobook): String? = book.parts.firstOrNull()?.song?.let(::groupKey)
+
     fun stableId(book: Audiobook): String {
         return MessageDigest.getInstance("SHA-256")
             .digest(book.stableKey.toByteArray(StandardCharsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
     }
 
-    private fun buildBook(stableKey: String, parts: List<Song>): Audiobook? {
+    private fun buildBook(parts: List<Song>): Audiobook? {
         val ordered = parts.sortedWith(PART_COMPARATOR).distinctBy(Song::id)
         val first = ordered.firstOrNull() ?: return null
+        val stableKey = stableBookKey(ordered)
         val author = ordered
             .asSequence()
             .mapNotNull { it.albumArtist?.trim()?.takeIf(String::isNotBlank) ?: it.artist.trim().takeIf(String::isNotBlank) }
@@ -87,6 +90,13 @@ internal object AudiobookCatalog {
             parts = ordered.mapIndexed { index, song -> AudiobookPart(song, index + 1) },
             description = ordered.firstNotNullOfOrNull { it.description?.trim()?.takeIf(String::isNotBlank) },
         )
+    }
+
+    private fun stableBookKey(parts: List<Song>): String {
+        val anchor = parts.minOf(MediaIdentityResolver::stableKey)
+        return MessageDigest.getInstance("SHA-256")
+            .digest(anchor.toByteArray(StandardCharsets.UTF_8))
+            .joinToString(prefix = "book:", separator = "") { byte -> "%02x".format(Locale.ROOT, byte) }
     }
 
     private fun bookTitle(song: Song): String {

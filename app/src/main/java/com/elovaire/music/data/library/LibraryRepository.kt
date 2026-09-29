@@ -923,6 +923,9 @@ internal class LibraryRepository internal constructor(
 
     override suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
         if (editedSongs.isEmpty()) return
+        val editedSongIds = editedSongs.map(Song::id)
+        scanJob?.cancel()
+        scanner.invalidateMetadataCacheForSongIds(editedSongIds)
         val changeSet = commitMutex.withLock {
             val current = _contentState.value
             val updatedState = snapshotPublisher.patchSongs(
@@ -945,6 +948,10 @@ internal class LibraryRepository internal constructor(
             patchChangeSet
         }
         invalidateArtworkBitmapCache(changeSet.artworkInvalidatedUris)
+        refreshChangedFiles(
+            filePaths = editedSongs.mapNotNull(Song::libraryPath),
+            songIds = editedSongIds,
+        )
     }
 
     fun albumById(albumId: Long): Album? = _contentState.value.albums.firstOrNull { it.id == albumId }

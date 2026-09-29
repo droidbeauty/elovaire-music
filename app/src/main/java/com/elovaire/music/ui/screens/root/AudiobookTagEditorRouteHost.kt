@@ -122,7 +122,7 @@ private fun AudiobookTagWriteEffects(
                 }
                 safWriteAttemptedOperationId = null
                 pendingWriteOperationId = action.operationId
-                runCatching { mediaStoreWriteRequest(context, action.uris) }
+                withContext(Dispatchers.IO) { runCatching { mediaStoreWriteRequest(context, action.uris) } }
                     .onSuccess { request ->
                         if (request == null) {
                             pendingWriteOperationId = null

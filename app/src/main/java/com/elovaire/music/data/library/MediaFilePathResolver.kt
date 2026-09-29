@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
+import java.io.IOException
 import java.util.Locale
 
 internal object MediaFilePathResolver {
@@ -54,18 +55,20 @@ internal object MediaFilePathResolver {
         roots: List<File>,
     ): String? {
         val normalizedName = displayName?.trim()?.ifBlank { null } ?: return null
+        if (normalizedName == "." || normalizedName == ".." || '/' in normalizedName || '\\' in normalizedName) {
+            return null
+        }
         val normalizedRelativePath = relativePath
             ?.trim()
             ?.replace('\\', '/')
             ?.trim('/')
             ?.ifBlank { null }
         roots.forEach { root ->
-            val candidate = normalizedRelativePath
-                ?.let { File(File(root, it), normalizedName) }
-                ?: File(root, normalizedName)
-            if (candidate.exists()) {
-                return candidate.absolutePath
-            }
+            val childPath = normalizedRelativePath
+                ?.let { "$it/$normalizedName" }
+                ?: normalizedName
+            val candidate = root.resolveContainedChild(childPath) ?: return@forEach
+            if (candidate.isFile) return candidate.absolutePath
         }
         return null
     }
@@ -130,6 +133,16 @@ internal object MediaFilePathResolver {
         if (columnIndex < 0 || isNull(columnIndex)) return null
         return getString(columnIndex)?.trim()?.ifBlank { null }
     }
+}
+
+internal fun File.resolveContainedChild(relativePath: String): File? = try {
+    val canonicalRoot = canonicalFile
+    val candidate = File(canonicalRoot, relativePath).canonicalFile
+    candidate.takeIf { it.toPath().startsWith(canonicalRoot.toPath()) }
+} catch (_: IOException) {
+    null
+} catch (_: SecurityException) {
+    null
 }
 
 internal class MediaStoreScanPathResolver(

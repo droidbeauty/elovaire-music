@@ -10,7 +10,7 @@ import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.GlanceId
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
+import elovaire.music.droidbeauty.app.ElovaireApp
 import elovaire.music.droidbeauty.app.data.playback.ElovaireMediaLibraryService
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeoutException
@@ -124,6 +124,11 @@ internal class Media3WidgetPlaybackCommandGateway(context: Context) : WidgetPlay
     }
 }
 
+internal fun recordWidgetPlaybackFailure(context: Context, failure: Exception) {
+    val app = context.applicationContext as ElovaireApp
+    app.diagnosticsRuntime.recordWorkerFailure("widget-playback-action", failure)
+}
+
 class WidgetPlaybackActionCallback : ActionCallback {
     @Suppress("TooGenericExceptionCaught")
     override suspend fun onAction(
@@ -137,12 +142,12 @@ class WidgetPlaybackActionCallback : ActionCallback {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            BackendDiagnostics.recordWorkerFailure("widget-playback-action", failure)
+            recordWidgetPlaybackFailure(context, failure)
             return
         }
         if (result == WidgetActionDispatchResult.TimedOut) {
-            BackendDiagnostics.recordWorkerFailure(
-                "widget-playback-action",
+            recordWidgetPlaybackFailure(
+                context,
                 TimeoutException("Media session connection timed out."),
             )
         }

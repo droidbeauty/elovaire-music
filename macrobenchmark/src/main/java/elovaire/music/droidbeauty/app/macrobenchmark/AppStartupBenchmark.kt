@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 @LargeTest
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalMetricApi::class)
-class AppStartupBenchmark {
+class AppStartupBenchmark : BenchmarkFixtureOwner() {
     @get:Rule
     val benchmarkRule = MacrobenchmarkRule()
 

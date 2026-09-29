@@ -40,6 +40,26 @@ class AudiobookCatalogPropertyTest {
     }
 
     @Test
+    fun stableKeySurvivesEditableMetadataAndMediaStoreAlbumIdChanges() {
+        val original = song(1L, "Book", "Author", "/books/book/part-1.m4b", 1).copy(albumId = 42L)
+        val rescanned = original.copy(
+            album = "Renamed book",
+            artist = "Renamed author",
+            albumArtist = "Renamed author",
+            albumId = 99L,
+        )
+
+        val originalBook = AudiobookCatalog.build(listOf(original)).single()
+        val rescannedBook = AudiobookCatalog.build(listOf(rescanned)).single()
+
+        assertEquals(originalBook.stableKey, rescannedBook.stableKey)
+        assertNotEquals(
+            AudiobookCatalog.legacyStableKey(originalBook),
+            AudiobookCatalog.legacyStableKey(rescannedBook),
+        )
+    }
+
+    @Test
     fun directContextResolutionMatchesTheFullCatalogWithDuplicateIds() {
         val songs = listOf(
             song(1L, "Book A", "Author", "/books/a/part-1.m4b", 1),

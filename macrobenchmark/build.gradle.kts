@@ -7,6 +7,8 @@ android {
     compileSdk = AppBuildConfig.Android.compileSdk
     experimentalProperties["android.experimental.self-instrumenting"] = true
 
+    sourceSets.getByName("main").assets.srcDir("../app/src/androidTest/assets")
+
     val runBenchmarks = providers.gradleProperty("app.runMacrobenchmarks")
         .orElse(
             providers.provider {

@@ -17,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -80,6 +81,37 @@ class AudiobookTagEditorViewModelTest {
 
         assertEquals("New Author", recreated.uiState.value.author)
         assertTrue(recreated.uiState.value.hasUnsavedChanges)
+    }
+
+    @Test
+    fun deniedWritePermissionPreservesDraftAndCanRetry() = runTest(mainDispatcherRule.scheduler) {
+        val song = song()
+        val book = Audiobook("book", "Book", "Author", null, song.durationMs, listOf(AudiobookPart(song, 1)))
+        val library = FakeLibraryReader(LibraryContentState(songs = listOf(song), audiobooks = listOf(book)))
+        val editor = RecordingEditor(song)
+        val viewModel = AudiobookTagEditorViewModel(
+            library,
+            RecordingUpdates(),
+            editor,
+            { _, _ -> },
+            ioDispatcher = mainDispatcherRule.dispatcher,
+        )
+        viewModel.loadBook(book.stableKey)
+        advanceUntilIdle()
+        viewModel.onBookTitleChange("Renamed")
+        viewModel.requestSave()
+        val action = viewModel.uiState.value.platformAction as AudiobookTagEditorPlatformAction.RequestWritePermission
+        viewModel.consumePlatformAction(action.operationId)
+
+        viewModel.onWritePermissionResult(action.operationId, granted = false)
+
+        assertFalse(viewModel.uiState.value.isSaving)
+        assertEquals("Renamed", viewModel.uiState.value.bookTitle)
+        assertTrue(viewModel.uiState.value.hasUnsavedChanges)
+        assertTrue(viewModel.uiState.value.canSave)
+        assertTrue(editor.requests.isEmpty())
+        viewModel.requestSave()
+        assertTrue(viewModel.uiState.value.platformAction is AudiobookTagEditorPlatformAction.RequestWritePermission)
     }
 
     private class RecordingEditor(private val editedSong: Song) : AudiobookTagEditor {

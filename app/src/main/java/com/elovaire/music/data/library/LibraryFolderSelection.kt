@@ -192,7 +192,7 @@ object LibraryFolderSelectionResolver {
                 .firstOrNull()
             else -> null
         } ?: return null
-        return if (relativePath.isBlank()) base.absolutePath else File(base, relativePath).absolutePath
+        return base.resolveContainedChild(relativePath.ifBlank { "." })?.absolutePath
     }
 
     private fun displayNameFor(

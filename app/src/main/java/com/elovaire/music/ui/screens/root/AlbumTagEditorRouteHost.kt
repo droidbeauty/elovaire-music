@@ -158,7 +158,9 @@ private fun AlbumTagWriteEffects(
                 }
                 safWriteAttemptedOperationId = null
                 pendingWriteOperationId = action.operationId
-                val requestResult = runCatching { mediaStoreWriteRequest(context, action.uris) }
+                val requestResult = withContext(Dispatchers.IO) {
+                    runCatching { mediaStoreWriteRequest(context, action.uris) }
+                }
                 if (requestResult.isFailure) {
                     viewModel.onWritePermissionLaunchFailed(action.operationId)
                     pendingWriteOperationId = null

@@ -9,7 +9,7 @@ import org.junit.runner.RunWith
 
 @LargeTest
 @RunWith(AndroidJUnit4::class)
-class BaselineProfileGenerator {
+class BaselineProfileGenerator : BenchmarkFixtureOwner() {
     @get:Rule
     val baselineProfileRule = BaselineProfileRule()
 

@@ -192,7 +192,8 @@ internal class MediaStoreScanner(
                 var deltaConsumed = false
                 try {
                     val deltaIdentityKeys = if (deltaQuery != null) {
-                        runCatching {
+                        mediaStoreDeltaIdentityOrFallback {
+                            val scanContext = currentCoroutineContext()
                             ElovaireTrace.section("mediastore_delta_identity") {
                                 MediaStoreAudioQuery.queryIdentity(context.contentResolver)?.use { cursor ->
                                     val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
@@ -203,6 +204,7 @@ internal class MediaStoreScanner(
                                         var hasInvalidIdentity = false
                                         buildSet<String> {
                                             while (cursor.moveToNext()) {
+                                                scanContext.ensureActive()
                                                 val volume = cursor.getString(volumeIndex)
                                                 val identity = MediaIdentityResolver.mediaStore(
                                                     volume,
@@ -216,9 +218,6 @@ internal class MediaStoreScanner(
                                     }
                                 }
                             }
-                        }.getOrElse { failure ->
-                            if (failure is SecurityException) throw failure
-                            null
                         }
                     } else {
                         null
@@ -429,6 +428,18 @@ internal class MediaStoreScanner(
         const val MEDIASTORE_ID_QUERY_CHUNK_SIZE = 400
     }
 
+}
+
+internal suspend fun <T> mediaStoreDeltaIdentityOrFallback(
+    readIdentity: suspend () -> T?,
+): T? = try {
+    readIdentity()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (failure: SecurityException) {
+    throw failure
+} catch (_: Exception) {
+    null
 }
 
 internal class MediaStoreQueryUnavailableException(cause: Throwable? = null) : IllegalStateException(

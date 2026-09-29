@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
+import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Locale
@@ -142,7 +143,20 @@ internal class LibrarySnapshotStore(
             lastSavedFilterFingerprint = cachedSnapshot.signature.filterFingerprint
             lastSavedSyncState = cachedSnapshot.syncState
             cachedSnapshot
-        } catch (_: Exception) {
+        } catch (_: IOException) {
+            null
+        } catch (_: SecurityException) {
+            null
+        } catch (_: org.json.JSONException) {
+            discardSnapshot()
+            null
+        } catch (_: IllegalArgumentException) {
+            discardSnapshot()
+            null
+        } catch (_: IllegalStateException) {
+            discardSnapshot()
+            null
+        } catch (_: RuntimeException) {
             discardSnapshot()
             null
         }

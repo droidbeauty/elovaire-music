@@ -6,6 +6,13 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.runInterruptible
+
+internal suspend fun <T> runInterruptibleNetworkWork(
+    dispatcher: CoroutineDispatcher,
+    block: () -> T,
+): T = runInterruptible(dispatcher, block)
 
 internal suspend fun <T, R> mapNetworkScanWork(
     items: List<T>,

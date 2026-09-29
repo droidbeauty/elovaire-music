@@ -15,6 +15,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var intentHandler: MainIntentHandler
     private var jankMonitor: ElovaireJankMonitor? = null
 
+    @Suppress("TooGenericExceptionCaught")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (shouldLockPhoneOrientation(resources.configuration.smallestScreenWidthDp)) {
@@ -22,7 +23,15 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         if (BuildConfig.DEBUG) {
-            jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()
+            jankMonitor = try {
+                ElovaireJankMonitor.start(window)
+            } catch (failure: RuntimeException) {
+                (application as ElovaireApp).diagnosticsRuntime.recordWorkerFailure(
+                    "jank-monitor-start",
+                    failure,
+                )
+                null
+            }
             getSystemService(ShortcutManager::class.java)?.removeDynamicShortcuts(
                 listOf(LEAK_CANARY_SHORTCUT_ID),
             )

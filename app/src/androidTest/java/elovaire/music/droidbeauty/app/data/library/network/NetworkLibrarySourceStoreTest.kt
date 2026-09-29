@@ -29,6 +29,7 @@ class NetworkLibrarySourceStoreTest {
         assertThrows(IllegalStateException::class.java) {
             runBlocking { store.upsert(source(id = "source-b")) }
         }
+        Unit
     }
 
     private fun preferences() = context.getSharedPreferences("network_library_sources_v1", Context.MODE_PRIVATE)

@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -85,8 +86,11 @@ internal class NotificationArtworkLoader(
                     }
                 }
             } finally {
+                val completedJob = currentCoroutineContext()[Job]
                 withContext(NonCancellable + Dispatchers.Main.immediate) {
-                    pendingLoads.remove(cacheKey)
+                    if (completedJob != null) {
+                        removePendingArtworkLoadIfCurrent(pendingLoads, cacheKey, completedJob)
+                    }
                 }
             }
         }
@@ -110,6 +114,14 @@ internal class NotificationArtworkLoader(
             iterator.remove()
         }
     }
+}
+
+internal fun removePendingArtworkLoadIfCurrent(
+    pendingLoads: MutableMap<String, Job>,
+    cacheKey: String,
+    completedJob: Job,
+) {
+    if (pendingLoads[cacheKey] === completedJob) pendingLoads.remove(cacheKey)
 }
 
 private fun artworkSources(

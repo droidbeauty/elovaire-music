@@ -38,7 +38,7 @@ internal class LocalLyricsResolver(
     }
 
     private fun readGenericEmbeddedLyrics(song: Song): LocalLyricsMatch? {
-        val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
+        val extension = lyricsTemporaryFileExtension(song.fileName)
         val tempFile = File.createTempFile("lyrics-${song.id}-", ".$extension", appContext.cacheDir)
         return try {
             contentResolver.openInputStream(song.uri)?.use { input ->
@@ -311,11 +311,11 @@ internal class LocalLyricsResolver(
         val parent = localFile.parentFile ?: return null
         if (!parent.isDirectory) return null
 
-        val baseNames = linkedSetOf(
-            localFile.nameWithoutExtension,
-            song.fileName.substringBeforeLast('.', song.fileName),
-            sanitizeFileStem(song.title),
-        ).filter { it.isNotBlank() }
+        val baseNames = lyricsSidecarBaseNames(
+            localFileName = localFile.nameWithoutExtension,
+            songFileName = song.fileName,
+            title = song.title,
+        )
 
         baseNames.forEach { baseName ->
             val lrcFile = File(parent, "$baseName.lrc")
@@ -382,10 +382,6 @@ internal class LocalLyricsResolver(
             null
         } ?: return null
         return decodeBestEffortText(bytes)
-    }
-
-    private fun sanitizeFileStem(value: String): String {
-        return value.replace(INVALID_SIDECAR_FILE_NAME_REGEX, "").trim()
     }
 
     private fun decodeTextPayload(bytes: ByteArray, encoding: Int): String? {
@@ -515,11 +511,35 @@ internal class LocalLyricsResolver(
         const val ID3_TIMESTAMP_MILLISECONDS = 0x02
         val FLAC_SYNCED_KEYS = setOf("SYNCEDLYRICS", "LRC", "LYRICSTIMED")
         val FLAC_PLAIN_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "UNSYNCEDTEXT", "TEXT")
-        val INVALID_SIDECAR_FILE_NAME_REGEX = Regex("""[\\/:*?"<>|]""")
         val EXTENDED_LRC_TIMESTAMP_REGEX =
             Regex("""\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
     }
 }
+
+internal fun lyricsSidecarBaseNames(
+    localFileName: String,
+    songFileName: String,
+    title: String,
+): List<String> = linkedSetOf(
+    localFileName,
+    sanitizeLyricsSidecarFileStem(songFileName.substringBeforeLast('.', songFileName)),
+    sanitizeLyricsSidecarTitleStem(title),
+).filter { it.isNotBlank() && it != "." && it != ".." }
+
+internal fun lyricsTemporaryFileExtension(fileName: String): String {
+    val extension = fileName.substringAfterLast('.', "")
+    return extension.takeIf { value ->
+        value.length in 1..16 && value.all(Char::isLetterOrDigit)
+    } ?: "tmp"
+}
+
+private fun sanitizeLyricsSidecarFileStem(value: String): String =
+    value.replace("/", "").replace("\\", "").trim()
+
+private fun sanitizeLyricsSidecarTitleStem(value: String): String =
+    value.replace(INVALID_SIDECAR_FILE_NAME_REGEX, "").trim()
+
+private val INVALID_SIDECAR_FILE_NAME_REGEX = Regex("""[\\/:*?"<>|]""")
 
 internal fun boundedVorbisCommentCount(declaredCount: Int, remainingBytes: Int): Int {
     if (declaredCount <= 0 || remainingBytes < 4) return 0

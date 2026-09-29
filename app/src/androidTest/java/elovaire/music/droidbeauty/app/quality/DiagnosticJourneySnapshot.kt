@@ -13,7 +13,7 @@ import elovaire.music.droidbeauty.app.core.performance.MotionDiagnosticEvent
 import elovaire.music.droidbeauty.app.core.performance.MotionDiagnosticRecorder
 
 internal fun appDiagnostics(context: Context): BackendDiagnosticsRuntime =
-    (context.applicationContext as ElovaireApp).container.backendDiagnosticsRuntime
+    (context.applicationContext as ElovaireApp).diagnosticsRuntime
 
 internal data class DiagnosticJourneyBaseline(
     val backendSequence: Long,

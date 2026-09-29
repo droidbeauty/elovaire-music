@@ -60,4 +60,46 @@ class EqualizerAudioProcessorTest {
         assertEquals(1L, diagnostics.coefficientPlanBuilds)
         assertEquals(52L, diagnostics.coefficientApplications)
     }
+
+    @Test
+    fun controlThreadSettingsAreAppliedOnTheAudioThread() {
+        val processor = EqualizerAudioProcessor()
+        processor.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        val activeSettings = EqSettings(
+            bands = List(EqualizerDspModel.BAND_COUNT) { index -> if (index == 3) 0.6f else 0f },
+        )
+        val controlThread = Thread {
+            repeat(200) { index ->
+                processor.updateSettings(if (index % 2 == 0) EqSettings() else activeSettings)
+            }
+            processor.updateSettings(activeSettings)
+        }
+        val audioThread = Thread {
+            repeat(200) {
+                processor.queueInput(pcmBuffer())
+                processor.getOutput()
+            }
+        }
+
+        controlThread.start()
+        audioThread.start()
+        controlThread.join()
+        audioThread.join()
+        processor.queueInput(pcmBuffer())
+
+        assertEquals(1, processor.debugSnapshot().activeFilterCount)
+    }
+
+    private fun pcmBuffer(): ByteBuffer = ByteBuffer.allocateDirect(16)
+        .order(ByteOrder.nativeOrder())
+        .putShort(8_000.toShort())
+        .putShort((-4_000).toShort())
+        .putShort(6_000.toShort())
+        .putShort((-3_000).toShort())
+        .putShort(4_000.toShort())
+        .putShort((-2_000).toShort())
+        .putShort(2_000.toShort())
+        .putShort((-1_000).toShort())
+        .flip() as ByteBuffer
 }

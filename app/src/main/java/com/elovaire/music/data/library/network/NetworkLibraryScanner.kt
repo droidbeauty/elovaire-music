@@ -125,8 +125,7 @@ internal class NetworkLibraryScanner(
         val generation = registry.sourceGeneration(source.id)
         val credentials = registry.credentials(source)
         publishAvailability(source, generation, credentials, failure.toProbeResult())
-        val songs = runCatching { inventory.load(source) }
-            .getOrDefault(emptyList())
+        val songs = loadNetworkInventoryOrEmpty { inventory.load(source) }
             .map(NetworkInventoryEntry::song)
         return NetworkLibrarySourceScanResult(songs, isComplete = false)
     }
@@ -409,14 +408,16 @@ internal class NetworkLibraryScanner(
         onAvailabilityChanged(source.id, result)
     }
 
-    private fun listSourceOrNull(
+    private suspend fun listSourceOrNull(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
         credentials: NetworkCredentials,
     ): NetworkListingResult? {
         return try {
-            ElovaireTrace.section("network_source_list") {
-                registry.listBlocking(source, credentials)
+            runInterruptibleNetworkWork(ioDispatcher) {
+                ElovaireTrace.section("network_source_list") {
+                    registry.listBlocking(source, credentials)
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -560,6 +561,16 @@ internal class NetworkLibraryScanner(
             message = this::class.simpleName,
         )
     }
+}
+
+internal suspend fun loadNetworkInventoryOrEmpty(
+    load: suspend () -> List<NetworkInventoryEntry>,
+): List<NetworkInventoryEntry> = try {
+    load()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    emptyList()
 }
 
 internal fun mergePartialNetworkInventory(

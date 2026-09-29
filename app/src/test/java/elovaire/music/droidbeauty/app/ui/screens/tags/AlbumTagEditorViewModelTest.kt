@@ -13,6 +13,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -98,5 +99,58 @@ class AlbumTagEditorViewModelTest {
             assertEquals(listOf(song.id), updates.editedSongs.map { it.id })
             assertEquals(AlbumTagEditorSaveOutcome.Succeeded, viewModel.uiState.value.saveOutcome)
         }
+
+    @Test
+    fun deniedWritePermissionPreservesDraftAndCanRetry() = runTest(mainDispatcherRule.scheduler) {
+        val song = testSong()
+        val library = FakeLibraryReader(
+            LibraryContentState(
+                songs = listOf(song),
+                albums = listOf(testAlbum(songs = listOf(song))),
+            ),
+        )
+        val editor = FakeAlbumTagEditor()
+        val viewModel = AlbumTagEditorViewModel(library, FakeLibraryTagUpdateWriter(), editor)
+        viewModel.loadAlbum(1L)
+        advanceUntilIdle()
+        viewModel.onAlbumTitleChange("Edited album")
+        viewModel.requestSave()
+        val action = viewModel.uiState.value.platformAction as AlbumTagEditorPlatformAction.RequestWritePermission
+        viewModel.consumePlatformAction(action.operationId)
+
+        viewModel.onWritePermissionResult(action.operationId, granted = false)
+
+        assertFalse(viewModel.uiState.value.isSaving)
+        assertEquals("Edited album", viewModel.uiState.value.albumTitle)
+        assertTrue(viewModel.uiState.value.hasUnsavedChanges)
+        assertTrue(viewModel.uiState.value.canSave)
+        assertTrue(editor.requests.isEmpty())
+        viewModel.requestSave()
+        assertTrue(viewModel.uiState.value.platformAction is AlbumTagEditorPlatformAction.RequestWritePermission)
+    }
+
+    @Test
+    fun permissionLaunchFailureResetsSavingWithoutLosingDraft() = runTest(mainDispatcherRule.scheduler) {
+        val song = testSong()
+        val library = FakeLibraryReader(
+            LibraryContentState(
+                songs = listOf(song),
+                albums = listOf(testAlbum(songs = listOf(song))),
+            ),
+        )
+        val viewModel = AlbumTagEditorViewModel(library, FakeLibraryTagUpdateWriter(), FakeAlbumTagEditor())
+        viewModel.loadAlbum(1L)
+        advanceUntilIdle()
+        viewModel.onAlbumTitleChange("Edited album")
+        viewModel.requestSave()
+        val action = viewModel.uiState.value.platformAction as AlbumTagEditorPlatformAction.RequestWritePermission
+
+        viewModel.onWritePermissionLaunchFailed(action.operationId)
+
+        assertFalse(viewModel.uiState.value.isSaving)
+        assertTrue(viewModel.uiState.value.hasUnsavedChanges)
+        assertTrue(viewModel.uiState.value.canSave)
+        assertNull(viewModel.uiState.value.platformAction)
+    }
 
 }

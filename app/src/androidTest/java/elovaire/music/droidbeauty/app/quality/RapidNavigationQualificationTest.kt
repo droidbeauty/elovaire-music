@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 class RapidNavigationQualificationTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val device = UiDevice.getInstance(instrumentation)
+    private val packageName = instrumentation.targetContext.packageName
     private var fixture: RapidUiFixture? = null
 
     @Before
@@ -36,19 +37,27 @@ class RapidNavigationQualificationTest {
             assetContext = instrumentation.context,
         )
         fixture?.install()
-        shell("logcat -c")
         launchApp()
-        assertTrue(device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), STARTUP_TIMEOUT_MS))
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName)), STARTUP_TIMEOUT_MS))
         acceptFirstLaunchStoragePermissionIfVisible()
         assertTrue(device.wait(Until.hasObject(By.desc("Home")), STARTUP_TIMEOUT_MS))
     }
 
     @After
     fun assertProcessAndLogsAreHealthy() {
-        assertTrue("Target process exited", shell("pidof $PACKAGE_NAME").trim().isNotEmpty())
-        val logcat = shell("logcat -d --pid ${shell("pidof $PACKAGE_NAME").trim()}")
-        assertFalse(runtimeFailurePattern.containsMatchIn(logcat))
-        fixture?.close()
+        try {
+            val pid = shell("pidof $packageName").trim()
+            assertTrue("Target process exited", pid.isNotEmpty())
+            val logcat = shell("logcat -d -v threadtime --pid $pid")
+            assertFalse(runtimeFailurePattern.containsMatchIn(logcat))
+        } finally {
+            try {
+                fixture?.close()
+            } finally {
+                fixture = null
+                revokeAudioPermission()
+            }
+        }
     }
 
     @Test
@@ -86,7 +95,7 @@ class RapidNavigationQualificationTest {
             pressBackWithoutIdle(64L)
         }
 
-        if (!device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), 2_000L)) {
+        if (!device.wait(Until.hasObject(By.pkg(packageName)), 2_000L)) {
             launchApp()
         }
         checkpoint()
@@ -147,14 +156,14 @@ class RapidNavigationQualificationTest {
     }
 
     private fun checkpoint() {
-        assertTrue(device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), ACTION_TIMEOUT_MS))
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName)), ACTION_TIMEOUT_MS))
         device.waitForIdle()
     }
 
     private fun assertSelectedTopLevel(description: String) {
-        val title = TOP_LEVEL_TITLES.getValue(description)
-        val titleNode = device.wait(Until.findObject(By.text(title)), ACTION_TIMEOUT_MS)
-        assertNotNull("Top-level destination did not converge: $description", titleNode)
+        val destinationNode = device.wait(Until.findObject(By.desc(description)), ACTION_TIMEOUT_MS)
+        assertNotNull("Top-level destination is unavailable: $description", destinationNode)
+        assertTrue("Top-level destination did not converge: $description", destinationNode.isSelected)
     }
 
     private fun assertNoDuplicateTopLevelSelection() {
@@ -165,12 +174,12 @@ class RapidNavigationQualificationTest {
     }
 
     private fun assertNoBlockingSystemLayer() {
-        assertTrue(device.currentPackageName == PACKAGE_NAME)
+        assertTrue(device.currentPackageName == packageName)
     }
 
     private fun launchApp() {
         val intent = instrumentation.targetContext.packageManager
-            .getLaunchIntentForPackage(PACKAGE_NAME)
+            .getLaunchIntentForPackage(packageName)
             ?: error("Launch intent not found")
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
         instrumentation.targetContext.startActivity(intent)
@@ -182,8 +191,19 @@ class RapidNavigationQualificationTest {
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-        runCatching { instrumentation.uiAutomation.grantRuntimePermission(PACKAGE_NAME, permission) }
-            .onFailure { shell("pm grant $PACKAGE_NAME $permission") }
+        runCatching { instrumentation.uiAutomation.grantRuntimePermission(packageName, permission) }
+            .onFailure { shell("pm grant $packageName $permission") }
+    }
+
+    private fun revokeAudioPermission() {
+        val permission = if (Build.VERSION.SDK_INT >= 33) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (instrumentation.targetContext.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            instrumentation.uiAutomation.revokeRuntimePermission(packageName, permission)
+        }
     }
 
     private fun acceptFirstLaunchStoragePermissionIfVisible() {
@@ -205,19 +225,12 @@ class RapidNavigationQualificationTest {
     }
 
     private companion object {
-        const val PACKAGE_NAME = "elovaire.music.droidbeauty.app"
         const val STARTUP_TIMEOUT_MS = 30_000L
         const val ACTION_TIMEOUT_MS = 10_000L
         const val FIND_TIMEOUT_MS = 1_000L
         const val STALE_RETRY_COUNT = 3
         val CADENCES_MS = longArrayOf(160L, 100L, 64L, 32L, 16L)
         val TOP_LEVEL_DESCRIPTIONS = listOf("Home", "Albums", "Playlists", "Search")
-        val TOP_LEVEL_TITLES = mapOf(
-            "Home" to "Welcome",
-            "Albums" to "Library",
-            "Playlists" to "Playlists",
-            "Search" to "Search",
-        )
         val runtimeFailurePattern = Regex("FATAL EXCEPTION|\\bANR\\b|AndroidRuntime:.*fatal", RegexOption.IGNORE_CASE)
     }
 }

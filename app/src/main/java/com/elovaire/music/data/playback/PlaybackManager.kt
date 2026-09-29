@@ -1156,6 +1156,7 @@ internal class PlaybackManager internal constructor(
         if (activeAudiobookContext?.bookKey == oldBookKey) {
             activeAudiobookContext = activeAudiobookContext?.copy(bookKey = newBookKey)
         }
+        _audiobookProgressRevision.update { revision -> revision + 1L }
     }
 
     override fun togglePlayback() {

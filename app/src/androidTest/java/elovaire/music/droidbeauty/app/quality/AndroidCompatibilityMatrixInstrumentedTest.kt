@@ -8,6 +8,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.filters.SdkSuppress
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
@@ -18,12 +19,22 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AndroidCompatibilityMatrixInstrumentedTest {
+    @After
+    fun revokeAudioPermissionGrantedForReadPathCheck() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val permission = requiredAudioPermission()
+        if (context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            instrumentation.uiAutomation.revokeRuntimePermission(context.packageName, permission)
+        }
+    }
+
     @Test
     fun sdkGatedPoliciesMatchThePhysicalDevice() {
         val sdk = Build.VERSION.SDK_INT
@@ -74,8 +85,8 @@ class AndroidCompatibilityMatrixInstrumentedTest {
     }
 
     @Test
+    @SdkSuppress(minSdkVersion = 37)
     fun api37MessageQueueCompatibilityChangeIsReported() {
-        assumeTrue(Build.VERSION.SDK_INT >= 37)
         val runner = PlatformCompatChangeRunner(InstrumentationRegistry.getInstrumentation())
         val state = runner.dumpPlatformCompat()
         assertTrue(state.contains("USE_NEW_MESSAGEQUEUE"))

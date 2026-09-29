@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.macrobenchmark
 
+import android.Manifest
+import android.os.Build
 import android.os.SystemClock
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.platform.app.InstrumentationRegistry
@@ -11,7 +13,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 
-internal const val TARGET_PACKAGE = "elovaire.music.droidbeauty.app"
+internal const val TARGET_PACKAGE = "elovaire.music.droidbeauty.app.benchmark"
 
 internal val MacrobenchmarkScope.uiDevice: UiDevice
     get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
@@ -38,11 +40,13 @@ private fun MacrobenchmarkScope.waitForSearchInput(): UiObject2 {
 }
 
 internal fun MacrobenchmarkScope.grantMediaPermission() {
-    runCatching {
-        uiDevice.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_AUDIO")
+    val permission = if (Build.VERSION.SDK_INT >= 33) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
     }
-    runCatching {
-        uiDevice.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_EXTERNAL_STORAGE")
+    check(uiDevice.executeShellCommand("pm grant $TARGET_PACKAGE $permission").isBlank()) {
+        "Unable to grant audio access to the isolated benchmark app"
     }
 }
 

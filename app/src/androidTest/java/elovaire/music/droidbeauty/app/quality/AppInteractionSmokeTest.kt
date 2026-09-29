@@ -27,29 +27,45 @@ import org.junit.runner.RunWith
 class AppInteractionSmokeTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val device = UiDevice.getInstance(instrumentation)
+    private val packageName = instrumentation.targetContext.packageName
+    private var fixture: RapidUiFixture? = null
 
     @Before
     fun setUp() {
         device.wakeUp()
         grantRuntimePermission(audioPermission())
-        shell("logcat -c")
+        fixture = RapidUiFixture(
+            context = instrumentation.targetContext,
+            assetContext = instrumentation.context,
+        )
+        fixture?.install()
         launchApp()
-        device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), STARTUP_TIMEOUT_MS)
+        device.wait(Until.hasObject(By.pkg(packageName)), STARTUP_TIMEOUT_MS)
         assertTrue(device.wait(Until.hasObject(By.desc("Menu")), STARTUP_TIMEOUT_MS))
     }
 
     @After
     fun assertNoRuntimeFailures() {
-        val pid = shell("pidof $PACKAGE_NAME").trim()
-        check(pid.isNotBlank()) { "App process is not running" }
-        val logcat = shell("logcat -d --pid $pid")
-        val runtimeFailure = runtimeFailurePattern.find(logcat)
-        assertFalse(runtimeFailure?.value, runtimeFailure != null)
-        val strictModeViolation = findAppOwnedStrictModeViolation(logcat)
-        assertFalse(
-            "App-owned StrictMode violation: ${strictModeViolation?.take(MAX_FAILURE_DETAIL_CHARS)}",
-            strictModeViolation != null,
-        )
+        try {
+            device.findObject(By.pkg(packageName).desc("Pause"))?.click()
+            val pid = shell("pidof $packageName").trim()
+            check(pid.isNotBlank()) { "App process is not running" }
+            val logcat = shell("logcat -d -v threadtime --pid $pid")
+            val runtimeFailure = runtimeFailurePattern.find(logcat)
+            assertFalse(runtimeFailure?.value, runtimeFailure != null)
+            val strictModeViolation = findAppOwnedStrictModeViolation(logcat)
+            assertFalse(
+                "App-owned StrictMode violation: ${strictModeViolation?.take(MAX_FAILURE_DETAIL_CHARS)}",
+                strictModeViolation != null,
+            )
+        } finally {
+            try {
+                fixture?.close()
+            } finally {
+                fixture = null
+                revokeRuntimePermission(audioPermission())
+            }
+        }
     }
 
     @Test
@@ -72,20 +88,23 @@ class AppInteractionSmokeTest {
         waitForApp()
         device.pressBack()
 
-        clickDescription("Home")
-        if (device.wait(Until.hasObject(By.desc("Play album")), 1_000)) {
-            clickDescription("Play album")
-            waitForApp()
-            if (device.wait(Until.hasObject(By.desc("Pause")), 5_000)) {
-                device.click(device.displayWidth / 3, (device.displayHeight * 0.85f).toInt())
-                device.wait(Until.hasObject(By.desc("Minimize")), 5_000)
-                device.findObject(By.desc("Minimize"))?.click() ?: device.pressBack()
-            }
-        }
+        clickDescription("Search")
+        val searchInput = device.wait(
+            Until.findObject(By.res("search_query_input")),
+            APP_READY_TIMEOUT_MS,
+        ) ?: error("Search input is unavailable")
+        searchInput.text = FIXTURE_SONG_TITLE
+        val fixtureResult = device.wait(
+            Until.findObjects(By.text(FIXTURE_SONG_TITLE)),
+            APP_READY_TIMEOUT_MS,
+        ).orEmpty().firstOrNull { "search_query_input" !in it.resourceName.orEmpty() }
+            ?: error("Disposable fixture song result is unavailable")
+        fixtureResult.click()
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Pause")), 5_000))
     }
 
     private fun waitForApp() {
-        device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), APP_READY_TIMEOUT_MS)
+        device.wait(Until.hasObject(By.pkg(packageName)), APP_READY_TIMEOUT_MS)
         device.waitForIdle()
     }
 
@@ -127,15 +146,21 @@ class AppInteractionSmokeTest {
 
     private fun grantRuntimePermission(permission: String) {
         try {
-            instrumentation.uiAutomation.grantRuntimePermission(PACKAGE_NAME, permission)
+            instrumentation.uiAutomation.grantRuntimePermission(packageName, permission)
         } catch (_: SecurityException) {
-            shell("pm grant $PACKAGE_NAME $permission")
+            shell("pm grant $packageName $permission")
+        }
+    }
+
+    private fun revokeRuntimePermission(permission: String) {
+        if (instrumentation.targetContext.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            instrumentation.uiAutomation.revokeRuntimePermission(packageName, permission)
         }
     }
 
     private fun launchApp() {
         val context = instrumentation.targetContext
-        val intent = context.packageManager.getLaunchIntentForPackage(PACKAGE_NAME)
+        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
             ?: return
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
@@ -173,7 +198,7 @@ class AppInteractionSmokeTest {
     }
 
     private companion object {
-        const val PACKAGE_NAME = "elovaire.music.droidbeauty.app"
+        const val FIXTURE_SONG_TITLE = "Rapid Song One"
         const val STARTUP_TIMEOUT_MS = 30_000L
         const val APP_READY_TIMEOUT_MS = 10_000L
         const val CLICK_TIMEOUT_MS = 10_000L

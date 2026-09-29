@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendOperationMonitor
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.widget.recordWidgetPlaybackFailure
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -48,6 +49,7 @@ class DiagnosticFrameworkInstrumentedTest {
             // Cancellation remains cancellation after recording.
         }
         runtime.recordWorkerFailure("diagnostic-worker", IllegalStateException("private title and path"))
+        recordWidgetPlaybackFailure(context, IllegalStateException("private widget failure context"))
         ElovaireTrace.section("diagnostic_self_test") { Unit }
         val lease = runtime.resources.acquire(BackendResourceKind.ActiveRetriever)
         lease.close()
@@ -75,6 +77,9 @@ class DiagnosticFrameworkInstrumentedTest {
         assertTrue(delta.backendEvents.any { it.name == "OperationCancelled" })
         assertTrue(delta.workerFailures.any {
             it.fields["owner"] == "diagnostic-worker" && it.fields["error_type"] == "IllegalStateException"
+        })
+        assertTrue(delta.workerFailures.any {
+            it.fields["owner"] == "widget-playback-action" && it.fields["error_type"] == "IllegalStateException"
         })
         assertFalse(delta.backendEvents.any { event ->
             event.fields.values.any { value -> "private title" in value || "private path" in value }

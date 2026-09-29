@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.data.library.AudiobookCatalog
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.SongRelocationOutcome
 import elovaire.music.droidbeauty.app.data.library.LibrarySnapshotStore
@@ -66,9 +67,13 @@ import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import elovaire.music.droidbeauty.app.widget.AtomicWidgetSnapshotStore
 import elovaire.music.droidbeauty.app.widget.WidgetProviderRegistry
 import elovaire.music.droidbeauty.app.widget.WidgetUpdateRuntime
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -84,6 +89,7 @@ internal class AppServices(
     internal val backendDiagnostics: BackendDiagnosticsRuntime,
 ) {
     private val releaseStarted = AtomicBoolean(false)
+    private val audiobookProgressKeyMigrationStarted = AtomicBoolean(false)
     private val releaseCompletion = CompletableDeferred<AppServicesShutdownResult>()
     private val serviceScopes = AppServiceScopes(appScope, backendDiagnostics)
     private val playbackScope = serviceScopes.playback
@@ -380,6 +386,7 @@ internal class AppServices(
     }
 
     fun startPlayback() {
+        startAudiobookProgressKeyMigration()
         if (WidgetProviderRegistry.productionProviders.isNotEmpty()) {
             widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
         }
@@ -387,6 +394,36 @@ internal class AppServices(
         mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.startPlayback()
         portableUserDataBackupRuntime.start()
+    }
+
+    private fun startAudiobookProgressKeyMigration() {
+        if (!audiobookProgressKeyMigrationStarted.compareAndSet(false, true)) return
+        appScope.launch(appDispatchers.io) {
+            combine(userDataStore.userDataReadiness, libraryRepository.contentState) { readiness, content ->
+                if (readiness == UserDataReadiness.Ready || readiness == UserDataReadiness.Degraded) {
+                    content.audiobooks.mapNotNull { book ->
+                        AudiobookCatalog.legacyStableKey(book)
+                            ?.takeUnless { it == book.stableKey }
+                            ?.let { it to book.stableKey }
+                    }
+                } else {
+                    emptyList()
+                }
+            }
+                .map(List<Pair<String, String>>::distinct)
+                .distinctUntilChanged()
+                .collect { mappings ->
+                    mappings.forEach { (legacyKey, stableKey) ->
+                        try {
+                            playbackManager.remapAudiobookProgressKey(legacyKey, stableKey)
+                        } catch (failure: CancellationException) {
+                            throw failure
+                        } catch (failure: RuntimeException) {
+                            backendDiagnostics.recordWorkerFailure("audiobook-progress-key-migration", failure)
+                        }
+                    }
+                }
+        }
     }
 
     internal fun exportPortableUserData(): ByteArray {

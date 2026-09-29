@@ -89,6 +89,9 @@ class ElovaireDatabaseMigrationTest {
             ElovaireDatabase.MIGRATION_4_5,
             ElovaireDatabase.MIGRATION_5_6,
             ElovaireDatabase.MIGRATION_6_7,
+            ElovaireDatabase.MIGRATION_7_8,
+            ElovaireDatabase.MIGRATION_8_9,
+            ElovaireDatabase.MIGRATION_9_10,
         ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(

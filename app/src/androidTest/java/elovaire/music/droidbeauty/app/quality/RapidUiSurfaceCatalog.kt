@@ -53,7 +53,7 @@ internal data class RapidUiSurface(
  * adding a route or a stateful interaction surface requires an explicit qualification entry.
  */
 internal object RapidUiSurfaceCatalog {
-    val routes: List<RapidUiSurface> = listOf(
+    val routes: List<RapidUiSurface> by lazy(LazyThreadSafetyMode.NONE) { listOf(
         route("route.home", RootRouteRegistry.HOME, "cold start or Home", "Back or another tab"),
         route("route.albums", RootRouteRegistry.ALBUMS, "Albums tab", "Back or another tab"),
         route("route.recently_added", RootRouteRegistry.RECENTLY_ADDED, "Albums > Recently added", "Back"),
@@ -82,9 +82,9 @@ internal object RapidUiSurfaceCatalog {
         route("route.changelog", RootRouteRegistry.CHANGELOG, "Menu > Changelog", "Back"),
         route("route.about", RootRouteRegistry.ABOUT, "Settings > About", "Back"),
         route("route.privacy_policy", RootRouteRegistry.PRIVACY_POLICY, "Settings > Privacy", "Back"),
-    )
+    ) }
 
-    val transientLayers: List<RapidUiSurface> = listOf(
+    val transientLayers: List<RapidUiSurface> by lazy(LazyThreadSafetyMode.NONE) { listOf(
         surface("root.permission_gate", RapidUiSurfaceKind.FullScreenLayer, "cold start", "grant, deny, or Back", systemUi = true),
         surface("root.permission_loading", RapidUiSurfaceKind.FullScreenLayer, "permission result", "completion or cancellation"),
         surface("root.top_bar", RapidUiSurfaceKind.Chrome, "any route", "route change"),
@@ -194,9 +194,9 @@ internal object RapidUiSurfaceCatalog {
         surface("player.song_overflow", RapidUiSurfaceKind.Popup, "song overflow", "select or dismiss"),
         surface("player.album_overflow", RapidUiSurfaceKind.Popup, "album overflow", "select or dismiss"),
         surface("player.equalizer_shortcut", RapidUiSurfaceKind.Mode, "player Equalizer", "route change"),
-    )
+    ) }
 
-    val all: List<RapidUiSurface> = routes + transientLayers
+    val all: List<RapidUiSurface> by lazy(LazyThreadSafetyMode.NONE) { routes + transientLayers }
 
     val routePatterns: Set<String>
         get() = routes.mapNotNull { it.routePattern }.toSet()

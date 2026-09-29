@@ -407,12 +407,10 @@ internal class EqualizerAudioProcessor(
     private val safeConfig = config.sanitized()
     @Volatile
     private var currentSettings: EqSettings = EqSettings()
-
-    @Volatile
     private var settingsHaveSignalAlteringEffects = false
 
-    @Volatile
     private var manualPreampDb = 0f
+    private var appliedSettings: EqSettings? = null
 
     private var channelCount = 0
     private var sampleRateHz = 48_000
@@ -466,7 +464,6 @@ internal class EqualizerAudioProcessor(
     private val reverbProcessor = ReverbProcessor()
     private var smoothingAlpha = 1f
     private var configInitialized = false
-    private var targetsDirty = true
     private var limiterPeakReduction = 0f
     private var limiterEvents = 0L
     private var limiterGain = 1f
@@ -497,14 +494,6 @@ internal class EqualizerAudioProcessor(
             reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
             reverbProfile = settings.reverbProfile,
         )
-        manualPreampDb = currentSettings.preampDb.coerceIn(safeConfig.minPreampDb, safeConfig.maxPreampDb)
-        settingsHaveSignalAlteringEffects = EqValuePolicy.hasSignalAlteringEffects(currentSettings)
-        targetsDirty = true
-    }
-
-    fun setManualPreampDb(value: Float) {
-        manualPreampDb = value.coerceIn(safeConfig.minPreampDb, safeConfig.maxPreampDb)
-        targetsDirty = true
     }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -622,7 +611,7 @@ internal class EqualizerAudioProcessor(
         resetRuntimeStates()
         framesSinceCoefficientUpdate = COEFFICIENT_UPDATE_STRIDE_FRAMES
         coefficientUpdatePending = true
-        targetsDirty = true
+        appliedSettings = null
         configInitialized = true
     }
 
@@ -673,8 +662,10 @@ internal class EqualizerAudioProcessor(
     }
 
     private fun updateTargets() {
-        if (!targetsDirty) return
         val settingsSnapshot = currentSettings
+        if (settingsSnapshot === appliedSettings) return
+        manualPreampDb = settingsSnapshot.preampDb.coerceIn(safeConfig.minPreampDb, safeConfig.maxPreampDb)
+        settingsHaveSignalAlteringEffects = EqValuePolicy.hasSignalAlteringEffects(settingsSnapshot)
         val flat = EqualizerDspModel.isFlat(settingsSnapshot)
         targetWetMix = if (flat) 0f else 1f
         var hasActiveTargetBand = false
@@ -747,7 +738,7 @@ internal class EqualizerAudioProcessor(
             config = safeConfig,
         )
         coefficientUpdatePending = true
-        targetsDirty = false
+        appliedSettings = settingsSnapshot
     }
 
     private fun canBypassProcessing(): Boolean {
@@ -1044,7 +1035,7 @@ internal class EqualizerAudioProcessor(
                 if (abs(currentBassTrimDb) > 0.01f) 1 else 0 +
                 if (abs(currentMidrangeDb) > 0.01f) 1 else 0 +
                 if (abs(currentTrebleDb) > 0.01f) 1 else 0 +
-                if (currentSettings.reverbDurationMs > 0) 1 else 0 +
+                if ((appliedSettings?.reverbDurationMs ?: 0) > 0) 1 else 0 +
                 if (!spaciousnessProcessor.isBypassed()) 1 else 0,
             bassShelfGainDb = currentBassShelfDb,
             bassBodyGainDb = currentBassBodyDb,

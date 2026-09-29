@@ -76,8 +76,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".qualification"
+        }
         create("benchmark") {
             initWith(getByName("release"))
+            applicationIdSuffix = ".benchmark"
             isDebuggable = false
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")

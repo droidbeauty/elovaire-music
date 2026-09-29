@@ -111,6 +111,7 @@ class RoomUserDataStoreTest {
         assertEquals(mapOf(1L to 0), store.albumPlayCounts.value)
 
         store.release()
+        Unit
     }
 
     @Test
@@ -161,6 +162,7 @@ class RoomUserDataStoreTest {
         assertEquals(listOf(22L), store.favoriteSongIds.value)
         assertEquals(listOf(22L), store.recentSongIds.value)
         store.release()
+        Unit
     }
 
     @Test
@@ -205,6 +207,7 @@ class RoomUserDataStoreTest {
             store.playlists.value.single { it.id == createdId }.name,
         )
         store.release()
+        Unit
     }
 
     @Test
@@ -223,6 +226,7 @@ class RoomUserDataStoreTest {
         assertEquals(1L, store.revisionedUserDataSnapshot.value.revision)
         assertEquals(1L, database.userDataDao().userDataRevision())
         store.release()
+        Unit
     }
 
     @Test
@@ -249,6 +253,7 @@ class RoomUserDataStoreTest {
         )
         assertFalse(preferences.contains("playlists"))
         store.release()
+        Unit
     }
 
     @Test
@@ -260,6 +265,7 @@ class RoomUserDataStoreTest {
 
         assertFalse(result is PlaylistMutationResult.Success)
         store.release()
+        Unit
     }
 
     @Test
@@ -305,6 +311,7 @@ class RoomUserDataStoreTest {
         assertEquals(listOf(7L), database.userDataDao().recentPlayback().filter { it.kind == "song" }.map { it.itemId })
         assertEquals("Album", database.userDataDao().playbackCollectionState()?.kind)
         store.release()
+        Unit
     }
 
     @Test

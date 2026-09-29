@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 @LargeTest
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalMetricApi::class)
-class RapidInteractionBenchmark {
+class RapidInteractionBenchmark : BenchmarkFixtureOwner() {
     @get:Rule
     val benchmarkRule = MacrobenchmarkRule()
 
