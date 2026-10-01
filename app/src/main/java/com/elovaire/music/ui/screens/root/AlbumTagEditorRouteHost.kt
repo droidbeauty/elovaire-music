@@ -121,7 +121,6 @@ private fun AlbumTagWriteEffects(
     }
     LaunchedEffect(platformAction) {
         val action = platformAction ?: return@LaunchedEffect
-        viewModel.consumePlatformAction(action.operationId)
         when (action) {
             is AlbumTagEditorPlatformAction.RequestWritePermission -> {
                 val unsupported = action.uris
@@ -149,6 +148,8 @@ private fun AlbumTagWriteEffects(
                     pendingSafWriteOperationId = action.operationId
                     runCatching {
                         safWriteLauncher.launch(safTreeUriForDocument(safProblem.uri))
+                    }.onSuccess {
+                        viewModel.consumePlatformAction(action.operationId)
                     }.onFailure {
                         pendingSafWriteOperationId = null
                         safWriteAttemptedOperationId = null
@@ -168,19 +169,24 @@ private fun AlbumTagWriteEffects(
                 }
                 when (val request = requestResult.getOrNull()) {
                     null -> {
+                        viewModel.consumePlatformAction(action.operationId)
                         viewModel.onWritePermissionNotRequired(action.operationId)
                         pendingWriteOperationId = null
                     }
-                    else -> runCatching { mediaStoreLauncher.launch(request) }.onFailure {
-                        viewModel.onWritePermissionLaunchFailed(action.operationId)
-                        pendingWriteOperationId = null
-                    }
+                    else -> runCatching { mediaStoreLauncher.launch(request) }
+                        .onSuccess { viewModel.consumePlatformAction(action.operationId) }
+                        .onFailure {
+                            viewModel.onWritePermissionLaunchFailed(action.operationId)
+                            pendingWriteOperationId = null
+                        }
                 }
             }
             is AlbumTagEditorPlatformAction.RequestRecoverableWritePermission -> {
                 pendingWriteOperationId = action.operationId
                 runCatching {
                     mediaStoreLauncher.launch(IntentSenderRequest.Builder(action.intentSender).build())
+                }.onSuccess {
+                    viewModel.consumePlatformAction(action.operationId)
                 }.onFailure {
                     viewModel.onWritePermissionLaunchFailed(action.operationId)
                     pendingWriteOperationId = null

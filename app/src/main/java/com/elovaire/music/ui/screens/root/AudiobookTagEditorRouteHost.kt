@@ -95,7 +95,6 @@ private fun AudiobookTagWriteEffects(
     }
     LaunchedEffect(platformAction) {
         val action = platformAction ?: return@LaunchedEffect
-        viewModel.consumePlatformAction(action.operationId)
         when (action) {
             is AudiobookTagEditorPlatformAction.RequestWritePermission -> {
                 val unsupported = action.uris.map { MediaWriteTargetClassifier.classify(context, it) }
@@ -113,11 +112,13 @@ private fun AudiobookTagWriteEffects(
                     }
                     safWriteAttemptedOperationId = action.operationId
                     pendingSafWriteOperationId = action.operationId
-                    runCatching { safWriteLauncher.launch(safTreeUriForDocument(safProblem.uri)) }.onFailure {
-                        pendingSafWriteOperationId = null
-                        safWriteAttemptedOperationId = null
-                        viewModel.onWritePermissionLaunchFailed(action.operationId)
-                    }
+                    runCatching { safWriteLauncher.launch(safTreeUriForDocument(safProblem.uri)) }
+                        .onSuccess { viewModel.consumePlatformAction(action.operationId) }
+                        .onFailure {
+                            pendingSafWriteOperationId = null
+                            safWriteAttemptedOperationId = null
+                            viewModel.onWritePermissionLaunchFailed(action.operationId)
+                        }
                     return@LaunchedEffect
                 }
                 safWriteAttemptedOperationId = null
@@ -126,12 +127,15 @@ private fun AudiobookTagWriteEffects(
                     .onSuccess { request ->
                         if (request == null) {
                             pendingWriteOperationId = null
+                            viewModel.consumePlatformAction(action.operationId)
                             viewModel.onWritePermissionNotRequired(action.operationId)
                         } else {
-                            runCatching { mediaStoreLauncher.launch(request) }.onFailure {
-                                pendingWriteOperationId = null
-                                viewModel.onWritePermissionLaunchFailed(action.operationId)
-                            }
+                            runCatching { mediaStoreLauncher.launch(request) }
+                                .onSuccess { viewModel.consumePlatformAction(action.operationId) }
+                                .onFailure {
+                                    pendingWriteOperationId = null
+                                    viewModel.onWritePermissionLaunchFailed(action.operationId)
+                                }
                         }
                     }
                     .onFailure {
@@ -141,10 +145,12 @@ private fun AudiobookTagWriteEffects(
             }
             is AudiobookTagEditorPlatformAction.RequestRecoverableWritePermission -> {
                 pendingWriteOperationId = action.operationId
-                runCatching { mediaStoreLauncher.launch(IntentSenderRequest.Builder(action.intentSender).build()) }.onFailure {
-                    pendingWriteOperationId = null
-                    viewModel.onWritePermissionLaunchFailed(action.operationId)
-                }
+                runCatching { mediaStoreLauncher.launch(IntentSenderRequest.Builder(action.intentSender).build()) }
+                    .onSuccess { viewModel.consumePlatformAction(action.operationId) }
+                    .onFailure {
+                        pendingWriteOperationId = null
+                        viewModel.onWritePermissionLaunchFailed(action.operationId)
+                    }
             }
         }
     }

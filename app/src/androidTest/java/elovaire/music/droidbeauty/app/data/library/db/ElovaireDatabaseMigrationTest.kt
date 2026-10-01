@@ -76,6 +76,9 @@ class ElovaireDatabaseMigrationTest {
             database.query("SELECT locationFingerprint FROM network_inventory_sources WHERE sourceId = 'missing'").use { cursor ->
                 assertEquals(0, cursor.count)
             }
+            database.execSQL(
+                "INSERT INTO user_playlists(playlistId, name, isSystem) VALUES(41, 'Migration Playlist', 0)",
+            )
         }
 
         val roomDatabase = Room.databaseBuilder(
@@ -95,10 +98,16 @@ class ElovaireDatabaseMigrationTest {
         ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(
-                "SELECT COUNT(*) FROM songs WHERE songId = 11 AND albumId = 7",
+                "SELECT name FROM user_playlists WHERE playlistId = 41",
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals(1, cursor.getInt(0))
+                assertEquals("Migration Playlist", cursor.getString(0))
+            }
+            roomDatabase.openHelper.readableDatabase.query(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'songs'",
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
             }
         } finally {
             roomDatabase.close()
