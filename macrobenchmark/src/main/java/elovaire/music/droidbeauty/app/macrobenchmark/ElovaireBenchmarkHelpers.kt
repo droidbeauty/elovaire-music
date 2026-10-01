@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.macrobenchmark
 import android.Manifest
 import android.os.Build
 import android.os.SystemClock
-import android.util.Log
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -32,23 +31,18 @@ private fun MacrobenchmarkScope.findSearchInput(): UiObject2? {
 }
 
 private fun MacrobenchmarkScope.ensureSearchInputVisible() {
-    if (findSearchInput() == null && uiDevice.findObject(By.text("Song name")) != null) {
-        uiDevice.pressBack()
-        uiDevice.waitForIdle()
-    }
+    if (findSearchInput() != null) return
+    // Reselecting the active tab uses the app's own scroll-to-top request.
+    requireClickTopLevel("Search")
     repeat(4) {
         if (findSearchInput() != null) return
-        var moved = false
-        uiDevice.findObjects(By.scrollable(true)).forEach { scrollable ->
-            if (!moved) {
-                try {
-                    moved = scrollable.scroll(Direction.UP, 0.9f)
-                } catch (_: StaleObjectException) {
-                    // The list can be replaced while the previous route finishes settling.
-                }
-            }
-        }
-        if (!moved) return
+        uiDevice.swipe(
+            uiDevice.displayWidth / 2,
+            (uiDevice.displayHeight * 0.35f).toInt(),
+            uiDevice.displayWidth / 2,
+            (uiDevice.displayHeight * 0.7f).toInt(),
+            12,
+        )
         uiDevice.waitForIdle()
     }
 }
@@ -59,20 +53,6 @@ private fun MacrobenchmarkScope.waitForSearchInput(): UiObject2 {
         findSearchInput()?.let { return it }
         SystemClock.sleep(40L)
     }
-    val visibleNodes = uiDevice.findObjects(By.pkg(TARGET_PACKAGE))
-        .take(30)
-        .joinToString { "${it.resourceName}:${it.className}" }
-    Log.w(
-        "MacroNavProbe",
-        "search-input-missing package=${uiDevice.currentPackageName} " +
-            "editText=${uiDevice.findObject(By.pkg(TARGET_PACKAGE).clazz("android.widget.EditText")) != null} " +
-            "tag=${uiDevice.findObject(By.res("search_query_input")) != null} " +
-            topLevelState() + " menu=${uiDevice.findObject(By.desc("Menu")) != null} " +
-            "back=${uiDevice.findObject(By.desc("Back")) != null} " +
-            "clear=${uiDevice.findObject(By.desc("Clear search")) != null} " +
-            "playAlbum=${uiDevice.findObject(By.desc("Play album")) != null} " +
-            "pause=${uiDevice.findObject(By.desc("Pause")) != null} nodes=$visibleNodes",
-    )
     error("Search input did not become visible")
 }
 
@@ -104,19 +84,8 @@ internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
 }
 
 private fun MacrobenchmarkScope.requireClickTopLevel(description: String) {
-    try {
-        requireClick(topLevelSelector(description), "bottom navigation destination=$description")
-    } catch (failure: IllegalStateException) {
-        Log.w("MacroNavProbe", "top-level-missing destination=$description ${topLevelState()}")
-        throw failure
-    }
+    requireClick(topLevelSelector(description), "bottom navigation destination=$description")
 }
-
-private fun MacrobenchmarkScope.topLevelState(): String =
-    listOf("Home", "Albums", "Playlists", "Search").joinToString { description ->
-        val node = uiDevice.findObject(topLevelSelector(description))
-        "$description=${node?.resourceName}:${node?.isSelected}:${node?.isClickable}"
-    }
 
 internal fun MacrobenchmarkScope.requireClickTestTag(tag: String) {
     repeat(4) {
@@ -173,7 +142,14 @@ private fun UiObject2.clickActionable() {
     while (target != null && !target.isClickable) {
         target = target.parent
     }
-    (target ?: this).click()
+    val actionTarget = target ?: this
+    if (target != null) {
+        actionTarget.click()
+    } else {
+        val bounds = actionTarget.visibleBounds
+        UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            .click(bounds.centerX(), bounds.centerY())
+    }
 }
 
 private fun topLevelSelector(description: String): BySelector =
@@ -327,6 +303,7 @@ internal fun MacrobenchmarkScope.searchJourney() {
     uiDevice.pressBack()
     uiDevice.waitForIdle()
     uiDevice.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.7f)
+    ensureSearchInputVisible()
     setQuery("zzzzzz", waitForSettledResults = true)
     setQuery("a", waitForSettledResults = true)
     uiDevice.pressBack()

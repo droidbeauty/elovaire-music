@@ -1965,17 +1965,17 @@ internal fun ThinContinuousSlider(
         val trackWidth = with(density) { trackWidthPx.toDp() }
         val animatedActiveStart by animateDpAsState(
             targetValue = trackWidth * activeStartFraction,
-            animationSpec = motionSpecs.tween(durationMillis = 70),
+            animationSpec = if (isDragging) snap() else motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_fill_start",
         )
         val animatedActiveWidth by animateDpAsState(
             targetValue = trackWidth * (activeEndFraction - activeStartFraction),
-            animationSpec = motionSpecs.tween(durationMillis = 70),
+            animationSpec = if (isDragging) snap() else motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_fill",
         )
         val animatedKnobOffset by animateDpAsState(
             targetValue = with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() },
-            animationSpec = motionSpecs.tween(durationMillis = 70),
+            animationSpec = if (isDragging) snap() else motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_knob",
         )
         val activeStart = if (isDragging) trackWidth * activeStartFraction else animatedActiveStart
