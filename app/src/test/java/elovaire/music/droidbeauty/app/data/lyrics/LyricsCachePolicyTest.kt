@@ -6,6 +6,14 @@ import org.junit.Test
 
 class LyricsCachePolicyTest {
     @Test
+    fun snapshotsLargerThanTheReadLimitAreNotPersisted() {
+        assertTrue(isLyricsCacheSnapshotWithinLimit(1, 10))
+        assertTrue(isLyricsCacheSnapshotWithinLimit(10, 10))
+        assertFalse(isLyricsCacheSnapshotWithinLimit(11, 10))
+        assertFalse(isLyricsCacheSnapshotWithinLimit(0, 10))
+    }
+
+    @Test
     fun trimRemovesLeastRecentlyUsedEntry() {
         val entries = LinkedHashMap<String, LyricsCacheEntry>(16, 0.75f, true)
         entries["first"] = LyricsCacheEntry(LyricsResult.NotFound, 1L)

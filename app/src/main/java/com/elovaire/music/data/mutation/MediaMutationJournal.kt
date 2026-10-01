@@ -180,8 +180,8 @@ internal class MediaMutationJournal(
         val recovery = runCatching {
             transitionMutex.withLock {
                 var recoveredCount = 0
-                val recoverable = dao.recoverableMutations()
-                recoverable.take(maxRecords).forEach { mutation ->
+                val batch = dao.recoverableMutationBatch(maxRecords)
+                batch.mutations.forEach { mutation ->
                     currentCoroutineContext().ensureActive()
                     val current = mutation.status.toMediaMutationStatusOrNull()
                     if (current == null) {
@@ -201,7 +201,7 @@ internal class MediaMutationJournal(
                         recoveredCount += 1
                     }
                 }
-                recoveredCount to (recoverable.size - recoveredCount).coerceAtLeast(0)
+                recoveredCount to (batch.totalCount - recoveredCount).coerceAtLeast(0)
             }
         }
         val failure = recovery.exceptionOrNull()

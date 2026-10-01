@@ -46,16 +46,19 @@ internal class SmbNetworkFileSystem(
         credentials: NetworkCredentials,
     ): NetworkProbeResult {
         checkNotReleased()
-        return runCatching {
-            withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
-            NetworkProbeResult(NetworkAvailability.Available)
-        }.getOrElse { failure ->
-            val remoteFailure = failure.asRemoteIoFailure()
-            NetworkProbeResult(
-                availability = remoteFailure.kind.toNetworkAvailability(),
-                message = remoteFailure::class.simpleName,
-            )
-        }
+        return networkProbeResult(
+            attempt = {
+                withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
+                NetworkProbeResult(NetworkAvailability.Available)
+            },
+            onFailure = { failure ->
+                val remoteFailure = failure.asRemoteIoFailure()
+                NetworkProbeResult(
+                    availability = remoteFailure.kind.toNetworkAvailability(),
+                    message = remoteFailure::class.simpleName,
+                )
+            },
+        )
     }
 
     override fun listBlocking(
@@ -79,32 +82,41 @@ internal class SmbNetworkFileSystem(
                 incompleteReason = "directory-budget"
                 break
             }
-            share.list(directory).forEach { item ->
-                if (entries.size >= maxEntries) {
-                    incompleteReason = "entry-budget"
-                    return@forEach
-                }
-                val name = item.fileName ?: return@forEach
-                if (name == "." || name == "..") return@forEach
-                val fullPath = NetworkPathPolicy.join(directory, name)
-                val directoryEntry = item.isDirectory()
-                val entry = NetworkFileEntry(
-                    path = fullPath.removeRootPath(rootPath),
-                    isDirectory = directoryEntry,
-                    sizeBytes = item.endOfFile.takeIf { it >= 0L },
-                    modifiedAtMs = item.lastWriteTime?.toEpochMillis(),
-                    sourceEntryId = item.fileId.takeIf { it != 0L }?.toString(),
-                )
-                entries += entry
-                val isReparsePoint = item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT.value != 0L
-                if (directoryEntry && !isReparsePoint) {
-                    if (depth < maxDepth) {
-                        pending.addLast(fullPath to depth + 1)
-                    } else {
-                        incompleteReason = incompleteReason ?: "depth-budget"
+            share.openDirectory(
+                directory,
+                EnumSet.of(AccessMask.FILE_LIST_DIRECTORY, AccessMask.FILE_READ_ATTRIBUTES, AccessMask.FILE_READ_EA),
+                null,
+                SMB2ShareAccess.ALL,
+                SMB2CreateDisposition.FILE_OPEN,
+                null,
+            ).use { openedDirectory ->
+                consumeWhile(
+                    iterator = openedDirectory.iterator(FileIdBothDirectoryInformation::class.java),
+                    shouldContinue = { entries.size < maxEntries },
+                ) { item ->
+                    val name = item.fileName ?: return@consumeWhile
+                    if (name == "." || name == "..") return@consumeWhile
+                    val fullPath = NetworkPathPolicy.join(directory, name)
+                    val directoryEntry = item.isDirectory()
+                    val entry = NetworkFileEntry(
+                        path = fullPath.removeRootPath(rootPath),
+                        isDirectory = directoryEntry,
+                        sizeBytes = item.endOfFile.takeIf { it >= 0L },
+                        modifiedAtMs = item.lastWriteTime?.toEpochMillis(),
+                        sourceEntryId = item.fileId.takeIf { it != 0L }?.toString(),
+                    )
+                    entries += entry
+                    val isReparsePoint = item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT.value != 0L
+                    if (directoryEntry && !isReparsePoint) {
+                        if (depth < maxDepth) {
+                            pending.addLast(fullPath to depth + 1)
+                        } else {
+                            incompleteReason = incompleteReason ?: "depth-budget"
+                        }
                     }
                 }
             }
+            if (entries.size >= maxEntries) incompleteReason = incompleteReason ?: "entry-budget"
         }
         if (entries.size >= maxEntries) incompleteReason = incompleteReason ?: "entry-budget"
         incompleteReason?.let { NetworkListingResult.Incomplete(entries, it) }
@@ -121,7 +133,7 @@ internal class SmbNetworkFileSystem(
     ): NetworkReadHandle {
         checkNotReleased()
         val session = sessionFor(source, credentials)
-        val lease = session.acquire()
+        val lease = session.acquire(credentials)
         var file: com.hierynomus.smbj.share.File? = null
         return try {
             val openedFile = lease.share.openFile(
@@ -208,7 +220,7 @@ internal class SmbNetworkFileSystem(
     ): T {
         checkNotReleased()
         val session = sessionFor(source, credentials)
-        val lease = session.acquire()
+        val lease = session.acquire(credentials)
         return try {
             block(lease.share)
         } catch (failure: Throwable) {
@@ -241,7 +253,7 @@ internal class SmbNetworkFileSystem(
                 current
             } else {
                 current?.let(staleSessions::add)
-                SourceSession(key, source, credentials).also { sessions[source.id] = it }
+                SourceSession(key, source).also { sessions[source.id] = it }
             }
         }
         staleSessions.distinct().forEach(SourceSession::invalidate)
@@ -282,7 +294,6 @@ internal class SmbNetworkFileSystem(
     private inner class SourceSession(
         val key: SessionKey,
         private val source: NetworkLibrarySource,
-        private val credentials: NetworkCredentials,
     ) {
         private val lock = Any()
         private var resources: SessionResources? = null
@@ -301,7 +312,7 @@ internal class SmbNetworkFileSystem(
         }
 
         @Suppress("TooGenericExceptionCaught")
-        fun acquire(): SessionLease {
+        fun acquire(credentials: NetworkCredentials): SessionLease {
             val connectFuture: CompletableFuture<SessionResources>
             val ownsConnect: Boolean
             synchronized(lock) {

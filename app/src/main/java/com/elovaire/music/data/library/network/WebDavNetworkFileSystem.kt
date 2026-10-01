@@ -32,12 +32,15 @@ internal class WebDavNetworkFileSystem(
         credentials: NetworkCredentials,
     ): NetworkProbeResult {
         checkNotReleased()
-        return runCatching {
-            propFind(source, credentials, source.shareOrPath, depth = 0)
-            NetworkProbeResult(NetworkAvailability.Available)
-        }.getOrElse { failure ->
-            NetworkProbeResult(classifyFailure(failure), failure::class.simpleName)
-        }
+        return networkProbeResult(
+            attempt = {
+                propFind(source, credentials, source.shareOrPath, depth = 0)
+                NetworkProbeResult(NetworkAvailability.Available)
+            },
+            onFailure = { failure ->
+                NetworkProbeResult(classifyFailure(failure), failure::class.simpleName)
+            },
+        )
     }
 
     override fun listBlocking(

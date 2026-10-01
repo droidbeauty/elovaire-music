@@ -12,9 +12,21 @@ internal interface MediaMutationDao {
     @Query(
         "SELECT * FROM media_mutations " +
             "WHERE status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair') " +
-            "ORDER BY updatedAtMs ASC, mutationId ASC",
+            "ORDER BY updatedAtMs ASC, mutationId ASC LIMIT :limit",
     )
-    suspend fun recoverableMutations(): List<LibraryMutationEntity>
+    suspend fun recoverableMutations(limit: Int): List<LibraryMutationEntity>
+
+    @Query(
+        "SELECT COUNT(*) FROM media_mutations " +
+            "WHERE status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair')",
+    )
+    suspend fun recoverableMutationCount(): Int
+
+    @Transaction
+    suspend fun recoverableMutationBatch(limit: Int): RecoverableMutationBatch = RecoverableMutationBatch(
+        totalCount = recoverableMutationCount(),
+        mutations = recoverableMutations(limit),
+    )
 
     @Query("SELECT * FROM media_mutations WHERE mutationId = :mutationId")
     suspend fun mutation(mutationId: String): LibraryMutationEntity?
@@ -22,6 +34,11 @@ internal interface MediaMutationDao {
     @Upsert
     suspend fun upsertMutation(mutation: LibraryMutationEntity)
 }
+
+internal data class RecoverableMutationBatch(
+    val totalCount: Int,
+    val mutations: List<LibraryMutationEntity>,
+)
 
 @Dao
 internal interface NetworkInventoryDao {

@@ -5,6 +5,7 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryDao
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventorySourceEntity
+import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -116,7 +117,15 @@ internal class NetworkInventoryStore(
         if (!legacyRootLoaded) {
             legacyRootLoaded = true
             legacyRoot = runCatching {
-                JSONObject(legacyCacheFile.takeIf(File::isFile)?.readText() ?: return@runCatching null)
+                if (!legacyCacheFile.isFile || !isLegacyNetworkInventoryCacheWithinLimit(legacyCacheFile.length())) {
+                    return@runCatching null
+                }
+                JSONObject(
+                    legacyCacheFile.inputStream().use { input ->
+                        input.readBytesBounded(MAX_LEGACY_NETWORK_INVENTORY_CACHE_BYTES.toInt())
+                            .toString(Charsets.UTF_8)
+                    },
+                )
             }.getOrNull()
         }
         val songs = legacyRoot?.optJSONObject("sources")?.optJSONArray(source.id) ?: return emptyList()
@@ -178,6 +187,11 @@ internal class NetworkInventoryStore(
         const val FRESHNESS_WINDOW_MS = 15 * 60 * 1_000L
     }
 }
+
+internal fun isLegacyNetworkInventoryCacheWithinLimit(sizeBytes: Long): Boolean =
+    sizeBytes in 1L..MAX_LEGACY_NETWORK_INVENTORY_CACHE_BYTES
+
+private const val MAX_LEGACY_NETWORK_INVENTORY_CACHE_BYTES = 16L * 1024L * 1024L
 
 internal data class NetworkInventoryEntry(
     val entry: NetworkFileEntry,

@@ -4,6 +4,7 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
 import elovaire.music.droidbeauty.app.data.library.db.MediaMutationDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
+import elovaire.music.droidbeauty.app.data.library.db.RecoverableMutationBatch
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
 import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
@@ -231,6 +232,29 @@ class MediaMutationJournalTest {
         assertEquals(0, (repeated as MediaMutationRecoveryResult.Success).recoveredCount)
     }
 
+    @Test
+    fun recoveryLoadsOnlyOneBatchAndReportsRemainingMutations() = runBlocking {
+        val stored = mutableMapOf<String, LibraryMutationEntity>()
+        val journal = MediaMutationJournal(
+            dao = libraryDao(stored),
+            clock = FixedClock,
+            operationIdGenerator = { "recovery" },
+            backendEventSink = NoOpBackendEventSink,
+        )
+        listOf("first", "second", "third").forEach { id ->
+            journal.create(MediaMutationOperation(mutationId = id, type = MediaMutationType.TagEdit))
+        }
+
+        val firstBatch = journal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
+        val secondBatch = journal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
+        val lastBatch = journal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
+
+        assertEquals(1, firstBatch.recoveredCount)
+        assertEquals(2, firstBatch.remainingCount)
+        assertEquals(1, secondBatch.remainingCount)
+        assertEquals(0, lastBatch.remainingCount)
+    }
+
     private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): MediaMutationDao {
         return Proxy.newProxyInstance(
             MediaMutationDao::class.java.classLoader,
@@ -243,7 +267,13 @@ class MediaMutationJournalTest {
                     stored[entity.mutationId] = entity
                     Unit
                 }
-                "recoverableMutations" -> stored.values.toList()
+                "recoverableMutationBatch" -> {
+                    val limit = arguments?.get(0) as Int
+                    val recoverable = stored.values
+                        .filter { it.status !in setOf("Completed", "Cancelled", "Failed", "NeedsRepair") }
+                        .sortedWith(compareBy(LibraryMutationEntity::updatedAtMs, LibraryMutationEntity::mutationId))
+                    RecoverableMutationBatch(recoverable.size, recoverable.take(limit))
+                }
                 "toString" -> "TestLibraryDao"
                 else -> error("Unexpected DAO call: ${method.name}")
             }

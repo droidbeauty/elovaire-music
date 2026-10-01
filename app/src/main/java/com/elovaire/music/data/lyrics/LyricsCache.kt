@@ -192,10 +192,15 @@ internal class LyricsCache(
                     },
                 )
                 }
+                val bytes = root.toString().toByteArray(Charsets.UTF_8)
+                if (!isLyricsCacheSnapshotWithinLimit(bytes.size, MAX_CACHE_FILE_BYTES)) {
+                    atomicFile.delete()
+                    return@runCatching true
+                }
                 val output = atomicFile.startWrite()
                 var committed = false
                 try {
-                    output.write(root.toString().toByteArray(Charsets.UTF_8))
+                    output.write(bytes)
                     output.flush()
                     atomicFile.finishWrite(output)
                     committed = true
@@ -295,3 +300,6 @@ internal fun trimLyricsCacheEntries(
     }
     return changed
 }
+
+internal fun isLyricsCacheSnapshotWithinLimit(sizeBytes: Int, maxBytes: Int): Boolean =
+    sizeBytes in 1..maxBytes

@@ -62,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
@@ -1443,19 +1444,22 @@ private fun EqResponseGraph(
     val motionSpecs = rememberMotionSpecs()
     val eqGraphConfig = remember { EqualizerDspConfig() }
     val graphPointCount = EqualizerDspModel.BAND_COUNT
+    val isDragging = remember { mutableStateOf(false) }
+    val currentOnBandChanged by rememberUpdatedState(onBandChanged)
     val animatedBandValues = List(graphPointCount) { index ->
         val target = settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
-        val animated by animateFloatAsState(
+        animateFloatAsState(
             targetValue = target,
-            animationSpec = motionSpecs.tween(120, easing = FastOutSlowInEasing),
+            animationSpec = if (isDragging.value) {
+                snap()
+            } else {
+                motionSpecs.tween(120, easing = FastOutSlowInEasing)
+            },
             label = "eq_band_$index",
         )
-        animated
-    }
-    val bandValues = remember(animatedBandValues) {
-        normalizeEqBandValues(animatedBandValues, graphPointCount)
     }
     val bandFractions = remember { eqBandFractions() }
+    val dbLevels = remember { eqDbLevels() }
     val accentColor = Color(0xFF39E38E)
     val guideColor = MaterialTheme.colorScheme.onSurface
     val density = LocalDensity.current
@@ -1471,7 +1475,7 @@ private fun EqResponseGraph(
                         fraction = ((offset.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                         bandFractions = bandFractions,
                     )
-                    onBandChanged(
+                    currentOnBandChanged(
                         bandIndex,
                         eqGraphYToNormalized(
                             y = offset.y,
@@ -1485,13 +1489,14 @@ private fun EqResponseGraph(
                 detectDragGestures(
                     onDragStart = { offset ->
                         if (size.width == 0 || size.height == 0) return@detectDragGestures
+                        isDragging.value = true
                         val horizontalPadding = with(density) { EQ_GRAPH_EDGE_PADDING.toPx() }
                         val graphWidth = (size.width.toFloat() - horizontalPadding * 2f).coerceAtLeast(1f)
                         val bandIndex = nearestEqBandIndex(
                             fraction = ((offset.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                             bandFractions = bandFractions,
                         )
-                        onBandChanged(
+                        currentOnBandChanged(
                             bandIndex,
                             eqGraphYToNormalized(
                                 y = offset.y,
@@ -1509,7 +1514,7 @@ private fun EqResponseGraph(
                             fraction = ((change.position.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                             bandFractions = bandFractions,
                         )
-                        onBandChanged(
+                        currentOnBandChanged(
                             index,
                             eqGraphYToNormalized(
                                 y = change.position.y,
@@ -1518,6 +1523,8 @@ private fun EqResponseGraph(
                             ),
                         )
                     },
+                    onDragEnd = { isDragging.value = false },
+                    onDragCancel = { isDragging.value = false },
                 )
             },
     ) {
@@ -1531,7 +1538,11 @@ private fun EqResponseGraph(
                 .coerceIn(0f, 1f)
             val midY = topPadding + (graphHeight * (1f - zeroDbFraction))
 
-            eqDbLevels().forEach { levelDb ->
+            val trackWidth = 4.dp.toPx()
+            val activeWidth = 4.dp.toPx()
+            val thumbWidth = 9.dp.toPx()
+            val thumbHeight = 24.dp.toPx()
+            dbLevels.forEach { levelDb ->
                 val y = topPadding + (graphHeight * (1f - eqLevelFraction(levelDb, eqGraphConfig)))
                 drawLine(
                     color = guideColor.copy(alpha = if (levelDb == 0f) 0.12f else 0.05f),
@@ -1541,13 +1552,10 @@ private fun EqResponseGraph(
                 )
             }
 
-            bandValues.forEachIndexed { index, band ->
+            repeat(graphPointCount) { index ->
+                val band = animatedBandValues[index].value.coerceIn(-1f, 1f)
                 val x = horizontalPadding + graphWidth * bandFractions.getOrElse(index) { 0f }
                 val y = topPadding + (graphHeight * (1f - EqualizerDspModel.bandGraphFraction(band, eqGraphConfig)))
-                val trackWidth = 4.dp.toPx()
-                val activeWidth = 4.dp.toPx()
-                val thumbWidth = 9.dp.toPx()
-                val thumbHeight = 24.dp.toPx()
                 val activeTop = min(y, midY)
                 val activeHeight = max(2.dp.toPx(), kotlin.math.abs(y - midY))
                 drawRoundRect(
@@ -1615,47 +1623,31 @@ private fun EqMiniResponseGraph(
     val graphPointCount = EqualizerDspModel.BAND_COUNT
     val animatedBandValues = List(graphPointCount) { index ->
         val target = settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
-        val animated by animateFloatAsState(
+        animateFloatAsState(
             targetValue = target,
             animationSpec = motionSpecs.tween(160, easing = FastOutSlowInEasing),
             label = "eq_mini_band_$index",
         )
-        animated
-    }
-    val bandValues = remember(animatedBandValues) {
-        normalizeEqBandValues(animatedBandValues, graphPointCount)
     }
     val bandFractions = remember { eqBandFractions() }
     val accentColor = Color(0xFF39E38E)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.module)),
-    ) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            val horizontalPadding = 14.dp.toPx()
-            val topPadding = size.height * 0.18f
-            val bottomPadding = size.height * 0.2f
-            val graphHeight = size.height - topPadding - bottomPadding
-            val graphWidth = size.width - horizontalPadding * 2f
-            val zeroDbFraction = ((0f - eqGraphConfig.minBandGainDb) / (eqGraphConfig.maxBandGainDb - eqGraphConfig.minBandGainDb))
-                .coerceIn(0f, 1f)
-            val midY = topPadding + (graphHeight * (1f - zeroDbFraction))
-            val points = bandValues.mapIndexed { index, band ->
-                val x = horizontalPadding + graphWidth * bandFractions.getOrElse(index) { 0f }
-                val y = topPadding + (graphHeight * (1f - EqualizerDspModel.bandGraphFraction(band, eqGraphConfig)))
-                Offset(x, y)
-            }
-            if (points.isEmpty()) return@Canvas
-            val strokePath = smoothPathFromPoints(points)
-            val fillPath = androidx.compose.ui.graphics.Path().apply {
-                addPath(strokePath)
-                lineTo(points.last().x, midY)
-                lineTo(points.first().x, midY)
-                close()
-            }
-            drawPath(
-                path = fillPath,
-                brush = Brush.verticalGradient(
+            .clip(RoundedCornerShape(ElovaireRadii.module))
+            .drawWithCache {
+                val horizontalPadding = 14.dp.toPx()
+                val topPadding = size.height * 0.18f
+                val bottomPadding = size.height * 0.2f
+                val graphHeight = size.height - topPadding - bottomPadding
+                val graphWidth = size.width - horizontalPadding * 2f
+                val zeroDbFraction = ((0f - eqGraphConfig.minBandGainDb) / (eqGraphConfig.maxBandGainDb - eqGraphConfig.minBandGainDb))
+                    .coerceIn(0f, 1f)
+                val midY = topPadding + (graphHeight * (1f - zeroDbFraction))
+                val pointX = FloatArray(graphPointCount)
+                val pointY = FloatArray(graphPointCount)
+                val strokePath = Path()
+                val fillPath = Path()
+                val gradient = Brush.verticalGradient(
                     colors = listOf(
                         accentColor.copy(alpha = 0.18f),
                         accentColor.copy(alpha = 0.07f),
@@ -1663,20 +1655,49 @@ private fun EqMiniResponseGraph(
                     ),
                     startY = 0f,
                     endY = size.height,
-                ),
-            )
-            drawPath(
-                path = strokePath,
-                color = accentColor.copy(alpha = 0.2f),
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
-            )
-            drawPath(
-                path = strokePath,
-                color = accentColor,
-                style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round),
-            )
-        }
-    }
+                )
+                val glowWidth = 8.dp.toPx()
+                val lineWidth = 2.4.dp.toPx()
+                onDrawBehind {
+                    repeat(graphPointCount) { index ->
+                        val band = animatedBandValues[index].value.coerceIn(-1f, 1f)
+                        pointX[index] = horizontalPadding + graphWidth * bandFractions[index]
+                        pointY[index] = topPadding + (graphHeight * (1f - EqualizerDspModel.bandGraphFraction(band, eqGraphConfig)))
+                    }
+                    strokePath.reset()
+                    strokePath.moveTo(pointX[0], pointY[0])
+                    for (index in 1 until graphPointCount) {
+                        val previousX = pointX[index - 1]
+                        val previousY = pointY[index - 1]
+                        val currentX = pointX[index]
+                        val currentY = pointY[index]
+                        strokePath.quadraticTo(
+                            previousX,
+                            previousY,
+                            (previousX + currentX) / 2f,
+                            (previousY + currentY) / 2f,
+                        )
+                    }
+                    strokePath.lineTo(pointX[graphPointCount - 1], pointY[graphPointCount - 1])
+                    fillPath.reset()
+                    fillPath.addPath(strokePath)
+                    fillPath.lineTo(pointX[graphPointCount - 1], midY)
+                    fillPath.lineTo(pointX[0], midY)
+                    fillPath.close()
+                    drawPath(path = fillPath, brush = gradient)
+                    drawPath(
+                        path = strokePath,
+                        color = accentColor.copy(alpha = 0.2f),
+                        style = Stroke(width = glowWidth, cap = StrokeCap.Round),
+                    )
+                    drawPath(
+                        path = strokePath,
+                        color = accentColor,
+                        style = Stroke(width = lineWidth, cap = StrokeCap.Round),
+                    )
+                }
+            }
+    )
 }
 
 @Composable
@@ -2097,16 +2118,6 @@ private fun formatEqKiloLabel(kiloValue: Float): String {
     return "${formatted}k"
 }
 
-private fun normalizeEqBandValues(
-    values: List<Float>,
-    targetCount: Int,
-): List<Float> {
-    if (values.isEmpty()) return List(targetCount) { 0f }
-    return List(targetCount) { index ->
-        values.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
-    }
-}
-
 private fun eqPreset(
     name: String,
     bass: Float,
@@ -2160,25 +2171,6 @@ private fun EqSettings.normalizedEqSettings(): EqSettings {
         treble = treble.coerceIn(-1f, 1f),
         spaciousness = spaciousness.coerceIn(0f, 1f),
     )
-}
-
-private fun smoothPathFromPoints(points: List<Offset>): androidx.compose.ui.graphics.Path {
-    return androidx.compose.ui.graphics.Path().apply {
-        if (points.isEmpty()) return@apply
-        moveTo(points.first().x, points.first().y)
-        if (points.size == 1) return@apply
-        for (index in 1 until points.size) {
-            val previous = points[index - 1]
-            val current = points[index]
-            val midPoint = Offset(
-                x = (previous.x + current.x) / 2f,
-                y = (previous.y + current.y) / 2f,
-            )
-            quadraticTo(previous.x, previous.y, midPoint.x, midPoint.y)
-        }
-        val last = points.last()
-        lineTo(last.x, last.y)
-    }
 }
 
 @Composable

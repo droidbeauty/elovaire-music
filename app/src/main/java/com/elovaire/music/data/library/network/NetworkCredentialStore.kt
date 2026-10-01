@@ -17,6 +17,7 @@ internal class NetworkCredentialStore(context: Context) {
     private val lock = Any()
     private var cachedSecretKey: SecretKey? = null
     private val generations = HashMap<String, Long>()
+    private var generationSequence = 0L
 
     fun put(sourceId: String, key: String, credentials: NetworkCredentials) {
         validateIdentity(sourceId, key)
@@ -38,11 +39,14 @@ internal class NetworkCredentialStore(context: Context) {
                     .putString(key, Base64.encodeToString(value, Base64.NO_WRAP))
                     .commit(),
             ) { "Unable to persist network credentials" }
-            generations[key] = (generations[key] ?: 0L) + 1L
+            generationSequence += 1L
+            generations[key] = generationSequence
         }
     }
 
-    fun generation(key: String): Long = synchronized(lock) { generations[key] ?: 0L }
+    fun generation(key: String): Long = synchronized(lock) {
+        generations[key] ?: if (preferences.contains(key)) 0L else generationSequence
+    }
 
     fun read(sourceId: String, key: String): NetworkCredentialReadResult {
         validateIdentity(sourceId, key)
@@ -152,7 +156,8 @@ internal class NetworkCredentialStore(context: Context) {
         require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
         synchronized(lock) {
             check(preferences.edit().remove(key).commit()) { "Unable to remove network credentials" }
-            generations[key] = (generations[key] ?: 0L) + 1L
+            generationSequence += 1L
+            generations.remove(key)
         }
     }
 

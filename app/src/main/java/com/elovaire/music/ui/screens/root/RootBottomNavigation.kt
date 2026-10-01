@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -13,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,11 +26,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
@@ -74,9 +75,10 @@ internal fun BottomNavigationBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(ElovaireSpacing.bottomNavigationBodyHeight)
-                    .padding(horizontal = 10.dp)
-                    .align(Alignment.TopCenter),
+                .height(ElovaireSpacing.bottomNavigationBodyHeight)
+                .padding(horizontal = 10.dp)
+                .selectableGroup()
+                .align(Alignment.TopCenter),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -162,15 +164,16 @@ private fun BottomNavigationItemButton(
                 label = "${contentDescription}_bottom_nav_scale",
             )
             .clip(RoundedCornerShape(ElovaireRadii.tile))
-            .semantics {
+            .semantics(mergeDescendants = true) {
                 this.contentDescription = contentDescription
-                this.selected = selected
+                this.testTag = testTag
                 testTagsAsResourceId = true
             }
-            .testTag(testTag)
-            .clickable(
+            .selectable(
+                selected = selected,
                 interactionSource = interactionSource,
                 indication = null,
+                role = Role.Tab,
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,

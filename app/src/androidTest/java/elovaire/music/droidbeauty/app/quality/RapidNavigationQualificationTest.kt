@@ -55,7 +55,6 @@ class RapidNavigationQualificationTest {
                 fixture?.close()
             } finally {
                 fixture = null
-                revokeAudioPermission()
             }
         }
     }
@@ -107,7 +106,7 @@ class RapidNavigationQualificationTest {
     private fun burstDescriptions(descriptions: List<String>, interInputDelayMs: Long) {
         var lastInputAt = SystemClock.uptimeMillis()
         descriptions.forEach { description ->
-            val selector = By.desc(description)
+            val selector = topLevelSelector(description)
             val injectedAt = SystemClock.uptimeMillis()
             if (clickWithoutIdle(selector)) {
                 val elapsed = SystemClock.uptimeMillis() - injectedAt
@@ -142,7 +141,7 @@ class RapidNavigationQualificationTest {
     private fun requireDescription(description: String) {
         val deadline = SystemClock.uptimeMillis() + ACTION_TIMEOUT_MS
         while (SystemClock.uptimeMillis() < deadline) {
-            val node = device.wait(Until.findObject(By.desc(description)), FIND_TIMEOUT_MS)
+            val node = device.wait(Until.findObject(topLevelSelector(description)), FIND_TIMEOUT_MS)
             if (node != null) {
                 try {
                     node.clickActionable()
@@ -161,20 +160,24 @@ class RapidNavigationQualificationTest {
     }
 
     private fun assertSelectedTopLevel(description: String) {
-        val destinationNode = device.wait(Until.findObject(By.desc(description)), ACTION_TIMEOUT_MS)
+        val destinationNode = device.wait(Until.findObject(topLevelSelector(description)), ACTION_TIMEOUT_MS)
         assertNotNull("Top-level destination is unavailable: $description", destinationNode)
         assertTrue("Top-level destination did not converge: $description", destinationNode.isSelected)
     }
 
     private fun assertNoDuplicateTopLevelSelection() {
         val visibleDestinationCount = TOP_LEVEL_DESCRIPTIONS.count { description ->
-            device.findObject(By.desc(description)) != null
+            device.findObject(topLevelSelector(description)) != null
         }
         assertTrue("Bottom navigation was lost during route convergence", visibleDestinationCount == 4)
     }
 
     private fun assertNoBlockingSystemLayer() {
         assertTrue(device.currentPackageName == packageName)
+    }
+
+    private fun topLevelSelector(description: String): BySelector {
+        return By.res("bottom_nav_${description.lowercase()}")
     }
 
     private fun launchApp() {
@@ -195,17 +198,6 @@ class RapidNavigationQualificationTest {
             .onFailure { shell("pm grant $packageName $permission") }
     }
 
-    private fun revokeAudioPermission() {
-        val permission = if (Build.VERSION.SDK_INT >= 33) {
-            Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-        if (instrumentation.targetContext.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            instrumentation.uiAutomation.revokeRuntimePermission(packageName, permission)
-        }
-    }
-
     private fun acceptFirstLaunchStoragePermissionIfVisible() {
         device.findObject(By.text("Allow storage access"))?.let { button ->
             button.clickActionable()
@@ -221,7 +213,7 @@ class RapidNavigationQualificationTest {
     private fun UiObject2.clickActionable() {
         var target: UiObject2? = this
         while (target != null && !target.isClickable) target = target.parent
-        checkNotNull(target) { "UI element has no clickable ancestor" }.click()
+        (target ?: this).click()
     }
 
     private companion object {

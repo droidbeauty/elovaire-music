@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 
 internal sealed interface NetworkListingResult {
     val entries: List<NetworkFileEntry>
@@ -125,6 +126,7 @@ internal class NetworkFileSystemRegistry(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun openBlocking(
         sourceId: String,
         path: String,
@@ -134,6 +136,7 @@ internal class NetworkFileSystemRegistry(
     ): NetworkReadHandle {
         checkNotReleased()
         checkLocalNetworkAccess()
+        val currentNetworkGeneration = networkGeneration.get()
         val sourceRecord = source(sourceId) ?: throw NetworkRemoteIoException(
             kind = RemoteIoFailureKind.SourceRemoved,
             message = "Network library source is unavailable",
@@ -150,7 +153,8 @@ internal class NetworkFileSystemRegistry(
             checkNotReleased()
             if (
                 !isCurrent(sourceRecord, sourceGeneration) ||
-                    credentialStore.generation(sourceRecord.credentialKey) != credentialGeneration
+                    credentialStore.generation(sourceRecord.credentialKey) != credentialGeneration ||
+                    networkGeneration.get() != currentNetworkGeneration
             ) {
                 throw NetworkRemoteIoException(
                     kind = RemoteIoFailureKind.SourceRemoved,
@@ -159,8 +163,24 @@ internal class NetworkFileSystemRegistry(
             }
             val handle = fileSystems[sourceRecord.protocol]?.openBlocking(sourceRecord, credentialRecord, path, position, length)
                 ?: throw IOException("Network protocol is unavailable")
+            requireCurrentNetworkHandle(handle) {
+                !released.get() &&
+                    permissionAllowed.get() &&
+                    networkGeneration.get() == currentNetworkGeneration &&
+                    sourceStore.isCurrent(sourceRecord, sourceGeneration) &&
+                    credentialStore.generation(sourceRecord.credentialKey) == credentialGeneration
+            }
             val released = AtomicBoolean(false)
-            val resource = resourceTracker.acquire(purpose.resourceKind())
+            val resource = try {
+                resourceTracker.acquire(purpose.resourceKind())
+            } catch (failure: Throwable) {
+                try {
+                    handle.close()
+                } catch (closeFailure: Throwable) {
+                    if (closeFailure !== failure) failure.addSuppressed(closeFailure)
+                }
+                throw failure
+            }
             val handleReference = java.util.concurrent.atomic.AtomicReference<NetworkReadHandle?>()
             val wrapped = NetworkReadHandle(
                 input = handle.input,
@@ -249,6 +269,43 @@ internal class NetworkFileSystemRegistry(
         NetworkReadPurpose.Artwork -> BackendResourceKind.ActiveNetworkArtworkRead
         NetworkReadPurpose.Listing -> BackendResourceKind.ActiveNetworkRead
     }
+}
+
+@Suppress("TooGenericExceptionCaught")
+internal fun requireCurrentNetworkHandle(
+    handle: NetworkReadHandle,
+    isCurrent: () -> Boolean,
+) {
+    if (isCurrent()) return
+    val failure = NetworkRemoteIoException(
+        kind = RemoteIoFailureKind.SourceRemoved,
+        message = "Network library source changed while opening",
+    )
+    try {
+        handle.close()
+    } catch (closeFailure: Throwable) {
+        if (closeFailure !== failure) failure.addSuppressed(closeFailure)
+    }
+    throw failure
+}
+
+internal inline fun <T> networkProbeResult(
+    attempt: () -> T,
+    onFailure: (Exception) -> T,
+): T = try {
+    attempt()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (failure: Exception) {
+    onFailure(failure)
+}
+
+internal inline fun <T> consumeWhile(
+    iterator: Iterator<T>,
+    shouldContinue: () -> Boolean,
+    consume: (T) -> Unit,
+) {
+    while (shouldContinue() && iterator.hasNext()) consume(iterator.next())
 }
 
 /** Reserves one slot for range reads so a directory crawl cannot consume all network capacity. */

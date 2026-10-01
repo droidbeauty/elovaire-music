@@ -7,6 +7,11 @@ import org.junit.Test
 
 class PlaybackSessionStoreTest {
     @Test
+    fun persistedQueueParserStopsAfterValidQueueLimit() {
+        assertEquals(listOf(4L, 5L), parsePersistedPlaybackQueue("invalid,4,0,5,6", 2))
+    }
+
+    @Test
     fun normalizationUsesCurrentSongIdentityAndDropsInvalidIds() {
         val normalized = normalizePersistedPlaybackSession(session(queueSongIds = listOf(0L, -1L, 2L, 3L, 2L), currentSongId = 3L))
 

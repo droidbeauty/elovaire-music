@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,5 +46,21 @@ class NetworkCredentialStoreInstrumentedTest {
 
         assertTrue(result is NetworkCredentialReadResult.Corrupt)
         assertEquals(NetworkCredentialCorruption.InvalidBase64, (result as NetworkCredentialReadResult.Corrupt).reason)
+    }
+
+    @Test
+    fun removeAndReinsertAdvanceCredentialGeneration() {
+        val initial = store.generation(key)
+        store.put(sourceId, key, NetworkCredentials("user", "first"))
+        val stored = store.generation(key)
+
+        store.remove(key)
+        val removed = store.generation(key)
+        store.put(sourceId, key, NetworkCredentials("user", "second"))
+        val restored = store.generation(key)
+
+        assertNotEquals(initial, stored)
+        assertNotEquals(stored, removed)
+        assertNotEquals(removed, restored)
     }
 }

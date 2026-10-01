@@ -99,14 +99,15 @@ internal class NetworkSourceCoordinator(
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.RuntimeInvalidated)
         mutationJournal.clear(normalized.id)
         return NetworkSourceMutationOutcome(
-            probeResult = runCatching {
-                registryProvider().probeBlocking(normalized, effectiveCredentials)
-            }.getOrElse { failure ->
-                NetworkProbeResult(
-                    availability = failure.remoteIoFailureKind().toNetworkAvailability(),
-                    message = failure::class.simpleName,
-                )
-            },
+            probeResult = networkProbeResult(
+                attempt = { registryProvider().probeBlocking(normalized, effectiveCredentials) },
+                onFailure = { failure ->
+                    NetworkProbeResult(
+                        availability = failure.remoteIoFailureKind().toNetworkAvailability(),
+                        message = failure::class.simpleName,
+                    )
+                },
+            ),
             refreshRequired = previousSource != normalized || previous != effectiveCredentials,
         )
     }

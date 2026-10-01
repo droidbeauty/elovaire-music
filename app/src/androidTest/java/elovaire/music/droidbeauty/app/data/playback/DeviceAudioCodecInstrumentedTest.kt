@@ -36,10 +36,6 @@ class DeviceAudioCodecInstrumentedTest {
     @After
     fun tearDown() {
         insertedUris.forEach { uri -> runCatching { context.contentResolver.delete(uri, null, null) } }
-        val permission = audioPermission()
-        if (context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            instrumentation.uiAutomation.revokeRuntimePermission(context.packageName, permission)
-        }
     }
 
     @Before

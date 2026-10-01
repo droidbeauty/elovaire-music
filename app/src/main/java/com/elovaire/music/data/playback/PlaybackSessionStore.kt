@@ -86,14 +86,7 @@ internal class PlaybackSessionStore(
             clear()
             return null
         }
-        val ids = structure.getString(KEY_QUEUE_IDS, null)
-            ?.split(',')
-            ?.asSequence()
-            ?.mapNotNull(String::toLongOrNull)
-            ?.filter(::isValidMediaId)
-            ?.take(MAX_QUEUE_SIZE)
-            ?.toList()
-            .orEmpty()
+        val ids = parsePersistedPlaybackQueue(structure.getString(KEY_QUEUE_IDS, null), MAX_QUEUE_SIZE)
         if (ids.isEmpty()) {
             clear()
             return null
@@ -202,6 +195,17 @@ internal class PlaybackSessionStore(
         const val KEY_SAVED_AT = "saved_at_wall_time_ms"
         const val KEY_GENERATION = "generation"
     }
+}
+
+internal fun parsePersistedPlaybackQueue(serialized: String?, maxQueueSize: Int): List<Long> {
+    require(maxQueueSize > 0)
+    return serialized
+        ?.splitToSequence(',')
+        ?.mapNotNull(String::toLongOrNull)
+        ?.filter(::isValidMediaId)
+        ?.take(maxQueueSize)
+        ?.toList()
+        .orEmpty()
 }
 
 private const val MAX_PLAYBACK_SESSION_AGE_MS = 7L * 24L * 60L * 60L * 1_000L

@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.macrobenchmark
 import android.Manifest
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -30,12 +31,48 @@ private fun MacrobenchmarkScope.findSearchInput(): UiObject2? {
         ?: uiDevice.findObject(By.res("search_query_input"))
 }
 
+private fun MacrobenchmarkScope.ensureSearchInputVisible() {
+    if (findSearchInput() == null && uiDevice.findObject(By.text("Song name")) != null) {
+        uiDevice.pressBack()
+        uiDevice.waitForIdle()
+    }
+    repeat(4) {
+        if (findSearchInput() != null) return
+        var moved = false
+        uiDevice.findObjects(By.scrollable(true)).forEach { scrollable ->
+            if (!moved) {
+                try {
+                    moved = scrollable.scroll(Direction.UP, 0.9f)
+                } catch (_: StaleObjectException) {
+                    // The list can be replaced while the previous route finishes settling.
+                }
+            }
+        }
+        if (!moved) return
+        uiDevice.waitForIdle()
+    }
+}
+
 private fun MacrobenchmarkScope.waitForSearchInput(): UiObject2 {
     val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
     while (SystemClock.uptimeMillis() < deadlineMs) {
         findSearchInput()?.let { return it }
         SystemClock.sleep(40L)
     }
+    val visibleNodes = uiDevice.findObjects(By.pkg(TARGET_PACKAGE))
+        .take(30)
+        .joinToString { "${it.resourceName}:${it.className}" }
+    Log.w(
+        "MacroNavProbe",
+        "search-input-missing package=${uiDevice.currentPackageName} " +
+            "editText=${uiDevice.findObject(By.pkg(TARGET_PACKAGE).clazz("android.widget.EditText")) != null} " +
+            "tag=${uiDevice.findObject(By.res("search_query_input")) != null} " +
+            topLevelState() + " menu=${uiDevice.findObject(By.desc("Menu")) != null} " +
+            "back=${uiDevice.findObject(By.desc("Back")) != null} " +
+            "clear=${uiDevice.findObject(By.desc("Clear search")) != null} " +
+            "playAlbum=${uiDevice.findObject(By.desc("Play album")) != null} " +
+            "pause=${uiDevice.findObject(By.desc("Pause")) != null} nodes=$visibleNodes",
+    )
     error("Search input did not become visible")
 }
 
@@ -65,6 +102,21 @@ internal fun MacrobenchmarkScope.requireClickText(text: String) {
 internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
     requireClick(By.desc(description), "contentDescription=$description")
 }
+
+private fun MacrobenchmarkScope.requireClickTopLevel(description: String) {
+    try {
+        requireClick(topLevelSelector(description), "bottom navigation destination=$description")
+    } catch (failure: IllegalStateException) {
+        Log.w("MacroNavProbe", "top-level-missing destination=$description ${topLevelState()}")
+        throw failure
+    }
+}
+
+private fun MacrobenchmarkScope.topLevelState(): String =
+    listOf("Home", "Albums", "Playlists", "Search").joinToString { description ->
+        val node = uiDevice.findObject(topLevelSelector(description))
+        "$description=${node?.resourceName}:${node?.isSelected}:${node?.isClickable}"
+    }
 
 internal fun MacrobenchmarkScope.requireClickTestTag(tag: String) {
     repeat(4) {
@@ -121,8 +173,11 @@ private fun UiObject2.clickActionable() {
     while (target != null && !target.isClickable) {
         target = target.parent
     }
-    checkNotNull(target) { "UI element has no clickable ancestor" }.click()
+    (target ?: this).click()
 }
+
+private fun topLevelSelector(description: String): BySelector =
+    By.res("bottom_nav_${description.lowercase()}")
 
 internal fun MacrobenchmarkScope.clickTextContains(text: String) {
     uiDevice.findObject(By.textContains(text))?.click()
@@ -142,7 +197,7 @@ internal fun MacrobenchmarkScope.burstClickDescriptions(
     var lastInputAt = SystemClock.uptimeMillis()
     val samples = ArrayList<BurstInputSample>(descriptions.size)
     descriptions.forEach { description ->
-        val selector = By.desc(description)
+        val selector = topLevelSelector(description)
         val injectedAt = SystemClock.uptimeMillis()
         if (uiDevice.clickWithoutIdle(selector)) {
             val now = SystemClock.uptimeMillis()
@@ -191,6 +246,7 @@ internal fun MacrobenchmarkScope.rapidBottomNavigationBurst(interInputDelayMs: L
 }
 
 internal fun MacrobenchmarkScope.rapidTopLevelRouteStorm(interInputDelayMs: Long) {
+    ensureAppForeground()
     val journeys = listOf(
         listOf("Albums", "Playlists", "Search", "Home"),
         listOf("Home", "Search", "Playlists", "Albums"),
@@ -200,7 +256,7 @@ internal fun MacrobenchmarkScope.rapidTopLevelRouteStorm(interInputDelayMs: Long
         burstClickDescriptions(journey, interInputDelayMs)
     }
     uiDevice.waitForIdle()
-    requireClickDescription("Search")
+    requireClickTopLevel("Search")
     assertAppProcessIsAlive()
 }
 
@@ -211,7 +267,8 @@ internal fun MacrobenchmarkScope.rapidOpenBackStorm(interInputDelayMs: Long) {
     )
     burstPressBack(count = 4, interInputDelayMs = interInputDelayMs)
     uiDevice.waitForIdle()
-    requireClickDescription("Home")
+    ensureAppForeground()
+    returnToHome()
     assertAppProcessIsAlive()
 }
 
@@ -239,14 +296,16 @@ internal fun MacrobenchmarkScope.homeJourney() {
 internal fun MacrobenchmarkScope.topLevelNavigationJourney() {
     returnToHome()
     listOf("Albums", "Playlists", "Search", "Home").forEach { destination ->
-        requireClickDescription(destination)
+        requireClickTopLevel(destination)
         waitForAppVisible()
     }
 }
 
 internal fun MacrobenchmarkScope.searchJourney() {
-    requireClickDescription("Search")
+    returnToHome()
+    requireClickTopLevel("Search")
     waitForAppVisible()
+    ensureSearchInputVisible()
     fun setQuery(query: String, waitForSettledResults: Boolean) {
         var lastStale: StaleObjectException? = null
         repeat(4) {
@@ -284,8 +343,10 @@ internal fun MacrobenchmarkScope.searchJourney() {
 }
 
 internal fun MacrobenchmarkScope.searchRapidInputJourney() {
-    requireClickDescription("Search")
+    returnToHome()
+    requireClickTopLevel("Search")
     waitForAppVisible()
+    ensureSearchInputVisible()
     val input = waitForSearchInput()
     input.click()
     listOf("a", "ar", "art", "arti", "artist", "artist x", "zzzzzz").forEach { query ->
@@ -302,7 +363,7 @@ internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {
     // playback so a missing foreground package is not mistaken for a player-flow failure.
     startActivityAndWait()
     waitForAppVisible()
-    clickDescription("Home")
+    requireClickTopLevel("Home")
     waitForAppVisible()
     clickDescription("Play album")
     waitForAppVisible()
@@ -314,17 +375,17 @@ internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {
 
 internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     returnToHome()
-    requireClickDescription("Albums")
+    requireClickTopLevel("Albums")
     waitForAppVisible()
     uiDevice.click(uiDevice.displayWidth / 2, (uiDevice.displayHeight * 0.35f).toInt())
     waitForAppVisible()
-    if (uiDevice.findObject(By.desc("Playlists")) == null) {
+    if (uiDevice.findObject(topLevelSelector("Playlists")) == null) {
         uiDevice.pressBack()
         waitForAppVisible()
     }
-    requireClickDescription("Playlists")
+    requireClickTopLevel("Playlists")
     waitForAppVisible()
-    requireClickDescription("Home")
+    requireClickTopLevel("Home")
     requireClickDescription("Menu")
     requireClickTestTag("top_menu_settings")
     waitForAppVisible()
@@ -340,15 +401,23 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
 }
 
 private fun MacrobenchmarkScope.returnToHome() {
+    ensureAppForeground()
     repeat(4) {
-        if (uiDevice.wait(Until.hasObject(By.desc("Home")), 1_000)) {
-            requireClickDescription("Home")
+        if (uiDevice.wait(Until.hasObject(topLevelSelector("Home")), 1_000)) {
+            requireClickTopLevel("Home")
             return
         }
         uiDevice.pressBack()
         uiDevice.waitForIdle()
     }
-    requireClickDescription("Home")
+    requireClickTopLevel("Home")
+}
+
+private fun MacrobenchmarkScope.ensureAppForeground() {
+    if (!uiDevice.wait(Until.hasObject(By.pkg(TARGET_PACKAGE)), FIND_TIMEOUT_MS)) {
+        startActivityAndWait()
+        waitForAppVisible()
+    }
 }
 
 private const val CLICK_TIMEOUT_MS = 5_000L

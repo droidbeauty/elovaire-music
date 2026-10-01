@@ -17,4 +17,38 @@ class SleepTimerSliderTest {
         assertEquals(25f, sleepTimerMinutesForFraction(0.375f), 0.0001f)
         assertEquals(45f, sleepTimerMinutesForFraction(0.75f), 0.0001f)
     }
+
+    @Test
+    fun sliderPosition_tracksPointerWhileDraggingAndSettlesAtSelectedStep() {
+        assertEquals(
+            25.48f,
+            sleepTimerSliderPosition(
+                isDragging = true,
+                dragFraction = 0.637f,
+                selectedFraction = 0.5f,
+                barCount = 41,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            20f,
+            sleepTimerSliderPosition(
+                isDragging = false,
+                dragFraction = 0.637f,
+                selectedFraction = 0.5f,
+                barCount = 41,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            sleepTimerSliderPosition(
+                isDragging = true,
+                dragFraction = -1f,
+                selectedFraction = 0.5f,
+                barCount = 41,
+            ),
+            0.0001f,
+        )
+    }
 }

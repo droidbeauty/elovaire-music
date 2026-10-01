@@ -32,6 +32,7 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
@@ -595,7 +596,14 @@ internal fun NowPlayingScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .clipToBounds(),
+            .clipToBounds()
+            .then(
+                if (transitionInFlight) {
+                    Modifier
+                } else {
+                    Modifier.hazeSource(playerHazeState, zIndex = -1f)
+                },
+            ),
     ) {
         val screenWidthPx = with(density) { maxWidth.toPx() }
         val screenHeightPx = with(density) { maxHeight.toPx() }
@@ -654,14 +662,7 @@ internal fun NowPlayingScreen(
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (transitionInFlight) {
-                        Modifier
-                    } else {
-                        Modifier.hazeSource(playerHazeState, zIndex = -1f)
-                    },
-                ),
+                .fillMaxSize(),
         ) {
             Box(
                 modifier = Modifier
@@ -1601,38 +1602,38 @@ internal fun NowPlayingScreen(
                 onClearLyricsEditorError = onClearLyricsEditorError,
             )
         }
-        AddToPlaylistPickerDialog(
-            visible = showAddToPlaylistDialog,
-            playlists = playlists,
-            playlistSongsById = enrichedSongsById,
-            hazeState = playerHazeState,
-            onDismiss = { showAddToPlaylistDialog = false },
-            onPlaylistSelected = { playlistId ->
-                currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it).await() }
-                    ?: PlaylistMutationResult.InvalidInput
-            },
-            onCreatePlaylist = onCreatePlaylist,
-        )
-        ElovaireAnimatedVisibility(
-            visible = showSleepTimerDialog,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(20f),
-            enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.86f),
-            exit = motionTransitions.overlayFadeExit(targetAlpha = 0.94f),
-            label = "SleepTimerSheetOverlay",
-        ) {
-            CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
-                SleepTimerDialog(
-                    selectedOption = playerUiState.sleepTimer.option,
-                    visible = showSleepTimerDialog,
-                    onOptionSelected = { option ->
-                        onSleepTimerSelected(option)
-                        showSleepTimerDialog = false
-                    },
-                    onDismiss = { showSleepTimerDialog = false },
-                )
-            }
+    }
+    AddToPlaylistPickerDialog(
+        visible = showAddToPlaylistDialog,
+        playlists = playlists,
+        playlistSongsById = enrichedSongsById,
+        hazeState = playerHazeState,
+        onDismiss = { showAddToPlaylistDialog = false },
+        onPlaylistSelected = { playlistId ->
+            currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it).await() }
+                ?: PlaylistMutationResult.InvalidInput
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
+    ElovaireAnimatedVisibility(
+        visible = showSleepTimerDialog,
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(20f),
+        enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.86f),
+        exit = motionTransitions.overlayFadeExit(targetAlpha = 0.94f),
+        label = "SleepTimerSheetOverlay",
+    ) {
+        CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
+            SleepTimerDialog(
+                selectedOption = playerUiState.sleepTimer.option,
+                visible = showSleepTimerDialog,
+                onOptionSelected = { option ->
+                    onSleepTimerSelected(option)
+                    showSleepTimerDialog = false
+                },
+                onDismiss = { showSleepTimerDialog = false },
+            )
         }
     }
 }
@@ -1803,8 +1804,7 @@ private fun QueueSheet(
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
-    val localQueueHazeState = rememberHazeState()
-    val queueEdgeHazeState = LocalPlayerHazeState.current ?: localQueueHazeState
+    val queueEdgeHazeState = rememberHazeState()
     val motionSpecs = rememberMotionSpecs()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
@@ -1819,15 +1819,7 @@ private fun QueueSheet(
         }
     }
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(
-                if (LocalPlayerHazeState.current == null) {
-                    Modifier.hazeSource(localQueueHazeState, zIndex = -1f)
-                } else {
-                    Modifier
-                },
-            ),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -2112,7 +2104,8 @@ private fun QueueSongList(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .ensureSingleItemRubberBand(listState),
+                .ensureSingleItemRubberBand(listState)
+                .hazeSource(queueEdgeHazeState, zIndex = -1f),
             contentPadding = PaddingValues(vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
@@ -2498,12 +2491,23 @@ private fun SleepTimerSlider(
     }
     val barCount = 41
     val motionSpecs = rememberMotionSpecs()
-    val animatedBarPosition by animateFloatAsState(
-        targetValue = fraction * (barCount - 1),
-        animationSpec = motionSpecs.tween(
-            durationMillis = 220,
-            easing = FastOutSlowInEasing,
+    val isDragging = remember { mutableStateOf(false) }
+    val dragFraction = remember { mutableFloatStateOf(fraction) }
+    val animatedBarPosition = animateFloatAsState(
+        targetValue = sleepTimerSliderPosition(
+            isDragging = isDragging.value,
+            dragFraction = dragFraction.floatValue,
+            selectedFraction = fraction,
+            barCount = barCount,
         ),
+        animationSpec = if (isDragging.value) {
+            snap()
+        } else {
+            motionSpecs.tween(
+                durationMillis = 220,
+                easing = FastOutSlowInEasing,
+            )
+        },
         label = "sleep_timer_slider_position",
     )
 
@@ -2527,11 +2531,18 @@ private fun SleepTimerSlider(
                 }
                 .pointerInput(maxWidthPx) {
                     detectHorizontalDragGestures(
-                        onDragStart = { offset -> updateFromX(offset.x) },
+                        onDragStart = { offset ->
+                            isDragging.value = true
+                            dragFraction.floatValue = (offset.x / maxWidthPx).coerceIn(0f, 1f)
+                            updateFromX(offset.x)
+                        },
                         onHorizontalDrag = { change, _ ->
                             change.consume()
+                            dragFraction.floatValue = (change.position.x / maxWidthPx).coerceIn(0f, 1f)
                             updateFromX(change.position.x)
                         },
+                        onDragEnd = { isDragging.value = false },
+                        onDragCancel = { isDragging.value = false },
                     )
                 },
         ) {
@@ -2544,8 +2555,9 @@ private fun SleepTimerSlider(
                 val availableWidth = (size.width - barWidth).coerceAtLeast(0f)
                 val inactiveHeight = 13.dp.toPx()
                 val activeHeight = 22.dp.toPx()
+                val barPosition = animatedBarPosition.value
                 repeat(barCount) { index ->
-                    val distance = animatedBarPosition - index
+                    val distance = barPosition - index
                     val thresholdFill = ((distance + 0.5f) / 1f).coerceIn(0f, 1f)
                     val waveFill = ((1f - (kotlin.math.abs(distance) / 2.75f)).coerceIn(0f, 1f)) * 0.16f
                     val fill = (thresholdFill + waveFill).coerceIn(0f, 1f)
@@ -2581,6 +2593,16 @@ internal fun sleepTimerMinutesForFraction(fraction: Float): Float {
         30f + ((normalized - 0.5f) * 60f)
     }
     return (minutes / 5f).roundToInt() * 5f
+}
+
+internal fun sleepTimerSliderPosition(
+    isDragging: Boolean,
+    dragFraction: Float,
+    selectedFraction: Float,
+    barCount: Int,
+): Float {
+    val fraction = (if (isDragging) dragFraction else selectedFraction).coerceIn(0f, 1f)
+    return fraction * (barCount - 1).coerceAtLeast(0)
 }
 
 @Composable

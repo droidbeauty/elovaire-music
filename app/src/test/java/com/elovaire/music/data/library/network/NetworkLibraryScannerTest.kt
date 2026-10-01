@@ -12,6 +12,14 @@ import org.junit.Test
 
 class NetworkLibraryScannerTest {
     @Test
+    fun legacyNetworkCacheHasAnExplicitReadBudget() {
+        assertEquals(true, isLegacyNetworkInventoryCacheWithinLimit(1L))
+        assertEquals(true, isLegacyNetworkInventoryCacheWithinLimit(16L * 1024L * 1024L))
+        assertEquals(false, isLegacyNetworkInventoryCacheWithinLimit(16L * 1024L * 1024L + 1L))
+        assertEquals(false, isLegacyNetworkInventoryCacheWithinLimit(0L))
+    }
+
+    @Test
     fun partialListingPreservesUnseenCachedEntries() {
         val cached = listOf(inventory("old.mp3", 1L), inventory("kept.mp3", 2L))
         val discovered = listOf(inventory("new.mp3", 3L))

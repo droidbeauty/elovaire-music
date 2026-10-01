@@ -19,22 +19,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AndroidCompatibilityMatrixInstrumentedTest {
-    @After
-    fun revokeAudioPermissionGrantedForReadPathCheck() {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val context = instrumentation.targetContext
-        val permission = requiredAudioPermission()
-        if (context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            instrumentation.uiAutomation.revokeRuntimePermission(context.packageName, permission)
-        }
-    }
-
     @Test
     fun sdkGatedPoliciesMatchThePhysicalDevice() {
         val sdk = Build.VERSION.SDK_INT

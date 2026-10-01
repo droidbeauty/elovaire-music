@@ -63,21 +63,20 @@ class AppInteractionSmokeTest {
                 fixture?.close()
             } finally {
                 fixture = null
-                revokeRuntimePermission(audioPermission())
             }
         }
     }
 
     @Test
     fun topLevelNavigationMenuAndPlayerSmoke() {
-        clickDescription("Albums")
+        clickTopLevel("Albums")
         waitForApp()
-        clickDescription("Playlists")
+        clickTopLevel("Playlists")
         waitForApp()
-        clickDescription("Search")
+        clickTopLevel("Search")
         waitForApp()
         device.pressBack()
-        clickDescription("Home")
+        clickTopLevel("Home")
         waitForApp()
 
         scrollIfAvailable(Direction.DOWN)
@@ -88,7 +87,7 @@ class AppInteractionSmokeTest {
         waitForApp()
         device.pressBack()
 
-        clickDescription("Search")
+        clickTopLevel("Search")
         val searchInput = device.wait(
             Until.findObject(By.res("search_query_input")),
             APP_READY_TIMEOUT_MS,
@@ -110,6 +109,11 @@ class AppInteractionSmokeTest {
 
     private fun clickDescription(description: String) {
         clickObject(By.desc(description), description)
+        waitForApp()
+    }
+
+    private fun clickTopLevel(description: String) {
+        clickObject(By.res("bottom_nav_${description.lowercase()}"), description)
         waitForApp()
     }
 
@@ -149,12 +153,6 @@ class AppInteractionSmokeTest {
             instrumentation.uiAutomation.grantRuntimePermission(packageName, permission)
         } catch (_: SecurityException) {
             shell("pm grant $packageName $permission")
-        }
-    }
-
-    private fun revokeRuntimePermission(permission: String) {
-        if (instrumentation.targetContext.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            instrumentation.uiAutomation.revokeRuntimePermission(packageName, permission)
         }
     }
 
