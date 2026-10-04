@@ -176,9 +176,7 @@ internal class BitPerfectUsbManager(
 
         val trackConfig = currentTrackConfig
         val routeContext = routeSnapshot.toRouteContext()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            !AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
-        ) {
+        if (!AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)) {
             updateStatus(
                 BitPerfectEligibilityPolicy.evaluate(
                     sdkInt = Build.VERSION.SDK_INT,
@@ -310,9 +308,7 @@ private fun resolveRouteSnapshot(
     playbackAudioAttributes: AudioAttributes,
     routedDevices: List<AudioDeviceInfo>? = null,
 ): DirectPlaybackRouteSnapshot {
-    val routeQuerySupported =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
+    val routeQuerySupported = AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
     val resolvedRoutedDevices = routedDevices ?: if (routeQuerySupported) {
         audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes).ifEmpty {
             audioManager.safeOutputDevices()

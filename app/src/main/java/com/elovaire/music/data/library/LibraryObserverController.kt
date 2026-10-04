@@ -349,7 +349,7 @@ internal class LibraryObserverController(
                         path = path,
                         operation = directFileOperation(
                             event = event,
-                            changedFileIsDirectory = changedFile?.isDirectory == true,
+                            changedFileIsDirectory = changedFile.isDirectory,
                         ),
                     ),
                 )

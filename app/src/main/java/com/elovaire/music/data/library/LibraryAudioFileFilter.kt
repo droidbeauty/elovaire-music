@@ -47,10 +47,10 @@ internal class LibraryAudioFileFilter(
     explicitCustomRelativeRoots: Set<String> = emptySet(),
     private val allowUnscopedMediaStoreRows: Boolean = false,
 ) {
-    private val selectedRelativeRoots = selectedRelativeRoots.mapNotNullTo(linkedSetOf()) { it.normalizeFilterRelativePath() }
-    private val libraryRootPaths = libraryRootPaths.mapNotNullTo(linkedSetOf()) { it.normalizeFilterAbsolutePath() }
-    private val explicitCustomRootPaths = explicitCustomRootPaths.mapNotNullTo(linkedSetOf()) { it.normalizeFilterAbsolutePath() }
-    private val explicitCustomRelativeRoots = explicitCustomRelativeRoots.mapNotNullTo(linkedSetOf()) { it.normalizeFilterRelativePath() }
+    private val selectedRelativeRoots = selectedRelativeRoots.mapNotNullTo(linkedSetOf(), ::normalizeLibraryRelativePath)
+    private val libraryRootPaths = libraryRootPaths.mapNotNullTo(linkedSetOf(), ::normalizeLibraryAbsolutePath)
+    private val explicitCustomRootPaths = explicitCustomRootPaths.mapNotNullTo(linkedSetOf(), ::normalizeLibraryAbsolutePath)
+    private val explicitCustomRelativeRoots = explicitCustomRelativeRoots.mapNotNullTo(linkedSetOf(), ::normalizeLibraryRelativePath)
 
     fun evaluate(candidate: AudioScanCandidate): AudioFileFilterDecision {
         val normalizedExtension = candidate.extension
@@ -67,8 +67,8 @@ internal class LibraryAudioFileFilter(
                 if (normalizedExtension == null) "Missing audio format evidence" else "Unsupported extension",
             )
         }
-        val normalizedAbsolutePath = candidate.absolutePath.normalizeAbsolutePath()
-        val normalizedRelativePath = candidate.relativePath.normalizeRelativePath()
+        val normalizedAbsolutePath = candidate.absolutePath?.let(::normalizeLibraryAbsolutePath)
+        val normalizedRelativePath = normalizeLibraryRelativePath(candidate.relativePath)
         val folderMatch = folderMatch(
             normalizedAbsolutePath = normalizedAbsolutePath,
             normalizedRelativePath = normalizedRelativePath,
@@ -201,24 +201,6 @@ internal class LibraryAudioFileFilter(
         }
     }
 
-    private fun String?.normalizeAbsolutePath(): String? {
-        return this
-            ?.trim()
-            ?.replace('\\', '/')
-            ?.trimEnd('/')
-            ?.lowercase(Locale.ROOT)
-            ?.takeIf { it.isNotBlank() }
-    }
-
-    private fun String?.normalizeRelativePath(): String? {
-        return this
-            ?.trim()
-            ?.replace('\\', '/')
-            ?.trim('/')
-            ?.lowercase(Locale.ROOT)
-            ?.takeIf { it.isNotBlank() }
-    }
-
     private companion object {
         private val ExcludedPathFragments = listOf(
             "/ringtones/",
@@ -254,22 +236,6 @@ internal class LibraryAudioFileFilter(
             Regex("""^voice[\s_-]?record(?:ing)?"""),
         )
     }
-}
-
-private fun String.normalizeFilterAbsolutePath(): String? {
-    return trim()
-        .replace('\\', '/')
-        .trimEnd('/')
-        .lowercase(Locale.ROOT)
-        .takeIf { it.isNotBlank() }
-}
-
-private fun String.normalizeFilterRelativePath(): String? {
-    return trim()
-        .replace('\\', '/')
-        .trim('/')
-        .lowercase(Locale.ROOT)
-        .takeIf { it.isNotBlank() }
 }
 
 private enum class FolderMatch(val isExplicitCustom: Boolean) {

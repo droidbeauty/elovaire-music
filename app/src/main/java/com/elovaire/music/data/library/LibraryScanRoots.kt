@@ -90,10 +90,20 @@ internal class LibraryScanRoots(
     fun hasSafSelections(): Boolean = selectedFolders.any { it.uri != null }
 
     private fun normalizeAbsolutePath(path: String): String {
-        return path
-            .trim()
-            .replace('\\', '/')
-            .trimEnd('/')
-            .lowercase(Locale.ROOT)
+        return normalizeLibraryAbsolutePath(path).orEmpty()
     }
 }
+
+internal fun normalizeLibraryAbsolutePath(path: String): String? = path
+    .trim()
+    .replace('\\', '/')
+    .trimEnd('/')
+    .lowercase(Locale.ROOT)
+    .takeIf(String::isNotBlank)
+
+internal fun normalizeLibraryRelativePath(path: String?): String? = path
+    ?.trim()
+    ?.replace('\\', '/')
+    ?.trim('/')
+    ?.lowercase(Locale.ROOT)
+    ?.takeIf(String::isNotBlank)

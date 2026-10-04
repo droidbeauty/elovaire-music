@@ -10,6 +10,14 @@ import org.junit.Test
 
 class LibraryScanRootsTest {
     @Test
+    fun libraryPathNormalizationIsSharedAcrossScanCode() {
+        assertEquals("/storage/music", normalizeLibraryAbsolutePath(" \\Storage\\Music\\ "))
+        assertEquals("music/live", normalizeLibraryRelativePath(" /Music/Live/ "))
+        assertEquals(null, normalizeLibraryRelativePath(" / / "))
+        assertEquals(null, normalizeLibraryAbsolutePath("/"))
+    }
+
+    @Test
     fun normalize_keepsParentPathAndDropsChildPath() {
         val selections = LibraryFolderSelectionResolver.normalize(
             listOf(

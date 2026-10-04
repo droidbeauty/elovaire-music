@@ -2,6 +2,12 @@ package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.domain.model.Song
 
+private fun Collection<String>.distinctNonBlankPaths(): List<String> = asSequence()
+    .map(String::trim)
+    .filter(String::isNotBlank)
+    .distinct()
+    .toList()
+
 internal data class LibraryRefreshRequest(
     val forceMediaIndex: Boolean = false,
     val enrichMetadata: Boolean = false,
@@ -24,12 +30,7 @@ internal data class LibraryRefreshRequest(
         val mergedPaths = if (force) {
             emptyList()
         } else {
-            (targetedPaths + other.targetedPaths)
-                .asSequence()
-                .map(String::trim)
-                .filter(String::isNotBlank)
-                .distinct()
-                .toList()
+            (targetedPaths + other.targetedPaths).distinctNonBlankPaths()
         }
         val mergedNetworkSourceIds = when {
             force || targetedNetworkSourceIds == null || other.targetedNetworkSourceIds == null -> null
@@ -45,12 +46,7 @@ internal data class LibraryRefreshRequest(
         val mergedRemovedPaths = if (force) {
             emptyList()
         } else {
-            (removedPaths + other.removedPaths)
-                .asSequence()
-                .map(String::trim)
-                .filter(String::isNotBlank)
-                .distinct()
-                .toList()
+            (removedPaths + other.removedPaths).distinctNonBlankPaths()
         }
         val mergedGenerationFloor = if (
             force ||
@@ -113,12 +109,7 @@ internal data class LibraryRefreshRequest(
         val normalizedPaths = if (forceMediaIndex) {
             emptyList()
         } else {
-            targetedPaths
-                .asSequence()
-                .map(String::trim)
-                .filter(String::isNotBlank)
-                .distinct()
-                .toList()
+            targetedPaths.distinctNonBlankPaths()
         }
         if (normalizedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
             return copy(
@@ -161,11 +152,7 @@ internal data class LibraryRefreshRequest(
             safProviderRetryAttempt = safProviderRetryAttempt.coerceAtLeast(0),
             priority = priority,
             removedPaths = removedPaths
-                .asSequence()
-                .map(String::trim)
-                .filter(String::isNotBlank)
-                .distinct()
-                .toList(),
+                .distinctNonBlankPaths(),
         )
     }
 
@@ -250,9 +237,5 @@ internal fun resolveTargetedRefreshPaths(
                 .mapNotNull(Song::libraryPath)
                 .forEach(::add)
         }
-    }.asSequence()
-        .map(String::trim)
-        .filter(String::isNotBlank)
-        .distinct()
-        .toList()
+    }.distinctNonBlankPaths()
 }

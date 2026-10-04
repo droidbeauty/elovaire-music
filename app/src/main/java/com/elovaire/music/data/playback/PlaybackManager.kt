@@ -2524,10 +2524,7 @@ internal class PlaybackManager internal constructor(
     private fun resolveAudioRouteSnapshot(): AudioOutputRouteSnapshot {
         val manager = audioManager
             ?: return AudioOutputRouteSnapshot(0L, emptyList(), null, emptyList())
-        val routedDevices = if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
-        ) {
+        val routedDevices = if (AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)) {
             manager.safeActiveRoutedOutputDevicesForAttributes(platformPlaybackAudioAttributes)
         } else {
             manager.safeOutputDevices()

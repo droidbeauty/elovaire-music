@@ -4,7 +4,6 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
-import java.util.Locale
 
 internal object ScannerDebugLogger {
     @Volatile
@@ -140,7 +139,7 @@ internal object ScannerDebugLogger {
                 null -> isMusicUnknownRows += 1
             }
             if (candidate.extension.isNullOrBlank()) missingExtensionRows += 1
-            val relativePath = candidate.relativePath.normalizeRelativePath()
+            val relativePath = normalizeLibraryRelativePath(candidate.relativePath)
             if (relativePath == null) {
                 missingRelativePathRows += 1
             } else if (relativePath == "music" || relativePath.startsWith("music/")) {
@@ -231,15 +230,6 @@ internal object ScannerDebugLogger {
                     "safIncluded=$safIncluded, duplicateSafSongs=$duplicateSafSongs, " +
                     "finalSongs=$finalSongCount, excludedByReason=$reasons",
             )
-        }
-
-        private fun String?.normalizeRelativePath(): String? {
-            return this
-                ?.trim()
-                ?.replace('\\', '/')
-                ?.trim('/')
-                ?.lowercase(Locale.ROOT)
-                ?.takeIf { it.isNotBlank() }
         }
     }
 }

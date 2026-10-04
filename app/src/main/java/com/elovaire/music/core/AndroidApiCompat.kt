@@ -20,12 +20,8 @@ internal object AndroidCapabilities {
 
     fun supportsGroupedMediaWrite(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.R
 
-    fun supportsImageDecoder(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.P
-
     @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU, parameter = 0)
     fun supportsDirectPlaybackQuery(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU
-
-    fun requiresMediaPlaybackForegroundServiceType(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.Q
 
     fun requiresLocalNetworkPermission(sdkInt: Int): Boolean = sdkInt >= 37
 }

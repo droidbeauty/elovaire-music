@@ -50,14 +50,6 @@ class AndroidApiCompatTest {
     }
 
     @Test
-    fun imageAndForegroundServiceCapabilities_matchPlatformBoundaries() {
-        assertFalse(AndroidCapabilities.supportsImageDecoder(Build.VERSION_CODES.O_MR1))
-        assertTrue(AndroidCapabilities.supportsImageDecoder(Build.VERSION_CODES.P))
-        assertFalse(AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(Build.VERSION_CODES.P))
-        assertTrue(AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(Build.VERSION_CODES.Q))
-    }
-
-    @Test
     fun localNetworkPermission_isRequiredOnlyForAndroid17TargetBoundary() {
         assertFalse(AndroidCapabilities.requiresLocalNetworkPermission(36))
         assertTrue(AndroidCapabilities.requiresLocalNetworkPermission(37))

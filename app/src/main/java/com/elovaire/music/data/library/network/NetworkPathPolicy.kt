@@ -7,10 +7,6 @@ import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 internal object NetworkPathPolicy {
-    fun normalizeServer(server: String): String {
-        return server.trim().replace('\\', '/').trimEnd('/').lowercase(Locale.ROOT)
-    }
-
     fun normalizeRelativePath(path: String): String {
         val parts = path.trim().replace('\\', '/').split('/')
         val normalized = ArrayDeque<String>()
@@ -91,14 +87,6 @@ internal object NetworkPathPolicy {
             URLDecoder.decode(rawPath.replace("+", "%2B"), Charsets.UTF_8.name())
         }.getOrNull() ?: return null
         return validateRelativePath(decoded)
-    }
-
-    fun webDavBaseUrl(server: String): String? {
-        val uri = runCatching { URI(server.trim()) }.getOrNull() ?: return null
-        if (!uri.scheme.equals("https", ignoreCase = true)) return null
-        if (uri.host.isNullOrBlank()) return null
-        if (uri.userInfo != null || uri.query != null || uri.fragment != null) return null
-        return uri.toASCIIString().trimEnd('/')
     }
 
     fun webDavResourceUrl(server: String, path: String): URL? {

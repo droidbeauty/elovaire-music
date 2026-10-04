@@ -40,14 +40,6 @@ class NetworkPathPolicyTest {
     }
 
     @Test
-    fun webDavRequiresHttpsAndHost() {
-        assertEquals("https://nas.example/music", NetworkPathPolicy.webDavBaseUrl("https://nas.example/music/"))
-        assertEquals(null, NetworkPathPolicy.webDavBaseUrl("http://nas.example/music"))
-        assertEquals(null, NetworkPathPolicy.webDavBaseUrl("nas.example/music"))
-        assertEquals(null, NetworkPathPolicy.webDavBaseUrl("https://user:password@nas.example/music"))
-    }
-
-    @Test
     fun smbShareAndPathAreSeparatedWithoutLeadingSlashes() {
         assertEquals("Music" to "Albums", NetworkPathPolicy.smbShareAndPath("/Music/Albums"))
         assertEquals(null, NetworkPathPolicy.smbShareAndPath("/"))
@@ -90,6 +82,17 @@ class NetworkPathPolicyTest {
         assertEquals("Music/A%20%23%3F%25/%E6%AD%8C.mp3", NetworkPathPolicy.encodePath("Music/A #?%/歌.mp3"))
         assertNull(NetworkPathPolicy.validateRelativePath("Music/../outside.mp3"))
         assertNull(NetworkPathPolicy.validateRelativePath("Music\\outside.mp3"))
+    }
+
+    @Test
+    fun webDavResourceUrlValidatesEndpointAndUsesConfiguredBasePath() {
+        assertEquals(
+            "https://nas.example/music/track.mp3",
+            NetworkPathPolicy.webDavResourceUrl("https://nas.example/music/", "track.mp3")?.toString(),
+        )
+        assertNull(NetworkPathPolicy.webDavResourceUrl("http://nas.example/music", "track.mp3"))
+        assertNull(NetworkPathPolicy.webDavResourceUrl("nas.example/music", "track.mp3"))
+        assertNull(NetworkPathPolicy.webDavResourceUrl("https://user:password@nas.example/music", "track.mp3"))
     }
 
     @Test
