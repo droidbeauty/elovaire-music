@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
+import elovaire.music.droidbeauty.app.core.runSuspendCatching
 import elovaire.music.droidbeauty.app.core.backend.BackendEvent
 import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
@@ -20,7 +21,6 @@ import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.kernel.isTerminal
 import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
 import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -177,7 +177,7 @@ internal class MediaMutationJournal(
         val operation = BackendOperationContext(
             operationIdGenerator.nextId(), BackendSubsystem.MediaMutation, clock.elapsedTimeMs(),
         )
-        val recovery = runCatching {
+        val recovery = runSuspendCatching {
             transitionMutex.withLock {
                 var recoveredCount = 0
                 val batch = dao.recoverableMutationBatch(maxRecords)
@@ -205,7 +205,6 @@ internal class MediaMutationJournal(
             }
         }
         val failure = recovery.exceptionOrNull()
-        if (failure is CancellationException) throw failure
         if (failure != null) {
             backendEventSink.emitLazy {
                 BackendEvent.MediaMutationFailed(

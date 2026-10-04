@@ -233,6 +233,21 @@ class MediaMutationJournalTest {
     }
 
     @Test
+    fun startupRecoveryPropagatesFatalErrors() {
+        val fatalError = OutOfMemoryError("fatal")
+        val journal = MediaMutationJournal(
+            dao = libraryDao(mutableMapOf(), recoverableMutationBatchFailure = fatalError),
+            clock = FixedClock,
+            operationIdGenerator = { "recovery" },
+            backendEventSink = NoOpBackendEventSink,
+        )
+
+        assertThrows(OutOfMemoryError::class.java) {
+            runBlocking { journal.recoverIncomplete() }
+        }
+    }
+
+    @Test
     fun recoveryLoadsOnlyOneBatchAndReportsRemainingMutations() = runBlocking {
         val stored = mutableMapOf<String, LibraryMutationEntity>()
         val journal = MediaMutationJournal(
@@ -255,7 +270,10 @@ class MediaMutationJournalTest {
         assertEquals(0, lastBatch.remainingCount)
     }
 
-    private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): MediaMutationDao {
+    private fun libraryDao(
+        stored: MutableMap<String, LibraryMutationEntity>,
+        recoverableMutationBatchFailure: Throwable? = null,
+    ): MediaMutationDao {
         return Proxy.newProxyInstance(
             MediaMutationDao::class.java.classLoader,
             arrayOf(MediaMutationDao::class.java),
@@ -268,6 +286,7 @@ class MediaMutationJournalTest {
                     Unit
                 }
                 "recoverableMutationBatch" -> {
+                    recoverableMutationBatchFailure?.let { throw it }
                     val limit = arguments?.get(0) as Int
                     val recoverable = stored.values
                         .filter { it.status !in setOf("Completed", "Cancelled", "Failed", "NeedsRepair") }

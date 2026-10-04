@@ -69,4 +69,33 @@ class SearchViewModelTest {
             assertEquals("Northern", recreatedViewModel.uiState.value.query)
             assertTrue(recreatedViewModel.uiState.value.totalSongMatchCount >= 1)
         }
+
+    @Test
+    fun queryResultsUpdateWhenLibraryLoadsAfterQuery() = runTest(mainDispatcherRule.scheduler) {
+        val library = FakeLibraryReader(initialContent = LibraryContentState())
+        val settings = FakeSearchSettingsStore()
+        val viewModel = SearchViewModel(
+            libraryRepository = library,
+            playbackHistory = settings,
+            searchHistory = settings,
+            playbackReader = FakePlaybackReader(),
+            defaultDispatcher = mainDispatcherRule.dispatcher,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.onQueryChange("Northern")
+        advanceTimeBy(200L)
+        advanceUntilIdle()
+        val song = testSong(title = "Northern Lights")
+        library.mutableContentState.value = LibraryContentState(
+            songs = listOf(song),
+            albums = listOf(testAlbum(songs = listOf(song))),
+            contentRevision = "revision-1",
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.totalSongMatchCount)
+        assertEquals("Northern Lights", viewModel.uiState.value.matchingSongs.single().title)
+    }
 }

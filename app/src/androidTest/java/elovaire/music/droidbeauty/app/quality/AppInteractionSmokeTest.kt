@@ -12,6 +12,7 @@ import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
@@ -75,7 +76,7 @@ class AppInteractionSmokeTest {
         waitForApp()
         clickTopLevel("Search")
         waitForApp()
-        device.pressBack()
+        pressBackInApp()
         clickTopLevel("Home")
         waitForApp()
 
@@ -85,49 +86,75 @@ class AppInteractionSmokeTest {
         clickDescription("Menu")
         clickObject(settingsSelector, "localized Settings")
         waitForApp()
-        device.pressBack()
+        pressBackInApp()
 
         clickTopLevel("Search")
         val searchInput = device.wait(
-            Until.findObject(By.res("search_query_input")),
+            Until.findObject(By.res(packageName, "search_query_input")),
             APP_READY_TIMEOUT_MS,
         ) ?: error("Search input is unavailable")
-        searchInput.text = FIXTURE_SONG_TITLE
-        val fixtureResult = device.wait(
-            Until.findObjects(By.text(FIXTURE_SONG_TITLE)),
-            APP_READY_TIMEOUT_MS,
-        ).orEmpty().firstOrNull { "search_query_input" !in it.resourceName.orEmpty() }
-            ?: error("Disposable fixture song result is unavailable")
+        val fixtureTitle = checkNotNull(fixture).firstSongTitle()
+        searchInput.click()
+        searchInput.text = fixtureTitle
+        pressBackInApp()
+        waitForApp()
+        val fixtureResult = waitForSearchResult(fixtureTitle)
         fixtureResult.click()
+        val home = device.wait(Until.findObject(By.res(packageName, "bottom_nav_home")), 1_000L)
+            ?: error("Home navigation is unavailable")
+        home.click()
         assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Pause")), 5_000))
     }
 
+    private fun waitForSearchResult(title: String): UiObject2 {
+        val deadlineMs = SystemClock.uptimeMillis() + APP_READY_TIMEOUT_MS
+        while (SystemClock.uptimeMillis() < deadlineMs) {
+            device.findObjects(By.pkg(packageName).textContains(title)).forEach { result ->
+                try {
+                    if (result.resourceName?.substringAfterLast('/') != "search_query_input") return result
+                } catch (_: StaleObjectException) {
+                    // Compose can replace result nodes while the query settles.
+                }
+            }
+            SystemClock.sleep(50L)
+        }
+        error("Disposable fixture song result is unavailable")
+    }
+
     private fun waitForApp() {
-        device.wait(Until.hasObject(By.pkg(packageName)), APP_READY_TIMEOUT_MS)
+        check(device.wait(Until.hasObject(By.pkg(packageName)), APP_READY_TIMEOUT_MS)) {
+            "Elovaire left the foreground during the UI journey"
+        }
         device.waitForIdle()
     }
 
+    private fun pressBackInApp() {
+        waitForApp()
+        device.pressBack()
+        waitForApp()
+    }
+
     private fun clickDescription(description: String) {
-        clickObject(By.desc(description), description)
+        clickObject(By.pkg(packageName).desc(description), description)
         waitForApp()
     }
 
     private fun clickTopLevel(description: String) {
-        clickObject(By.res("bottom_nav_${description.lowercase()}"), description)
+        clickObject(By.res(packageName, "bottom_nav_${description.lowercase()}"), description)
         waitForApp()
     }
 
     private fun clickObject(selector: BySelector, label: String) {
+        val appSelector = selector.pkg(packageName)
         val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
         var lastStale: StaleObjectException? = null
         while (SystemClock.uptimeMillis() < deadlineMs) {
             val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
-            val target = device.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
+            val target = device.wait(Until.findObject(appSelector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
                 ?: continue
             try {
                 device.waitForIdle()
-                val bounds = target.visibleBounds
-                device.click(bounds.centerX(), bounds.centerY())
+                target.click()
                 return
             } catch (stale: StaleObjectException) {
                 lastStale = stale
@@ -139,7 +166,7 @@ class AppInteractionSmokeTest {
     private fun scrollIfAvailable(direction: Direction) {
         repeat(3) {
             try {
-                device.findObject(By.scrollable(true))?.scroll(direction, 0.5f)
+                device.findObject(By.pkg(packageName).scrollable(true))?.scroll(direction, 0.5f)
                 device.waitForIdle()
                 return
             } catch (_: StaleObjectException) {
@@ -196,7 +223,6 @@ class AppInteractionSmokeTest {
     }
 
     private companion object {
-        const val FIXTURE_SONG_TITLE = "Rapid Song One"
         const val STARTUP_TIMEOUT_MS = 30_000L
         const val APP_READY_TIMEOUT_MS = 10_000L
         const val CLICK_TIMEOUT_MS = 10_000L

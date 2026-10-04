@@ -63,6 +63,16 @@ internal class RapidUiFixture(
         selectFixtureRoot()
     }
 
+    fun firstSongTitle(): String {
+        val uri = insertedUris.first()
+        return checkNotNull(
+            resolver.query(uri, arrayOf(MediaStore.Audio.Media.TITLE), null, null, null)?.use { cursor ->
+                check(cursor.moveToFirst())
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE))
+            },
+        )
+    }
+
     override fun close() {
         insertedUris.forEach { uri -> resolver.delete(uri, null, null) }
         insertedUris.clear()
@@ -119,7 +129,7 @@ internal class RapidUiFixture(
         const val FIXTURE_RELATIVE_PATH_PREFIX = "Music/ElovaireRapidUi/"
         const val LIBRARY_FOLDERS_KEY = "library_folders"
         val FIXTURES = listOf(
-            Fixture("write-fixture.mp3", "Rapid Song One", "Rapid Artist One", "Rapid Album One", 2024, 1, false),
+            Fixture("write-fixture.mp3", "Original MP3 Title", "Rapid Artist One", "Rapid Album One", 2024, 1, false),
             Fixture("write-fixture.flac", "Rapid Song Two", "Rapid Artist One", "Rapid Album One", 2024, 2, false),
             Fixture("write-fixture.m4a", "Rapid Song Three", "Rapid Artist Two", "Rapid Album Two", 2025, 1, false),
             Fixture("write-fixture.mp3", "Rapid Book Part One", "Rapid Author", "Rapid Book", 2023, 1, true),
