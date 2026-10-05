@@ -124,7 +124,7 @@ internal class LibrarySnapshotStore(
             )
 
             val cachedSnapshot = CachedLibrarySnapshot(
-                snapshot = LibrarySnapshotAssembler.assemble(songs),
+                snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs),
                 signature = if (songs.size == signature.songCount) signature else filteredSignature,
                 syncState = syncState,
             )
@@ -178,7 +178,7 @@ internal class LibrarySnapshotStore(
         val revisionSnapshot = if (songs.size == snapshot.songs.size) {
             snapshot
         } else {
-            LibrarySnapshotAssembler.assemble(songs)
+            LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs)
         }
         val contentRevision = librarySnapshotContentRevision(
             snapshot = revisionSnapshot,

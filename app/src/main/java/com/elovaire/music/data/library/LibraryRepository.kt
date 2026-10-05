@@ -117,8 +117,8 @@ internal class LibraryRepository internal constructor(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val snapshotStore: LibrarySnapshotStore = LibrarySnapshotStore(appContext),
 ) : LibraryStartupController, LibraryNetworkController, LibraryTagUpdateWriter, LibraryDeletePort {
-    private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
         publish = { _contentState.value = it },
@@ -609,7 +609,7 @@ internal class LibraryRepository internal constructor(
         } else {
             ElovaireTrace.suspendSection("library_prepare_content") {
                 withContext(defaultDispatcher) {
-                    snapshotPublisher.prepareSongs(visibleSongs)
+                    LibrarySnapshotAssembler.assembleDeduplicatedSongs(visibleSongs)
                 }
             }
         }
@@ -620,7 +620,7 @@ internal class LibraryRepository internal constructor(
             visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
             preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content_refresh") {
                 withContext(defaultDispatcher) {
-                    snapshotPublisher.prepareSongs(visibleSongs)
+                    LibrarySnapshotAssembler.assembleDeduplicatedSongs(visibleSongs)
                 }
             }
         }
@@ -842,7 +842,7 @@ internal class LibraryRepository internal constructor(
             val previousState = _contentState.value
             val remainingSongs = previousState.songs.filterNot { it.id in request.songIds }
             val updatedState = snapshotPublisher.stateForSnapshot(
-                snapshot = snapshotPublisher.prepareSongs(remainingSongs),
+                snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(remainingSongs),
                 removingSongIds = deletionMarkers.pendingSongIds.value,
                 removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
             )
@@ -928,13 +928,14 @@ internal class LibraryRepository internal constructor(
         scanner.invalidateMetadataCacheForSongIds(editedSongIds)
         val changeSet = commitMutex.withLock {
             val current = _contentState.value
-            val updatedState = snapshotPublisher.patchSongs(
+            val patch = snapshotPublisher.patchSongs(
                 editedSongs = editedSongs,
                 removingSongIds = current.removingSongIds,
                 removingAlbumIds = current.removingAlbumIds,
                 publishResult = false,
             )
-            val patchChangeSet = snapshotPublisher.takeLastPatchChangeSet()
+            val updatedState = patch.state
+            val patchChangeSet = patch.changeSet
             if (patchChangeSet.isEmpty) return@withLock patchChangeSet
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             withContext(ioDispatcher) {

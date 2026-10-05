@@ -15,8 +15,8 @@ internal object LibrarySnapshotAssembler {
         )
     }
 
-    /** Assembles a fresh source composition whose MediaStore/SAF duplicate invariant is known. */
-    internal fun assembleSourceDeduplicated(songs: List<Song>): LibrarySnapshot {
+    /** Assembles a song list whose duplicate invariant was already established by its source. */
+    internal fun assembleDeduplicatedSongs(songs: List<Song>): LibrarySnapshot {
         return assembleCanonicalSongs(canonicalizeAlbumIds(songs))
     }
 

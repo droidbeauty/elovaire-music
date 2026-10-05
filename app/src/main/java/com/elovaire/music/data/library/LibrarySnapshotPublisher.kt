@@ -6,6 +6,11 @@ import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
 
+internal data class LibrarySongPatchResult(
+    val state: LibraryContentState,
+    val changeSet: LibraryChangeSet,
+)
+
 internal class LibrarySnapshotPublisher(
     private val publish: (LibraryContentState) -> Unit,
     private val currentState: () -> LibraryContentState,
@@ -15,21 +20,6 @@ internal class LibrarySnapshotPublisher(
     private var albumPositions = emptyMap<Long, Int>()
     private var songPositionsById = emptyMap<Long, Int>()
     private var songPositionsByStableKey = emptyMap<String, Int>()
-    private var lastPatchChangeSet = LibraryChangeSet.Empty
-
-    fun prepareSongs(songs: List<Song>): LibrarySnapshot {
-        return LibrarySnapshotAssembler.assemble(songs)
-    }
-
-    fun publishSnapshot(
-        snapshot: LibrarySnapshot,
-        removingSongIds: Set<Long>,
-        removingAlbumIds: Set<Long>,
-    ): LibraryContentState {
-        val nextState = stateForSnapshot(snapshot, removingSongIds, removingAlbumIds)
-        publishState(nextState)
-        return nextState
-    }
 
     fun stateForSnapshot(
         snapshot: LibrarySnapshot,
@@ -55,21 +45,9 @@ internal class LibrarySnapshotPublisher(
         }
     }
 
-    fun publishSongs(
-        songs: List<Song>,
-        removingSongIds: Set<Long>,
-        removingAlbumIds: Set<Long>,
-    ): LibraryContentState {
-        return publishSnapshot(
-            snapshot = prepareSongs(songs),
-            removingSongIds = removingSongIds,
-            removingAlbumIds = removingAlbumIds,
-        )
-    }
-
     /**
      * Applies verified metadata changes without rebuilding unrelated albums.
-     * The normal scan path still uses [publishSongs], while mutation results
+     * Scan snapshots are assembled from source-deduplicated songs, while mutation results
      * already contain authoritative replacement Song instances.
      */
     fun patchSongs(
@@ -77,9 +55,8 @@ internal class LibrarySnapshotPublisher(
         removingSongIds: Set<Long>,
         removingAlbumIds: Set<Long>,
         publishResult: Boolean = true,
-    ): LibraryContentState {
-        lastPatchChangeSet = LibraryChangeSet.Empty
-        if (editedSongs.isEmpty()) return currentState()
+    ): LibrarySongPatchResult {
+        if (editedSongs.isEmpty()) return LibrarySongPatchResult(currentState(), LibraryChangeSet.Empty)
         val current = currentState()
         updateIndices(current)
         val replacementsByPosition = hashMapOf<Int, Song>()
@@ -89,7 +66,7 @@ internal class LibrarySnapshotPublisher(
             if (position != null) replacementsByPosition[position] = edited
         }
         val replacementPositions = replacementsByPosition.keys.sorted()
-        if (replacementPositions.isEmpty()) return current
+        if (replacementPositions.isEmpty()) return LibrarySongPatchResult(current, LibraryChangeSet.Empty)
         val updatedSongs = current.songs.toMutableList()
         replacementPositions.forEach { position ->
             updatedSongs[position] = replacementsByPosition.getValue(position)
@@ -105,7 +82,7 @@ internal class LibrarySnapshotPublisher(
                 after = canonicalUpdatedSongs[position],
             )
         }
-        lastPatchChangeSet = LibraryChangeSetCalculator.fromPatches(patches)
+        val changeSet = LibraryChangeSetCalculator.fromPatches(patches)
 
         val affectedAlbumIds = buildSet {
             replacementPositions.forEach { position -> add(current.songs[position].albumId) }
@@ -166,11 +143,7 @@ internal class LibrarySnapshotPublisher(
             },
         )
         if (publishResult && !hasSamePublishedState(current, nextState)) publish(nextState)
-        return nextState
-    }
-
-    fun takeLastPatchChangeSet(): LibraryChangeSet {
-        return lastPatchChangeSet.also { lastPatchChangeSet = LibraryChangeSet.Empty }
+        return LibrarySongPatchResult(nextState, changeSet)
     }
 
     fun snapshotOf(state: LibraryContentState): LibrarySnapshot {

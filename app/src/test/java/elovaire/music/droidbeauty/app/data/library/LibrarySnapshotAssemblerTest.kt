@@ -20,6 +20,21 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun assembleDeduplicatedSongsSkipsTheAlreadyCompletedDuplicatePass() {
+        val songs = listOf(
+            song(1L, "content://media/external/audio/media/1"),
+            song(2L, "content://media/external/audio/media/2").copy(
+                fileName = "second.mp3",
+                libraryPath = "/music/second.mp3",
+            ),
+        )
+        val prepared = LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs)
+
+        assertSame(songs, prepared.songs)
+        assertEquals(LibrarySnapshotAssembler.assemble(songs), prepared)
+    }
+
+    @Test
     fun assemble_separatesSameMediaStoreAlbumIdAcrossVolumes() {
         val primary = song(1L, "content://media/external_primary/audio/media/1")
             .copy(albumId = 42L, libraryPath = "/storage/emulated/0/Music/primary.mp3")
@@ -60,9 +75,11 @@ class LibrarySnapshotAssemblerTest {
         var published: LibraryContentState? = null
         val publisher = LibrarySnapshotPublisher({ published = it }, { current })
 
-        val next = publisher.patchSongs(listOf(first.copy(title = "Edited")), emptySet(), emptySet())
+        val patch = publisher.patchSongs(listOf(first.copy(title = "Edited")), emptySet(), emptySet())
+        val next = patch.state
 
         assertEquals("Edited", next.songs.first { it.id == first.id }.title)
+        assertEquals(false, patch.changeSet.isEmpty)
         assertSame(
             initial.albums.first { it.id == second.albumId },
             next.albums.first { it.id == second.albumId },
@@ -89,13 +106,13 @@ class LibrarySnapshotAssemblerTest {
         )
         val publisher = LibrarySnapshotPublisher({}, { current })
 
-        val next = publisher.patchSongs(
+        val patch = publisher.patchSongs(
             editedSongs = listOf(music.copy(title = "Edited")),
             removingSongIds = emptySet(),
             removingAlbumIds = emptySet(),
         )
 
-        assertSame(initial.audiobooks, next.audiobooks)
+        assertSame(initial.audiobooks, patch.state.audiobooks)
     }
 
     @Test
@@ -112,13 +129,13 @@ class LibrarySnapshotAssemblerTest {
         val current = LibraryContentState(initial.songs, initial.albums)
         val publisher = LibrarySnapshotPublisher({}, { current })
 
-        val next = publisher.patchSongs(
+        val patch = publisher.patchSongs(
             editedSongs = listOf(moved.copy(albumId = 3L, album = "Destination")),
             removingSongIds = emptySet(),
             removingAlbumIds = emptySet(),
         )
-        assertEquals(listOf(1L, 2L), next.albums.single { it.id == 3L }.songs.map(Song::id).sorted())
-        assertEquals(null, next.albums.firstOrNull { it.id == moved.albumId })
+        assertEquals(listOf(1L, 2L), patch.state.albums.single { it.id == 3L }.songs.map(Song::id).sorted())
+        assertEquals(null, patch.state.albums.firstOrNull { it.id == moved.albumId })
     }
 
     @Test

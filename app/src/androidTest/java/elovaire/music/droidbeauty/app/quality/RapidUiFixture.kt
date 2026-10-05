@@ -19,9 +19,17 @@ internal class RapidUiFixture(
     private val assetContext: Context,
 ) : AutoCloseable {
     private val resolver: ContentResolver = context.contentResolver
+    private val libraryPreferences = context.getSharedPreferences(
+        PreferenceStorage.PREFERENCE_FILE_NAME,
+        Context.MODE_PRIVATE,
+    )
     private val insertedUris = ArrayList<Uri>(FIXTURES.size)
     private val runId = UUID.randomUUID().toString()
     private val relativePath = "$FIXTURE_RELATIVE_PATH_PREFIX$runId/"
+    private var originalLibraryFolders: String? = null
+    private var hadOriginalLibraryFolders = false
+    private var libraryFoldersCaptured = false
+    private var fixtureRootSelected = false
 
     fun install() {
         removeStaleRows()
@@ -74,8 +82,12 @@ internal class RapidUiFixture(
     }
 
     override fun close() {
-        insertedUris.forEach { uri -> resolver.delete(uri, null, null) }
-        insertedUris.clear()
+        try {
+            insertedUris.forEach { uri -> resolver.delete(uri, null, null) }
+        } finally {
+            insertedUris.clear()
+            restoreLibraryFolderSelection()
+        }
     }
 
     private fun removeStaleRows() {
@@ -105,12 +117,25 @@ internal class RapidUiFixture(
             displayName = "Elovaire UI qualification fixtures",
         )
         val encodedSelection = PreferenceCollectionCodec.serializeLibraryFolder(selection)
-        check(
-            context.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putString(LIBRARY_FOLDERS_KEY, encodedSelection)
-                .commit(),
-        )
+        if (!libraryFoldersCaptured) {
+            hadOriginalLibraryFolders = libraryPreferences.contains(LIBRARY_FOLDERS_KEY)
+            originalLibraryFolders = libraryPreferences.getString(LIBRARY_FOLDERS_KEY, null)
+            libraryFoldersCaptured = true
+        }
+        fixtureRootSelected = true
+        check(libraryPreferences.edit().putString(LIBRARY_FOLDERS_KEY, encodedSelection).commit())
+    }
+
+    private fun restoreLibraryFolderSelection() {
+        if (!fixtureRootSelected) return
+        val editor = libraryPreferences.edit()
+        if (hadOriginalLibraryFolders) {
+            editor.putString(LIBRARY_FOLDERS_KEY, originalLibraryFolders)
+        } else {
+            editor.remove(LIBRARY_FOLDERS_KEY)
+        }
+        check(editor.commit())
+        fixtureRootSelected = false
     }
 
     private data class Fixture(

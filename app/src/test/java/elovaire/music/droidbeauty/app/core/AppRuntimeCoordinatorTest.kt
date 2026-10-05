@@ -24,6 +24,17 @@ class AppRuntimeCoordinatorTest {
     }
 
     @Test
+    fun cold_full_start_initializes_playback_before_application_services() {
+        val events = mutableListOf<String>()
+        val coordinator = coordinator(events)
+
+        coordinator.start()
+
+        assertEquals(listOf("playback", "start"), events)
+        assertEquals(AppRuntimePhase.Started, coordinator.currentPhase())
+    }
+
+    @Test
     fun release_is_idempotent_and_blocks_later_work() {
         val events = mutableListOf<String>()
         val coordinator = coordinator(events)
@@ -60,7 +71,7 @@ class AppRuntimeCoordinatorTest {
         }
 
         assertTrue(failed)
-        assertEquals(listOf("start", "release"), events)
+        assertEquals(listOf("playback", "start", "release"), events)
         assertEquals(AppRuntimePhase.Released, coordinator.currentPhase())
     }
 

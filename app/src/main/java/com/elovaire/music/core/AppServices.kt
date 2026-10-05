@@ -278,6 +278,7 @@ internal class AppServices(
         defaultDispatcher = appDispatchers.default,
         backendEventSink = backendEventSink,
         resourceTracker = backendDiagnostics.resources,
+        snapshotStore = librarySnapshotStore,
         onSongRelocations = { commitId, replacements ->
             when (val result = userDataStore.relocateSongReferences(commitId, replacements).await()) {
                 is PlaylistMutationResult.Success -> {
@@ -381,7 +382,6 @@ internal class AppServices(
     }
 
     fun start() {
-        startPlayback()
         startupCoordinator.start()
     }
 

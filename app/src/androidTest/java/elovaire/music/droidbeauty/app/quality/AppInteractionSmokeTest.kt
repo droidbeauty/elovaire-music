@@ -42,13 +42,16 @@ class AppInteractionSmokeTest {
         fixture?.install()
         launchApp()
         device.wait(Until.hasObject(By.pkg(packageName)), STARTUP_TIMEOUT_MS)
-        assertTrue(device.wait(Until.hasObject(By.desc("Menu")), STARTUP_TIMEOUT_MS))
+        assertElovaireInForeground()
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Menu")), STARTUP_TIMEOUT_MS))
     }
 
     @After
     fun assertNoRuntimeFailures() {
         try {
-            device.findObject(By.pkg(packageName).desc("Pause"))?.click()
+            if (device.currentPackageName == packageName) {
+                device.findObject(By.pkg(packageName).desc("Pause"))?.click()
+            }
             val pid = shell("pidof $packageName").trim()
             check(pid.isNotBlank()) { "App process is not running" }
             val logcat = shell("logcat -d -v threadtime --pid $pid")
@@ -122,6 +125,7 @@ class AppInteractionSmokeTest {
     }
 
     private fun waitForApp() {
+        assertElovaireInForeground()
         check(device.wait(Until.hasObject(By.pkg(packageName)), APP_READY_TIMEOUT_MS)) {
             "Elovaire left the foreground during the UI journey"
         }
@@ -153,7 +157,9 @@ class AppInteractionSmokeTest {
             val target = device.wait(Until.findObject(appSelector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
                 ?: continue
             try {
+                assertElovaireInForeground()
                 device.waitForIdle()
+                assertElovaireInForeground()
                 target.click()
                 return
             } catch (stale: StaleObjectException) {
@@ -164,9 +170,15 @@ class AppInteractionSmokeTest {
     }
 
     private fun scrollIfAvailable(direction: Direction) {
+        assertElovaireInForeground()
         repeat(3) {
+            assertElovaireInForeground()
             try {
-                device.findObject(By.pkg(packageName).scrollable(true))?.scroll(direction, 0.5f)
+                val target = device.findObject(By.pkg(packageName).scrollable(true))
+                if (target != null) {
+                    assertElovaireInForeground()
+                    target.scroll(direction, 0.5f)
+                }
                 device.waitForIdle()
                 return
             } catch (_: StaleObjectException) {
@@ -186,9 +198,15 @@ class AppInteractionSmokeTest {
     private fun launchApp() {
         val context = instrumentation.targetContext
         val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-            ?: return
+            ?: error("Elovaire launch intent is unavailable for $packageName")
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+    }
+
+    private fun assertElovaireInForeground() {
+        check(device.currentPackageName == packageName) {
+            "Refusing to interact outside Elovaire ($packageName)"
+        }
     }
 
     private fun shell(command: String): String {

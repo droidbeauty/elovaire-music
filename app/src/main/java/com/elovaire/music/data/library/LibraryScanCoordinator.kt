@@ -181,7 +181,10 @@ internal class LibraryScanCoordinator(
         }
         if (networkSources.none(NetworkLibrarySource::enabled)) {
             return CoordinatedLibraryScan(
-                snapshot = assembleFinalLibrarySnapshot(localSongs),
+                snapshot = assembleFinalLibrarySnapshot(
+                    localSongs.toMutableList(),
+                    songsAlreadyDeduplicated = true,
+                ),
                 isComplete = isComplete,
                 incompleteMessage = incompleteMessage,
                 retryableSafTreeIds = retryableSafTreeIds,
@@ -218,8 +221,13 @@ internal class LibraryScanCoordinator(
             .forEach { (sourceId, songs) ->
                 if (sourceId != null) networkSongsBySource[sourceId] = songs
             }
+        val networkSongCount = networkSongsBySource.values.sumOf { it.size }
+        val allSongs = ArrayList<Song>(localSongs.size + networkSongCount).apply {
+            addAll(localSongs)
+            networkSongsBySource.values.forEach(::addAll)
+        }
         return CoordinatedLibraryScan(
-            snapshot = assembleFinalLibrarySnapshot(localSongs + networkSongsBySource.values.flatten()),
+            snapshot = assembleFinalLibrarySnapshot(allSongs, songsAlreadyDeduplicated = false),
             isComplete = isComplete,
             incompleteMessage = incompleteMessage,
             retryableSafTreeIds = retryableSafTreeIds,
@@ -363,16 +371,28 @@ internal class LibraryScanCoordinator(
         get() = localScanner.targetExistenceProbe
 }
 
-private fun assembleFinalLibrarySnapshot(songs: List<Song>): LibrarySnapshot {
+private fun assembleFinalLibrarySnapshot(
+    songs: MutableList<Song>,
+    songsAlreadyDeduplicated: Boolean,
+): LibrarySnapshot {
     return ElovaireTrace.section("library_song_sort") {
         ElovaireTrace.section("library_album_build") {
-            LibrarySnapshotAssembler.assembleSourceDeduplicated(sortLibrarySongs(songs))
+            sortLibrarySongsInPlace(songs)
+            if (songsAlreadyDeduplicated) {
+                LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs)
+            } else {
+                LibrarySnapshotAssembler.assemble(songs)
+            }
         }
     }
 }
 
 internal fun sortLibrarySongs(songs: List<Song>): List<Song> {
-    return songs.sortedWith(
+    return songs.toMutableList().apply(::sortLibrarySongsInPlace)
+}
+
+private fun sortLibrarySongsInPlace(songs: MutableList<Song>) {
+    songs.sortWith(
         compareByDescending<Song> { it.dateAddedSeconds }
             .thenBy { MediaIdentityResolver.stableKey(it) },
     )

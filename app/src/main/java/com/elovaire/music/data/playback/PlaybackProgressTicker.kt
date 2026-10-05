@@ -47,10 +47,6 @@ internal class PlaybackProgressTicker(
         job = null
     }
 
-    fun release() {
-        stop()
-    }
-
     private companion object {
         const val MIN_INTERVAL_MS = 50L
     }

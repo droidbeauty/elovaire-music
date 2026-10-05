@@ -29,7 +29,7 @@ internal class AppRuntimeCoordinator(
         runTransition(
             canStart = { it == AppRuntimePhase.Created },
             target = AppRuntimePhase.PlaybackStarted,
-            action = startPlaybackAction,
+            action = { startPlaybackAction() },
         )
     }
 
@@ -37,7 +37,10 @@ internal class AppRuntimeCoordinator(
         runTransition(
             canStart = { it == AppRuntimePhase.Created || it == AppRuntimePhase.PlaybackStarted },
             target = AppRuntimePhase.Started,
-            action = startAction,
+            action = { previousPhase ->
+                if (previousPhase == AppRuntimePhase.Created) startPlaybackAction()
+                startAction()
+            },
         )
     }
 
@@ -70,11 +73,11 @@ internal class AppRuntimeCoordinator(
     private fun runTransition(
         canStart: (AppRuntimePhase) -> Boolean,
         target: AppRuntimePhase,
-        action: () -> Unit,
+        action: (AppRuntimePhase) -> Unit,
     ) {
-        if (!beginTransition(canStart, target)) return
+        val previousPhase = beginTransition(canStart, target) ?: return
         try {
-            action()
+            action(previousPhase)
         } catch (failure: Throwable) {
             lock.lock()
             try {
@@ -96,16 +99,17 @@ internal class AppRuntimeCoordinator(
     private fun beginTransition(
         canStart: (AppRuntimePhase) -> Boolean,
         target: AppRuntimePhase,
-    ): Boolean {
+    ): AppRuntimePhase? {
         lock.lock()
         try {
-            if (actionRunning && actionOwner === Thread.currentThread()) return false
+            if (actionRunning && actionOwner === Thread.currentThread()) return null
             awaitActionLocked()
-            if (!canStart(phase)) return false
+            if (!canStart(phase)) return null
+            val previousPhase = phase
             phase = target
             actionRunning = true
             actionOwner = Thread.currentThread()
-            return true
+            return previousPhase
         } finally {
             lock.unlock()
         }

@@ -9,7 +9,9 @@ class LibrarySongOrderingTest {
     fun equalDateAddedSongsUseStableIdentityAsTieBreaker() {
         val first = testSong(id = 1L)
         val second = testSong(id = 2L)
+        val original = listOf(second, first)
 
-        assertEquals(listOf(first, second), sortLibrarySongs(listOf(second, first)))
+        assertEquals(listOf(first, second), sortLibrarySongs(original))
+        assertEquals(listOf(second, first), original)
     }
 }

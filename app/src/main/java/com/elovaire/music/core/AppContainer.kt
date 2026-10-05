@@ -142,7 +142,6 @@ class AppContainer internal constructor(
         startAction = {
             services.start()
             bridgeCoordinator.start()
-            notificationController().setNotificationsEnabled(true)
         },
         memoryPressureAction = services::onMemoryPressure,
         releaseAction = {

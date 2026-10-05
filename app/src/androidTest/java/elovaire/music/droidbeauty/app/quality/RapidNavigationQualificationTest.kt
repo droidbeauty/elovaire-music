@@ -13,7 +13,9 @@ import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
+import java.util.regex.Pattern
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -39,8 +41,10 @@ class RapidNavigationQualificationTest {
         fixture?.install()
         launchApp()
         assertTrue(device.wait(Until.hasObject(By.pkg(packageName)), STARTUP_TIMEOUT_MS))
+        assertCurrentPackageIsElovaire()
         acceptFirstLaunchStoragePermissionIfVisible()
-        assertTrue(device.wait(Until.hasObject(By.desc("Home")), STARTUP_TIMEOUT_MS))
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Home")), STARTUP_TIMEOUT_MS))
+        assertCurrentPackageIsElovaire()
     }
 
     @After
@@ -94,9 +98,6 @@ class RapidNavigationQualificationTest {
             pressBackWithoutIdle(64L)
         }
 
-        if (!device.wait(Until.hasObject(By.pkg(packageName)), 2_000L)) {
-            launchApp()
-        }
         checkpoint()
         requireDescription("Home")
         assertSelectedTopLevel("Home")
@@ -121,14 +122,17 @@ class RapidNavigationQualificationTest {
     }
 
     private fun pressBackWithoutIdle(interInputDelayMs: Long) {
+        assertCurrentPackageIsElovaire()
         device.pressBack()
         if (interInputDelayMs > 0L) SystemClock.sleep(interInputDelayMs)
     }
 
     private fun clickWithoutIdle(selector: BySelector): Boolean {
+        assertCurrentPackageIsElovaire()
         repeat(STALE_RETRY_COUNT) {
             val node = device.findObject(selector) ?: return false
             try {
+                assertCurrentPackageIsElovaire()
                 node.clickActionable()
                 return true
             } catch (_: StaleObjectException) {
@@ -141,9 +145,11 @@ class RapidNavigationQualificationTest {
     private fun requireDescription(description: String) {
         val deadline = SystemClock.uptimeMillis() + ACTION_TIMEOUT_MS
         while (SystemClock.uptimeMillis() < deadline) {
+            assertCurrentPackageIsElovaire()
             val node = device.wait(Until.findObject(topLevelSelector(description)), FIND_TIMEOUT_MS)
             if (node != null) {
                 try {
+                    assertCurrentPackageIsElovaire()
                     node.clickActionable()
                     return
                 } catch (_: StaleObjectException) {
@@ -155,8 +161,13 @@ class RapidNavigationQualificationTest {
     }
 
     private fun checkpoint() {
+        assertCurrentPackageIsElovaire()
         assertTrue(device.wait(Until.hasObject(By.pkg(packageName)), ACTION_TIMEOUT_MS))
         device.waitForIdle()
+    }
+
+    private fun assertCurrentPackageIsElovaire() {
+        assertEquals("Refusing to interact outside Elovaire", packageName, device.currentPackageName)
     }
 
     private fun assertSelectedTopLevel(description: String) {
@@ -177,7 +188,7 @@ class RapidNavigationQualificationTest {
     }
 
     private fun topLevelSelector(description: String): BySelector {
-        return By.res("bottom_nav_${description.lowercase()}")
+        return By.res(packageName, "bottom_nav_${description.lowercase()}")
     }
 
     private fun launchApp() {
@@ -199,9 +210,13 @@ class RapidNavigationQualificationTest {
     }
 
     private fun acceptFirstLaunchStoragePermissionIfVisible() {
-        device.findObject(By.text("Allow storage access"))?.let { button ->
+        device.findObject(By.pkg(packageName).text("Allow storage access"))?.let { button ->
             button.clickActionable()
-            device.wait(Until.findObject(By.text("Allow")), 5_000L)?.clickActionable()
+            val permissionDialog = device.wait(
+                Until.findObject(By.pkg(PERMISSION_CONTROLLER_PACKAGES).text("Allow")),
+                5_000L,
+            )
+            permissionDialog?.clickActionable()
         }
     }
 
@@ -223,6 +238,10 @@ class RapidNavigationQualificationTest {
         const val STALE_RETRY_COUNT = 3
         val CADENCES_MS = longArrayOf(160L, 100L, 64L, 32L, 16L)
         val TOP_LEVEL_DESCRIPTIONS = listOf("Home", "Albums", "Playlists", "Search")
+        val PERMISSION_CONTROLLER_PACKAGES = Pattern.compile(
+            "com\\.android\\.permissioncontroller|com\\.google\\.android\\.permissioncontroller|" +
+                "com\\.android\\.packageinstaller|com\\.samsung\\.android\\.permissioncontroller",
+        )
         val runtimeFailurePattern = Regex("FATAL EXCEPTION|\\bANR\\b|AndroidRuntime:.*fatal", RegexOption.IGNORE_CASE)
     }
 }

@@ -1462,7 +1462,7 @@ internal class PlaybackManager internal constructor(
         crossfadeController.release()
         sleepTimerController.release()
         progressDemandController.clear()
-        playbackProgressTicker.release()
+        playbackProgressTicker.stop()
         interruptionController.release()
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         playbackHandler.removeCallbacks(statePublishRunnable)

@@ -166,7 +166,7 @@ class LibraryScaleInstrumentedTest {
             assertEquals(size, buildSearchResults(query, SearchSortMode.Title, index, false).totalSongMatchCount)
         }
         measure("batch_patch", size, samples) {
-            val patched = publisher.patchSongs(edits, emptySet(), emptySet())
+            val patched = publisher.patchSongs(edits, emptySet(), emptySet()).state
             assertEquals(size, patched.songs.size)
             assertEquals(size, patched.albums.sumOf { it.songCount })
             assertEquals(edits.size, patched.songs.count { it.title.startsWith("Edited ") })
