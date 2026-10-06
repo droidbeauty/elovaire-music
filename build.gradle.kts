@@ -98,7 +98,13 @@ val quickQuality = tasks.register("quickQuality") {
 val deviceQuality = tasks.register("deviceQuality") {
     group = "verification"
     description = "Runs connected correctness and persistence qualification on a device."
-    dependsOn(":app:connectedDebugAndroidTest", ":app:queryPlanCheck")
+    dependsOn(":app:connectedDebugAndroidTest")
+    val selectedAndroidTestClass = providers.gradleProperty(ANDROID_TEST_CLASS_PROPERTY)
+        .map(String::trim)
+        .orNull
+    if (!selectedAndroidTestClass.isNullOrBlank() && selectedAndroidTestClass != ROOM_QUERY_PLAN_TEST_CLASS) {
+        dependsOn(":app:queryPlanCheck")
+    }
 }
 
 val benchmarkRegressionCheck = tasks.register<BenchmarkRegressionEvaluatorTask>("benchmarkRegressionCheck") {

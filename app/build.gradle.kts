@@ -246,7 +246,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
-    runtimeOnly(libs.androidx.profileinstaller)
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.palette)
     implementation(libs.androidx.tracing)
 

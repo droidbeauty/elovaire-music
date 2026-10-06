@@ -34,7 +34,6 @@ internal class MediaStoreRowProcessor(
     private val localMetadataReader: LocalAudioMetadataReader,
     private val audioFileFilter: LibraryAudioFileFilter,
     private val enrichMetadata: Boolean,
-    private val genreCache: MutableMap<MediaStoreGenreKey, String?>,
     private val decisionMap: ScannerDebugLogger.ScannerDecisionMap,
 ) {
     private val albumArtworkUris = HashMap<String?, HashMap<Long, Uri>>()
@@ -231,13 +230,9 @@ internal class MediaStoreRowProcessor(
             identityKey = identityKey,
             revisionKey = revisionKey,
         )
-        val resolvedGenre = metadata.genre ?: run {
-            val genreKey = MediaStoreGenreKey(row.id, row.volumeName)
-            if (!genreCache.containsKey(genreKey)) {
-                decisionMap.recordMediaStoreGenreLookup()
-                genreCache[genreKey] = queryGenre(row.id, row.volumeName)
-            }
-            genreCache[genreKey]
+        val resolvedGenre = resolveMediaStoreGenre(metadata.genre) {
+            decisionMap.recordMediaStoreGenreLookup()
+            queryGenre(row.id, row.volumeName)
         }
         val resolvedFormat = detectedFormat.displayName
         val sampleRate = metadata.sampleRate ?: detectedFormat.sampleRate

@@ -82,6 +82,14 @@ class NetworkPathPolicyTest {
         assertEquals("Music/A%20%23%3F%25/%E6%AD%8C.mp3", NetworkPathPolicy.encodePath("Music/A #?%/歌.mp3"))
         assertNull(NetworkPathPolicy.validateRelativePath("Music/../outside.mp3"))
         assertNull(NetworkPathPolicy.validateRelativePath("Music\\outside.mp3"))
+        assertNull(NetworkPathPolicy.validateRelativePath("Music/track\u0000.mp3"))
+    }
+
+    @Test
+    fun relativePathValidationHandlesManySegments() {
+        val path = (0 until 2_048).joinToString("/") { "folder$it" } + "/track.mp3"
+
+        assertEquals(path, NetworkPathPolicy.validateRelativePath(path))
     }
 
     @Test

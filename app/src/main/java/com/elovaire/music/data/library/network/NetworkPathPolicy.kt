@@ -30,7 +30,7 @@ internal object NetworkPathPolicy {
 
     /** Returns a root-relative path only when it cannot escape or change path segmentation. */
     fun validateRelativePath(path: String): String? {
-        if (path.indexOf('\\') >= 0) return null
+        if (path.indexOf('\\') >= 0 || path.indexOf('\u0000') >= 0) return null
         val normalized = StringBuilder(path.length)
         var segmentStart = 0
         var index = 0
@@ -43,7 +43,6 @@ internal object NetworkPathPolicy {
                         path[segmentStart] == '.' &&
                         path[segmentStart + 1] == '.'
                     ) return null
-                    if (path.indexOf('\u0000', segmentStart) in segmentStart until index) return null
                     if (normalized.isNotEmpty()) normalized.append('/')
                     normalized.append(path, segmentStart, index)
                 }
@@ -82,7 +81,7 @@ internal object NetworkPathPolicy {
     }
 
     fun decodeUriPath(rawPath: String): String? {
-        if (Regex("%(?i:2f|5c)").containsMatchIn(rawPath) || rawPath.indexOf('\\') >= 0) return null
+        if (ENCODED_PATH_SEPARATOR.containsMatchIn(rawPath) || rawPath.indexOf('\\') >= 0) return null
         val decoded = runCatching {
             URLDecoder.decode(rawPath.replace("+", "%2B"), Charsets.UTF_8.name())
         }.getOrNull() ?: return null
@@ -132,6 +131,7 @@ internal object NetworkPathPolicy {
     }
 
     private const val HEX = "0123456789ABCDEF"
+    private val ENCODED_PATH_SEPARATOR = Regex("%(?i:2f|5c)")
 
     fun smbShareAndPath(value: String): Pair<String, String>? {
         val parts = normalizeRelativePath(value).split('/', limit = 2)

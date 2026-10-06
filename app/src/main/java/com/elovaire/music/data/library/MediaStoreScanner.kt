@@ -159,7 +159,6 @@ internal class MediaStoreScanner(
             else -> null
         }
 
-        val genreCache = mutableMapOf<MediaStoreGenreKey, String?>()
         val progressEmitter = ScannerProgressEmitter(onProgress)
 
         suspend fun queryPlanForCurrentProvider(useDelta: Boolean): MediaStoreQueryPlan {
@@ -275,7 +274,6 @@ internal class MediaStoreScanner(
                         localMetadataReader = localMetadataReader,
                         audioFileFilter = audioFileFilter,
                         enrichMetadata = enrichMetadata,
-                        genreCache = genreCache,
                         decisionMap = decisionMap,
                     )
                     var processedRows = 0
@@ -499,11 +497,6 @@ internal sealed interface LocalLibraryScanResult {
     data class Complete(val songs: List<Song>) : LocalLibraryScanResult
     data class Unavailable(val failure: Throwable) : LocalLibraryScanResult
 }
-
-internal data class MediaStoreGenreKey(
-    val songId: Long,
-    val volumeName: String?,
-)
 
 internal fun canQueryMediaStoreGenre(songId: Long): Boolean {
     return songId in 1L..Int.MAX_VALUE.toLong()
