@@ -514,7 +514,7 @@ internal fun NowPlayingScreen(
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
-    var queueStatusVersion by remember(currentSong?.id) { mutableStateOf(0L) }
+    var queueStatusVersion by remember(currentSong?.id) { mutableLongStateOf(0L) }
     LaunchedEffect(showLyricsSheet) {
         onLyricsVisibilityChanged(showLyricsSheet)
     }

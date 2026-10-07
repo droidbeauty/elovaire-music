@@ -388,20 +388,22 @@ internal class MediaStoreScanner(
     suspend fun findExistingSongIds(songIds: Set<Long>): Set<Long> {
         if (songIds.isEmpty()) return emptySet()
         return songIds.chunked(MEDIASTORE_ID_QUERY_CHUNK_SIZE).flatMapTo(linkedSetOf()) { chunk ->
-            val placeholders = List(chunk.size) { "?" }.joinToString(",")
-            context.contentResolver.queryCancellable(
-                MediaStoreAudioQuery.collectionUri,
-                arrayOf(MediaStore.Audio.Media._ID),
-                "${MediaStoreAudioQuery.selection} AND " +
-                    "${MediaStore.Audio.Media._ID} IN ($placeholders)",
-                chunk.map(Long::toString).toTypedArray(),
-                null,
-            )?.use { cursor ->
-                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                buildList {
-                    while (cursor.moveToNext()) add(cursor.getLong(idIndex))
+            queryExistingSongIdsOrRetain(chunk.toSet()) {
+                val placeholders = List(chunk.size) { "?" }.joinToString(",")
+                context.contentResolver.queryCancellable(
+                    MediaStoreAudioQuery.collectionUri,
+                    arrayOf(MediaStore.Audio.Media._ID),
+                    "${MediaStoreAudioQuery.selection} AND " +
+                        "${MediaStore.Audio.Media._ID} IN ($placeholders)",
+                    chunk.map(Long::toString).toTypedArray(),
+                    null,
+                )?.use { cursor ->
+                    val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    buildSet {
+                        while (cursor.moveToNext()) add(cursor.getLong(idIndex))
+                    }
                 }
-            }.orEmpty()
+            }
         }
     }
 
@@ -438,6 +440,17 @@ internal class MediaStoreScanner(
         const val MEDIASTORE_ID_QUERY_CHUNK_SIZE = 400
     }
 
+}
+
+internal suspend fun queryExistingSongIdsOrRetain(
+    requestedSongIds: Set<Long>,
+    query: suspend () -> Set<Long>?,
+): Set<Long> = try {
+    query() ?: requestedSongIds
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    requestedSongIds
 }
 
 internal suspend fun <T> mediaStoreDeltaIdentityOrFallback(

@@ -24,24 +24,24 @@ internal class MediaTargetExistenceProbe(
             } else {
                 arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
             }
-            val exists = queryTargetExists {
+            val exists = queryTargetMayExist {
                 val selection = if (uri.authority.equals(MediaStore.AUTHORITY, ignoreCase = true)) {
                     MediaStoreAudioQuery.selection
                 } else {
                     null
                 }
                 resolver.queryCancellable(uri, projection, selection, null, null)?.use { it.moveToFirst() }
-                    ?: false
+                    ?: true
             }
             songId.takeIf { exists }
         }
     }
 }
 
-internal suspend fun queryTargetExists(query: suspend () -> Boolean): Boolean = try {
+internal suspend fun queryTargetMayExist(query: suspend () -> Boolean): Boolean = try {
     query()
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (_: Exception) {
-    false
+    true
 }

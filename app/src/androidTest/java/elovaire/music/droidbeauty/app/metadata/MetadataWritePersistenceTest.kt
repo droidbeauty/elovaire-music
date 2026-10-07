@@ -60,7 +60,7 @@ class MetadataWritePersistenceTest {
         val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
 
         assertTrue(result is EmbeddedLyricsWriteResult.Success)
-        val persisted = LocalLyricsResolver(context).resolve(song)?.payload
+        val persisted = runBlocking { LocalLyricsResolver(context).resolve(song) }?.payload
         assertTrue(persisted?.isSynced == true)
         assertEquals(listOf(1_000L, 2_000L), persisted?.lines?.map { it.startTimeMs })
         assertEquals(
@@ -80,7 +80,7 @@ class MetadataWritePersistenceTest {
         val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
 
         assertTrue(result is EmbeddedLyricsWriteResult.Success)
-        val persisted = LocalLyricsResolver(context).resolve(song)?.payload
+        val persisted = runBlocking { LocalLyricsResolver(context).resolve(song) }?.payload
         assertTrue(persisted?.isSynced == true)
         assertEquals(listOf(1_000L, 2_000L), persisted?.lines?.map { it.startTimeMs })
         val raw = AudioFileLyricsInspection.inspect(copyPersistedToTemp(song))
@@ -96,7 +96,7 @@ class MetadataWritePersistenceTest {
         val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
 
         assertTrue(result is EmbeddedLyricsWriteResult.Success)
-        val persisted = LocalLyricsResolver(context).resolve(song)?.payload
+        val persisted = runBlocking { LocalLyricsResolver(context).resolve(song) }?.payload
         assertTrue(persisted?.isSynced == false)
         assertEquals(listOf("Plain embedded lyrics", "Second line"), persisted?.lines?.map { it.text })
         assertEquals(listOf(lyrics), AudioFileLyricsInspection.inspect(copyPersistedToTemp(song)).unsynced)

@@ -94,7 +94,7 @@ internal class MediaFileMutationRunner(
     ): File {
         val directory = File(appContext.filesDir, tempDirectoryName)
         check(directory.isDirectory || directory.mkdirs()) { "Unable to create the metadata edit directory." }
-        val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
+        val extension = mediaMutationTemporaryExtension(song.fileName)
         return File.createTempFile("${song.id}-$purpose-", ".$extension", directory)
     }
 
@@ -189,6 +189,14 @@ internal class MediaFileMutationRunner(
         const val COPY_BUFFER_SIZE = 64 * 1024
     }
 }
+
+internal fun mediaMutationTemporaryExtension(fileName: String): String = fileName
+    .substringAfterLast('.', "")
+    .filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }
+    .take(MAX_TEMP_EXTENSION_LENGTH)
+    .ifBlank { "tmp" }
+
+private const val MAX_TEMP_EXTENSION_LENGTH = 16
 
 internal fun requiredMutationStagingBytes(sourceSizeBytes: Long): Long {
     if (sourceSizeBytes <= 0L) return 0L

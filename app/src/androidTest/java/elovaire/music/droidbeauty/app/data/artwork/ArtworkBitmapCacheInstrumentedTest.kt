@@ -20,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -30,6 +31,42 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ArtworkBitmapCacheInstrumentedTest {
+    @Test
+    fun coalescedWaiterDoesNotBlockDispatcherOrCancelDecodeOwner() = runBlocking {
+        val key = "coalesced-${System.nanoTime()}"
+        val decodeStarted = CountDownLatch(1)
+        val releaseDecode = CountDownLatch(1)
+        val ownerExecutor = Executors.newSingleThreadExecutor()
+        val waiterDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val owner = ownerExecutor.submit<Bitmap?> {
+            ArtworkBitmapCache.getOrLoad(key) {
+                decodeStarted.countDown()
+                assertTrue(releaseDecode.await(10, TimeUnit.SECONDS))
+                null
+            }
+        }
+        try {
+            assertTrue(decodeStarted.await(10, TimeUnit.SECONDS))
+            val waiter = async(waiterDispatcher) {
+                ArtworkBitmapCache.getOrLoadAwaiting(key) {
+                    throw AssertionError("A coalesced request must share the active decode")
+                }
+            }
+            val dispatcherProbe = async(waiterDispatcher) { true }
+
+            assertTrue(withTimeout(5_000L) { dispatcherProbe.await() })
+            assertFalse(waiter.isCompleted)
+            waiter.cancelAndJoin()
+            assertFalse(owner.isDone)
+        } finally {
+            releaseDecode.countDown()
+            owner.get(10, TimeUnit.SECONDS)
+            ownerExecutor.shutdownNow()
+            assertTrue(ownerExecutor.awaitTermination(10, TimeUnit.SECONDS))
+            waiterDispatcher.close()
+        }
+    }
+
     @Test
     fun missingArtwork_decodesOnlyOncePerRequest() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

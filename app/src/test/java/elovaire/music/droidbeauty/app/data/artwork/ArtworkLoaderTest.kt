@@ -2,6 +2,13 @@ package elovaire.music.droidbeauty.app.data.artwork
 
 import android.graphics.Bitmap
 import android.net.TestUri
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -69,5 +76,29 @@ class ArtworkLoaderTest {
 
         assertEquals(null, ArtworkGradientCache.accent("content://artwork/160|UI|accent"))
         ArtworkGradientCache.clear()
+    }
+
+    @Test
+    fun awaitingSharedDecodeDoesNotBlockItsDispatcher() = runBlocking {
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val future = CompletableFuture<String>()
+        val waiterEntered = CompletableDeferred<Unit>()
+        val waiter = async(dispatcher) {
+            waiterEntered.complete(Unit)
+            awaitArtworkLoad(future).getOrThrow()
+        }
+        try {
+            waiterEntered.await()
+            val dispatcherProbe = CompletableDeferred<Unit>()
+            async(dispatcher) { dispatcherProbe.complete(Unit) }
+
+            withTimeout(1_000L) { dispatcherProbe.await() }
+            assertFalse(waiter.isCompleted)
+            future.complete("decoded")
+            assertEquals("decoded", waiter.await())
+        } finally {
+            future.complete("released")
+            dispatcher.close()
+        }
     }
 }

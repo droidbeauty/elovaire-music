@@ -13,6 +13,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.io.File
@@ -174,6 +175,29 @@ class ArtistImageRepositoryTest {
 
         assertSame(remoteUri, (second.await() as ArtistBackdropState.Fallback).remoteArtworkUri)
         assertEquals(1, calls.get())
+    }
+
+    @Test
+    fun releasingRepositoryCancelsOwnedLookup() = runBlocking {
+        val requestStarted = CompletableDeferred<Unit>()
+        val requestCancelled = CompletableDeferred<Unit>()
+        val repository = newRepository(
+            ArtistImageClient {
+                requestStarted.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    requestCancelled.complete(Unit)
+                }
+            },
+        )
+
+        val request = async { repository.imageState("Artist", null).last() }
+        requestStarted.await()
+        repository.release()
+
+        withTimeout(1_000L) { requestCancelled.await() }
+        request.cancelAndJoin()
     }
 
     @Test

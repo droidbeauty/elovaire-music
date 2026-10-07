@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class WebDavMultiStatusTest {
@@ -75,6 +76,10 @@ class WebDavMultiStatusTest {
         val input = limitWebDavRead(ByteArrayInputStream(byteArrayOf(1, 2, 3)), 0L)
 
         assertEquals(-1, input.read())
+        assertEquals(0, input.read(ByteArray(1), 0, 0))
+        assertThrows(IndexOutOfBoundsException::class.java) {
+            input.read(ByteArray(1), -1, 1)
+        }
     }
 
     @Test

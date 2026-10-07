@@ -300,7 +300,11 @@ private object ExternalAudioPrivateCopy {
         return if (metadata.hasReliableRevision) {
             target.length() == metadata.sizeBytes
         } else {
-            clock.wallTimeMs() - target.lastModified() <= UNKNOWN_REVISION_TTL_MS
+            isExternalAudioStageFresh(
+                nowMs = clock.wallTimeMs(),
+                modifiedAtMs = target.lastModified(),
+                maxAgeMs = UNKNOWN_REVISION_TTL_MS,
+            )
         }
     }
 
@@ -326,9 +330,14 @@ private object ExternalAudioPrivateCopy {
                 var nextStorageCheck = 0L
                 while (true) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                    val read = input.read(buffer)
+                    var read = input.read(buffer)
+                    if (read == 0) {
+                        val singleByte = input.read()
+                        if (singleByte < 0) break
+                        buffer[0] = singleByte.toByte()
+                        read = 1
+                    }
                     if (read < 0) break
-                    if (read == 0) continue
                     if (total > MAX_COPY_BYTES - read) {
                         throw IOException("External audio source exceeds the private copy limit.")
                     }
@@ -546,5 +555,11 @@ internal fun hasExternalAudioCopySpace(availableBytes: Long, nextChunkBytes: Int
     availableBytes >= MIN_EXTERNAL_AUDIO_REMAINING_BYTES &&
         nextChunkBytes >= 0 &&
         nextChunkBytes.toLong() <= availableBytes - MIN_EXTERNAL_AUDIO_REMAINING_BYTES
+
+internal fun isExternalAudioStageFresh(
+    nowMs: Long,
+    modifiedAtMs: Long,
+    maxAgeMs: Long,
+): Boolean = nowMs >= modifiedAtMs && nowMs - modifiedAtMs <= maxAgeMs
 
 private const val MIN_EXTERNAL_AUDIO_REMAINING_BYTES = 4L * 1024L * 1024L

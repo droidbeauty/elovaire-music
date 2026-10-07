@@ -644,6 +644,10 @@ private class LimitedInputStream(
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (offset < 0 || length < 0 || length > buffer.size - offset) {
+            throw IndexOutOfBoundsException()
+        }
+        if (length == 0) return 0
         if (remaining == 0L) return -1
         val boundedLength = minOf(length.toLong(), remaining).toInt()
         val count = super.read(buffer, offset, boundedLength)

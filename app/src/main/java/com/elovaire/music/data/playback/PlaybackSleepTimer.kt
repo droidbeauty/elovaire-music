@@ -113,6 +113,7 @@ internal class PlaybackSleepTimerController(
         timerJob = null
         timerGeneration++
         setPauseAtEndOfMediaItems(false)
+        _state.value = PlaybackSleepTimerState()
     }
 
     private fun fire(expectedGeneration: Long) {

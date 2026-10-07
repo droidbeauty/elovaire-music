@@ -31,6 +31,13 @@ class ExternalAudioStagingPolicyTest {
     }
 
     @Test
+    fun wallClockRollbackDoesNotMakeUnknownRevisionStageFresh() {
+        assertTrue(isExternalAudioStageFresh(nowMs = 20L, modifiedAtMs = 10L, maxAgeMs = 20L))
+        assertFalse(isExternalAudioStageFresh(nowMs = 9L, modifiedAtMs = 10L, maxAgeMs = 20L))
+        assertFalse(isExternalAudioStageFresh(nowMs = 31L, modifiedAtMs = 10L, maxAgeMs = 20L))
+    }
+
+    @Test
     fun copySpaceCheckUsesRemainingFreeSpaceRatherThanBytesAlreadyCopied() {
         val currentFreeBytes = 500L * 1024L * 1024L
 

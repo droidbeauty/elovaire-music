@@ -12,9 +12,11 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
-import kotlinx.coroutines.CancellationException
 
 internal class LocalLyricsResolver(
     context: Context,
@@ -22,11 +24,11 @@ internal class LocalLyricsResolver(
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 
-    fun resolve(song: Song): LocalLyricsMatch? {
+    suspend fun resolve(song: Song): LocalLyricsMatch? {
         return readEmbeddedLyrics(song) ?: readSidecarLyrics(song)
     }
 
-    private fun readEmbeddedLyrics(song: Song): LocalLyricsMatch? {
+    private suspend fun readEmbeddedLyrics(song: Song): LocalLyricsMatch? {
         val headerBytes = contentResolver.openInputStream(song.uri)?.use { input ->
             input.readBytesCompat(4)
         } ?: return null
@@ -39,23 +41,11 @@ internal class LocalLyricsResolver(
         return specializedMatch ?: readGenericEmbeddedLyrics(song)
     }
 
-    private fun readGenericEmbeddedLyrics(song: Song): LocalLyricsMatch? {
+    private suspend fun readGenericEmbeddedLyrics(song: Song): LocalLyricsMatch? {
         val extension = lyricsTemporaryFileExtension(song.fileName)
         val tempFile = File.createTempFile("lyrics-${song.id}-", ".$extension", appContext.cacheDir)
         return try {
-            contentResolver.openInputStream(song.uri)?.use { input ->
-                tempFile.outputStream().use { output ->
-                    val buffer = ByteArray(COPY_BUFFER_BYTES)
-                    var total = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        total += read
-                        check(total <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
-                        output.write(buffer, 0, read)
-                    }
-                }
-            } ?: return null
+            if (!copyAudioToTemporaryFile(song, tempFile)) return null
             val rawLyrics = AudioFileIO.read(tempFile)
                 .tag
                 ?.getFirst(FieldKey.LYRICS)
@@ -71,6 +61,31 @@ internal class LocalLyricsResolver(
         } finally {
             runCatching { tempFile.delete() }
         }
+    }
+
+    private suspend fun copyAudioToTemporaryFile(song: Song, target: File): Boolean {
+        val input = contentResolver.openInputStream(song.uri) ?: return false
+        input.use { source ->
+            target.outputStream().use { output ->
+                val buffer = ByteArray(COPY_BUFFER_BYTES)
+                var total = 0L
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    var read = source.read(buffer)
+                    if (read == 0) {
+                        val singleByte = source.read()
+                        if (singleByte < 0) break
+                        buffer[0] = singleByte.toByte()
+                        read = 1
+                    }
+                    if (read < 0) break
+                    total += read
+                    check(total <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
+                    output.write(buffer, 0, read)
+                }
+            }
+        }
+        return true
     }
 
     private fun readId3Lyrics(song: Song): LocalLyricsMatch? {

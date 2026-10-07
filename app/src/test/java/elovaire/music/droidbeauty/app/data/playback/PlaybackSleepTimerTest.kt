@@ -68,4 +68,23 @@ class PlaybackSleepTimerTest {
         testScheduler.runCurrent()
         assertEquals(0, fired)
     }
+
+    @Test
+    fun releaseClearsVisibleTimerAndEndOfSongPause() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var pauseAtEndOfSong = false
+        val controller = PlaybackSleepTimerController(
+            scope = CoroutineScope(dispatcher),
+            elapsedRealtimeMs = { 0L },
+            onTimerFired = {},
+            setPauseAtEndOfMediaItems = { pauseAtEndOfSong = it },
+        )
+
+        controller.setTimer(SleepTimerOption.EndOfSong, currentSongId = 7L)
+        controller.release()
+
+        assertEquals(SleepTimerOption.Off, controller.state.value.option)
+        assertEquals(null, controller.state.value.targetSongId)
+        assertEquals(false, pauseAtEndOfSong)
+    }
 }

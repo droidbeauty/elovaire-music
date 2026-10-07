@@ -195,6 +195,9 @@ internal class ArtistImageRepository(
                         failRemoteArtwork(artistKey, ownerDeferred, cause)
                     }
                 }
+                ownerDeferred.invokeOnCompletion { cause ->
+                    if (cause is CancellationException) ownerJob.cancel(cause)
+                }
             }
         }
         return deferred.await()

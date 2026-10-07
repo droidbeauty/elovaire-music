@@ -46,9 +46,14 @@ internal class PlaybackProgressController {
         this.durationMs = durationMs.coerceAtLeast(0L)
         this.bufferedPositionMs = clampPosition(bufferedPositionMs, durationMs)
         this.isPlaying = isPlaying
-        if (pendingSeekPositionMs != null && mediaId == currentMediaId) {
-            val delta = kotlin.math.abs((pendingSeekPositionMs ?: 0L) - this.positionMs)
-            if (delta <= SEEK_SETTLE_TOLERANCE_MS || this.positionMs == 0L || this.durationMs == 0L) {
+        pendingSeekPositionMs?.let { pendingPositionMs ->
+            val expectedPositionMs = if (this.durationMs > 0L) {
+                pendingPositionMs.coerceIn(0L, this.durationMs)
+            } else {
+                pendingPositionMs
+            }
+            val delta = kotlin.math.abs(expectedPositionMs - this.positionMs)
+            if (delta <= SEEK_SETTLE_TOLERANCE_MS) {
                 pendingSeekPositionMs = null
             }
         }
