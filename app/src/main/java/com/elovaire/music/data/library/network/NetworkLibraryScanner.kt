@@ -642,6 +642,12 @@ private fun NetworkFileEntry.artworkPriority(): Int {
 private class NetworkArtworkCache(context: Context) {
     private val directory = context.applicationContext.filesDir.resolve("network_artwork_v1")
 
+    init {
+        directory.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".tmp") }
+            ?.forEach(File::delete)
+    }
+
     fun uriFor(
         source: NetworkLibrarySource,
         entry: NetworkFileEntry,
@@ -673,23 +679,12 @@ private class NetworkArtworkCache(context: Context) {
     }
 
     fun trim() {
-        val allFiles = directory.listFiles().orEmpty()
-        allFiles.filter { file ->
-            file.name.endsWith(".tmp") || !file.isFile || file.length() !in 1..MAX_ARTWORK_BYTES
-        }.forEach(File::delete)
-        val files = allFiles
-            .filter { it.isFile && it.length() in 1..MAX_ARTWORK_BYTES }
-            .sortedBy(File::lastModified)
-        var totalBytes = files.sumOf(File::length)
-        var remaining = files.size
-        files.forEach { file ->
-            if (remaining <= MAX_ARTWORK_FILES && totalBytes <= MAX_ARTWORK_CACHE_BYTES) return@forEach
-            val size = file.length()
-            if (file.delete()) {
-                remaining -= 1
-                totalBytes -= size
-            }
-        }
+        trimNetworkArtworkFiles(
+            directory = directory,
+            maxArtworkBytes = MAX_ARTWORK_BYTES,
+            maxArtworkFiles = MAX_ARTWORK_FILES,
+            maxCacheBytes = MAX_ARTWORK_CACHE_BYTES,
+        )
     }
 
     private fun downloadArtwork(
@@ -730,16 +725,54 @@ private class NetworkArtworkCache(context: Context) {
     }
 
     private fun cacheKey(sourceId: String, entry: NetworkFileEntry): String {
-        val identity = listOf(sourceId, entry.path, entry.sizeBytes, entry.modifiedAtMs, entry.etag).joinToString("|")
-        return MessageDigest.getInstance("SHA-256")
-            .digest(identity.toByteArray())
-            .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+        return networkArtworkCacheKey(sourceId, entry)
     }
 
     private companion object {
         const val MAX_ARTWORK_BYTES = 4L * 1024L * 1024L
         const val MAX_ARTWORK_FILES = 256
         const val MAX_ARTWORK_CACHE_BYTES = 128L * 1024L * 1024L
+    }
+}
+
+internal fun networkArtworkCacheKey(sourceId: String, entry: NetworkFileEntry): String {
+    val fields = listOf(
+        sourceId,
+        entry.path,
+        entry.sizeBytes?.toString(),
+        entry.modifiedAtMs?.toString(),
+        entry.etag,
+    )
+    val identity = fields.joinToString(separator = "") { value ->
+        value?.let { "${it.length}:$it" } ?: "-:"
+    }
+    return MessageDigest.getInstance("SHA-256")
+        .digest(identity.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+}
+
+internal fun trimNetworkArtworkFiles(
+    directory: File,
+    maxArtworkBytes: Long,
+    maxArtworkFiles: Int,
+    maxCacheBytes: Long,
+) {
+    val allFiles = directory.listFiles().orEmpty()
+    allFiles.filter { file ->
+        !file.name.endsWith(".tmp") && (!file.isFile || file.length() !in 1..maxArtworkBytes)
+    }.forEach(File::delete)
+    val files = allFiles
+        .filter { it.isFile && !it.name.endsWith(".tmp") && it.length() in 1..maxArtworkBytes }
+        .sortedBy(File::lastModified)
+    var totalBytes = files.sumOf(File::length)
+    var remaining = files.size
+    files.forEach { file ->
+        if (remaining <= maxArtworkFiles && totalBytes <= maxCacheBytes) return@forEach
+        val size = file.length()
+        if (file.delete()) {
+            remaining -= 1
+            totalBytes -= size
+        }
     }
 }
 

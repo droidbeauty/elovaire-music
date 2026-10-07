@@ -45,6 +45,32 @@ class WebDavMultiStatusTest {
     }
 
     @Test
+    fun resourceWithOnlyFailedPropstatsIsNotListedAsAFile() {
+        val source = NetworkLibrarySource(
+            id = "dav",
+            name = "Library",
+            protocol = NetworkLibraryProtocol.WebDav,
+            server = "https://nas.example",
+            shareOrPath = "",
+            username = "user",
+            credentialKey = "key",
+        )
+        val body = """
+            <multistatus>
+              <response>
+                <href>https://nas.example/locked.mp3</href>
+                <propstat>
+                  <prop><resourcetype/></prop>
+                  <status>HTTP/1.1 403 Forbidden</status>
+                </propstat>
+              </response>
+            </multistatus>
+        """.trimIndent().toByteArray()
+
+        assertEquals(emptyList<NetworkFileEntry>(), WebDavNetworkFileSystem().parseMultiStatus(body, source, ""))
+    }
+
+    @Test
     fun zeroLengthReadDoesNotExposeResponseBody() {
         val input = limitWebDavRead(ByteArrayInputStream(byteArrayOf(1, 2, 3)), 0L)
 

@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import java.io.File
-import java.util.Locale
 
 internal class LibraryScanRoots(
     selections: List<LibraryFolderSelection> = listOf(LibraryFolderSelectionResolver.defaultMusicFolder()),
@@ -25,13 +24,15 @@ internal class LibraryScanRoots(
         if (cachedFilterFingerprintVersion == version) {
             return requireNotNull(cachedFilterFingerprint)
         }
-        return listOf(
-            version.toString(),
-            selectedFolders.joinToString("|") { selection ->
+        val fields = buildList {
+            add(version.toString())
+            selectedFolders.forEach { selection ->
                 val path = selection.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath).orEmpty()
-                listOf(selection.uri?.toString().orEmpty(), normalizeAbsolutePath(path)).joinToString("@")
-            },
-        ).joinToString("::").also {
+                add(selection.uri?.toString().orEmpty())
+                add(normalizeAbsolutePath(path))
+            }
+        }
+        return fields.joinToString(separator = "") { "${it.length}:$it" }.also {
             cachedFilterFingerprintVersion = version
             cachedFilterFingerprint = it
         }
@@ -89,6 +90,11 @@ internal class LibraryScanRoots(
 
     fun hasSafSelections(): Boolean = selectedFolders.any { it.uri != null }
 
+    fun canIncludeUnscopedMediaStoreRows(): Boolean =
+        selectedFolders.size == 1 && selectedFolders.single().let {
+            it.uri == null && it.isDefaultMusicFolder
+        }
+
     private fun normalizeAbsolutePath(path: String): String {
         return normalizeLibraryAbsolutePath(path).orEmpty()
     }
@@ -98,12 +104,10 @@ internal fun normalizeLibraryAbsolutePath(path: String): String? = path
     .trim()
     .replace('\\', '/')
     .trimEnd('/')
-    .lowercase(Locale.ROOT)
     .takeIf(String::isNotBlank)
 
 internal fun normalizeLibraryRelativePath(path: String?): String? = path
     ?.trim()
     ?.replace('\\', '/')
     ?.trim('/')
-    ?.lowercase(Locale.ROOT)
     ?.takeIf(String::isNotBlank)

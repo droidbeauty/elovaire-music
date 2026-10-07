@@ -31,9 +31,10 @@ internal object MediaStoreAudioQuery {
     val compatibilityProjection: Array<String> = arrayOf(
         MediaStore.Audio.Media._ID,
         MediaStore.Audio.Media.DISPLAY_NAME,
+        MediaStore.MediaColumns.VOLUME_NAME,
     )
 
-    val collectionUri: Uri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+    val collectionUri: Uri by lazy { MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL) }
 
     /**
      * Only published media is part of the discoverable catalog.  These columns are platform

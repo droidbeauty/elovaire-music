@@ -157,8 +157,7 @@ internal class PortableSettingsBackup(
     }
 
     private fun writeBootSnapshot(values: Map<String, Any?>) {
-        val mergedValues = readBootSnapshot().orEmpty() + values
-        val normalizedValues = mergedValues
+        val normalizedValues = values
             .filterKeys { it in settingsPreferenceKeys }
             .filterValues { it != null }
         val editor = bootSnapshot.edit()

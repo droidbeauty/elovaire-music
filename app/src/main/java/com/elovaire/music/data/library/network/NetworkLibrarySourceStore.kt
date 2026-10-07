@@ -74,9 +74,11 @@ internal class NetworkLibrarySourceStore(
             server = server,
             shareOrPath = shareOrPath,
             username = username,
-            credentialKey = "network-credential-${UUID.randomUUID()}",
+            credentialKey = newCredentialKey(),
         )
     }
+
+    internal fun newCredentialKey(): String = "network-credential-${UUID.randomUUID()}"
 
     suspend fun remove(sourceId: String) = withContext(ioDispatcher) {
         synchronized(mutationLock) {

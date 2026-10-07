@@ -202,15 +202,18 @@ internal object ExternalAudioIntentHandler {
         resourceTracker: BackendResourceTracker,
     ): Long {
         return runCatching {
-            val retriever = MediaMetadataRetriever()
             val resource = resourceTracker.acquire(BackendResourceKind.ActiveRetriever)
             try {
-                retriever.setDataSource(context, uri)
-                ExternalAudioMetadataPolicy.boundedDurationMs(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION),
-                )
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(context, uri)
+                    ExternalAudioMetadataPolicy.boundedDurationMs(
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION),
+                    )
+                } finally {
+                    retriever.release()
+                }
             } finally {
-                retriever.release()
                 resource.close()
             }
         }.getOrDefault(0L)
@@ -220,7 +223,6 @@ internal object ExternalAudioIntentHandler {
 private object ExternalAudioPrivateCopy {
     private const val DIRECTORY_NAME = "external_audio"
     private const val COPY_BUFFER_SIZE = 32 * 1024
-    private const val MIN_REMAINING_BYTES = 4L * 1024L * 1024L
     private const val MAX_COPY_BYTES = 512L * 1024L * 1024L
     private val lockRegistry = mutableMapOf<String, StageLock>()
     private val lockRegistryGuard = Any()
@@ -305,8 +307,8 @@ private object ExternalAudioPrivateCopy {
     private fun hasFreeSpaceForCopy(directory: File, declaredSize: Long?): Boolean {
         val required = declaredSize
             ?.coerceAtMost(MAX_COPY_BYTES)
-            ?.let { it + MIN_REMAINING_BYTES }
-            ?: MIN_REMAINING_BYTES
+            ?.let { it + MIN_EXTERNAL_AUDIO_REMAINING_BYTES }
+            ?: MIN_EXTERNAL_AUDIO_REMAINING_BYTES
         return StatFs(directory.path).availableBytes >= required
     }
 
@@ -332,7 +334,7 @@ private object ExternalAudioPrivateCopy {
                     }
                     total += read
                     if (total >= nextStorageCheck &&
-                        total + MIN_REMAINING_BYTES > StatFs(directory.path).availableBytes
+                        !hasExternalAudioCopySpace(StatFs(directory.path).availableBytes, read)
                     ) {
                         throw IOException("Insufficient private storage for external audio.")
                     }
@@ -539,3 +541,10 @@ internal fun stableExternalId(
 }
 
 private const val EXTERNAL_ID_RANGE = 1_000_000_000_000L
+
+internal fun hasExternalAudioCopySpace(availableBytes: Long, nextChunkBytes: Int): Boolean =
+    availableBytes >= MIN_EXTERNAL_AUDIO_REMAINING_BYTES &&
+        nextChunkBytes >= 0 &&
+        nextChunkBytes.toLong() <= availableBytes - MIN_EXTERNAL_AUDIO_REMAINING_BYTES
+
+private const val MIN_EXTERNAL_AUDIO_REMAINING_BYTES = 4L * 1024L * 1024L

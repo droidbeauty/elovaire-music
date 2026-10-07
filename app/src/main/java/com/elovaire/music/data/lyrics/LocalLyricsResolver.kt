@@ -4,8 +4,10 @@ import android.content.ContentResolver
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
@@ -375,7 +377,11 @@ internal class LocalLyricsResolver(
 
     private fun readTextFile(file: File): String? {
         val bytes = try {
-            file.takeIf { it.length() in 1..MAX_SIDECAR_FILE_BYTES }?.readBytes()
+            file.takeIf { it.length() in 1..MAX_SIDECAR_FILE_BYTES }?.let { sidecar ->
+                FileInputStream(sidecar).use { input ->
+                    input.readBytesBounded(MAX_SIDECAR_FILE_BYTES.toInt())
+                }
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {

@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal data class NetworkSourceMutationOutcome(
     val probeResult: NetworkProbeResult,
@@ -23,12 +25,32 @@ internal class NetworkSourceCoordinator(
     private val inventoryStore: NetworkInventoryStore,
     private val mutationJournal: NetworkSourceMutationJournal,
 ) : NetworkSourceMutationBackend {
+    private val mutationMutex = Mutex()
 
-    @Suppress("TooGenericExceptionCaught")
     override suspend fun save(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ): NetworkSourceMutationOutcome {
+        val saved = mutationMutex.withLock { saveLocked(source, credentials) }
+        return NetworkSourceMutationOutcome(
+            probeResult = networkProbeResult(
+                attempt = { registryProvider().probeBlocking(saved.source, saved.credentials) },
+                onFailure = { failure ->
+                    NetworkProbeResult(
+                        availability = failure.remoteIoFailureKind().toNetworkAvailability(),
+                        message = failure::class.simpleName,
+                    )
+                },
+            ),
+            refreshRequired = saved.refreshRequired,
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun saveLocked(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+    ): PersistedNetworkSourceSave {
         val credentialStore = credentialStoreProvider()
         val previousSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         val previousResult = credentialStore.read(
@@ -57,13 +79,31 @@ internal class NetworkSourceCoordinator(
             credentials
         }
         val normalizedInput = sourceStore.normalized(source)
-        val normalized = normalizedInput.copy(username = effectiveCredentials.username.trim())
+        val credentialKey = if (shouldRotateCredentialKey(
+                previousSource = previousSource,
+                requestedKey = normalizedInput.credentialKey,
+                previousCredentials = previous,
+                newCredentials = effectiveCredentials,
+            )
+        ) {
+            sourceStore.newCredentialKey()
+        } else {
+            normalizedInput.credentialKey
+        }
+        val normalized = normalizedInput.copy(
+            username = effectiveCredentials.username.trim(),
+            credentialKey = credentialKey,
+        )
+        check(!hasCredentialKeyConflict(sourceStore.sources.value, normalized)) {
+            "Credential key is already assigned to another network source"
+        }
         mutationJournal.prepareSave(
             sourceId = normalized.id,
             previousCredentialKey = previousSource?.credentialKey,
             newCredentialKey = normalized.credentialKey,
             previousLocationFingerprint = previousSource?.let(NetworkSourceIdentity::locationFingerprint),
             newLocationFingerprint = NetworkSourceIdentity.locationFingerprint(normalized),
+            newConfigurationFingerprint = NetworkSourceIdentity.configurationFingerprint(normalized),
         )
         credentialStore.put(normalized.id, normalized.credentialKey, effectiveCredentials)
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.CredentialPersisted)
@@ -98,21 +138,18 @@ internal class NetworkSourceCoordinator(
         }
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.RuntimeInvalidated)
         mutationJournal.clear(normalized.id)
-        return NetworkSourceMutationOutcome(
-            probeResult = networkProbeResult(
-                attempt = { registryProvider().probeBlocking(normalized, effectiveCredentials) },
-                onFailure = { failure ->
-                    NetworkProbeResult(
-                        availability = failure.remoteIoFailureKind().toNetworkAvailability(),
-                        message = failure::class.simpleName,
-                    )
-                },
-            ),
+        return PersistedNetworkSourceSave(
+            source = normalized,
+            credentials = effectiveCredentials,
             refreshRequired = previousSource != normalized || previous != effectiveCredentials,
         )
     }
 
-    override suspend fun remove(source: NetworkLibrarySource) {
+    override suspend fun remove(source: NetworkLibrarySource) = mutationMutex.withLock {
+        removeLocked(source)
+    }
+
+    private suspend fun removeLocked(source: NetworkLibrarySource) {
         val currentSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         mutationJournal.prepareRemove(currentSource ?: source)
         registryProvider().invalidate(source.id)
@@ -130,3 +167,23 @@ internal class NetworkSourceCoordinator(
         mutationJournal.clear(source.id)
     }
 }
+
+private data class PersistedNetworkSourceSave(
+    val source: NetworkLibrarySource,
+    val credentials: NetworkCredentials,
+    val refreshRequired: Boolean,
+)
+
+internal fun hasCredentialKeyConflict(
+    sources: List<NetworkLibrarySource>,
+    candidate: NetworkLibrarySource,
+): Boolean = sources.any { it.id != candidate.id && it.credentialKey == candidate.credentialKey }
+
+internal fun shouldRotateCredentialKey(
+    previousSource: NetworkLibrarySource?,
+    requestedKey: String,
+    previousCredentials: NetworkCredentials?,
+    newCredentials: NetworkCredentials,
+): Boolean = previousSource != null &&
+    previousSource.credentialKey == requestedKey &&
+    previousCredentials != newCredentials

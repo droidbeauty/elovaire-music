@@ -31,6 +31,7 @@ internal data class NetworkSourceMutationMarker(
     val newCredentialKey: String?,
     val previousLocationFingerprint: String?,
     val newLocationFingerprint: String?,
+    val newConfigurationFingerprint: String? = null,
     val phase: NetworkSourceMutationPhase,
 )
 
@@ -52,6 +53,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
         newCredentialKey: String,
         previousLocationFingerprint: String?,
         newLocationFingerprint: String,
+        newConfigurationFingerprint: String? = null,
     ) = write(
         NetworkSourceMutationMarker(
             sourceId = sourceId,
@@ -60,6 +62,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
             newCredentialKey = newCredentialKey,
             previousLocationFingerprint = previousLocationFingerprint,
             newLocationFingerprint = newLocationFingerprint,
+            newConfigurationFingerprint = newConfigurationFingerprint,
             phase = NetworkSourceMutationPhase.Prepared,
         ),
     )
@@ -72,6 +75,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
             newCredentialKey = null,
             previousLocationFingerprint = NetworkSourceIdentity.locationFingerprint(source),
             newLocationFingerprint = null,
+            newConfigurationFingerprint = null,
             phase = NetworkSourceMutationPhase.Prepared,
         ),
     )
@@ -123,6 +127,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
                     .put("newCredentialKey", marker.newCredentialKey)
                     .put("previousLocationFingerprint", marker.previousLocationFingerprint)
                     .put("newLocationFingerprint", marker.newLocationFingerprint)
+                    .put("newConfigurationFingerprint", marker.newConfigurationFingerprint)
                     .put("phase", marker.phase.wireValue),
             )
         }
@@ -180,6 +185,8 @@ internal class NetworkSourceMutationJournal(context: Context) {
                         previousLocationFingerprint = item.optString("previousLocationFingerprint")
                             .takeIf(String::isNotBlank),
                         newLocationFingerprint = item.optString("newLocationFingerprint")
+                            .takeIf(String::isNotBlank),
+                        newConfigurationFingerprint = item.optString("newConfigurationFingerprint")
                             .takeIf(String::isNotBlank),
                         phase = phase,
                     ),
@@ -243,7 +250,7 @@ internal suspend fun NetworkSourceMutationJournal.recover(
             when (marker.kind) {
                 NetworkSourceMutationKind.Save -> {
                     val current = sourceStore.sources.value.firstOrNull { it.id == marker.sourceId }
-                    if (current?.credentialKey == marker.newCredentialKey) {
+                    if (marker.matchesCommittedSource(current)) {
                         val newCredentialKey = marker.newCredentialKey
                             ?: error("A committed network source save has no credential key")
                         check(
@@ -257,7 +264,7 @@ internal suspend fun NetworkSourceMutationJournal.recover(
                             inventoryStore.remove(marker.sourceId)
                         }
                     } else {
-                        marker.newCredentialKey?.let(credentialStore::remove)
+                        marker.credentialKeyToDiscardOnRollback()?.let(credentialStore::remove)
                     }
                 }
 
@@ -273,3 +280,18 @@ internal suspend fun NetworkSourceMutationJournal.recover(
         }
     }
 }
+
+internal fun NetworkSourceMutationMarker.matchesCommittedSource(
+    current: NetworkLibrarySource?,
+): Boolean {
+    val persistedSource = current ?: return false
+    if (persistedSource.credentialKey != newCredentialKey) return false
+    return newConfigurationFingerprint?.let { expected ->
+        NetworkSourceIdentity.configurationFingerprint(persistedSource) == expected
+    } ?: newLocationFingerprint?.let { expected ->
+        NetworkSourceIdentity.locationFingerprint(persistedSource) == expected
+    } ?: false
+}
+
+internal fun NetworkSourceMutationMarker.credentialKeyToDiscardOnRollback(): String? =
+    newCredentialKey?.takeIf { it != previousCredentialKey }

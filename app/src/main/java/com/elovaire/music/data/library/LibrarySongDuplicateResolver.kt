@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.Uri
 import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.domain.model.Song
-import java.util.Locale
 
 /** Resolves duplicate scan results while preserving MediaStore as the preferred source. */
 internal object LibrarySongDuplicateResolver {
@@ -101,7 +100,7 @@ internal object LibrarySongDuplicateResolver {
         ) {
             return null
         }
-        return value.lowercase(Locale.ROOT)
+        return value
     }
 
     internal fun safDocumentIdentity(uri: Uri): String? {

@@ -283,7 +283,7 @@ internal fun requireCurrentNetworkHandle(
     )
     try {
         handle.close()
-    } catch (closeFailure: Throwable) {
+    } catch (closeFailure: Exception) {
         if (closeFailure !== failure) failure.addSuppressed(closeFailure)
     }
     throw failure

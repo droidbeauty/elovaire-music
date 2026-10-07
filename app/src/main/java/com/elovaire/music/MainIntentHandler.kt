@@ -51,7 +51,6 @@ internal class MainIntentHandler(
         val request = intent?.let(::Intent) ?: return
         preservePersistableReadGrant(request)
         externalAudioJob?.cancel()
-        container.startPlayback()
         val job = activity.lifecycleScope.launch {
             val song = ExternalAudioIntentHandler.buildSong(
                 context = activity.applicationContext,
@@ -59,6 +58,7 @@ internal class MainIntentHandler(
                 ioDispatcher = container.dispatchers.io,
                 resourceTracker = container.backendDiagnosticsRuntime.resources,
             ) ?: return@launch
+            container.startPlayback()
             container.externalIntentPlayback(song)
             container.requestOpenNowPlaying()
             activity.setIntent(

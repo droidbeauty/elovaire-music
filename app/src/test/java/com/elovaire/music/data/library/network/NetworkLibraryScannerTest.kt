@@ -4,19 +4,62 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Assert.fail
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class NetworkLibraryScannerTest {
+    @get:Rule
+    val temporaryFolder = TemporaryFolder()
+
     @Test
     fun legacyNetworkCacheHasAnExplicitReadBudget() {
         assertEquals(true, isLegacyNetworkInventoryCacheWithinLimit(1L))
         assertEquals(true, isLegacyNetworkInventoryCacheWithinLimit(16L * 1024L * 1024L))
         assertEquals(false, isLegacyNetworkInventoryCacheWithinLimit(16L * 1024L * 1024L + 1L))
         assertEquals(false, isLegacyNetworkInventoryCacheWithinLimit(0L))
+    }
+
+    @Test
+    fun artworkTrimKeepsTemporaryFilesOwnedByConcurrentDownloads() {
+        val directory = temporaryFolder.newFolder("network-artwork")
+        File(directory, "cover.jpg").writeBytes(byteArrayOf(1))
+        val activeDownload = File(directory, "other-cover.jpg.tmp").apply { writeBytes(byteArrayOf(2)) }
+
+        trimNetworkArtworkFiles(
+            directory = directory,
+            maxArtworkBytes = 4L * 1024L * 1024L,
+            maxArtworkFiles = 256,
+            maxCacheBytes = 128L * 1024L * 1024L,
+        )
+
+        assertTrue(activeDownload.exists())
+    }
+
+    @Test
+    fun artworkCacheIdentityFramesRemoteFieldsContainingSeparators() {
+        val first = NetworkFileEntry(
+            path = "one|1",
+            isDirectory = false,
+            sizeBytes = 2L,
+            modifiedAtMs = 3L,
+            etag = "4",
+        )
+        val second = NetworkFileEntry(
+            path = "one",
+            isDirectory = false,
+            sizeBytes = 1L,
+            modifiedAtMs = 2L,
+            etag = "3|4",
+        )
+
+        assertTrue(networkArtworkCacheKey("source", first) != networkArtworkCacheKey("source", second))
     }
 
     @Test

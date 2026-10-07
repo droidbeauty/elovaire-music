@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,6 +12,27 @@ class LyricsCachePolicyTest {
         assertTrue(isLyricsCacheSnapshotWithinLimit(10, 10))
         assertFalse(isLyricsCacheSnapshotWithinLimit(11, 10))
         assertFalse(isLyricsCacheSnapshotWithinLimit(0, 10))
+    }
+
+    @Test
+    fun snapshotBudgetKeepsNewestEntriesAndSkipsOversizedOnes() {
+        val retained = retainRecentLyricsCacheEntriesWithinLimit(
+            entriesNewestFirst = listOf("newest" to 4, "middle" to 4, "oldest" to 4),
+            emptySnapshotBytes = 2,
+            maxBytes = 14,
+            serializedEntrySizeBytes = { it.second },
+        )
+
+        assertEquals(listOf("newest", "middle"), retained.map { it.first })
+        assertEquals(
+            listOf("old"),
+            retainRecentLyricsCacheEntriesWithinLimit(
+                entriesNewestFirst = listOf("too-large" to 20, "old" to 4),
+                emptySnapshotBytes = 2,
+                maxBytes = 8,
+                serializedEntrySizeBytes = { it.second },
+            ).map { it.first },
+        )
     }
 
     @Test

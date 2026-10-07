@@ -163,50 +163,37 @@ internal class LyricsCache(
             val entries = snapshot.second
             val persisted = ElovaireTrace.section("lyrics_cache_write") {
                 runCatching {
-                val root = JSONObject().apply {
-                put("version", CACHE_VERSION)
-                put(
-                    "entries",
-                    JSONArray().apply {
-                        entries.forEach { (key, entry) ->
-                            val resultJson = when (val result = entry.result) {
-                                is LyricsResult.Found -> JSONObject().apply {
-                                    put("result", RESULT_FOUND)
-                                    put("payload", result.payload.toJson())
-                                }
-                                LyricsResult.NotFound -> JSONObject().put("result", RESULT_NOT_FOUND)
-                                LyricsResult.Timeout -> JSONObject().put("result", RESULT_TIMEOUT)
-                                LyricsResult.Unavailable,
-                                LyricsResult.MalformedResponse,
-                                is LyricsResult.RateLimited,
-                                is LyricsResult.Rejected -> null
-                            } ?: return@forEach
-                            put(
-                                resultJson.apply {
-                                    put("key", key)
-                                    put("expiresAtMillis", entry.expiresAtMillis)
-                                    put("online", entry.online)
-                                },
-                            )
+                    val emptyRoot = cacheRoot(JSONArray())
+                    val emptySnapshotBytes = emptyRoot.toString().toByteArray(Charsets.UTF_8).size
+                    val retainedEntries = retainRecentLyricsCacheEntriesWithinLimit(
+                        entriesNewestFirst = entries.entries.toList().asReversed(),
+                        emptySnapshotBytes = emptySnapshotBytes,
+                        maxBytes = MAX_CACHE_FILE_BYTES,
+                    ) { (key, entry) ->
+                        cacheEntryJson(key, entry)
+                            ?.toString()
+                            ?.toByteArray(Charsets.UTF_8)
+                            ?.size
+                    }.asReversed()
+                    val serializedEntries = JSONArray().apply {
+                        retainedEntries.forEach { (key, entry) ->
+                            cacheEntryJson(key, entry)?.let(::put)
                         }
-                    },
-                )
-                }
-                val bytes = root.toString().toByteArray(Charsets.UTF_8)
-                if (!isLyricsCacheSnapshotWithinLimit(bytes.size, MAX_CACHE_FILE_BYTES)) {
-                    atomicFile.delete()
-                    return@runCatching true
-                }
-                val output = atomicFile.startWrite()
-                var committed = false
-                try {
-                    output.write(bytes)
-                    output.flush()
-                    atomicFile.finishWrite(output)
-                    committed = true
-                } finally {
-                    if (!committed) atomicFile.failWrite(output)
-                }
+                    }
+                    val bytes = cacheRoot(serializedEntries).toString().toByteArray(Charsets.UTF_8)
+                    check(isLyricsCacheSnapshotWithinLimit(bytes.size, MAX_CACHE_FILE_BYTES)) {
+                        "Lyrics cache snapshot exceeded its storage bound"
+                    }
+                    val output = atomicFile.startWrite()
+                    var committed = false
+                    try {
+                        output.write(bytes)
+                        output.flush()
+                        atomicFile.finishWrite(output)
+                        committed = true
+                    } finally {
+                        if (!committed) atomicFile.failWrite(output)
+                    }
                 }.isSuccess
             }
             if (persisted) {
@@ -214,6 +201,30 @@ internal class LyricsCache(
                     if (cacheGeneration == generation) expiredEntriesPending = false
                 }
             }
+        }
+    }
+
+    private fun cacheRoot(entries: JSONArray): JSONObject = JSONObject()
+        .put("version", CACHE_VERSION)
+        .put("entries", entries)
+
+    private fun cacheEntryJson(key: String, entry: LyricsCacheEntry): JSONObject? {
+        val resultJson = when (val result = entry.result) {
+            is LyricsResult.Found -> JSONObject().apply {
+                put("result", RESULT_FOUND)
+                put("payload", result.payload.toJson())
+            }
+            LyricsResult.NotFound -> JSONObject().put("result", RESULT_NOT_FOUND)
+            LyricsResult.Timeout -> JSONObject().put("result", RESULT_TIMEOUT)
+            LyricsResult.Unavailable,
+            LyricsResult.MalformedResponse,
+            is LyricsResult.RateLimited,
+            is LyricsResult.Rejected -> null
+        } ?: return null
+        return resultJson.apply {
+            put("key", key)
+            put("expiresAtMillis", entry.expiresAtMillis)
+            put("online", entry.online)
         }
     }
 
@@ -303,3 +314,25 @@ internal fun trimLyricsCacheEntries(
 
 internal fun isLyricsCacheSnapshotWithinLimit(sizeBytes: Int, maxBytes: Int): Boolean =
     sizeBytes in 1..maxBytes
+
+internal fun <T> retainRecentLyricsCacheEntriesWithinLimit(
+    entriesNewestFirst: Iterable<T>,
+    emptySnapshotBytes: Int,
+    maxBytes: Int,
+    serializedEntrySizeBytes: (T) -> Int?,
+): List<T> {
+    require(emptySnapshotBytes in 1..maxBytes)
+    val retained = ArrayList<T>()
+    var retainedBytes = emptySnapshotBytes.toLong()
+    entriesNewestFirst.forEach { entry ->
+        val entryBytes = serializedEntrySizeBytes(entry) ?: return@forEach
+        require(entryBytes >= 0)
+        val separatorBytes = if (retained.isEmpty()) 0 else 1
+        val nextBytes = retainedBytes + entryBytes + separatorBytes
+        if (nextBytes <= maxBytes) {
+            retained += entry
+            retainedBytes = nextBytes
+        }
+    }
+    return retained
+}

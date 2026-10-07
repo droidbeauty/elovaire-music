@@ -38,6 +38,7 @@ internal class ElovaireViewModelFactory(
                     searchHistory = dependencies.search.searchHistory,
                     playbackReader = dependencies.search.playbackReader,
                     defaultDispatcher = dependencies.dispatchers.default,
+                    savedStateHandle = savedStateHandle,
                 ) as T
             }
 

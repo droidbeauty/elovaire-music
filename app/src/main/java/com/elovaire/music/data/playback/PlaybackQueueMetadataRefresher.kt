@@ -6,7 +6,7 @@ import elovaire.music.droidbeauty.app.data.library.TrackMatchConfidence
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal class PlaybackQueueMetadataRefresher {
-    private var lastQueueMetadataSignature: Int? = null
+    private var lastQueueMetadataSignature: List<PlaybackMetadataSignature>? = null
 
     fun onQueueReplaced(queue: List<Song>) {
         lastQueueMetadataSignature = queue.queueMetadataSignature()
@@ -25,6 +25,7 @@ internal class PlaybackQueueMetadataRefresher {
         var refreshedQueue: ArrayList<Song>? = null
         queue.forEachIndexed { index, queuedSong ->
             val librarySong = librarySongsById[queuedSong.id]
+                ?.takeIf { MediaIdentityResolver.stableKey(it) == MediaIdentityResolver.stableKey(queuedSong) }
                 ?: librarySongsByIdentity[MediaIdentityResolver.stableKey(queuedSong)]
                 ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
                     ?.let(librarySongsByPath::get)
@@ -119,8 +120,5 @@ internal data class PlaybackQueueReconciliation(
     val unresolvedOriginalIndices: List<Int>,
 )
 
-private fun List<Song>.queueMetadataSignature(): Int {
-    return fold(17) { acc, song ->
-        31 * acc + song.playbackMetadataSignature()
-    }
-}
+private fun List<Song>.queueMetadataSignature(): List<PlaybackMetadataSignature> =
+    map(Song::playbackMetadataSignature)

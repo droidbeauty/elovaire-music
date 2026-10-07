@@ -236,6 +236,23 @@ internal object NetworkSourceIdentity {
             .digest(canonical.toByteArray(Charsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
     }
+
+    fun configurationFingerprint(source: NetworkLibrarySource): String {
+        val fields = listOf(
+            source.id,
+            source.name,
+            source.protocol.name,
+            source.server,
+            source.shareOrPath,
+            source.username,
+            source.credentialKey,
+            source.enabled.toString(),
+        )
+        val canonical = fields.joinToString(separator = "") { "${it.length}:$it" }
+        return MessageDigest.getInstance("SHA-256")
+            .digest(canonical.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+    }
 }
 
 internal object NetworkResourceUri {

@@ -183,7 +183,6 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -394,7 +393,9 @@ internal fun SortOptionsPopup(
     if (!shouldRender) return
 
     val density = LocalDensity.current
-    val menuWidth = (LocalConfiguration.current.screenWidthDp.dp - 40.dp).coerceAtLeast(0.dp)
+    val menuWidth = with(density) {
+        (LocalWindowInfo.current.containerSize.width.toDp() - 40.dp).coerceAtLeast(0.dp)
+    }
     val positionProvider = remember(density) {
         SortOptionsPopupPositionProvider(
             horizontalPaddingPx = with(density) { 20.dp.roundToPx() },

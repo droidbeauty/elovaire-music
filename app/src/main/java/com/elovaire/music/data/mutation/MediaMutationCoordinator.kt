@@ -38,6 +38,7 @@ internal class MediaMutationRuntime : Closeable {
         if (index == keys.size) return block()
         val key = keys[index]
         val targetLock = synchronized(registryLock) {
+            check(!released.get()) { "Media mutation runtime is released." }
             targetLocks.getOrPut(key, ::TargetLock).also { it.references += 1 }
         }
         return try {
@@ -57,8 +58,8 @@ internal class MediaMutationRuntime : Closeable {
     internal fun activeTargetLockCount(): Int = synchronized(registryLock) { targetLocks.size }
 
     override fun close() {
-        if (!released.compareAndSet(false, true)) return
         synchronized(registryLock) {
+            if (!released.compareAndSet(false, true)) return
             targetLocks.entries.removeIf { it.value.references == 0 }
         }
     }

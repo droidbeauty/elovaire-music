@@ -67,7 +67,6 @@ object LibraryFolderSelectionResolver {
             val uriKey = uri.takeIf(String::isNotBlank)?.let(::normalizedUriIdentity)
             val pathKey = path
                 .takeIf { uriKey == null && it.isNotBlank() && !isUriBackedPath(it) }
-                ?.lowercase(Locale.ROOT)
             if (uriKey == null && pathKey == null) return@mapNotNull null
             if (uriKey != null && uriKey in seenUris) return@mapNotNull null
             if (pathKey != null && pathKey in seenPaths) return@mapNotNull null
@@ -119,7 +118,7 @@ object LibraryFolderSelectionResolver {
     }
 
     fun normalizedPathKey(path: String): String {
-        return path.trim().replace('\\', '/').trimEnd('/').lowercase(Locale.ROOT)
+        return path.trim().replace('\\', '/').trimEnd('/')
     }
 
     internal fun isSameOrChildPath(
@@ -209,7 +208,7 @@ object LibraryFolderSelectionResolver {
     private fun treeRelativePath(uri: Uri): String? {
         val treeId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
         val relativePath = treeId.substringAfter(':', "").trim('/')
-        return relativePath.takeIf { it.isNotBlank() }?.lowercase(Locale.ROOT)
+        return relativePath.takeIf { it.isNotBlank() }
     }
 
     private fun sharedStorageRelativePath(path: String): String? {
@@ -217,7 +216,6 @@ object LibraryFolderSelectionResolver {
         return STORAGE_ROOT_REGEX
             .replace("$normalizedPath/", "")
             .trim('/')
-            .lowercase(Locale.ROOT)
             .ifBlank { null }
     }
 

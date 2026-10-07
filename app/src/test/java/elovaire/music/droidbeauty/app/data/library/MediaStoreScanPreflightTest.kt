@@ -7,7 +7,7 @@ import org.junit.Test
 
 class MediaStoreScanPreflightTest {
     private val filter = LibraryAudioFileFilter(
-        selectedRelativeRoots = setOf("music"),
+        selectedRelativeRoots = setOf("Music"),
         libraryRootPaths = emptySet(),
     )
 

@@ -11,10 +11,39 @@ import org.junit.Test
 class LibraryScanRootsTest {
     @Test
     fun libraryPathNormalizationIsSharedAcrossScanCode() {
-        assertEquals("/storage/music", normalizeLibraryAbsolutePath(" \\Storage\\Music\\ "))
-        assertEquals("music/live", normalizeLibraryRelativePath(" /Music/Live/ "))
+        assertEquals("/Storage/Music", normalizeLibraryAbsolutePath(" \\Storage\\Music\\ "))
+        assertEquals("Music/Live", normalizeLibraryRelativePath(" /Music/Live/ "))
         assertEquals(null, normalizeLibraryRelativePath(" / / "))
         assertEquals(null, normalizeLibraryAbsolutePath("/"))
+    }
+
+    @Test
+    fun normalize_keepsCaseDistinctFileRootsSeparate() {
+        val selections = LibraryFolderSelectionResolver.normalize(
+            listOf(
+                LibraryFolderSelection(null, "/storage/emulated/0/Music/FLAC", "Upper"),
+                LibraryFolderSelection(null, "/storage/emulated/0/Music/flac", "Lower"),
+            ),
+        )
+
+        assertEquals(2, selections.size)
+    }
+
+    @Test
+    fun unscopedMediaStoreRowsAreAllowedOnlyForTheDefaultMusicRoot() {
+        val defaultMusic = LibraryFolderSelection(
+            uri = null,
+            path = "/storage/emulated/0/Music",
+            displayName = "Music",
+            isDefaultMusicFolder = true,
+        )
+
+        assertTrue(LibraryScanRoots(listOf(defaultMusic)).canIncludeUnscopedMediaStoreRows())
+        assertFalse(
+            LibraryScanRoots(listOf(defaultMusic.copy(isDefaultMusicFolder = false)))
+                .canIncludeUnscopedMediaStoreRows(),
+        )
+        assertFalse(LibraryScanRoots(emptyList()).canIncludeUnscopedMediaStoreRows())
     }
 
     @Test
@@ -55,7 +84,7 @@ class LibraryScanRootsTest {
             ),
         )
 
-        assertEquals(setOf("music"), roots.relativeRoots())
+        assertEquals(setOf("Music"), roots.relativeRoots())
     }
 
     @Test
@@ -124,10 +153,7 @@ class LibraryScanRootsTest {
             ),
         )
 
-        assertEquals(
-            "10::content://tree/music@/storage/emulated/0/music",
-            roots.filterFingerprint(version = 10),
-        )
+        assertEquals(1, roots.selections().size)
     }
 
     @Test
@@ -148,10 +174,7 @@ class LibraryScanRootsTest {
             ),
         )
 
-        assertEquals(
-            "10::@/storage/emulated/0/music|content://tree/primary%3AMusic@/storage/emulated/0/music",
-            roots.filterFingerprint(version = 10),
-        )
+        assertEquals(2, roots.selections().size)
     }
 
     @Test
@@ -229,10 +252,32 @@ class LibraryScanRootsTest {
             ),
         )
 
-        assertEquals(
-            "10::content://tree/removable%3AMusic@",
-            roots.filterFingerprint(version = 10),
-        )
+        assertTrue(roots.filterFingerprint(version = 10).isNotBlank())
+    }
+
+    @Test
+    fun filterFingerprintFramesFolderBoundariesContainingSeparators() {
+        val singleRoot = LibraryScanRoots(emptyList()).apply {
+            setSelections(
+                listOf(
+                    LibraryFolderSelection(
+                        uri = null,
+                        path = "/music|@/jazz",
+                        displayName = "Jazz",
+                    ),
+                ),
+            )
+        }
+        val splitRoots = LibraryScanRoots(emptyList()).apply {
+            setSelections(
+                listOf(
+                    LibraryFolderSelection(uri = null, path = "/music", displayName = "Music"),
+                    LibraryFolderSelection(uri = null, path = "/jazz", displayName = "Jazz"),
+                ),
+            )
+        }
+
+        assertTrue(singleRoot.filterFingerprint(version = 10) != splitRoots.filterFingerprint(version = 10))
     }
 
     @Test

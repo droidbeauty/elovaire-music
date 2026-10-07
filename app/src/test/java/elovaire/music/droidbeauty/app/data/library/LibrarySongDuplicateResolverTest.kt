@@ -48,6 +48,14 @@ class LibrarySongDuplicateResolverTest {
     }
 
     @Test
+    fun realPathIdentityPreservesCaseSensitiveNames() {
+        assertTrue(
+            LibrarySongDuplicateResolver.normalizedRealPath("/storage/emulated/0/Music/FLAC/track.mp3") !=
+                LibrarySongDuplicateResolver.normalizedRealPath("/storage/emulated/0/Music/flac/track.mp3"),
+        )
+    }
+
+    @Test
     fun distinctSafSongsWithSameMetadataRemain() {
         val result = LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
             mediaStoreSongs = emptyList(),

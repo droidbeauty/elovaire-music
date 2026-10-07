@@ -12,7 +12,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_includesDefaultMusicRelativePathWhenAbsolutePathMissing() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -28,9 +28,9 @@ class LibraryAudioFileFilterTest {
     }
 
     @Test
-    fun evaluate_includesDefaultMusicSubfolderWithCaseAndTrailingSlashDifferences() {
+    fun evaluate_includesDefaultMusicSubfolderWithTrailingSlashDifferences() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -38,7 +38,7 @@ class LibraryAudioFileFilterTest {
             filter.evaluate(
                 candidate(
                     absolutePath = null,
-                    relativePath = "/MuSiC/Subfolder",
+                    relativePath = "/Music/Subfolder",
                     extension = "flac",
                     mimeType = "audio/flac",
                     detectedFormat = detected(AudioContainerFormat.Flac, "flac", "audio/flac", "audio/flac"),
@@ -51,7 +51,7 @@ class LibraryAudioFileFilterTest {
     fun evaluate_excludesPodcastUnderDefaultRoot() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music"),
         )
 
         assertTrue(
@@ -63,8 +63,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_allowsExplicitCustomFolderWithExcludedFragment() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music/podcasts"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/music/podcasts"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music/Podcasts"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/Podcasts"),
         )
 
         assertTrue(
@@ -75,7 +75,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_excludesOutsideSelectedRootsWhenOnlyRelativePathIsAvailable() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -88,7 +88,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_includesShortFilesWhenAudioEvidenceIsValid() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -100,7 +100,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_requiresContainerEvidenceForExtensionlessRows() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -126,7 +126,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_includesExtensionlessRowWhenContainerIsDetected() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -150,7 +150,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_includesAudioWhenProviderDoesNotReportDuration() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -162,7 +162,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_usesAudioMimeWhenUnknownExtensionHasNoContainerResult() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -198,9 +198,38 @@ class LibraryAudioFileFilterTest {
     }
 
     @Test
+    fun evaluate_doesNotUseUnscopedFallbackForAnExplicitCustomFolder() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = emptySet(),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/FLAC"),
+            allowUnscopedMediaStoreRows = false,
+        )
+
+        assertExcludedReason(
+            expectedReason = "Outside selected library folders",
+            decision = filter.evaluate(candidate(absolutePath = null, relativePath = null)),
+        )
+    }
+
+    @Test
+    fun evaluate_keepsCaseSensitiveFolderBoundaries() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = emptySet(),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/FLAC"),
+        )
+
+        assertExcludedReason(
+            expectedReason = "Outside selected library folders",
+            decision = filter.evaluate(candidate("/storage/emulated/0/Music/flac/track.mp3")),
+        )
+    }
+
+    @Test
     fun evaluate_excludesKnownOutOfScopeRelativePathEvenWhenUnscopedFallbackIsEnabled() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
             allowUnscopedMediaStoreRows = true,
         )
@@ -220,8 +249,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_doesNotLetIsMusicFalseHideExplicitAudio() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/Downloads/music"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/Downloads/music"),
+            libraryRootPaths = setOf("/storage/emulated/0/Downloads/Music"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Downloads/Music"),
         )
 
         val decision = filter.evaluate(
@@ -236,7 +265,7 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_excludesUnsupportedExtensions() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music"),
+            selectedRelativeRoots = setOf("Music"),
             libraryRootPaths = emptySet(),
         )
 
@@ -256,9 +285,9 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_matchesRelativePathWhenAbsolutePathMissing() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music/custom"),
+            selectedRelativeRoots = setOf("Music/Custom"),
             libraryRootPaths = emptySet(),
-            explicitCustomRelativeRoots = setOf("music/custom"),
+            explicitCustomRelativeRoots = setOf("Music/Custom"),
         )
 
         assertTrue(
@@ -269,9 +298,9 @@ class LibraryAudioFileFilterTest {
     @Test
     fun evaluate_allowsNonMusicMediaStoreRowsInsideExplicitRelativeRoot() {
         val filter = LibraryAudioFileFilter(
-            selectedRelativeRoots = setOf("music/flac archive"),
+            selectedRelativeRoots = setOf("Music/FLAC Archive"),
             libraryRootPaths = emptySet(),
-            explicitCustomRelativeRoots = setOf("music/flac archive"),
+            explicitCustomRelativeRoots = setOf("Music/FLAC Archive"),
         )
 
         assertTrue(
@@ -292,8 +321,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_includesKnownAudioExtensionWhenContainerProbeFails() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music/Custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/Custom"),
         )
 
         assertTrue(
@@ -319,8 +348,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_allowsValidatedM4aInsideExplicitCustomRoot() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music/Custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/Custom"),
         )
 
         assertTrue(
@@ -340,8 +369,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_rejectsValidatedMp4Video() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music/Custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/Custom"),
         )
 
         assertTrue(
@@ -366,8 +395,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_rejectsMissingAudioTrack() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music/Custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/Custom"),
         )
 
         assertExcludedReason(
@@ -393,8 +422,8 @@ class LibraryAudioFileFilterTest {
     fun evaluate_rejectsDecoderUnavailable() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
-            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
-            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+            libraryRootPaths = setOf("/storage/emulated/0/Music/Custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Music/Custom"),
         )
 
         assertExcludedReason(

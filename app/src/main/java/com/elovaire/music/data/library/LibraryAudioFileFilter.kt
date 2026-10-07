@@ -100,7 +100,7 @@ internal class LibraryAudioFileFilter(
         val combinedPath = buildCombinedPath(
             normalizedRelativePath = normalizedRelativePath,
             normalizedAbsolutePath = normalizedAbsolutePath,
-        )
+        ).lowercase(Locale.ROOT)
         if (
             ExcludedPathFragments.any(combinedPath::contains) &&
             !isExplicitCustomFolder

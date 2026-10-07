@@ -15,14 +15,21 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
-import org.junit.After
+import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class ArtistImageRepositoryTest {
+    @get:Rule
+    val temporaryFolder = TemporaryFolder()
+
     private val requestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val repositories = mutableListOf<ArtistImageRepository>()
     private val repository = newRepository()
@@ -188,6 +195,17 @@ class ArtistImageRepositoryTest {
         clock.wallTimeMs -= DAY_MS
         repository.imageState("Artist", null).last()
         assertEquals(2, calls.get())
+    }
+
+    @Test
+    fun diskCacheTrimKeepsAnotherRequestTemporaryFile() {
+        val directory = temporaryFolder.newFolder("artist-images")
+        val keep = File(directory, "keep.img").apply { writeBytes(byteArrayOf(1)) }
+        val activeDownload = File(directory, "active.tmp").apply { writeBytes(byteArrayOf(2)) }
+
+        repository.trimDiskArtworkCache(directory, keep)
+
+        assertTrue(activeDownload.exists())
     }
 
     private fun newRepository(

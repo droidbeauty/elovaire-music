@@ -126,6 +126,8 @@ internal class PlaybackQueueController(
             if (!player.isPlaying) {
                 player.play()
             }
+        } else {
+            player.playWhenReady = false
         }
         runtime.updateState()
     }

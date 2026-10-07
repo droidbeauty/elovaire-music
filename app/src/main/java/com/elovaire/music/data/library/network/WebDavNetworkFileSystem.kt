@@ -419,12 +419,15 @@ internal class WebDavNetworkFileSystem(
         requestedPath: String,
     ): NetworkFileEntry? {
         val responseStatus = response.childElement("status")?.textContent?.let(::parseHttpStatus)
-        if (!isSuccessfulHttpStatus(responseStatus)) return null
+        if (responseStatus != null && !isSuccessfulHttpStatus(responseStatus)) return null
         val href = response.childElement("href")?.textContent ?: return null
         val properties = MutableWebDavProperties()
-        response.childElements("propstat").forEach { propstat ->
+        val successfulPropstats = response.childElements("propstat").filter { propstat ->
             val status = propstat.childElement("status")?.textContent?.let(::parseHttpStatus)
-            if (!isSuccessfulHttpStatus(status)) return@forEach
+            isSuccessfulHttpStatus(status)
+        }
+        if (responseStatus == null && successfulPropstats.isEmpty()) return null
+        successfulPropstats.forEach { propstat ->
             val prop = propstat.childElement("prop") ?: return@forEach
             properties.isDirectory = properties.isDirectory || prop.childElement("resourcetype")
                 ?.childElement("collection") != null
@@ -534,7 +537,7 @@ internal class WebDavNetworkFileSystem(
         HTTP_STATUS_REGEX.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
 
     private fun isSuccessfulHttpStatus(statusCode: Int?): Boolean =
-        statusCode == null || statusCode in 200..299
+        statusCode != null && statusCode in 200..299
 
     private fun java.io.InputStream.readBounded(maxBytes: Int): ByteArray {
         val output = ByteArrayOutputStream(minOf(maxBytes, 32 * 1024))

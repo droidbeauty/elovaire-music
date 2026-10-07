@@ -260,7 +260,7 @@ internal class MediaStoreScanner(
                     if (reportProgress) progressEmitter.emit(0, totalRows)
                     val rowMapper = MediaStoreAudioRowMapper(context, cursor)
                     val audioFileFilter = buildAudioFileFilter(
-                        allowUnscopedMediaStoreRows = true,
+                        allowUnscopedMediaStoreRows = scanRoots.canIncludeUnscopedMediaStoreRows(),
                     )
                     if (queryResult.projectionKind == MediaStoreAudioQuery.ProjectionKind.Compatibility ||
                         !rowMapper.hasRelativePathColumn

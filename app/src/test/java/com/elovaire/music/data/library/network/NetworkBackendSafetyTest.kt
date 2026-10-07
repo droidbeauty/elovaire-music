@@ -58,6 +58,20 @@ class NetworkBackendSafetyTest {
     }
 
     @Test
+    fun staleNetworkOpenDoesNotMaskFatalHandleCloseFailure() {
+        val fatalFailure = AssertionError("close failed")
+        val handle = NetworkReadHandle(ByteArrayInputStream(byteArrayOf(1)), 1L) {
+            throw fatalFailure
+        }
+
+        val thrown = assertThrows(AssertionError::class.java) {
+            requireCurrentNetworkHandle(handle) { false }
+        }
+
+        assertEquals(fatalFailure, thrown)
+    }
+
+    @Test
     fun smbSessionDoesNotRetainCredentialObjects() {
         val sessionClass = Class.forName("${SmbNetworkFileSystem::class.java.name}\$SourceSession")
 

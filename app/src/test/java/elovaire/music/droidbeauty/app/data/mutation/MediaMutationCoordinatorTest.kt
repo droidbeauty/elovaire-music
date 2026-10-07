@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.mutation
 
+import android.net.Uri
+import java.util.AbstractCollection
 import java.util.Collections
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -11,6 +13,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaMutationCoordinatorTest {
+    @Test
+    fun closeBetweenEntryCheckAndLockRegistrationRejectsMutation() {
+        val runtime = MediaMutationRuntime()
+        var blockEntered = false
+        val uris = object : AbstractCollection<Uri>() {
+            override val size: Int get() = 1
+
+            override fun iterator(): MutableIterator<Uri> {
+                runtime.close()
+                return Collections.singletonList(android.net.TestUri("file:///music/a.mp3")).iterator()
+            }
+        }
+
+        val failure = runCatching {
+            runBlocking {
+                runtime.withTargets(uris) { blockEntered = true }
+            }
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertFalse(blockEntered)
+        assertEquals(0, runtime.activeTargetLockCount())
+    }
+
     @Test
     fun scopedRuntimesHaveIndependentTargetLockRegistries() {
         val first = MediaMutationRuntime()

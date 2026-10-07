@@ -42,6 +42,7 @@ import elovaire.music.droidbeauty.app.data.library.AudiobookCatalog
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -2626,23 +2627,39 @@ internal fun Song.toPlaybackMediaItem(): MediaItem {
         .build()
 }
 
-internal fun Song.playbackMetadataSignature(): Int {
-    var result = id.hashCode()
-    result = 31 * result + title.hashCode()
-    result = 31 * result + artist.hashCode()
-    result = 31 * result + album.hashCode()
-    result = 31 * result + (albumArtist?.hashCode() ?: 0)
-    result = 31 * result + (releaseYear ?: 0)
-    result = 31 * result + genre.hashCode()
-    result = 31 * result + durationMs.hashCode()
-    result = 31 * result + trackNumber
-    result = 31 * result + discNumber
-    result = 31 * result + uri.toString().hashCode()
-    result = 31 * result + (artUri?.toString()?.hashCode() ?: 0)
-    result = 31 * result + fileName.hashCode()
-    result = 31 * result + (volumeNormalization?.hashCode() ?: 0)
-    return result
-}
+internal data class PlaybackMetadataSignature(
+    val id: Long,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val albumArtist: String?,
+    val releaseYear: Int?,
+    val genre: String,
+    val durationMs: Long,
+    val trackNumber: Int,
+    val discNumber: Int,
+    val uri: String,
+    val artUri: String?,
+    val fileName: String,
+    val volumeNormalization: VolumeNormalizationMetadata?,
+)
+
+internal fun Song.playbackMetadataSignature(): PlaybackMetadataSignature = PlaybackMetadataSignature(
+    id = id,
+    title = title,
+    artist = artist,
+    album = album,
+    albumArtist = albumArtist,
+    releaseYear = releaseYear,
+    genre = genre,
+    durationMs = durationMs,
+    trackNumber = trackNumber,
+    discNumber = discNumber,
+    uri = uri.toString(),
+    artUri = artUri?.toString(),
+    fileName = fileName,
+    volumeNormalization = volumeNormalization,
+)
 
 private fun Song.inferPlaybackMimeType(): String? {
     return AudioFormatPolicy.playbackMimeType(fileName)

@@ -98,6 +98,13 @@ internal class ArtistImageRepository(
         resourceTracker = resourceTracker,
     )
 
+    init {
+        appContext?.cacheDir?.resolve(ARTIST_IMAGE_CACHE_DIRECTORY)
+            ?.listFiles()
+            ?.filter { it.isFile && it.extension == "tmp" }
+            ?.forEach(File::delete)
+    }
+
     override fun imageState(
         artistName: String,
         localArtworkUri: Uri?,
@@ -376,12 +383,11 @@ internal class ArtistImageRepository(
         }
     }
 
-    private fun trimDiskArtworkCache(directory: File, keep: File) {
+    internal fun trimDiskArtworkCache(directory: File, keep: File) {
         val files = directory.listFiles()?.filter(File::isFile).orEmpty()
         val artworkFiles = files
             .filter { it.extension == "img" && it != keep }
             .sortedByDescending(File::lastModified)
-        files.filter { it.extension == "tmp" }.forEach(File::delete)
         var totalBytes = keep.length()
         artworkFiles.forEachIndexed { index, file ->
             if (index < DISK_CACHE_FILE_LIMIT - 1 && totalBytes + file.length() <= MAX_DISK_CACHE_BYTES) {

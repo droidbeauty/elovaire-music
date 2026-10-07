@@ -31,6 +31,14 @@ class ExternalAudioStagingPolicyTest {
     }
 
     @Test
+    fun copySpaceCheckUsesRemainingFreeSpaceRatherThanBytesAlreadyCopied() {
+        val currentFreeBytes = 500L * 1024L * 1024L
+
+        assertTrue(hasExternalAudioCopySpace(currentFreeBytes, 32 * 1024))
+        assertFalse(hasExternalAudioCopySpace(4L * 1024L * 1024L + 32 * 1024 - 1, 32 * 1024))
+    }
+
+    @Test
     fun activePlaybackStageIsProtectedFromPruning() {
         val directory = File("/tmp/elovaire-external-audio-stage")
         val active = File(directory, "active.mp3")

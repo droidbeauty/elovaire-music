@@ -72,14 +72,11 @@ fun Modifier.elovaireActionBump(
     ),
     interactionSource: MutableInteractionSource? = null,
     label: String = "elovaireActionBump",
-): Modifier = composed {
-    if (!enabled) return@composed this
-    elovairePillActionMotion(
+): Modifier = if (!enabled) this else elovairePillActionMotion(
         pressedScale = pressedScale,
         interactionSource = interactionSource,
         label = label,
     )
-}
 
 /**
  * Canonical tactile response for interactive capsules and compact discrete actions.

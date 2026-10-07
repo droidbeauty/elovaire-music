@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.playback
 import android.net.TestUri
 import androidx.media3.common.Player
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -56,6 +57,77 @@ class PlaybackQueueControllerTest {
         )
 
         assertEquals(listOf(after), refreshed)
+    }
+
+    @Test
+    fun queueMetadataRefreshDoesNotTreatHashCollisionsAsUnchanged() {
+        val before = song(1L).copy(title = "Aa")
+        val after = before.copy(title = "BB")
+        assertEquals(before.title.hashCode(), after.title.hashCode())
+        val refresher = PlaybackQueueMetadataRefresher()
+        refresher.onQueueReplaced(listOf(before))
+
+        val refreshed = refresher.refreshQueueIfNeeded(
+            queue = listOf(before),
+            librarySongsById = mapOf(after.id to after),
+        )
+
+        assertEquals(listOf(after), refreshed)
+    }
+
+    @Test
+    fun incrementalRefreshDoesNotRebindAReusedIdToAnotherSource() {
+        val before = song(1L).copy(
+            libraryPath = "/music/old.mp3",
+            uri = TestUri("file:///music/old.mp3"),
+        )
+        val replacement = before.copy(
+            libraryPath = "/music/new.mp3",
+            uri = TestUri("file:///music/new.mp3"),
+            title = "Different track",
+        )
+
+        val refreshed = PlaybackQueueMetadataRefresher().refreshQueueIfNeeded(
+            queue = listOf(before),
+            librarySongsById = mapOf(replacement.id to replacement),
+        )
+
+        assertEquals(null, refreshed)
+    }
+
+    @Test
+    fun selectingQueueItemWithoutAudioFocusStopsExistingPlayback() {
+        var playWhenReady = true
+        val player = Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "seekToDefaultPosition" -> Unit
+                "isPlaying" -> true
+                "getPlayWhenReady" -> playWhenReady
+                "setPlayWhenReady" -> {
+                    playWhenReady = args?.get(0) as Boolean
+                    Unit
+                }
+                else -> null
+            }
+        } as Player
+        val songs = listOf(song(1L), song(2L))
+        val runtime = RecordingQueueRuntime(
+            PlaybackUiState(
+                queue = songs,
+                currentIndex = 0,
+                transportShowsPause = true,
+            ),
+        ).apply {
+            playerDelegate = player
+            audioFocusGranted = false
+        }
+
+        PlaybackQueueController(runtime, PlaybackQueueMetadataRefresher()).playQueueIndex(1)
+
+        assertFalse(playWhenReady)
     }
 
     @Test
@@ -130,22 +202,26 @@ private class RecordingQueueRuntime(
         private set
     var audioFocusRequested = false
     var playerAccessed = false
+    var playerDelegate: Player? = null
+    var audioFocusGranted = true
 
     override val player: Player
         get() {
             playerAccessed = true
-            error("Staging an external queue must not access the player")
+            return playerDelegate ?: error("Staging an external queue must not access the player")
         }
 
     override fun publishState(state: PlaybackUiState) {
         this.state = state
     }
 
-    override fun updateState() = error("Staging must wait for MediaSession to publish player state")
+    override fun updateState() {
+        if (!playerAccessed) error("Staging must wait for MediaSession to publish player state")
+    }
 
     override fun requestAudioFocus(): Boolean {
         audioFocusRequested = true
-        return true
+        return audioFocusGranted
     }
 
     override fun effectivePlayerGain() = 1f
