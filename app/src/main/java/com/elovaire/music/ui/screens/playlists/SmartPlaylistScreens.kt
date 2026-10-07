@@ -521,7 +521,10 @@ private fun SmartRuleRow(
             }
             is SmartPlaylistRule.DurationBetween -> SmartEditorTextField(
                 value = (rule.minMs?.div(1000L)).orZeroText(),
-                onValueChange = { onRuleChanged(rule.copy(minMs = it.toLongOrNull()?.times(1000L))) },
+                onValueChange = {
+                    val seconds = it.toLongOrNull()?.takeIf { value -> value in 0L..(Long.MAX_VALUE / 1_000L) }
+                    onRuleChanged(rule.copy(minMs = seconds?.times(1_000L)))
+                },
                 label = "Seconds",
             )
             is SmartPlaylistRule.PlayCount -> SmartEditorTextField(

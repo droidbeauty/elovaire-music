@@ -52,7 +52,11 @@ internal class PlaybackProgressController {
             } else {
                 pendingPositionMs
             }
-            val delta = kotlin.math.abs(expectedPositionMs - this.positionMs)
+            val delta = if (expectedPositionMs >= this.positionMs) {
+                expectedPositionMs - this.positionMs
+            } else {
+                this.positionMs - expectedPositionMs
+            }
             if (delta <= SEEK_SETTLE_TOLERANCE_MS) {
                 pendingSeekPositionMs = null
             }

@@ -101,12 +101,53 @@ class NetworkPathPolicyTest {
         assertNull(NetworkPathPolicy.webDavResourceUrl("http://nas.example/music", "track.mp3"))
         assertNull(NetworkPathPolicy.webDavResourceUrl("nas.example/music", "track.mp3"))
         assertNull(NetworkPathPolicy.webDavResourceUrl("https://user:password@nas.example/music", "track.mp3"))
+        assertNull(NetworkPathPolicy.webDavResourceUrl("https://nas.example/Music/%2e%2e/private", "track.mp3"))
+        assertNull(NetworkPathPolicy.webDavResourceUrl("https://nas.example/Music", "../private/track.mp3"))
+        assertNull(
+            NetworkPathPolicy.webDavConfiguredRoot(
+                NetworkLibrarySource(
+                    id = "id",
+                    name = "NAS",
+                    protocol = NetworkLibraryProtocol.WebDav,
+                    server = "https://nas.example/Music/%2e%2e/private",
+                    shareOrPath = "Music",
+                    username = "",
+                    credentialKey = "credential",
+                ),
+            ),
+        )
+        assertNull(
+            NetworkPathPolicy.webDavConfiguredRoot(
+                NetworkLibrarySource(
+                    id = "id",
+                    name = "NAS",
+                    protocol = NetworkLibraryProtocol.WebDav,
+                    server = "https://nas.example/Music",
+                    shareOrPath = "../private",
+                    username = "",
+                    credentialKey = "credential",
+                ),
+            ),
+        )
     }
 
     @Test
     fun smbIpv6HostAndPortRemainIntact() {
         assertEquals("2001:db8::20", NetworkPathPolicy.smbServer("[2001:db8::20]:1445"))
         assertEquals(1445, NetworkPathPolicy.smbPort("[2001:db8::20]:1445"))
+    }
+
+    @Test
+    fun malformedSmbPortsAreRejectedInsteadOfSilentlyUsingTheDefault() {
+        listOf("nas.example:abc", "nas.example:70000", "[2001:db8::20]:abc", "2001:db8::20:1445").forEach { endpoint ->
+            assertNull(NetworkPathPolicy.smbServer(endpoint))
+        }
+    }
+
+    @Test
+    fun smbSchemeIsCaseInsensitive() {
+        assertEquals("nas.example", NetworkPathPolicy.smbServer("SMB://nas.example"))
+        assertEquals(445, NetworkPathPolicy.smbPort("SMB://nas.example"))
     }
 
     @Test

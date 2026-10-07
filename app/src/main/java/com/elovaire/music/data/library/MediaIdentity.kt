@@ -117,7 +117,7 @@ internal data class LogicalTrack(
 internal object MediaIdentityResolver {
     fun mediaStore(volumeName: String?, mediaId: Long?): MediaSourceIdentity.MediaStoreItem? {
         val volume = volumeName.normalizedIdentityPart() ?: return null
-        val id = mediaId?.takeIf { it >= 0L } ?: return null
+        val id = mediaId?.takeIf { it > 0L } ?: return null
         return MediaSourceIdentity.MediaStoreItem(volume, id)
     }
 

@@ -95,6 +95,17 @@ class ArtistImageRepositoryTest {
     }
 
     @Test
+    fun nonHttpsRemoteArtworkIsIgnored() = runBlocking {
+        val repository = newRepository(
+            ArtistImageClient { ArtistImageLookup.Found(TestUri("http://example.test/artist.jpg")) },
+        )
+
+        val state = repository.imageState("Artist", null).last() as ArtistBackdropState.Fallback
+
+        assertNull(state.remoteArtworkUri)
+    }
+
+    @Test
     fun transientRemoteFailureIsNotNegativeCached() = runBlocking {
         val calls = AtomicInteger()
         val repository = newRepository(

@@ -216,6 +216,10 @@ internal class ArtistImageRepository(
             when (val lookup = client.findArtistImage(artistName)) {
                 is ArtistImageLookup.Found -> {
                     val uri = lookup.uri
+                    if (!uri.scheme.equals("https", ignoreCase = true) || uri.host.isNullOrBlank()) {
+                        completeRemoteArtwork(artistKey, deferred, null, cacheResult = false)
+                        return
+                    }
                     val resolvedUri = persistArtwork(uri, artistKey) ?: uri
                     completeRemoteArtwork(
                         artistKey,

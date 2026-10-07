@@ -179,6 +179,7 @@ class SmartPlaylistEngineTest {
             songs = listOf(
                 song(1L, "Valid").copy(dateAddedSeconds = (nowMs / 1_000L) - 1L),
                 song(2L, "Future").copy(dateAddedSeconds = Long.MAX_VALUE),
+                song(3L, "Unknown date").copy(dateAddedSeconds = 0L),
             ),
             favoriteSongIds = emptySet(),
             playCounts = emptyMap(),

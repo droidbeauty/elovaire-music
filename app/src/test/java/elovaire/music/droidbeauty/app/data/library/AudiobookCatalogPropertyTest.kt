@@ -60,6 +60,14 @@ class AudiobookCatalogPropertyTest {
     }
 
     @Test
+    fun durationSaturatesWhenPartsExceedLongRange() {
+        val first = song(1L, "Book", "Author", "/books/book/part-1.m4b", 1).copy(durationMs = Long.MAX_VALUE)
+        val second = song(2L, "Book", "Author", "/books/book/part-2.m4b", 2).copy(durationMs = 10L)
+
+        assertEquals(Long.MAX_VALUE, AudiobookCatalog.build(listOf(first, second)).single().durationMs)
+    }
+
+    @Test
     fun directContextResolutionMatchesTheFullCatalogWithDuplicateIds() {
         val songs = listOf(
             song(1L, "Book A", "Author", "/books/a/part-1.m4b", 1),

@@ -293,7 +293,7 @@ private fun isWithinRecentlyAddedWindow(
     dateAddedSeconds: Long,
     nowMs: Long,
 ): Boolean {
-    if (dateAddedSeconds <= 0L) return true
+    if (dateAddedSeconds <= 0L) return false
     val addedMs = if (dateAddedSeconds > Long.MAX_VALUE / 1_000L) {
         Long.MAX_VALUE
     } else {

@@ -30,6 +30,11 @@ data class Song(
     val description: String? = null,
 )
 
+internal fun Iterable<Song>.sumDurationMs(): Long = fold(0L) { total, song ->
+    val duration = song.durationMs.coerceAtLeast(0L)
+    if (total > Long.MAX_VALUE - duration) Long.MAX_VALUE else total + duration
+}
+
 data class Album(
     val id: Long,
     val title: String,

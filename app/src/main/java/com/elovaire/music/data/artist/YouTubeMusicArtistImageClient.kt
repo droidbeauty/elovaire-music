@@ -194,11 +194,17 @@ internal class YouTubeMusicArtistImageClient(
                 ?.optJSONArray("thumbnails")
                 ?: return null
             var bestUrl: String? = null
-            var bestSize = -1
+            var bestSize = -1L
             for (index in 0 until thumbnails.length()) {
                 val thumbnail = thumbnails.optJSONObject(index) ?: continue
                 val url = thumbnail.optString("url").takeIf(String::isNotBlank) ?: continue
-                val size = thumbnail.optInt("width", 0) * thumbnail.optInt("height", 0)
+                val width = thumbnail.optLong("width", 0L).coerceAtLeast(0L)
+                val height = thumbnail.optLong("height", 0L).coerceAtLeast(0L)
+                val size = if (height > 0L && width > Long.MAX_VALUE / height) {
+                    Long.MAX_VALUE
+                } else {
+                    width * height
+                }
                 if (size > bestSize) {
                     bestSize = size
                     bestUrl = url

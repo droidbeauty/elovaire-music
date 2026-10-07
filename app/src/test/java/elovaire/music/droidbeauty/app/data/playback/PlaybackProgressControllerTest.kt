@@ -40,4 +40,28 @@ class PlaybackProgressControllerTest {
         assertEquals(30_000L, settled.displayPositionMs)
         assertFalse(controller.needsActivePolling())
     }
+
+    @Test
+    fun largeSeekDifferenceDoesNotOverflowAndKeepPendingSeekActive() {
+        val controller = PlaybackProgressController()
+        controller.onPlayerSnapshot(
+            mediaId = 1L,
+            positionMs = Long.MAX_VALUE,
+            durationMs = 0L,
+            bufferedPositionMs = 0L,
+            isPlaying = true,
+        )
+        controller.beginScrub()
+        controller.finishScrub(0L)
+
+        controller.onPlayerSnapshot(
+            mediaId = 1L,
+            positionMs = Long.MAX_VALUE,
+            durationMs = 0L,
+            bufferedPositionMs = 0L,
+            isPlaying = true,
+        )
+
+        assertTrue(controller.needsActivePolling())
+    }
 }

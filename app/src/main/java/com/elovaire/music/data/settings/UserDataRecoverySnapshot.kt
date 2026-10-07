@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
@@ -42,11 +43,9 @@ internal class UserDataRecoverySnapshot(
 
     fun read(): UserDataSnapshot? = ElovaireTrace.section("user_recovery_checkpoint") {
         synchronized(lock) {
-            val file = atomicFile.baseFile
-            if (!file.isFile || file.length() !in 1L..MAX_FILE_BYTES) return@synchronized null
             return@synchronized try {
                 val root = atomicFile.openRead().use { input ->
-                    JSONObject(input.readBytes().toString(StandardCharsets.UTF_8))
+                    JSONObject(input.readBytesBounded(MAX_FILE_BYTES.toInt()).toString(StandardCharsets.UTF_8))
                 }
                 if (root.optInt(KEY_VERSION, 0) != FORMAT_VERSION) return@synchronized null
                 if (root.optString(KEY_CHECKSUM) != checksum(root)) return@synchronized null
@@ -179,8 +178,7 @@ internal class UserDataRecoverySnapshot(
 
 private fun parseIds(value: String): List<Long> {
     if (value.isBlank()) return emptyList()
-    return value.split(',')
-        .asSequence()
+    return value.splitToSequence(',')
         .mapNotNull(String::toLongOrNull)
         .filter(::isValidMediaId)
         .take(MAX_RECOVERY_ID_COUNT)

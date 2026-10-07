@@ -4,6 +4,7 @@ import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Locale
@@ -86,7 +87,7 @@ internal object AudiobookCatalog {
             title = bookTitle(first),
             author = author,
             artUri = ordered.firstNotNullOfOrNull(Song::artUri),
-            durationMs = ordered.sumOf { it.durationMs.coerceAtLeast(0L) },
+            durationMs = ordered.sumDurationMs(),
             parts = ordered.mapIndexed { index, song -> AudiobookPart(song, index + 1) },
             description = ordered.firstNotNullOfOrNull { it.description?.trim()?.takeIf(String::isNotBlank) },
         )

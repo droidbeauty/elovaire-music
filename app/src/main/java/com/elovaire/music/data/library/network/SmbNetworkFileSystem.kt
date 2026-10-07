@@ -576,6 +576,9 @@ internal class SmbNetworkFileSystem(
 
         @Suppress("TooGenericExceptionCaught")
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (offset < 0 || length < 0 || length > buffer.size - offset) {
+                throw IndexOutOfBoundsException()
+            }
             if (length == 0) return 0
             val remaining = requestedLength?.minus(position)?.coerceAtLeast(0L)
                 ?: (totalLength - start - position).coerceAtLeast(0L)
@@ -586,6 +589,9 @@ internal class SmbNetworkFileSystem(
                 throw onReadFailure(failure)
             } catch (failure: RuntimeException) {
                 throw onReadFailure(failure)
+            }
+            if (count == 0) {
+                throw onReadFailure(IOException("SMB read returned no data for a non-empty request"))
             }
             if (count > 0) position += count
             return count

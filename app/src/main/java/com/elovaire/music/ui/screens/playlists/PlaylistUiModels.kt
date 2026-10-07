@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 
 internal data class PlaylistRowModel(
     val playlist: Playlist,
@@ -98,7 +99,7 @@ internal fun buildPlaylistDetailState(
         playlist = playlist,
         songs = songs,
         missingSongIds = missingSongIds,
-        durationMs = songs.sumOf(Song::durationMs),
+        durationMs = songs.sumDurationMs(),
     )
 }
 

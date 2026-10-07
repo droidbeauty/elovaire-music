@@ -43,7 +43,7 @@ class TestUri(
 
     override fun getQuery(): String? = null
 
-    override fun getScheme(): String = "content"
+    override fun getScheme(): String = value.substringBefore("://", "")
 
     override fun getSchemeSpecificPart(): String = "//test"
 

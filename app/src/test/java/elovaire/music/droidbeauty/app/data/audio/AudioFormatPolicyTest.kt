@@ -148,6 +148,16 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun wavLosslessnessDependsOnTheCodecAndRawCodecMustMatchExactly() {
+        assertTrue(AudioFormatPolicy.isLossless(AudioContainerFormat.Wav, "audio/raw"))
+        assertFalse(AudioFormatPolicy.isLossless(AudioContainerFormat.Wav, "audio/ima-adpcm"))
+        assertEquals(
+            PlaybackSupport.Unsupported,
+            AudioFormatPolicy.playbackSupport(detected(AudioContainerFormat.Wav, "audio/raw-extra")),
+        )
+    }
+
+    @Test
     fun validationExtensions_includeRequestedAliasesOnly() {
         assertEquals(
             setOf("m4a", "m4b", "mp4", "ogg", "oga", "opus", "mka", "3gp", "amr"),

@@ -39,6 +39,7 @@ class MediaIdentityTest {
     @Test
     fun invalidIdentityPartsAreRejected() {
         assertNull(MediaIdentityResolver.mediaStore("", 1L))
+        assertNull(MediaIdentityResolver.mediaStore("external", 0L))
         assertNull(MediaIdentityResolver.mediaStore("external", -1L))
         assertNull(MediaIdentityResolver.safDocument("provider", ""))
     }

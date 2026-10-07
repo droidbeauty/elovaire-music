@@ -76,6 +76,14 @@ class AudiobookProgressPolicyTest {
         assertEquals(150L, resolveAudiobookBookElapsed(context, songs, 2L, 50L))
     }
 
+    @Test
+    fun playbackContextSaturatesElapsedTimeInsteadOfWrapping() {
+        val songs = listOf(song(1L, Long.MAX_VALUE), song(2L, 10L))
+        val context = AudiobookPlaybackContext("book", listOf(1L, 2L), Long.MAX_VALUE)
+
+        assertEquals(Long.MAX_VALUE, resolveAudiobookBookElapsed(context, songs, 2L, 10L))
+    }
+
     private fun book(partCount: Int): Audiobook {
         val parts = (1..partCount).map { id -> AudiobookPart(song(id.toLong(), 100_000L), id) }
         return Audiobook("book", "Book", "Author", null, parts.sumOf { it.durationMs }, parts)

@@ -66,6 +66,7 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
@@ -195,7 +196,7 @@ internal fun PlaylistDetailScreen(
     val playlistSongs = remember(displayedSongIds, songsById) {
         displayedSongIds.mapNotNull(songsById::get)
     }
-    val playlistDurationMs = remember(playlistSongs) { playlistSongs.sumOf(Song::durationMs) }
+    val playlistDurationMs = remember(playlistSongs) { playlistSongs.sumDurationMs() }
     val detailTopPadding = detailTopBarOccupiedHeight()
     val editMenuTopInset by animateDpAsState(
         targetValue = if (editMode && showEditModeMenu) 50.dp else 0.dp,

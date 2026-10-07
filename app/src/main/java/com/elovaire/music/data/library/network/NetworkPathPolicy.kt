@@ -97,16 +97,25 @@ internal object NetworkPathPolicy {
             base.query != null ||
             base.fragment != null
         ) return null
-        val basePath = decodeUriPath(base.rawPath.orEmpty()).orEmpty()
-        val resourcePath = validateRelativePath(join(basePath, path)) ?: return null
+        val basePath = decodeUriPath(base.rawPath.orEmpty()) ?: return null
+        val relativePath = validateRelativePath(path) ?: return null
+        val resourcePath = validateRelativePath(join(basePath, relativePath)) ?: return null
         val encodedPath = "/" + encodePath(resourcePath)
         return runCatching { URL("https://${base.rawAuthority}$encodedPath") }.getOrNull()
     }
 
     fun webDavConfiguredRoot(source: NetworkLibrarySource): String? {
         val base = runCatching { URI(source.server.trim()) }.getOrNull() ?: return null
-        val basePath = decodeUriPath(base.rawPath.orEmpty()).orEmpty()
-        return validateRelativePath(join(basePath, source.shareOrPath))
+        if (
+            !base.scheme.equals("https", ignoreCase = true) ||
+            base.host.isNullOrBlank() ||
+            base.userInfo != null ||
+            base.query != null ||
+            base.fragment != null
+        ) return null
+        val basePath = decodeUriPath(base.rawPath.orEmpty()) ?: return null
+        val sharePath = validateRelativePath(source.shareOrPath) ?: return null
+        return validateRelativePath(join(basePath, sharePath))
     }
 
     fun smbServer(server: String): String? {
@@ -116,18 +125,34 @@ internal object NetworkPathPolicy {
     fun smbPort(server: String): Int = smbEndpoint(server)?.second ?: 445
 
     private fun smbEndpoint(server: String): Pair<String, Int>? {
-        val raw = server.trim().removePrefix("smb://").substringBefore('/')
+        val normalizedServer = server.trim()
+        val endpoint = if (normalizedServer.startsWith("smb://", ignoreCase = true)) {
+            normalizedServer.substring("smb://".length)
+        } else {
+            normalizedServer
+        }
+        val raw = endpoint.substringBefore('/')
         if (raw.startsWith('[')) {
             val end = raw.indexOf(']')
             if (end <= 1) return null
             val host = raw.substring(1, end)
-            val port = raw.substring(end + 1).removePrefix(":").toIntOrNull() ?: 445
-            return host.takeIf(String::isNotBlank)?.let { it to (port.takeIf { value -> value in 1..65535 } ?: 445) }
+            val suffix = raw.substring(end + 1)
+            val port = when {
+                suffix.isEmpty() -> 445
+                !suffix.startsWith(':') -> return null
+                else -> suffix.substring(1).toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
+            }
+            return host.takeIf(String::isNotBlank)?.let { it to port }
         }
         val separator = raw.lastIndexOf(':')
+        if (separator > 0 && raw.indexOf(':') != separator) return null
         val host = if (separator > 0 && raw.indexOf(':') == separator) raw.substring(0, separator) else raw
-        val port = if (host == raw) 445 else raw.substring(separator + 1).toIntOrNull() ?: 445
-        return host.takeIf(String::isNotBlank)?.let { it to (port.takeIf { value -> value in 1..65535 } ?: 445) }
+        val port = if (host == raw) {
+            445
+        } else {
+            raw.substring(separator + 1).toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
+        }
+        return host.takeIf(String::isNotBlank)?.let { it to port }
     }
 
     private const val HEX = "0123456789ABCDEF"

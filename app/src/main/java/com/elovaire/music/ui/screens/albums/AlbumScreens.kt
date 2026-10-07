@@ -267,6 +267,7 @@ import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -1172,7 +1173,7 @@ internal fun AddSongsToPlaylistOverlay(
                         artist = first.artist,
                         artUri = first.artUri,
                         songCount = orderedSongs.size,
-                        durationMs = orderedSongs.sumOf { it.durationMs },
+                        durationMs = orderedSongs.sumDurationMs(),
                         songs = orderedSongs,
                     )
                 }

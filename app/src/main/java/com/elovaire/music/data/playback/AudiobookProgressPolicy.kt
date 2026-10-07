@@ -35,7 +35,7 @@ data class AudiobookPlaybackContext(
             var elapsedMs = 0L
             normalizedSongDurationsMs.forEachIndexed { index, durationMs ->
                 prefixDurations[index] = elapsedMs
-                elapsedMs += durationMs
+                elapsedMs = elapsedMs.saturatedDurationPlus(durationMs)
             }
         }
     }
@@ -73,7 +73,7 @@ internal fun audiobookPartPrefixDurations(parts: List<AudiobookPart>): LongArray
     var elapsedMs = 0L
     parts.forEachIndexed { index, part ->
         prefixDurations[index] = elapsedMs
-        elapsedMs += part.durationMs.coerceAtLeast(0L)
+        elapsedMs = elapsedMs.saturatedDurationPlus(part.durationMs.coerceAtLeast(0L))
     }
     return prefixDurations
 }
@@ -99,7 +99,7 @@ internal fun resolveAudiobookProgress(
     val elapsedMs = partIndex?.let { index ->
         (partPrefixDurations?.getOrNull(index)
             ?: audiobookPartPrefixDurations(book.parts).getOrNull(index)
-            ?: 0L) + offsetMs
+            ?: 0L).saturatedDurationPlus(offsetMs)
     } ?: activeSongId?.let { savedProgress?.bookElapsedMs?.coerceAtLeast(0L) } ?: 0L
     val durationMs = book.durationMs.coerceAtLeast(0L)
     return ResolvedAudiobookProgress(
@@ -124,15 +124,22 @@ internal fun resolveAudiobookBookElapsed(
     val songsById = if (context.durationAt(currentIndex) == null) queue.associateBy(Song::id) else emptyMap()
     val previousDurationMs = context.elapsedBefore(currentIndex)
         ?: context.normalizedSongIds.take(currentIndex)
-            .sumOf { songsById[it]?.durationMs?.coerceAtLeast(0L) ?: 0L }
+            .fold(0L) { total, id ->
+                total.saturatedDurationPlus(songsById[id]?.durationMs?.coerceAtLeast(0L) ?: 0L)
+            }
     val currentDurationMs = context.durationAt(currentIndex)
         ?: songsById[songId]?.durationMs?.coerceAtLeast(0L)
         ?: 0L
-    return (previousDurationMs + positionMs.coerceAtLeast(0L).coerceAtMost(currentDurationMs))
+    return previousDurationMs.saturatedDurationPlus(
+        positionMs.coerceAtLeast(0L).coerceAtMost(currentDurationMs),
+    )
         .coerceAtMost(context.bookDurationMs.coerceAtLeast(0L).takeIf { it > 0L } ?: Long.MAX_VALUE)
 }
 
 private fun Long?.orZero(): Long = this?.coerceAtLeast(0L) ?: 0L
+
+private fun Long.saturatedDurationPlus(durationMs: Long): Long =
+    if (durationMs > 0L && this > Long.MAX_VALUE - durationMs) Long.MAX_VALUE else this + durationMs
 
 private fun List<AudiobookPart>.indexOfActivePart(songId: Long?, positionMs: Long): Int? {
     if (songId == null) return null

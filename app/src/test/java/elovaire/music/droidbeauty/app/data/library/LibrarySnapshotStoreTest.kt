@@ -47,6 +47,7 @@ class LibrarySnapshotStoreTest {
     fun finiteFloatOrNull_rejectsInvalidSnapshotNumbers() {
         assertNull(finiteFloatOrNull(Double.NaN))
         assertNull(finiteFloatOrNull(Double.POSITIVE_INFINITY))
+        assertNull(finiteFloatOrNull(Double.MAX_VALUE))
         assertEquals(0.92f, finiteFloatOrNull(0.92) ?: 0f, 0.001f)
     }
 
@@ -104,6 +105,18 @@ class LibrarySnapshotStoreTest {
             true,
             isValidSnapshotSong(snapshotSong(id = 1L, modifiedSeconds = 10L).copy(durationMs = 0L)),
         )
+        assertEquals(
+            false,
+            isValidSnapshotSong(snapshotSong(id = 1L, modifiedSeconds = 10L).copy(durationMs = -1L)),
+        )
+    }
+
+    @Test
+    fun snapshotSongValidation_acceptsCaseInsensitiveUriSchemes() {
+        val song = snapshotSong(id = 1L, modifiedSeconds = 10L)
+
+        assertEquals(true, isValidSnapshotSong(song.copy(uri = TestUri("CONTENT://media/external/audio/media/1"))))
+        assertEquals(true, isValidSnapshotSong(song.copy(uri = TestUri("FILE:///storage/music/track.mp3"))))
     }
 
     private fun snapshotSong(id: Long, modifiedSeconds: Long): Song {

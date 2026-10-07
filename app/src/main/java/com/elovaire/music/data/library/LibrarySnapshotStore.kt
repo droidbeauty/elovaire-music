@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import java.io.IOException
@@ -458,7 +459,7 @@ private fun JSONObject.toVolumeNormalizationMetadata(): VolumeNormalizationMetad
 }
 
 internal fun finiteFloatOrNull(value: Double): Float? {
-    return value.takeIf(Double::isFinite)?.toFloat()
+    return value.takeIf(Double::isFinite)?.toFloat()?.takeIf(Float::isFinite)
 }
 
 private fun JSONObject.toLibraryMediaStoreSyncState(): LibraryMediaStoreSyncState {
@@ -509,8 +510,10 @@ internal fun isLibrarySignatureValid(
 
 internal fun isValidSnapshotSong(song: Song): Boolean {
     val uriScheme = song.uri.scheme
-    return song.id != 0L &&
-        (uriScheme == "content" || uriScheme == "file" || uriScheme.equals("elovaire-network", ignoreCase = true)) &&
+    return song.id != 0L && song.durationMs >= 0L &&
+        (uriScheme.equals("content", ignoreCase = true) ||
+            uriScheme.equals("file", ignoreCase = true) ||
+            uriScheme.equals("elovaire-network", ignoreCase = true)) &&
         isSupportedLibrarySong(song)
 }
 
@@ -538,7 +541,7 @@ internal fun buildAlbumsFromSongs(
                 artist = firstSong.albumArtist?.takeIf { it.isNotBlank() } ?: firstSong.artist,
                 artUri = firstSong.artUri,
                 songCount = sortedSongs.size,
-                durationMs = sortedSongs.sumOf { it.durationMs },
+                durationMs = sortedSongs.sumDurationMs(),
                 songs = sortedSongs,
             )
         }

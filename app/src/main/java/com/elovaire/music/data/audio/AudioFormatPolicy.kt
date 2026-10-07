@@ -616,7 +616,7 @@ internal object AudioFormatPolicy {
     }
 
     private fun isCodecAllowed(container: AudioContainerFormat, codecMimeType: String?): Boolean {
-        if (container == AudioContainerFormat.Wav && codecMimeType.orEmpty().lowercase(Locale.ROOT).startsWith("audio/raw")) {
+        if (container == AudioContainerFormat.Wav && codecMimeType.orEmpty().equals("audio/raw", ignoreCase = true)) {
             return true
         }
         val codec = codecMimeType.orEmpty().lowercase(Locale.ROOT)
@@ -633,7 +633,6 @@ internal object AudioFormatPolicy {
     }
 
     fun isLossless(container: AudioContainerFormat, codecMimeType: String?): Boolean {
-        if (container == AudioContainerFormat.Wav) return true
         val codec = codecMimeType.orEmpty().trim().lowercase(Locale.ROOT)
         return codec == "audio/raw" || codec in capabilityFor(container)?.losslessCodecMimeTypes.orEmpty()
     }

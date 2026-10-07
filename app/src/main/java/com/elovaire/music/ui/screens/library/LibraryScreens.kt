@@ -272,6 +272,7 @@ import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -856,7 +857,7 @@ private fun LastPlayedPlaylistModule(
         val artworkMotion = rememberLastPlayedHeroArtworkMotion()
         val density = LocalDensity.current
         val gradient = rememberArtworkGradient(artworkSong?.artUri).value
-        val totalDurationMs = remember(songs) { songs.sumOf { it.durationMs } }
+        val totalDurationMs = remember(songs) { songs.sumDurationMs() }
         val language = LocalAppLanguage.current
         val metaItems = remember(songs, totalDurationMs, language) {
             listOf(
@@ -1447,7 +1448,7 @@ private fun AlbumCollectionContent(
                             artist = "",
                             artUri = null,
                             songCount = selectedAlbumSongs.size,
-                            durationMs = selectedAlbumSongs.sumOf { it.durationMs },
+                            durationMs = selectedAlbumSongs.sumDurationMs(),
                             songs = selectedAlbumSongs,
                         ),
                     )
@@ -1475,7 +1476,7 @@ private fun AlbumCollectionContent(
                 artist = "",
                 artUri = null,
                 songCount = songs.size,
-                durationMs = songs.sumOf(Song::durationMs),
+                durationMs = songs.sumDurationMs(),
                 songs = songs,
             )
             val result = onAddAlbumToPlaylist(playlistId, combinedAlbum).await()

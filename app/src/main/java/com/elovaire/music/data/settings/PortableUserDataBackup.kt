@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistName
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.deserializeSmartPlaylists
 import elovaire.music.droidbeauty.app.data.smartplaylists.serializeSmartPlaylists
+import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.charset.StandardCharsets
@@ -102,9 +103,11 @@ internal class PortableUserDataBackup(
     }
 
     fun readBytes(): ByteArray? = synchronized(lock) {
-        val file = atomicFile.baseFile
-        if (!file.isFile || file.length() !in 1L..MAX_FILE_BYTES) return@synchronized null
-        runCatching { atomicFile.openRead().use { input -> input.readBytes() } }.getOrNull()
+        runCatching {
+            atomicFile.openRead().use { input ->
+                input.readBytesBounded(MAX_FILE_BYTES.toInt()).takeIf { it.isNotEmpty() }
+            }
+        }.getOrNull()
     }
 
     fun read(): PortableUserData? = readBytes()?.let(::decodePortableUserData)

@@ -303,7 +303,9 @@ internal class MediaStoreRowProcessor(
     private fun sourceRevisionKey(row: MediaStoreAudioRow): String? {
         return if (row.dateModifiedSeconds != null || row.fileSizeBytes != null) {
             MediaIdentityResolver.sourceRevisionKey(
-                modifiedAtMs = row.dateModifiedSeconds?.times(1_000L),
+                modifiedAtMs = row.dateModifiedSeconds
+                    ?.takeIf { it in 0L..Long.MAX_VALUE / 1_000L }
+                    ?.times(1_000L),
                 sizeBytes = row.fileSizeBytes,
             )
         } else {
