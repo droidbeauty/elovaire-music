@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
 import elovaire.music.droidbeauty.app.data.library.PortableMediaIdentityProjection
 import elovaire.music.droidbeauty.app.data.library.TrackMatchConfidence
 import elovaire.music.droidbeauty.app.data.library.TrackMatchIdentity
+import elovaire.music.droidbeauty.app.data.playlists.generatePlaylistId
 import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistName
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.deserializeSmartPlaylists
@@ -271,30 +272,36 @@ internal fun PortableUserData.mergeInto(
     }
 
     val mergedPlaylists = current.playlists.toMutableList()
-    val playlistIndexById = hashMapOf<Long, Int>()
     val playlistIndexByName = hashMapOf<String, Int>()
-    val occupiedPlaylistIds = hashSetOf<Long>()
+    val occupiedUserDataIds = hashSetOf<Long>()
     mergedPlaylists.forEachIndexed { index, playlist ->
-        occupiedPlaylistIds += playlist.id
+        occupiedUserDataIds += playlist.id
         if (!playlist.isSystem) {
-            playlistIndexById.putIfAbsent(playlist.id, index)
             playlistIndexByName.putIfAbsent(normalizePlaylistName(playlist.name), index)
         }
     }
-    var nextPlaylistId = sequenceOf(
+    current.smartPlaylists.forEach { occupiedUserDataIds += it.id }
+    val reservedPortableIds = (playlists.asSequence().map(PortablePlaylist::id) + smartPlaylists.asSequence().map(SmartPlaylist::id))
+        .filter { it > 0L }
+        .toMutableSet()
+    var nextUserDataId = sequenceOf(
         mergedPlaylists.maxOfOrNull(Playlist::id),
         current.smartPlaylists.maxOfOrNull(SmartPlaylist::id),
         playlists.maxOfOrNull(PortablePlaylist::id),
-    ).filterNotNull().maxOrNull()?.let { if (it == Long.MAX_VALUE) Long.MAX_VALUE else it + 1L } ?: 1L
+        smartPlaylists.maxOfOrNull(SmartPlaylist::id),
+    ).filterNotNull().maxOrNull()?.let { if (it == Long.MAX_VALUE) 1L else it + 1L } ?: 1L
+    fun allocateUserDataId(preferredId: Long): Long {
+        val id = preferredId.takeIf { it > 0L && it !in occupiedUserDataIds }
+            ?: generatePlaylistId(occupiedUserDataIds + reservedPortableIds, nextUserDataId)
+        occupiedUserDataIds += id
+        reservedPortableIds -= id
+        nextUserDataId = if (id == Long.MAX_VALUE) 1L else id + 1L
+        return id
+    }
     playlists.forEach { portable ->
         val resolvedSongs = linkedSetOf<Long>()
         portable.songs.forEach { identity -> resolve(identity)?.let(resolvedSongs::add) }
-        val existingIndex = findPortablePlaylistIndex(
-            playlistId = portable.id,
-            playlistName = portable.name,
-            playlistIndexById = playlistIndexById,
-            playlistIndexByName = playlistIndexByName,
-        )
+        val existingIndex = playlistIndexByName[normalizePlaylistName(portable.name)]
         if (existingIndex != null) {
             val existing = mergedPlaylists[existingIndex]
             val mergedSongIds = linkedSetOf<Long>().apply {
@@ -303,30 +310,19 @@ internal fun PortableUserData.mergeInto(
             }
             mergedPlaylists[existingIndex] = existing.copy(songIds = mergedSongIds.toList())
         } else {
-            val id = portable.id.takeIf { it > 0L && it !in occupiedPlaylistIds }
-                ?: nextPlaylistId
-            if (nextPlaylistId < Long.MAX_VALUE) nextPlaylistId += 1L
+            val id = allocateUserDataId(portable.id)
             val index = mergedPlaylists.size
             mergedPlaylists += Playlist(id = id, name = portable.name, songIds = resolvedSongs.toList())
-            occupiedPlaylistIds += id
-            playlistIndexById.putIfAbsent(id, index)
-            playlistIndexByName.putIfAbsent(portable.name, index)
+            playlistIndexByName.putIfAbsent(normalizePlaylistName(portable.name), index)
         }
     }
 
     val mergedSmartPlaylists = current.smartPlaylists.toMutableList()
-    val smartPlaylistIds = current.smartPlaylists.mapTo(hashSetOf(), SmartPlaylist::id)
     val smartPlaylistNames = current.smartPlaylists.mapTo(hashSetOf(), SmartPlaylist::name)
-    var nextSmartId = sequenceOf(
-        mergedSmartPlaylists.maxOfOrNull(SmartPlaylist::id),
-        mergedPlaylists.maxOfOrNull(Playlist::id),
-    ).filterNotNull().maxOrNull()?.let { if (it == Long.MAX_VALUE) Long.MAX_VALUE else it + 1L } ?: 1L
     smartPlaylists.forEach { imported ->
-        if (imported.id !in smartPlaylistIds && imported.name !in smartPlaylistNames) {
-            val id = imported.id.takeIf { candidate -> candidate !in smartPlaylistIds } ?: nextSmartId
-            if (nextSmartId < Long.MAX_VALUE) nextSmartId += 1L
+        if (imported.name !in smartPlaylistNames) {
+            val id = allocateUserDataId(imported.id)
             mergedSmartPlaylists += imported.copy(id = id)
-            smartPlaylistIds += id
             smartPlaylistNames += imported.name
         }
     }
@@ -356,21 +352,6 @@ internal fun PortableUserData.mergeInto(
         ),
         unresolvedReferenceCount = unresolved,
     )
-}
-
-private fun findPortablePlaylistIndex(
-    playlistId: Long,
-    playlistName: String,
-    playlistIndexById: Map<Long, Int>,
-    playlistIndexByName: Map<String, Int>,
-): Int? {
-    val indexById = playlistIndexById[playlistId]
-    val indexByName = playlistIndexByName[playlistName]
-    return if (indexById != null && indexByName != null) {
-        minOf(indexById, indexByName)
-    } else {
-        indexById ?: indexByName
-    }
 }
 
 private fun TrackMatchIdentity.toJson(): JSONObject = JSONObject()

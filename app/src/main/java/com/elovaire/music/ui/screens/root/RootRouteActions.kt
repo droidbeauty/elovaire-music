@@ -46,11 +46,7 @@ internal class RootRouteActions(
     val networkProbeResults = libraryDependencies.networkProbeResults
 
     fun navigateUp() {
-        if (navController.navigateUp()) {
-            RootInteractionState.begin("back")
-        } else {
-            RootInteractionState.finish()
-        }
+        navigationState.navigateUp()
     }
 
     fun openAlbum(

@@ -221,6 +221,13 @@ internal class ElovaireMediaTree(
     override fun item(mediaId: String): MediaItem? {
         val parsed = ElovaireMediaIds.parse(mediaId) ?: return null
         val snapshot = snapshot()
+        if (!snapshot.permissionGranted) {
+            return when (parsed) {
+                ElovaireMediaId.Root -> ElovaireMediaItems.root()
+                ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo()
+                else -> null
+            }
+        }
         return when (parsed) {
             ElovaireMediaId.Root -> ElovaireMediaItems.root()
             ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo()

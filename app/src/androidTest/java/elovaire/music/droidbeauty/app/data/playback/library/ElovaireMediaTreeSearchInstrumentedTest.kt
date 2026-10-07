@@ -13,6 +13,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -43,12 +45,31 @@ class ElovaireMediaTreeSearchInstrumentedTest {
         assertEquals(expected.size, tree.searchCount("lights"))
     }
 
-    private class FakeLibraryReader(songs: List<Song>) : LibraryReader {
+    @Test
+    fun itemHidesCachedContentAfterPermissionRevocation() {
+        val tree = ElovaireMediaTree(
+            libraryRepository = FakeLibraryReader(
+                songs = listOf(song(1L, title = "Private Track", artist = "Artist")),
+                permissionGranted = false,
+            ),
+            preferenceStore = FakeUserDataReader(UserDataSnapshot()),
+        )
+
+        assertNull(tree.item(ElovaireMediaIds.song(1L)))
+        assertNull(tree.item(ElovaireMediaId.Albums.value))
+        assertNotNull(tree.item(ElovaireMediaId.Root.value))
+        assertNotNull(tree.item(ElovaireMediaId.PermissionRequired.value))
+    }
+
+    private class FakeLibraryReader(
+        songs: List<Song>,
+        permissionGranted: Boolean = true,
+    ) : LibraryReader {
         override val contentState: StateFlow<LibraryContentState> = MutableStateFlow(
             LibraryContentState(songs = songs, contentRevision = "search-test"),
         )
         override val scanState: StateFlow<LibraryScanState> = MutableStateFlow(
-            LibraryScanState(permissionGranted = true, isAuthoritative = true),
+            LibraryScanState(permissionGranted = permissionGranted, isAuthoritative = true),
         )
     }
 

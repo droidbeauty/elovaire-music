@@ -1,11 +1,13 @@
 package elovaire.music.droidbeauty.app.data.settings
 
 import android.net.Uri
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PortableUserDataBackupTest {
@@ -123,6 +125,85 @@ class PortableUserDataBackupTest {
         assertEquals(true, imported.snapshot.playlists.first().isSystem)
         assertEquals(2, imported.snapshot.playlists.size)
     }
+
+    @Test
+    fun importMatchesNormalPlaylistsByNameAndAllocatesFreshIdsOnCollisions() {
+        val backup = encodePortableUserData(
+            UserDataSnapshot(
+                playlists = listOf(
+                    Playlist(7L, "B", listOf(1L)),
+                    Playlist(8L, "C", listOf(1L)),
+                ),
+            ),
+            songs = emptyList(),
+            createdAtMs = 100L,
+            appVersion = "test",
+        )
+        val current = UserDataSnapshot(
+            playlists = listOf(
+                Playlist(7L, "A", listOf(100L)),
+                Playlist(8L, "B", listOf(101L)),
+            ),
+        )
+
+        val imported = requireNotNull(decodePortableUserData(backup)).mergeInto(current, emptyList())
+        val byName = imported.snapshot.playlists.associateBy(Playlist::name)
+
+        assertEquals(listOf(100L), byName.getValue("A").songIds)
+        assertEquals(listOf(101L), byName.getValue("B").songIds)
+        assertEquals(3, imported.snapshot.playlists.size)
+        assertEquals(listOf(7L, 8L), imported.snapshot.playlists.filter { it.name != "C" }.map(Playlist::id))
+        assertTrue(imported.snapshot.playlists.single { it.name == "C" }.id !in setOf(7L, 8L))
+    }
+
+    @Test
+    fun importPreservesSmartPlaylistWithCollidingSmartId() {
+        val importedSmart = smartPlaylist(8L, "Imported Smart")
+        val backup = encodePortableUserData(
+            UserDataSnapshot(smartPlaylists = listOf(importedSmart)),
+            songs = emptyList(),
+            createdAtMs = 100L,
+            appVersion = "test",
+        )
+        val currentSmart = smartPlaylist(8L, "Existing Smart")
+
+        val imported = requireNotNull(decodePortableUserData(backup)).mergeInto(
+            UserDataSnapshot(smartPlaylists = listOf(currentSmart)),
+            emptyList(),
+        )
+
+        assertEquals(
+            setOf("Existing Smart", "Imported Smart"),
+            imported.snapshot.smartPlaylists.map(SmartPlaylist::name).toSet(),
+        )
+        assertEquals(2, imported.snapshot.smartPlaylists.map(SmartPlaylist::id).toSet().size)
+    }
+
+    @Test
+    fun importedSmartPlaylistCannotReuseNormalPlaylistId() {
+        val backup = encodePortableUserData(
+            UserDataSnapshot(smartPlaylists = listOf(smartPlaylist(7L, "Imported Smart"))),
+            songs = emptyList(),
+            createdAtMs = 100L,
+            appVersion = "test",
+        )
+        val current = UserDataSnapshot(playlists = listOf(Playlist(7L, "Normal")))
+
+        val imported = requireNotNull(decodePortableUserData(backup)).mergeInto(current, emptyList())
+        val importedSmart = imported.snapshot.smartPlaylists.single()
+
+        assertTrue(importedSmart.id != 7L)
+        val allIds = imported.snapshot.playlists.map(Playlist::id) +
+            imported.snapshot.smartPlaylists.map(SmartPlaylist::id)
+        assertEquals(2, allIds.toSet().size)
+    }
+
+    private fun smartPlaylist(id: Long, name: String) = SmartPlaylist(
+        id = id,
+        name = name,
+        createdAtMs = 1L,
+        updatedAtMs = 1L,
+    )
 
     private fun song(id: Long): Song = Song(
         id = id,

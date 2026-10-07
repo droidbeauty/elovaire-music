@@ -249,6 +249,7 @@ internal class MediaStoreScanner(
         ): MediaStoreQueryRead {
             val songs = mutableListOf<Song>()
             val scannedMetadataUris = mutableSetOf<String>()
+            val rowIdentityKeys = mutableSetOf<String>()
             var totalRows = 0
             ElovaireTrace.section("library_mediastore_rows") {
                 val queryResult = queryPlan.queryResult
@@ -276,12 +277,21 @@ internal class MediaStoreScanner(
                         enrichMetadata = enrichMetadata,
                         decisionMap = decisionMap,
                     )
+                    val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    val volumeIndex = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
                     var processedRows = 0
                     while (cursor.moveToNext()) {
                         currentCoroutineContext().ensureActive()
                         processedRows += 1
                         try {
-                            rowProcessor.process(rowMapper.row(cursor))?.let { processedSong ->
+                            if (volumeIndex >= 0) {
+                                MediaIdentityResolver.mediaStore(
+                                    cursor.getString(volumeIndex),
+                                    cursor.getLong(idIndex),
+                                )?.stableKey?.let(rowIdentityKeys::add)
+                            }
+                            val row = rowMapper.row(cursor)
+                            rowProcessor.process(row)?.let { processedSong ->
                                 scannedMetadataUris += processedSong.identityKey
                                 songs += processedSong.song
                             }
@@ -302,6 +312,7 @@ internal class MediaStoreScanner(
             return MediaStoreQueryRead(
                 songs = songs,
                 scannedMetadataUris = scannedMetadataUris,
+                rowIdentityKeys = rowIdentityKeys,
                 totalRows = totalRows,
             )
         }
@@ -328,6 +339,7 @@ internal class MediaStoreScanner(
             val merged = mergeMediaStoreDelta(
                 baseSongs = baseMediaStoreSongs,
                 changedSongs = songs,
+                changedRowIdentityKeys = queryRead.rowIdentityKeys,
                 currentIdentityKeys = requireNotNull(deltaIdentityKeys),
             )
             scannedMetadataUris.addAll(merged.retainedIdentityKeys)
@@ -453,6 +465,7 @@ private data class MediaStoreQueryPlan(
 private data class MediaStoreQueryRead(
     val songs: List<Song>,
     val scannedMetadataUris: Set<String>,
+    val rowIdentityKeys: Set<String>,
     val totalRows: Int,
 )
 
@@ -464,6 +477,7 @@ internal data class MediaStoreDeltaMergeResult(
 internal fun mergeMediaStoreDelta(
     baseSongs: List<Song>,
     changedSongs: List<Song>,
+    changedRowIdentityKeys: Set<String>,
     currentIdentityKeys: Set<String>,
 ): MediaStoreDeltaMergeResult {
     val changedByKey = LinkedHashMap<String, Song>(changedSongs.size)
@@ -479,8 +493,13 @@ internal fun mergeMediaStoreDelta(
         baseSongs.forEach { baseSong ->
             val key = MediaIdentityResolver.stableKey(baseSong)
             baseKeys += key
-            if (key in currentIdentityKeys) {
-                add(changedByKey[key] ?: baseSong)
+            if (key in changedRowIdentityKeys) {
+                changedByKey[key]?.let { changedSong ->
+                    add(changedSong)
+                    retainedIdentityKeys += key
+                }
+            } else if (key in currentIdentityKeys) {
+                add(baseSong)
                 retainedIdentityKeys += key
             }
         }

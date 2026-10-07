@@ -20,6 +20,7 @@ class MediaStoreDeltaMergeTest {
         val result = mergeMediaStoreDelta(
             baseSongs = listOf(original, retained),
             changedSongs = listOf(replacement, added),
+            changedRowIdentityKeys = setOf(MediaIdentityResolver.stableKey(replacement)),
             currentIdentityKeys = currentIdentityKeys,
         )
 
@@ -36,10 +37,29 @@ class MediaStoreDeltaMergeTest {
         val result = mergeMediaStoreDelta(
             baseSongs = listOf(retained, deleted),
             changedSongs = emptyList(),
+            changedRowIdentityKeys = emptySet(),
             currentIdentityKeys = setOf(retainedKey),
         )
 
         assertEquals(listOf(retained), result.songs)
         assertEquals(setOf(retainedKey), result.retainedIdentityKeys)
+    }
+
+    @Test
+    fun deltaDropsChangedRowsThatAreNoLongerAcceptedByLibraryFilters() {
+        val movedOutsideLibrary = testSong(id = 1L)
+        val unchanged = testSong(id = 2L)
+        val movedKey = MediaIdentityResolver.stableKey(movedOutsideLibrary)
+        val unchangedKey = MediaIdentityResolver.stableKey(unchanged)
+
+        val result = mergeMediaStoreDelta(
+            baseSongs = listOf(movedOutsideLibrary, unchanged),
+            changedSongs = emptyList(),
+            changedRowIdentityKeys = setOf(movedKey),
+            currentIdentityKeys = setOf(movedKey, unchangedKey),
+        )
+
+        assertEquals(listOf(unchanged), result.songs)
+        assertEquals(setOf(unchangedKey), result.retainedIdentityKeys)
     }
 }

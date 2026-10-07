@@ -37,7 +37,7 @@ internal class RapidUiFixture(
             val fixturePath = if (fixture.audiobook) "${relativePath}Audiobooks/Rapid Book/" else relativePath
             val values = ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, "${NAME_PREFIX}${runId}-$index-${fixture.fileName}")
-                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+                put(MediaStore.Audio.Media.MIME_TYPE, fixture.mimeType)
                 put(MediaStore.Audio.Media.TITLE, fixture.title)
                 put(MediaStore.Audio.Media.ARTIST, fixture.artist)
                 put(MediaStore.Audio.Media.ALBUM, fixture.album)
@@ -146,6 +146,7 @@ internal class RapidUiFixture(
         val year: Int,
         val track: Int,
         val audiobook: Boolean,
+        val mimeType: String = "audio/mpeg",
     )
 
     private companion object {
@@ -154,7 +155,16 @@ internal class RapidUiFixture(
         const val FIXTURE_RELATIVE_PATH_PREFIX = "Music/ElovaireRapidUi/"
         const val LIBRARY_FOLDERS_KEY = "library_folders"
         val FIXTURES = listOf(
-            Fixture("write-fixture.mp3", "Original MP3 Title", "Rapid Artist One", "Rapid Album One", 2024, 1, false),
+            Fixture(
+                "playback-fixture.wav",
+                "Original Playback Fixture",
+                "Rapid Artist One",
+                "Rapid Album One",
+                2024,
+                1,
+                false,
+                mimeType = "audio/wav",
+            ),
             Fixture("write-fixture.flac", "Rapid Song Two", "Rapid Artist One", "Rapid Album One", 2024, 2, false),
             Fixture("write-fixture.m4a", "Rapid Song Three", "Rapid Artist Two", "Rapid Album Two", 2025, 1, false),
             Fixture("write-fixture.mp3", "Rapid Book Part One", "Rapid Author", "Rapid Book", 2023, 1, true),

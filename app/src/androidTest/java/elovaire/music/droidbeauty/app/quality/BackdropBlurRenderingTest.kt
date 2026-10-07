@@ -37,6 +37,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -53,6 +54,7 @@ class BackdropBlurRenderingTest {
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
 
     @Test
+    @SdkSuppress(minSdkVersion = 31)
     fun backdropBlurSoftensLazyAndRegularTextButKeepsGlassLabelCrisp() {
         val blurEnabled = mutableStateOf(false)
         val useLazyList = mutableStateOf(true)
@@ -141,6 +143,7 @@ class BackdropBlurRenderingTest {
     }
 
     @Test
+    @SdkSuppress(minSdkVersion = 31)
     fun playerBackdropSourceIncludesLazyQueueLayers() {
         val blurEnabled = mutableStateOf(false)
         val image = checkerboardImage()

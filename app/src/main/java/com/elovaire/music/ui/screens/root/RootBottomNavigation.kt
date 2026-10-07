@@ -90,7 +90,7 @@ internal fun BottomNavigationBar(
                         suppressEnterAnimation = suppressEnterAnimation,
                         selected = currentRoute == destination.route,
                         testTag = "bottom_nav_${destination.route}",
-                        onClick = { onNavigate(destination.route) },
+                        onClickAction = { onNavigate(destination.route) },
                     )
                 }
             }
@@ -122,7 +122,7 @@ private fun BottomNavigationItemButton(
     suppressEnterAnimation: Boolean,
     selected: Boolean,
     testTag: String,
-    onClick: () -> Unit,
+    onClickAction: () -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
     val interactionSource = rememberElovaireInteractionSource()
@@ -164,17 +164,12 @@ private fun BottomNavigationItemButton(
                 label = "${contentDescription}_bottom_nav_scale",
             )
             .clip(RoundedCornerShape(ElovaireRadii.tile))
-            .semantics(mergeDescendants = true) {
-                this.contentDescription = contentDescription
-                this.testTag = testTag
-                testTagsAsResourceId = true
-            }
             .selectable(
                 selected = selected,
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Tab,
-                onClick = onClick,
+                onClick = onClickAction,
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -183,6 +178,11 @@ private fun BottomNavigationItemButton(
             contentDescription = null,
             tint = iconTint,
             modifier = Modifier
+                .semantics {
+                    this.contentDescription = contentDescription
+                    this.testTag = testTag
+                    testTagsAsResourceId = true
+                }
                 .graphicsLayer {
                     scaleX = baseIconScale.value
                     scaleY = baseIconScale.value

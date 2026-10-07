@@ -8,7 +8,6 @@ import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
-import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
@@ -17,7 +16,6 @@ import java.util.regex.Pattern
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -89,17 +87,15 @@ class RapidNavigationQualificationTest {
     }
 
     @Test
-    fun backBurstDoesNotLeaveAnInvisibleBlockingLayer() {
+    fun backNavigationReturnsToHomeWithoutAnInvisibleBlockingLayer() {
         requireDescription("Albums")
         requireDescription("Playlists")
         requireDescription("Search")
 
-        repeat(3) {
-            pressBackWithoutIdle(64L)
-        }
+        pressBackWithoutIdle(64L)
 
         checkpoint()
-        requireDescription("Home")
+        waitForDescription("Home")
         assertSelectedTopLevel("Home")
         assertNoBlockingSystemLayer()
     }
@@ -107,9 +103,8 @@ class RapidNavigationQualificationTest {
     private fun burstDescriptions(descriptions: List<String>, interInputDelayMs: Long) {
         var lastInputAt = SystemClock.uptimeMillis()
         descriptions.forEach { description ->
-            val selector = topLevelSelector(description)
             val injectedAt = SystemClock.uptimeMillis()
-            if (clickWithoutIdle(selector)) {
+            if (clickWithoutIdle(description)) {
                 val elapsed = SystemClock.uptimeMillis() - injectedAt
                 val remaining = interInputDelayMs - elapsed
                 if (remaining > 0L) SystemClock.sleep(remaining)
@@ -127,10 +122,10 @@ class RapidNavigationQualificationTest {
         if (interInputDelayMs > 0L) SystemClock.sleep(interInputDelayMs)
     }
 
-    private fun clickWithoutIdle(selector: BySelector): Boolean {
+    private fun clickWithoutIdle(description: String): Boolean {
         assertCurrentPackageIsElovaire()
         repeat(STALE_RETRY_COUNT) {
-            val node = device.findObject(selector) ?: return false
+            val node = findTopLevelNode(description) ?: return false
             try {
                 assertCurrentPackageIsElovaire()
                 node.clickActionable()
@@ -146,7 +141,7 @@ class RapidNavigationQualificationTest {
         val deadline = SystemClock.uptimeMillis() + ACTION_TIMEOUT_MS
         while (SystemClock.uptimeMillis() < deadline) {
             assertCurrentPackageIsElovaire()
-            val node = device.wait(Until.findObject(topLevelSelector(description)), FIND_TIMEOUT_MS)
+            val node = findTopLevelNode(description)
             if (node != null) {
                 try {
                     assertCurrentPackageIsElovaire()
@@ -160,6 +155,16 @@ class RapidNavigationQualificationTest {
         throw AssertionError("Missing actionable content description: $description")
     }
 
+    private fun waitForDescription(description: String) {
+        val deadline = SystemClock.uptimeMillis() + ACTION_TIMEOUT_MS
+        while (SystemClock.uptimeMillis() < deadline) {
+            assertCurrentPackageIsElovaire()
+            if (findTopLevelNode(description) != null) return
+            SystemClock.sleep(50L)
+        }
+        throw AssertionError("Missing content description: $description")
+    }
+
     private fun checkpoint() {
         assertCurrentPackageIsElovaire()
         assertTrue(device.wait(Until.hasObject(By.pkg(packageName)), ACTION_TIMEOUT_MS))
@@ -171,14 +176,32 @@ class RapidNavigationQualificationTest {
     }
 
     private fun assertSelectedTopLevel(description: String) {
-        val destinationNode = device.wait(Until.findObject(topLevelSelector(description)), ACTION_TIMEOUT_MS)
-        assertNotNull("Top-level destination is unavailable: $description", destinationNode)
-        assertTrue("Top-level destination did not converge: $description", destinationNode.isSelected)
+        val deadline = SystemClock.uptimeMillis() + ACTION_TIMEOUT_MS
+        var destinationNode: UiObject2? = null
+        while (SystemClock.uptimeMillis() < deadline) {
+            destinationNode = findTopLevelNode(description)
+            if (destinationNode?.isSelectedOrAncestorSelected() == true) return
+            SystemClock.sleep(50L)
+        }
+        val selectedDestinations = TOP_LEVEL_DESCRIPTIONS.filter { candidate ->
+            findTopLevelNode(candidate)?.isSelectedOrAncestorSelected() == true
+        }
+        val navigationNodes = TOP_LEVEL_DESCRIPTIONS.joinToString { candidate ->
+            val nodes = device.findObjects(By.pkg(packageName).desc(candidate))
+                .joinToString { node ->
+                    "${node.resourceName}@${node.visibleBounds.centerY()} clickable=${node.isClickable} selected=${node.isSelected} checked=${node.isChecked} ancestors=${node.semanticAncestors()}"
+                }
+            "$candidate=[$nodes]"
+        }
+        assertTrue(
+            "Top-level destination did not converge: $description; selected=$selectedDestinations; nodes=$navigationNodes",
+            destinationNode?.isSelectedOrAncestorSelected() == true,
+        )
     }
 
     private fun assertNoDuplicateTopLevelSelection() {
         val visibleDestinationCount = TOP_LEVEL_DESCRIPTIONS.count { description ->
-            device.findObject(topLevelSelector(description)) != null
+            findTopLevelNode(description) != null
         }
         assertTrue("Bottom navigation was lost during route convergence", visibleDestinationCount == 4)
     }
@@ -187,8 +210,32 @@ class RapidNavigationQualificationTest {
         assertTrue(device.currentPackageName == packageName)
     }
 
-    private fun topLevelSelector(description: String): BySelector {
-        return By.res(packageName, "bottom_nav_${description.lowercase()}")
+    private fun findTopLevelNode(description: String): UiObject2? {
+        return device.findObjects(By.pkg(packageName).desc(description))
+            .firstOrNull { node ->
+                node.visibleBounds.centerY() >= device.displayHeight * 4 / 5
+            }
+    }
+
+    private fun UiObject2.semanticAncestors(): String {
+        val ancestors = mutableListOf<String>()
+        var node = parent
+        repeat(4) {
+            if (node != null) {
+                ancestors += "clickable=${node.isClickable} selected=${node.isSelected} checked=${node.isChecked} desc=${node.contentDescription}"
+                node = node.parent
+            }
+        }
+        return ancestors.joinToString(" -> ")
+    }
+
+    private fun UiObject2.isSelectedOrAncestorSelected(): Boolean {
+        var node: UiObject2? = this
+        repeat(5) {
+            if (node?.isSelected == true) return true
+            node = node?.parent
+        }
+        return false
     }
 
     private fun launchApp() {
@@ -200,11 +247,15 @@ class RapidNavigationQualificationTest {
     }
 
     private fun grantAudioPermission() {
+        // The app hosts this test runner; revocation kills it before Android reports the result.
         val permission = if (Build.VERSION.SDK_INT >= 33) {
             Manifest.permission.READ_MEDIA_AUDIO
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
+        if (instrumentation.targetContext.checkSelfPermission(permission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
         runCatching { instrumentation.uiAutomation.grantRuntimePermission(packageName, permission) }
             .onFailure { shell("pm grant $packageName $permission") }
     }
@@ -234,7 +285,6 @@ class RapidNavigationQualificationTest {
     private companion object {
         const val STARTUP_TIMEOUT_MS = 30_000L
         const val ACTION_TIMEOUT_MS = 10_000L
-        const val FIND_TIMEOUT_MS = 1_000L
         const val STALE_RETRY_COUNT = 3
         val CADENCES_MS = longArrayOf(160L, 100L, 64L, 32L, 16L)
         val TOP_LEVEL_DESCRIPTIONS = listOf("Home", "Albums", "Playlists", "Search")

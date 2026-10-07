@@ -2,9 +2,15 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
@@ -89,6 +95,25 @@ internal fun RootNavigationHost(
                 },
                 builder = content,
             )
+            DeferBackUntilNavigationSettles(navState)
         }
+    }
+}
+
+@Composable
+internal fun DeferBackUntilNavigationSettles(navState: RootNavigationState) {
+    val visibleEntries by navState.navController.visibleEntries.collectAsState()
+    val transitionInProgress = visibleEntries.size > 1
+    var backRequested by remember { mutableStateOf(false) }
+
+    LaunchedEffect(transitionInProgress, backRequested) {
+        if (!transitionInProgress && backRequested) {
+            backRequested = false
+            navState.navigateUp()
+        }
+    }
+
+    BackHandler(enabled = transitionInProgress) {
+        if (!backRequested) backRequested = true
     }
 }

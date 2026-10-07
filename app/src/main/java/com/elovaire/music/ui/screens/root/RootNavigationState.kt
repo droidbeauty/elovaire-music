@@ -235,6 +235,15 @@ internal class RootNavigationState(
         RootInteractionState.begin("navigation")
     }
 
+    fun navigateUp() {
+        pendingTopLevelRoute = null
+        if (navController.navigateUp()) {
+            RootInteractionState.begin("back")
+        } else {
+            RootInteractionState.finish()
+        }
+    }
+
     private fun detailOwnerRoute(concreteRoute: String): String {
         return routeOwnerOverrides[concreteRoute]
             ?: navController.previousBackStackEntry?.concreteNavigationRoute()?.let(routeOwnerOverrides::get)

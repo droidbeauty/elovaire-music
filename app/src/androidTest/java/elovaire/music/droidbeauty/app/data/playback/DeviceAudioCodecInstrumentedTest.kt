@@ -40,7 +40,11 @@ class DeviceAudioCodecInstrumentedTest {
 
     @Before
     fun grantAudioPermission() {
-        instrumentation.uiAutomation.grantRuntimePermission(context.packageName, audioPermission())
+        if (context.checkSelfPermission(audioPermission()) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            instrumentation.uiAutomation.grantRuntimePermission(context.packageName, audioPermission())
+        }
     }
 
     @Test

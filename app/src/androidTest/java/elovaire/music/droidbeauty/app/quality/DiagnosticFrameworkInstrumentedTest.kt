@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.quality
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.DebugStrictModeInstaller
@@ -70,7 +71,15 @@ class DiagnosticFrameworkInstrumentedTest {
         assertTrue(mainQueueDrained.await(2, TimeUnit.SECONDS))
 
         assertFalse(file.exists())
-        val delta = runtime.captureJourneyDelta(baseline)
+        var delta = runtime.captureJourneyDelta(baseline)
+        val strictModeDeadline = SystemClock.uptimeMillis() + 2_000L
+        while (
+            delta.strictModeViolations.none { it.violationType == "DiskWriteViolation" } &&
+            SystemClock.uptimeMillis() < strictModeDeadline
+        ) {
+            SystemClock.sleep(10L)
+            delta = runtime.captureJourneyDelta(baseline)
+        }
         val operationEvents = delta.backendEvents.filter { it.name.startsWith("Operation") }
         assertEquals(3, operationEvents.mapNotNull { it.fields["operation_id"] }.distinct().size)
         assertTrue(delta.backendEvents.any { it.name == "OperationFailed" && it.fields["error_type"] == "IllegalStateException" })
@@ -87,8 +96,8 @@ class DiagnosticFrameworkInstrumentedTest {
         assertTrue("diagnostic_self_test" in delta.traceSections)
         assertFalse("active_retrievers" in delta.resourceDeltas)
         val strictTypes = delta.strictModeViolations.map { it.violationType }.toSet()
-        assertTrue("DiskWriteViolation" in strictTypes)
-        assertTrue("DiskReadViolation" in strictTypes)
+        assertTrue("DiskWriteViolation in $strictTypes", "DiskWriteViolation" in strictTypes)
+        assertTrue("DiskReadViolation in $strictTypes", "DiskReadViolation" in strictTypes)
         assertEquals(0, delta.droppedBackendEvents)
     }
 }

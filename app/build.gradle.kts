@@ -57,8 +57,8 @@ android {
         versionName = AppBuildConfig.Application.versionName
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
         instrumentationTestClass?.let { testInstrumentationRunnerArguments["class"] = it }
-        // Orchestrator isolates instrumentation invocations and clears the app process state.
-        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+        // Orchestrator isolates instrumentation invocations without clearing target app data.
+        testInstrumentationRunnerArguments["clearPackageData"] = "false"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -275,6 +275,7 @@ dependencies {
     androidTestImplementation(libs.androidx.glance.appwidget.testing)
     androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestUtil(libs.androidx.test.orchestrator)

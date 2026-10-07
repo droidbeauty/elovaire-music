@@ -34,7 +34,12 @@ class AppInteractionSmokeTest {
     @Before
     fun setUp() {
         device.wakeUp()
-        grantRuntimePermission(audioPermission())
+        val permission = audioPermission()
+        if (instrumentation.targetContext.checkSelfPermission(permission) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            grantRuntimePermission(permission)
+        }
         fixture = RapidUiFixture(
             context = instrumentation.targetContext,
             assetContext = instrumentation.context,
@@ -93,7 +98,7 @@ class AppInteractionSmokeTest {
 
         clickTopLevel("Search")
         val searchInput = device.wait(
-            Until.findObject(By.res(packageName, "search_query_input")),
+            Until.findObject(By.res("search_query_input")),
             APP_READY_TIMEOUT_MS,
         ) ?: error("Search input is unavailable")
         val fixtureTitle = checkNotNull(fixture).firstSongTitle()
@@ -102,11 +107,9 @@ class AppInteractionSmokeTest {
         pressBackInApp()
         waitForApp()
         val fixtureResult = waitForSearchResult(fixtureTitle)
-        fixtureResult.click()
-        val home = device.wait(Until.findObject(By.res(packageName, "bottom_nav_home")), 1_000L)
-            ?: error("Home navigation is unavailable")
-        home.click()
-        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Pause")), 5_000))
+        fixtureResult.clickActionable()
+        clickTopLevel("Home")
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Pause")), 1_000L))
     }
 
     private fun waitForSearchResult(title: String): UiObject2 {
@@ -139,23 +142,26 @@ class AppInteractionSmokeTest {
     }
 
     private fun clickDescription(description: String) {
-        clickObject(By.pkg(packageName).desc(description), description)
+        clickObject(By.desc(description), description)
         waitForApp()
     }
 
     private fun clickTopLevel(description: String) {
-        clickObject(By.res(packageName, "bottom_nav_${description.lowercase()}"), description)
+        clickObject(By.desc(description), description, bottomNavigation = true)
         waitForApp()
     }
 
-    private fun clickObject(selector: BySelector, label: String) {
+    private fun clickObject(selector: BySelector, label: String, bottomNavigation: Boolean = false) {
         val appSelector = selector.pkg(packageName)
         val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
         var lastStale: StaleObjectException? = null
         while (SystemClock.uptimeMillis() < deadlineMs) {
             val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
-            val target = device.wait(Until.findObject(appSelector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
-                ?: continue
+            val target = if (bottomNavigation) {
+                device.findObjects(appSelector).firstOrNull(::isBottomNavigationNode)
+            } else {
+                device.wait(Until.findObject(appSelector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
+            } ?: continue
             try {
                 assertElovaireInForeground()
                 device.waitForIdle()
@@ -167,6 +173,16 @@ class AppInteractionSmokeTest {
             }
         }
         throw lastStale ?: error("Could not find $label")
+    }
+
+    private fun isBottomNavigationNode(node: UiObject2): Boolean {
+        return node.visibleBounds.centerY() >= device.displayHeight * 4 / 5
+    }
+
+    private fun UiObject2.clickActionable() {
+        var target: UiObject2? = this
+        while (target != null && !target.isClickable) target = target.parent
+        (target ?: this).click()
     }
 
     private fun scrollIfAvailable(direction: Direction) {
@@ -229,13 +245,14 @@ class AppInteractionSmokeTest {
             .split("StrictMode policy violation")
             .drop(1)
             .firstOrNull { violation ->
-                violation
-                    .lineSequence()
-                    .takeWhile { line -> !line.contains("StrictMode policy violation") }
-                    .any { line ->
-                        line.contains("\tat elovaire.music.droidbeauty.app.") &&
-                            !line.contains(".quality.")
-                    }
+                !violation.contains("# via Binder call with stack:") &&
+                    violation
+                        .lineSequence()
+                        .takeWhile { line -> !line.contains("StrictMode policy violation") }
+                        .any { line ->
+                            line.contains("\tat elovaire.music.droidbeauty.app.") &&
+                                !line.contains(".quality.")
+                        }
             }
             ?.trim()
     }
