@@ -5,22 +5,22 @@ import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.util.PriorityQueue
 import kotlin.math.roundToInt
 
 internal fun recentlyAddedAlbumsFor(
     libraryState: LibraryUiState,
 ): List<Album> {
     val cutoffSeconds = (System.currentTimeMillis() / 1_000L) - RECENTLY_ADDED_WINDOW_SECONDS
-    return libraryState.albums
-        .filter { album ->
-            album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds)?.let { timestampSeconds ->
-                timestampSeconds > 0L && timestampSeconds >= cutoffSeconds
-            } == true
-        }
-        .sortedByDescending { album ->
-            album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds) ?: 0L
-        }
+    return libraryState.albums.mapNotNull { album ->
+        val timestampSeconds = album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds)
+            ?: return@mapNotNull null
+        if (timestampSeconds > 0L && timestampSeconds >= cutoffSeconds) album to timestampSeconds else null
+    }
+        .sortedByDescending { (_, timestampSeconds) -> timestampSeconds }
+        .map { (album, _) -> album }
 }
 
 private fun Song.recentLibraryTimestampSeconds(): Long {
@@ -33,8 +33,20 @@ internal fun recentAlbumsFor(
     albumsById: Map<Long, Album>,
     playbackState: PlaybackUiState,
 ): List<Album> {
-    return playbackState.recentAlbumIds.mapNotNull(albumsById::get).take(6)
+    return playbackState.recentAlbumIds.asSequence()
+        .mapNotNull(albumsById::get)
+        .take(HOME_RECENT_ALBUM_LIMIT)
+        .toList()
 }
+
+internal fun recentSongsFor(
+    recentSongIds: List<Long>,
+    songsById: Map<Long, Song>,
+): List<Song> = recentSongIds.asSequence()
+    .mapNotNull(songsById::get)
+    .filter { it.mediaKind == AudioMediaKind.Music }
+    .take(HOME_RECENT_SONG_LIMIT)
+    .toList()
 
 internal fun favoriteAlbumsFor(
     libraryState: LibraryUiState,
@@ -42,28 +54,138 @@ internal fun favoriteAlbumsFor(
     recentAlbums: List<Album>,
     recentlyAddedAlbums: List<Album>,
 ): List<Album> {
-    val rankedByFrequency = libraryState.albums.asSequence()
-        .filter { album -> album.songs.sumOf { songPlayCounts[it.id] ?: 0 } > 0 }
-        .sortedWith(
-            compareByDescending<Album> { album -> album.songs.sumOf { songPlayCounts[it.id] ?: 0 } }
-                .thenBy { it.artist.lowercase() }
-                .thenBy { it.title.lowercase() },
+    val comparator = compareByDescending<RankedFavoriteAlbum> { it.playCount }
+        .thenBy { it.artistKey }
+        .thenBy { it.titleKey }
+        .thenBy { it.index }
+    val bestAlbums = PriorityQueue(HOME_FAVORITE_ALBUM_LIMIT, comparator.reversed())
+    val bestAlbumsById = HashMap<Long, RankedFavoriteAlbum>(HOME_FAVORITE_ALBUM_LIMIT)
+    libraryState.albums.forEachIndexed { index, album ->
+        val playCount = album.songs.sumOf { songPlayCounts[it.id] ?: 0 }
+        if (playCount <= 0) return@forEachIndexed
+        val candidate = RankedFavoriteAlbum(
+            album = album,
+            playCount = playCount,
+            artistKey = album.artist.lowercase(),
+            titleKey = album.title.lowercase(),
+            index = index,
         )
-
-    return buildList {
-        rankedByFrequency.forEach { album ->
-            if (none { it.id == album.id }) add(album)
-            if (size == 6) return@buildList
+        val existing = bestAlbumsById[album.id]
+        if (existing != null) {
+            if (comparator.compare(candidate, existing) >= 0) return@forEachIndexed
+            bestAlbums.remove(existing)
+        } else if (bestAlbums.size == HOME_FAVORITE_ALBUM_LIMIT) {
+            val worst = requireNotNull(bestAlbums.peek())
+            if (comparator.compare(candidate, worst) >= 0) return@forEachIndexed
+            bestAlbums.poll()
+            bestAlbumsById.remove(worst.album.id)
         }
-        recentAlbums.forEach { album ->
-            if (none { it.id == album.id }) add(album)
-            if (size == 6) return@buildList
-        }
-        recentlyAddedAlbums.forEach { album ->
-            if (none { it.id == album.id }) add(album)
-            if (size == 6) return@buildList
-        }
+        bestAlbumsById[album.id] = candidate
+        bestAlbums += candidate
     }
+
+    val selected = ArrayList<Album>(HOME_FAVORITE_ALBUM_LIMIT)
+    val selectedIds = HashSet<Long>(HOME_FAVORITE_ALBUM_LIMIT)
+    fun addIfMissing(album: Album) {
+        if (selected.size < HOME_FAVORITE_ALBUM_LIMIT && selectedIds.add(album.id)) selected += album
+    }
+    bestAlbums.toList().sortedWith(comparator).forEach { addIfMissing(it.album) }
+    recentAlbums.forEach { addIfMissing(it) }
+    recentlyAddedAlbums.forEach { addIfMissing(it) }
+    return selected
+}
+
+private data class RankedFavoriteAlbum(
+    val album: Album,
+    val playCount: Int,
+    val artistKey: String,
+    val titleKey: String,
+    val index: Int,
+)
+
+private const val HOME_FAVORITE_ALBUM_LIMIT = 6
+private const val HOME_RECENT_ALBUM_LIMIT = 6
+private const val HOME_RECENT_SONG_LIMIT = 5
+
+internal data class AlbumCollectionSortEntry(
+    val album: Album,
+    val artistKey: String = album.artist.lowercase(),
+    val titleKey: String = album.title.lowercase(),
+)
+
+internal fun albumCollectionSortEntries(albums: List<Album>): List<AlbumCollectionSortEntry> =
+    albums.map(::AlbumCollectionSortEntry)
+
+internal fun sortAlbumCollection(
+    entries: List<AlbumCollectionSortEntry>,
+    sortMode: AlbumSortMode,
+): List<Album> = when (sortMode) {
+    AlbumSortMode.Artist -> entries.sortedWith(
+        compareBy<AlbumCollectionSortEntry> { it.artistKey }.thenBy { it.titleKey },
+    )
+    AlbumSortMode.Album -> entries.sortedWith(
+        compareBy<AlbumCollectionSortEntry> { it.titleKey }.thenBy { it.artistKey },
+    )
+}.map(AlbumCollectionSortEntry::album)
+
+internal data class SongCollectionSortEntry(
+    val song: Song,
+    val titleKey: String = song.title.lowercase(),
+    val artistKey: String = song.artist.lowercase(),
+    val albumKey: String = song.album.lowercase(),
+)
+
+internal fun songCollectionSortEntries(songs: List<Song>): List<SongCollectionSortEntry> =
+    songs.map(::SongCollectionSortEntry)
+
+internal fun sortSongCollection(
+    entries: List<SongCollectionSortEntry>,
+    sortMode: SongSortMode,
+): List<Song> = when (sortMode) {
+    SongSortMode.Title -> entries.sortedWith(
+        compareBy<SongCollectionSortEntry> { it.titleKey }.thenBy { it.artistKey }.thenBy { it.albumKey },
+    )
+    SongSortMode.Artist -> entries.sortedWith(
+        compareBy<SongCollectionSortEntry> { it.artistKey }.thenBy { it.titleKey }.thenBy { it.albumKey },
+    )
+    SongSortMode.Album -> entries.sortedWith(
+        compareBy<SongCollectionSortEntry> { it.albumKey }.thenBy { it.titleKey }.thenBy { it.artistKey },
+    )
+}.map(SongCollectionSortEntry::song)
+
+internal fun artistEntriesFor(songs: List<Song>): List<ArtistEntry> {
+    data class ArtistCounts(
+        val albumIds: MutableSet<Long> = HashSet(),
+        var artUri: android.net.Uri? = null,
+        var songCount: Int = 0,
+    )
+
+    val countsByArtist = linkedMapOf<String, ArtistCounts>()
+    songs.forEach { song ->
+        val counts = countsByArtist.getOrPut(song.libraryArtistName(), ::ArtistCounts)
+        if (counts.artUri == null) counts.artUri = song.artUri
+        counts.albumIds += song.albumId
+        counts.songCount++
+    }
+    return countsByArtist.map { (name, counts) ->
+        ArtistEntry(
+            name = name,
+            artUri = counts.artUri,
+            albumCount = counts.albumIds.size,
+            songCount = counts.songCount,
+        )
+    }.sortedBy { it.name.lowercase() }
+}
+
+internal fun genreEntriesFor(songs: List<Song>): List<GenreEntry> {
+    val albumIdsByGenre = linkedMapOf<String, MutableSet<Long>>()
+    songs.forEach { song ->
+        val genre = song.genre.ifBlank { "Unknown Genre" }
+        albumIdsByGenre.getOrPut(genre, ::HashSet).add(song.albumId)
+    }
+    return albumIdsByGenre.map { (name, albumIds) ->
+        GenreEntry(name = name, albumCount = albumIds.size)
+    }.sortedBy { it.name.lowercase() }
 }
 
 internal fun suggestedAlbumsFor(

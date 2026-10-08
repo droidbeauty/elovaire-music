@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
@@ -35,6 +36,85 @@ class ScreenFormattersTest {
 
         assertEquals(listOf(1L, 3L, 4L, 5L), result.songs.map(Song::id))
         assertEquals(21_000L, result.durationMs)
+    }
+
+    @Test
+    fun playlistArtworkPreviewStopsAfterFourDistinctAlbums() {
+        val songs = (1L..8L).map { id -> song(id, albumId = id, durationMs = 1_000L) }
+        val songsById = songs.associateBy(Song::id)
+
+        val result = playlistArtworkPreviewSongs(
+            songIds = listOf(999L, 1L, 2L, 2L, 3L, 4L, 5L, 6L),
+            songsById = songsById,
+        )
+
+        assertEquals(listOf(1L, 2L, 3L, 4L), result.map(Song::id))
+    }
+
+    @Test
+    fun recentSongsForSkipsMissingAndNonMusicIdsBeforeApplyingLimit() {
+        val songs = (1L..7L).map { id ->
+            song(id, albumId = id, durationMs = 1_000L).let {
+                if (id == 2L || id == 4L) it.copy(mediaKind = AudioMediaKind.Audiobook) else it
+            }
+        }
+
+        val result = recentSongsFor(
+            recentSongIds = listOf(1L, 2L, 999L, 3L, 4L, 5L, 6L, 7L),
+            songsById = songs.associateBy(Song::id),
+        )
+
+        assertEquals(listOf(1L, 3L, 5L, 6L, 7L), result.map(Song::id))
+    }
+
+    @Test
+    fun songAndAlbumCollectionSortsMatchTheirSortModes() {
+        val songs = listOf(
+            song(1L, albumId = 1L, durationMs = 1_000L).copy(title = "b", artist = "A", album = "z"),
+            song(2L, albumId = 2L, durationMs = 1_000L).copy(title = "A", artist = "b", album = "a"),
+            song(3L, albumId = 3L, durationMs = 1_000L).copy(title = "A", artist = "A", album = "a"),
+        )
+        val albums = listOf(
+            album(1L, 1L).copy(title = "b", artist = "A"),
+            album(2L, 1L).copy(title = "A", artist = "b"),
+            album(3L, 1L).copy(title = "A", artist = "A"),
+        )
+
+        val sortedSongs = songSortModeResults(songs)
+        SongSortMode.entries.forEach { mode ->
+            assertEquals(sortedSongs.getValue(mode), sortSongCollection(songCollectionSortEntries(songs), mode).map(Song::id))
+        }
+        val sortedAlbums = albumSortModeResults(albums)
+        AlbumSortMode.entries.forEach { mode ->
+            assertEquals(sortedAlbums.getValue(mode), sortAlbumCollection(albumCollectionSortEntries(albums), mode).map(Album::id))
+        }
+    }
+
+    @Test
+    fun artistAndGenreEntriesCountUniqueAlbumsAndKeepUnknownGenre() {
+        val songs = listOf(
+            song(1L, albumId = 1L, durationMs = 1_000L).copy(artist = "Artist", albumArtist = "Library Artist", genre = "Jazz"),
+            song(2L, albumId = 1L, durationMs = 1_000L).copy(artist = "Artist", albumArtist = "Library Artist", genre = "Jazz"),
+            song(3L, albumId = 2L, durationMs = 1_000L).copy(artist = "Other", genre = ""),
+        )
+
+        assertEquals(listOf("Library Artist" to 2, "Other" to 1), artistEntriesFor(songs).map { it.name to it.songCount })
+        assertEquals(listOf("Jazz" to 1, "Unknown Genre" to 1), genreEntriesFor(songs).map { it.name to it.albumCount })
+    }
+
+    @Test
+    fun favoriteAlbumsRanksOnceAndFillsRemainingSlotsFromRecentAlbums() {
+        val albums = (1L..7L).map { id -> album(id, addedAtSeconds = id).copy(artist = "Artist $id") }
+        val playCounts = mapOf(1L to 10, 2L to 10, 3L to 5, 4L to 1)
+
+        val result = favoriteAlbumsFor(
+            libraryState = LibraryUiState(albums = albums),
+            songPlayCounts = playCounts,
+            recentAlbums = listOf(albums[3], albums[4], albums[5]),
+            recentlyAddedAlbums = listOf(albums[6]),
+        )
+
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L), result.map(Album::id))
     }
 
     private fun album(id: Long, addedAtSeconds: Long): Album {
@@ -71,4 +151,15 @@ class ScreenFormattersTest {
             artUri = null,
         )
     }
+
+    private fun songSortModeResults(songs: List<Song>): Map<SongSortMode, List<Long>> = mapOf(
+        SongSortMode.Title to songs.sortedWith(compareBy<Song> { it.title.lowercase() }.thenBy { it.artist.lowercase() }.thenBy { it.album.lowercase() }).map(Song::id),
+        SongSortMode.Artist to songs.sortedWith(compareBy<Song> { it.artist.lowercase() }.thenBy { it.title.lowercase() }.thenBy { it.album.lowercase() }).map(Song::id),
+        SongSortMode.Album to songs.sortedWith(compareBy<Song> { it.album.lowercase() }.thenBy { it.title.lowercase() }.thenBy { it.artist.lowercase() }).map(Song::id),
+    )
+
+    private fun albumSortModeResults(albums: List<Album>): Map<AlbumSortMode, List<Long>> = mapOf(
+        AlbumSortMode.Artist to albums.sortedWith(compareBy<Album> { it.artist.lowercase() }.thenBy { it.title.lowercase() }).map(Album::id),
+        AlbumSortMode.Album to albums.sortedWith(compareBy<Album> { it.title.lowercase() }.thenBy { it.artist.lowercase() }).map(Album::id),
+    )
 }

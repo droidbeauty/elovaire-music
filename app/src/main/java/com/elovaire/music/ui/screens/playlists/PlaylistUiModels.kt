@@ -113,6 +113,20 @@ internal fun playlistCollageSongs(songs: List<Song>): List<Song> {
     }
 }
 
+internal fun playlistArtworkPreviewSongs(
+    songIds: List<Long>,
+    songsById: Map<Long, Song>,
+): List<Song> {
+    val usedAlbumIds = HashSet<Long>(PREVIEW_SONG_LIMIT)
+    return buildList(PREVIEW_SONG_LIMIT) {
+        for (songId in songIds) {
+            val song = songsById[songId] ?: continue
+            if (usedAlbumIds.add(song.albumId)) add(song)
+            if (size == PREVIEW_SONG_LIMIT) break
+        }
+    }
+}
+
 private const val PREVIEW_SONG_LIMIT = 4
 
 internal fun formatPlaylistDuration(durationMs: Long): String {

@@ -5,7 +5,6 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Album
-import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 
@@ -66,10 +65,7 @@ internal fun rootRouteStateOf(
     playFirstLaunchHomeReveal: Boolean,
 ): RootRouteState {
     val playbackState = appState.playback
-    val recentSongs = playbackState.recentSongIds
-        .mapNotNull(derivedState.songsById::get)
-        .filter { it.mediaKind == AudioMediaKind.Music }
-        .take(5)
+    val recentSongs = recentSongsFor(playbackState.recentSongIds, derivedState.songsById)
     val home = HomeRouteState(
         lastPlayedAlbum = derivedState.lastPlayedAlbum,
         lastPlayedPlaylist = derivedState.lastPlayedPlaylist,

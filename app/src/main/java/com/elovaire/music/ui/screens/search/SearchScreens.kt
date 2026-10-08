@@ -1325,7 +1325,7 @@ private fun SearchPlaylistListCard(
             playlists.forEachIndexed { index, playlist ->
                 SearchPlaylistListRow(
                     playlist = playlist,
-                    songs = playlist.songIds.mapNotNull(songsById::get),
+                    songsById = songsById,
                     onClick = { onPlaylistSelected(playlist) },
                 )
                 if (index != playlists.lastIndex) {
@@ -1339,10 +1339,13 @@ private fun SearchPlaylistListCard(
 @Composable
 private fun SearchPlaylistListRow(
     playlist: Playlist,
-    songs: List<Song>,
+    songsById: Map<Long, Song>,
     onClick: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val previewSongs = remember(playlist.songIds, songsById) {
+        playlistArtworkPreviewSongs(playlist.songIds, songsById)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1352,7 +1355,7 @@ private fun SearchPlaylistListRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PlaylistArtworkPreview(
-            songs = songs,
+            songs = previewSongs,
             title = playlist.name,
             modifier = Modifier.size(50.dp),
             placeholderIconSize = 18.dp,

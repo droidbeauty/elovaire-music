@@ -1118,17 +1118,9 @@ private fun AlbumCollectionContent(
     val gridState = rememberElovaireLazyGridState(title, "album_collection_grid")
     val selectionHazeState = rememberHazeState()
     val selectionModeActive = selectedAlbumIds.isNotEmpty()
-    val sortedAlbums = remember(albums, sortMode) {
-        when (sortMode) {
-            AlbumSortMode.Artist -> albums.sortedWith(
-                compareBy<Album> { it.artist.lowercase() }
-                    .thenBy { it.title.lowercase() },
-            )
-            AlbumSortMode.Album -> albums.sortedWith(
-                compareBy<Album> { it.title.lowercase() }
-                    .thenBy { it.artist.lowercase() },
-            )
-        }
+    val albumSortEntries = remember(albums) { albumCollectionSortEntries(albums) }
+    val sortedAlbums = remember(albumSortEntries, sortMode) {
+        sortAlbumCollection(albumSortEntries, sortMode)
     }
     val selectedAlbums = remember(sortedAlbums, selectedAlbumIds) {
         sortedAlbums.filter { it.id in selectedAlbumIds }
@@ -1957,9 +1949,12 @@ internal fun LibraryCollectionScreen(
 ) {
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
+    val musicSongs = remember(libraryState.songs) {
+        libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music }
+    }
     when (kind) {
         LibraryCollectionKind.Songs -> SongCollectionScreen(
-            songs = libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music },
+            songs = musicSongs,
             removingSongIds = libraryState.removingSongIds,
             favoriteSongIds = favoriteSongIds,
             sortMode = songSortMode,
@@ -2003,7 +1998,7 @@ internal fun LibraryCollectionScreen(
         }
 
         LibraryCollectionKind.Artists -> ArtistCollectionScreen(
-            songs = libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music },
+            songs = musicSongs,
             artistImageRepository = artistImageRepository,
             bottomPadding = bottomPadding,
             onBack = onBack,
@@ -2011,7 +2006,7 @@ internal fun LibraryCollectionScreen(
         )
 
         LibraryCollectionKind.Genres -> GenreCollectionScreen(
-            songs = libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music },
+            songs = musicSongs,
             bottomPadding = bottomPadding,
             onBack = onBack,
             onGenreSelected = onGenreSelected,
@@ -2039,24 +2034,9 @@ private fun SongCollectionScreen(
     val common = remember(language) { commonUiCopy(language) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberElovaireLazyListState("song_collection_list")
-    val sortedSongs = remember(songs, sortMode) {
-        when (sortMode) {
-            SongSortMode.Title -> songs.sortedWith(
-                compareBy<Song> { it.title.lowercase() }
-                    .thenBy { it.artist.lowercase() }
-                    .thenBy { it.album.lowercase() },
-            )
-            SongSortMode.Artist -> songs.sortedWith(
-                compareBy<Song> { it.artist.lowercase() }
-                    .thenBy { it.title.lowercase() }
-                    .thenBy { it.album.lowercase() },
-            )
-            SongSortMode.Album -> songs.sortedWith(
-                compareBy<Song> { it.album.lowercase() }
-                    .thenBy { it.title.lowercase() }
-                    .thenBy { it.artist.lowercase() },
-            )
-        }
+    val songSortEntries = remember(songs) { songCollectionSortEntries(songs) }
+    val sortedSongs = remember(songSortEntries, sortMode) {
+        sortSongCollection(songSortEntries, sortMode)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -2233,19 +2213,7 @@ private fun ArtistCollectionScreen(
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
     val listState = rememberElovaireLazyListState("artist_collection")
-    val artists = remember(songs) {
-        songs
-            .groupBy { it.libraryArtistName() }
-            .map { (name, artistSongs) ->
-                ArtistEntry(
-                    name = name,
-                    artUri = artistSongs.firstOrNull { it.artUri != null }?.artUri,
-                    albumCount = artistSongs.map { it.albumId }.distinct().size,
-                    songCount = artistSongs.size,
-                )
-            }
-            .sortedBy { it.name.lowercase() }
-    }
+    val artists = remember(songs) { artistEntriesFor(songs) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -2299,46 +2267,39 @@ private fun GenreCollectionScreen(
 ) {
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
-    val scrollState = rememberElovaireScrollState("genre_collection")
-    val genres = remember(songs) {
-        songs
-            .groupBy { it.genre.ifBlank { "Unknown Genre" } }
-            .map { (name, genreSongs) ->
-                GenreEntry(
-                    name = name,
-                    albumCount = genreSongs.map { it.albumId }.distinct().size,
-                )
-            }
-            .sortedBy { it.name.lowercase() }
-    }
+    val listState = rememberElovaireLazyListState("genre_collection_list")
+    val genres = remember(songs) { genreEntriesFor(songs) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(
-                    start = 20.dp,
-                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailSectionTopGap,
-                    end = 20.dp,
-                    bottom = bottomPadding,
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = 20.dp,
+                top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailSectionTopGap,
+                end = 20.dp,
+                bottom = bottomPadding,
             ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column {
-                genres.forEachIndexed { index, genre ->
-                    GenreRow(
-                        genre = genre,
-                        onClick = { onGenreSelected(genre.name) },
-                    )
-                    if (index != genres.lastIndex) {
-                        DividerLine()
-                    }
+            itemsIndexed(
+                items = genres,
+                key = { _, genre -> genre.name },
+                contentType = { _, _ -> "genre_row" },
+            ) { index, genre ->
+                GenreRow(
+                    genre = genre,
+                    onClick = { onGenreSelected(genre.name) },
+                )
+                if (index != genres.lastIndex) {
+                    DividerLine()
                 }
             }
         }
         FastScrollbar(
-            state = scrollState,
+            state = listState,
             topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
             bottomInset = bottomPadding + 16.dp,
         )
