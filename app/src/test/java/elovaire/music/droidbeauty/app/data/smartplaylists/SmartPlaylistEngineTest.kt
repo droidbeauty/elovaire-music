@@ -144,6 +144,19 @@ class SmartPlaylistEngineTest {
     }
 
     @Test
+    fun deserializationKeepsOnlyTheFirstDefinitionForDuplicateIds() {
+        val first = SmartPlaylist(
+            id = 12L,
+            name = "First",
+            createdAtMs = 1L,
+            updatedAtMs = 1L,
+        )
+        val duplicate = first.copy(name = "Duplicate")
+
+        assertEquals(listOf(first), deserializeSmartPlaylists(serializeSmartPlaylists(listOf(first, duplicate))))
+    }
+
+    @Test
     fun malformedMatchModeIsRejectedInsteadOfBecomingMatchAll() {
         val playlist = SmartPlaylist(
             id = 12L,

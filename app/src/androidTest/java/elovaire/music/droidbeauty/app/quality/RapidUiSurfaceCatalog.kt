@@ -152,6 +152,7 @@ internal object RapidUiSurfaceCatalog {
         surface("folders.source_chooser", RapidUiSurfaceKind.Sheet, "Add library folder", "choose or dismiss"),
         surface("folders.network_editor", RapidUiSurfaceKind.Dialog, "network source", "save, cancel, or Back"),
         surface("folders.protocol_mode", RapidUiSurfaceKind.Mode, "network source editor", "switch SMB/WebDAV"),
+        surface("folders.remove_control", RapidUiSurfaceKind.Mode, "library folder edit mode", "leave edit mode or remove source"),
         surface("folders.remove_confirmation", RapidUiSurfaceKind.Dialog, "remove source", "confirm or cancel"),
         surface("folders.probe_state", RapidUiSurfaceKind.Mode, "network save/probe", "completion or route change"),
         surface("manage_playlists.empty", RapidUiSurfaceKind.Mode, "manage playlists", "route change"),

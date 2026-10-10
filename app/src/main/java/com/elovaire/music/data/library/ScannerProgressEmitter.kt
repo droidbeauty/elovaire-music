@@ -32,7 +32,12 @@ private class ScannerProgressThrottler(
 
     fun shouldEmit(progress: Float): Boolean {
         val now = clock.elapsedTimeMs()
-        if (progress >= 1f) return true
+        if (progress >= 1f) {
+            if (lastProgress >= 1f) return false
+            lastProgress = 1f
+            lastEmitMs = now
+            return true
+        }
         if (lastProgress < 0f) {
             lastProgress = progress
             lastEmitMs = now

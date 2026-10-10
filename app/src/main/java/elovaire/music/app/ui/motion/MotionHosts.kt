@@ -177,6 +177,24 @@ fun ElovaireAnimatedVisibility(
     )
 }
 
+@Composable
+fun InlineActionMotionHost(
+    visible: Boolean,
+    surfaceId: String,
+    modifier: Modifier = Modifier,
+    content: @Composable AnimatedVisibilityScope.() -> Unit,
+) {
+    val transitions = rememberMotionTransitions()
+    MotionVisibilityHost(
+        visible = visible,
+        surfaceId = surfaceId,
+        enter = transitions.inlineActionEnter(),
+        exit = transitions.inlineActionExit(),
+        modifier = modifier,
+        content = content,
+    )
+}
+
 internal class MotionVisibilityObservation(private val surfaceId: String) {
     private var lastTarget: Boolean? = null
     private var settledTarget: Boolean? = null

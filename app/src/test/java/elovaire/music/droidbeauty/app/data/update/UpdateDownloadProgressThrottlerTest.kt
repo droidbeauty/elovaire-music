@@ -13,4 +13,15 @@ class UpdateDownloadProgressThrottlerTest {
         assertTrue(throttler.shouldEmit(0.02f, 20L))
         assertTrue(throttler.shouldEmit(1f, 30L))
     }
+
+    @Test
+    fun nonFiniteProgressDoesNotPoisonLaterUpdatesOrMarkDownloadComplete() {
+        val throttler = UpdateDownloadProgressThrottler()
+        assertTrue(throttler.shouldEmit(0f, 0L))
+
+        assertFalse(throttler.shouldEmit(Float.NaN, 1L))
+        assertFalse(throttler.shouldEmit(Float.POSITIVE_INFINITY, 2L))
+        assertFalse(throttler.shouldEmit(Float.NEGATIVE_INFINITY, 3L))
+        assertTrue(throttler.shouldEmit(0.02f, 4L))
+    }
 }

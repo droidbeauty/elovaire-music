@@ -20,6 +20,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -241,6 +242,24 @@ class ArtistImageRepositoryTest {
         repository.trimDiskArtworkCache(directory, keep)
 
         assertTrue(activeDownload.exists())
+    }
+
+    @Test
+    fun evictedDiskArtworkIsNotAcceptedFromTheMemoryCache() {
+        val file = temporaryFolder.newFile("artist.img")
+        file.writeBytes(byteArrayOf(1))
+        val cachedUri = TestUri("file://${file.absolutePath}")
+
+        assertTrue(isCachedArtistArtworkAvailable(cachedUri))
+        file.delete()
+        assertFalse(isCachedArtistArtworkAvailable(cachedUri))
+        assertTrue(isCachedArtistArtworkAvailable(TestUri("https://example.test/artist.jpg")))
+    }
+
+    @Test
+    fun secureArtistImageSchemeIsCaseInsensitive() {
+        assertTrue(isSecureArtistImageUri(TestUri("HTTPS://example.test/artist.jpg")))
+        assertFalse(isSecureArtistImageUri(TestUri("http://example.test/artist.jpg")))
     }
 
     private fun newRepository(

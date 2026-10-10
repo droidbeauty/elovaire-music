@@ -158,7 +158,10 @@ internal class ArtistImageRepository(
             val now = clock.wallTimeMs()
             remoteArtworkCache[artistKey]?.let { cached ->
                 val maxRemainingMs = if (cached.uri == null) NEGATIVE_CACHE_TTL_MS else POSITIVE_CACHE_TTL_MS
-                if (isWallTimeDeadlineFresh(now, cached.expiresAtMs, maxRemainingMs)) {
+                if (
+                    isWallTimeDeadlineFresh(now, cached.expiresAtMs, maxRemainingMs) &&
+                    isCachedArtistArtworkAvailable(cached.uri)
+                ) {
                     return@synchronized ResolutionClaim.Cached(cached.uri)
                 }
                 remoteArtworkCache.remove(artistKey)
@@ -216,7 +219,7 @@ internal class ArtistImageRepository(
             when (val lookup = client.findArtistImage(artistName)) {
                 is ArtistImageLookup.Found -> {
                     val uri = lookup.uri
-                    if (!uri.scheme.equals("https", ignoreCase = true) || uri.host.isNullOrBlank()) {
+                    if (!isSecureArtistImageUri(uri)) {
                         completeRemoteArtwork(artistKey, deferred, null, cacheResult = false)
                         return
                     }
@@ -322,7 +325,7 @@ internal class ArtistImageRepository(
     }
 
     private fun persistArtwork(uri: Uri, artistKey: String): Uri? {
-        if (uri.scheme != "https") return null
+        if (!isSecureArtistImageUri(uri)) return null
         val context = appContext ?: return null
         val directory = context.cacheDir.resolve(ARTIST_IMAGE_CACHE_DIRECTORY)
         if (!directory.exists() && !directory.mkdirs()) return null
@@ -420,6 +423,16 @@ internal class ArtistImageRepository(
         const val MAX_DISK_CACHE_BYTES = 16L * 1024L * 1024L
         val ARTIST_KEY_WHITESPACE = Regex("\\s+")
     }
+}
+
+internal fun isSecureArtistImageUri(uri: Uri): Boolean =
+    uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()
+
+internal fun isCachedArtistArtworkAvailable(uri: Uri?): Boolean {
+    if (!uri?.scheme.equals("file", ignoreCase = true)) return true
+    val path = uri?.path ?: return false
+    val file = File(path)
+    return file.isFile && file.length() > 0L
 }
 
 private val ARTIST_ALBUM_ARTWORK_COMPARATOR = compareByDescending<Album> { it.songCount }

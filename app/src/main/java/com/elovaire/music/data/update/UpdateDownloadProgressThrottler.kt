@@ -8,6 +8,7 @@ internal class UpdateDownloadProgressThrottler(
     private var lastUpdateMs = -minimumIntervalMs
 
     fun shouldEmit(progress: Float, nowMs: Long): Boolean {
+        if (!progress.isFinite()) return false
         val normalized = progress.coerceIn(0f, 1f)
         if (normalized < lastProgress) return false
         if (normalized >= 1f || normalized - lastProgress >= minimumProgressDelta || nowMs - lastUpdateMs >= minimumIntervalMs) {

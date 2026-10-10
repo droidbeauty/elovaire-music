@@ -68,14 +68,25 @@ internal class NetworkFileSystemRegistry(
     private val activeHandles = Collections.newSetFromMap(IdentityHashMap<NetworkReadHandle, Boolean>())
     private val permissionAllowed = AtomicBoolean(localNetworkAccessAllowed())
     private val networkGeneration = AtomicLong(0L)
+    private val connectivityStateLock = Any()
     private val connectivityObserver = applicationContext?.let { context ->
         NetworkConnectivityObserver(
             context = context,
             localNetworkAccessAllowed = localNetworkAccessAllowed,
             onStateChanged = { state ->
-                permissionAllowed.set(state.localNetworkAccessAllowed)
-                networkGeneration.set(state.generation)
-                invalidateAll()
+                val accepted = synchronized(connectivityStateLock) {
+                    if (
+                        released.get() ||
+                        !shouldApplyNetworkConnectivityGeneration(networkGeneration.get(), state.generation)
+                    ) {
+                        false
+                    } else {
+                        permissionAllowed.set(state.localNetworkAccessAllowed)
+                        networkGeneration.set(state.generation)
+                        true
+                    }
+                }
+                if (accepted) invalidateAll()
             },
         )
     }
@@ -270,6 +281,11 @@ internal class NetworkFileSystemRegistry(
         NetworkReadPurpose.Listing -> BackendResourceKind.ActiveNetworkRead
     }
 }
+
+internal fun shouldApplyNetworkConnectivityGeneration(
+    currentGeneration: Long,
+    incomingGeneration: Long,
+): Boolean = incomingGeneration > currentGeneration
 
 @Suppress("TooGenericExceptionCaught")
 internal fun requireCurrentNetworkHandle(

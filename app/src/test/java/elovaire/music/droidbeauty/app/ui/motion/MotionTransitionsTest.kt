@@ -16,6 +16,8 @@ class MotionTransitionsTest {
         assertSame(transitions.softContentTransform(), transitions.softContentTransform())
         assertSame(transitions.popupCardEnter(), transitions.popupCardEnter())
         assertSame(transitions.popupCardExit(), transitions.popupCardExit())
+        assertSame(transitions.inlineActionEnter(), transitions.inlineActionEnter())
+        assertSame(transitions.inlineActionExit(), transitions.inlineActionExit())
         assertSame(transitions.bannerEnter(), transitions.bannerEnter())
         assertSame(transitions.bannerExit(), transitions.bannerExit())
         assertSame(transitions.bottomBarEnter(), transitions.bottomBarEnter())

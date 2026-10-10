@@ -19,6 +19,7 @@ externalNativeBuild/
 
 # Local machine config
 local.properties
+/prompts/
 .idea/
 *.iml
 *.log

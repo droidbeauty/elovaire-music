@@ -2,6 +2,10 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import java.io.ByteArrayInputStream
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -77,4 +81,43 @@ class NetworkBackendSafetyTest {
 
         assertTrue(sessionClass.declaredFields.none { it.type == NetworkCredentials::class.java })
     }
+
+    @Test
+    fun zeroLengthWebDavReadDoesNotOpenAConnection() {
+        val source = networkSource(NetworkLibraryProtocol.WebDav)
+        val fileSystem = WebDavNetworkFileSystem()
+
+        fileSystem.openBlocking(source, credentials(), "track.mp3", 0L, 0L).use { handle ->
+            assertEquals(0L, handle.length)
+            assertEquals(-1, handle.input.read())
+        }
+    }
+
+    @Test
+    fun zeroLengthSmbReadDoesNotAcquireASession() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val fileSystem = SmbNetworkFileSystem(scope)
+        try {
+            fileSystem.openBlocking(networkSource(NetworkLibraryProtocol.Smb), credentials(), "track.mp3", 0L, 0L)
+                .use { handle ->
+                    assertEquals(0L, handle.length)
+                    assertEquals(-1, handle.input.read())
+                }
+        } finally {
+            fileSystem.release()
+            scope.cancel()
+        }
+    }
+
+    private fun networkSource(protocol: NetworkLibraryProtocol) = NetworkLibrarySource(
+        id = "source",
+        name = "Source",
+        protocol = protocol,
+        server = "not-a-valid-server",
+        shareOrPath = "share",
+        username = "",
+        credentialKey = "credential",
+    )
+
+    private fun credentials() = NetworkCredentials(username = "", password = "")
 }

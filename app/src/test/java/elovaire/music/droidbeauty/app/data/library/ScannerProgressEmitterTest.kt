@@ -21,4 +21,18 @@ class ScannerProgressEmitterTest {
 
         assertEquals(listOf(1 to 1_000, 3 to 1_000), emissions)
     }
+
+    @Test
+    fun completionIsEmittedOnlyOnce() {
+        val emissions = mutableListOf<Pair<Int, Int>>()
+        val emitter = ScannerProgressEmitter(
+            onProgress = { current, total -> emissions += current to total },
+            clock = FakeAppClock(),
+        )
+
+        emitter.emit(1, 1)
+        emitter.emit(1, 1)
+
+        assertEquals(listOf(1 to 1), emissions)
+    }
 }

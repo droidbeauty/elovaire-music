@@ -42,4 +42,11 @@ class NetworkConnectivityReducerTest {
         assertEquals(false, revoked.localNetworkAccessAllowed)
         assertEquals(true, revoked.networkAvailable)
     }
+
+    @Test
+    fun delayedConnectivityCallbacksCannotRollBackTheRegistryGeneration() {
+        assertEquals(true, shouldApplyNetworkConnectivityGeneration(4L, 5L))
+        assertEquals(false, shouldApplyNetworkConnectivityGeneration(5L, 4L))
+        assertEquals(false, shouldApplyNetworkConnectivityGeneration(5L, 5L))
+    }
 }

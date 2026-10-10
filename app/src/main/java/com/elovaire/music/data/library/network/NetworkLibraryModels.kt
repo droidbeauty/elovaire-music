@@ -92,6 +92,14 @@ internal class NetworkReadHandle(
         }
         failure?.let { throw it }
     }
+
+    companion object {
+        fun empty() = NetworkReadHandle(
+            input = java.io.ByteArrayInputStream(ByteArray(0)),
+            length = 0L,
+            closeHandle = {},
+        )
+    }
 }
 
 internal enum class NetworkAvailability {

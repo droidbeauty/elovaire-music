@@ -96,6 +96,7 @@ internal class WebDavNetworkFileSystem(
         checkNotReleased()
         require(position >= 0L)
         require(length == -1L || length >= 0L)
+        if (length == 0L) return NetworkReadHandle.empty()
         val requestedEnd = if (length > 0L) {
             position.checkedRangeEnd(length)
         } else {

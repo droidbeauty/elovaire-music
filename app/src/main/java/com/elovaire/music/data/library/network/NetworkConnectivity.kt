@@ -113,16 +113,14 @@ internal class NetworkConnectivityObserver(
     }
 
     private fun publish() {
-        if (!lifecycle.get()) return
-        val signal = synchronized(lock) {
-            NetworkConnectivitySignal(
+        val updated = synchronized(lock) {
+            if (!lifecycle.get()) return
+            val signal = NetworkConnectivitySignal(
                 networkAvailable = activeNetworks.isNotEmpty(),
                 networkBlocked = activeNetworks.isNotEmpty() &&
                     activeNetworks.all(blockedNetworks::contains),
                 localNetworkAccessAllowed = localNetworkAccessAllowed(),
             )
-        }
-        val updated = synchronized(lock) {
             val next = NetworkConnectivityReducer.reduce(state, signal)
             if (next == state) return@synchronized null
             state = next

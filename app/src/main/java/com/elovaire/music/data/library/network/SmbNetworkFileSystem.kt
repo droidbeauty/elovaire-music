@@ -132,6 +132,9 @@ internal class SmbNetworkFileSystem(
         length: Long,
     ): NetworkReadHandle {
         checkNotReleased()
+        require(position >= 0L)
+        require(length == -1L || length >= 0L)
+        if (length == 0L) return NetworkReadHandle.empty()
         val session = sessionFor(source, credentials)
         val lease = session.acquire(credentials)
         var file: com.hierynomus.smbj.share.File? = null

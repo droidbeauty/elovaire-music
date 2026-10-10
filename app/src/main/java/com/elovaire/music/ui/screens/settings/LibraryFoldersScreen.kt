@@ -84,6 +84,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
+import elovaire.music.droidbeauty.app.ui.motion.InlineActionMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
@@ -1013,7 +1014,10 @@ private fun LibraryFolderListRow(
                 color = MaterialTheme.colorScheme.error,
             )
         }
-        AnimatedVisibility(visible = showRemove) {
+        InlineActionMotionHost(
+            visible = showRemove,
+            surfaceId = "folders.remove_control",
+        ) {
             HeaderIconButton(
                 iconResId = R.drawable.ic_lucide_x,
                 contentDescription = removeLabel,

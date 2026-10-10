@@ -291,6 +291,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
+import elovaire.music.droidbeauty.app.ui.motion.InlineActionMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
@@ -1041,7 +1042,10 @@ private fun SearchHistorySectionHeader(
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface,
         )
-        AnimatedVisibility(visible = showClearAction) {
+        InlineActionMotionHost(
+            visible = showClearAction,
+            surfaceId = "search.history",
+        ) {
             Surface(
                 modifier = Modifier.elovaireActionBump(
                     interactionSource = interactionSource,
@@ -1187,7 +1191,10 @@ private fun SearchSongsPreviewHeader(
             subtitle = copy.matchingSongs(resultCount),
             iconResId = R.drawable.ic_lucide_music,
         )
-        AnimatedVisibility(visible = showSeeAll) {
+        InlineActionMotionHost(
+            visible = showSeeAll,
+            surfaceId = "search.category_grids",
+        ) {
             Surface(
                 modifier = Modifier
                     .size(34.dp)

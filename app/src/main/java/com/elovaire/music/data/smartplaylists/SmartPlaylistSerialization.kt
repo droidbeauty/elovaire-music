@@ -33,6 +33,7 @@ internal fun deserializeSmartPlaylists(value: String?): List<SmartPlaylist> {
         ?.split(RecordSeparator, limit = MAX_SMART_PLAYLIST_COUNT + 1)
         ?.takeIf { it.size <= MAX_SMART_PLAYLIST_COUNT }
         ?.mapNotNull { deserializeSmartPlaylist(it, allowLegacySort = !versioned) }
+        ?.distinctBy(SmartPlaylist::id)
         .orEmpty()
 }
 

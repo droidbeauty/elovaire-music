@@ -146,6 +146,31 @@ class MotionTransitions internal constructor(
 
     fun bottomSheetExit(): ExitTransition = popupCardExit()
 
+    /** A compact fade and scale for small controls that appear inside existing layouts. */
+    fun inlineActionEnter(): EnterTransition = cached(StaticMotionTransition.InlineActionEnter) {
+        fadeIn(
+            animationSpec = specs.fadeIn(MotionDuration.Fast),
+        ) + scaleIn(
+            initialScale = 0.96f,
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Fast,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+        )
+    }
+
+    fun inlineActionExit(): ExitTransition = cached(StaticMotionTransition.InlineActionExit) {
+        fadeOut(
+            animationSpec = specs.fadeOut(MotionDuration.Quick),
+        ) + scaleOut(
+            targetScale = 0.98f,
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Quick,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+        )
+    }
+
     fun bannerEnter(): EnterTransition = cached(StaticMotionTransition.BannerEnter) {
         fadeSlideVerticalEnter(
             fadeDuration = MotionDuration.Standard,
@@ -673,6 +698,8 @@ internal enum class StaticMotionTransition {
     QueueMenuExit,
     PopupCardEnter,
     PopupCardExit,
+    InlineActionEnter,
+    InlineActionExit,
     AlbumDetailForwardExit,
     AlbumDetailBackEnter,
     TitleSwapTransform,

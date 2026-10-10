@@ -30,7 +30,14 @@ internal class NotificationArtworkLoader(
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val pendingLoads = linkedMapOf<String, Job>()
+    private val pendingCallbacks = linkedMapOf<String, MutableList<ArtworkCallbackRequest>>()
     private var currentKey: ArtworkRequestKey? = null
+
+    private data class ArtworkCallbackRequest(
+        val isStillCurrent: (ArtworkRequestKey) -> Boolean,
+        val callback: PlayerNotificationManager.BitmapCallback,
+        val onMediaSessionArtworkLoaded: ((ByteArray) -> Unit)?,
+    )
 
     init {
         ArtworkBitmapCache.ensureRegistered(context.applicationContext, resourceTracker)
@@ -66,7 +73,12 @@ internal class NotificationArtworkLoader(
         val primaryUri = sources.firstOrNull() ?: return
         val key = notificationArtworkLoadKey(primaryUri)
         val cacheKey = key.cacheKey
-        if (pendingLoads[cacheKey]?.isActive == true) return
+        val request = ArtworkCallbackRequest(isStillCurrent, callback, onMediaSessionArtworkLoaded)
+        if (pendingLoads[cacheKey]?.isActive == true) {
+            appendPendingArtworkCallback(pendingCallbacks, cacheKey, request)
+            return
+        }
+        pendingCallbacks[cacheKey] = mutableListOf(request)
         pendingLoads[cacheKey] = scope.launch(Dispatchers.IO) {
             try {
                 val bitmap = loadBitmap(context, sources, resourceTracker)
@@ -80,16 +92,25 @@ internal class NotificationArtworkLoader(
                     )
                 }
                 withContext(Dispatchers.Main.immediate) {
-                    if (bitmap != null && isStillCurrent(key)) {
-                        mediaSessionArtwork?.let { onMediaSessionArtworkLoaded?.invoke(it) }
-                        callback.onBitmap(bitmap)
+                    val currentCallbacks = pendingCallbacks[cacheKey]
+                        .orEmpty()
+                        .filter { it.isStillCurrent(key) }
+                    if (bitmap != null && currentCallbacks.isNotEmpty()) {
+                        mediaSessionArtwork?.let { bytes ->
+                            currentCallbacks.firstNotNullOfOrNull(ArtworkCallbackRequest::onMediaSessionArtworkLoaded)
+                                ?.invoke(bytes)
+                        }
+                        currentCallbacks.forEach { it.callback.onBitmap(bitmap) }
                     }
                 }
             } finally {
                 val completedJob = currentCoroutineContext()[Job]
                 withContext(NonCancellable + Dispatchers.Main.immediate) {
                     if (completedJob != null) {
-                        removePendingArtworkLoadIfCurrent(pendingLoads, cacheKey, completedJob)
+                        if (pendingLoads[cacheKey] === completedJob) {
+                            pendingCallbacks.remove(cacheKey)
+                            removePendingArtworkLoadIfCurrent(pendingLoads, cacheKey, completedJob)
+                        }
                     }
                 }
             }
@@ -100,6 +121,7 @@ internal class NotificationArtworkLoader(
         currentKey = null
         pendingLoads.values.forEach(Job::cancel)
         pendingLoads.clear()
+        pendingCallbacks.clear()
     }
 
     fun isCurrent(key: ArtworkRequestKey): Boolean = currentKey == key
@@ -111,9 +133,18 @@ internal class NotificationArtworkLoader(
             val entry = iterator.next()
             if (entry.key == activeCacheKey) continue
             entry.value.cancel()
+            pendingCallbacks.remove(entry.key)
             iterator.remove()
         }
     }
+}
+
+internal fun <T> appendPendingArtworkCallback(
+    pendingCallbacks: MutableMap<String, MutableList<T>>,
+    cacheKey: String,
+    callback: T,
+) {
+    pendingCallbacks.getOrPut(cacheKey, ::mutableListOf).add(callback)
 }
 
 internal fun removePendingArtworkLoadIfCurrent(

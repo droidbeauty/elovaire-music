@@ -166,6 +166,7 @@ internal class BoundedHttpTransport(
     ): GetResponse<T> {
         require(maxBytes > 0) { "maxBytes must be positive" }
         var currentUrl = URL(rawUrl)
+        var requestHeaders = headers
         repeat(maxRedirects + 1) { redirectAttempt ->
             require(urlPolicy(currentUrl)) { "HTTP request URL is not allowed" }
             val connection = (currentUrl.openConnection() as? HttpURLConnection)
@@ -175,13 +176,15 @@ internal class BoundedHttpTransport(
                 connection.connectTimeout = connectTimeoutMs
                 connection.readTimeout = readTimeoutMs
                 connection.instanceFollowRedirects = false
-                headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+                requestHeaders.forEach { (name, value) -> connection.setRequestProperty(name, value) }
                 connection.connect()
                 val status = connection.responseCode
                 if (status in 300..399) {
                     if (redirectAttempt == maxRedirects) error("Too many HTTPS redirects")
                     val location = connection.getHeaderField("Location") ?: error("Redirect has no location")
-                    currentUrl = URL(currentUrl, location)
+                    val nextUrl = URL(currentUrl, location)
+                    requestHeaders = headersForHttpRedirect(requestHeaders, currentUrl, nextUrl)
+                    currentUrl = nextUrl
                     return@repeat
                 }
                 if (connection.contentLengthLong > maxBytes) error("HTTP response is too large")
@@ -329,6 +332,34 @@ private data class GetResponse<T>(
 )
 
 private fun isHttpsUrl(url: URL): Boolean = url.protocol.equals("https", ignoreCase = true)
+
+internal fun headersForHttpRedirect(
+    headers: Map<String, String>,
+    currentUrl: URL,
+    nextUrl: URL,
+): Map<String, String> {
+    if (currentUrl.sameHttpOrigin(nextUrl)) return headers
+    return headers.filterKeys { name -> name.lowercase(java.util.Locale.ROOT) !in SENSITIVE_REDIRECT_HEADERS }
+}
+
+private fun URL.sameHttpOrigin(other: URL): Boolean =
+    protocol.equals(other.protocol, ignoreCase = true) &&
+        host.equals(other.host, ignoreCase = true) &&
+        effectiveHttpPort() == other.effectiveHttpPort()
+
+private fun URL.effectiveHttpPort(): Int = port.takeIf { it >= 0 } ?: when (protocol.lowercase(java.util.Locale.ROOT)) {
+    "https" -> 443
+    "http" -> 80
+    else -> -1
+}
+
+private val SENSITIVE_REDIRECT_HEADERS = setOf(
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "cookie2",
+    "host",
+)
 
 internal data class BoundedHttpResponse(
     val statusCode: Int,
