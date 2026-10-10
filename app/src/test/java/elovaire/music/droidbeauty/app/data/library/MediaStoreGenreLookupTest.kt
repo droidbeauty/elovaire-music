@@ -47,4 +47,17 @@ class MediaStoreGenreLookupTest {
         assertEquals("Fallback", genre)
         assertEquals(1, fallbackCalls)
     }
+
+    @Test
+    fun genreFallbackIsQueriedWhenMetadataIsBlank() {
+        var fallbackCalls = 0
+
+        val genre = resolveMediaStoreGenre("  ") {
+            fallbackCalls += 1
+            "Fallback"
+        }
+
+        assertEquals("Fallback", genre)
+        assertEquals(1, fallbackCalls)
+    }
 }

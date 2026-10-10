@@ -52,7 +52,10 @@ internal class MediaStoreIndexer(
                     !directory.isSymbolicLinkSafely()
                 }
             }
-            .filter { file -> file.isFile && file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions }
+            .filter {
+                file -> file.isFile && !file.isSymbolicLinkSafely() &&
+                    file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions
+            }
             .map(File::getAbsolutePath)
             .forEach { path ->
                 shouldContinue()
@@ -182,14 +185,17 @@ internal fun audioFilesForPaths(paths: Iterable<String>): List<File> {
         .map(::File)
         .flatMap { path ->
             when {
-                path.isFile -> sequenceOf(path)
-                path.isDirectory -> path.walkTopDown()
+                path.isFile && !path.isSymbolicLinkSafely() -> sequenceOf(path)
+                path.isDirectory && !path.isSymbolicLinkSafely() -> path.walkTopDown()
                     .onEnter { directory -> !directory.isSymbolicLinkSafely() }
                     .filter(File::isFile)
                 else -> emptySequence()
             }
         }
-        .filter { file -> file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions }
+        .filter { file ->
+            !file.isSymbolicLinkSafely() &&
+                file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions
+        }
         .distinctBy { it.absolutePath }
         .toList()
 }

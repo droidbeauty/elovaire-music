@@ -131,6 +131,47 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun removingQueueItemWithoutAudioFocusStopsExistingPlayback() {
+        var playWhenReady = true
+        val mediaItems = mutableListOf(song(1L), song(2L))
+        val player = Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "getMediaItemCount" -> mediaItems.size
+                "getCurrentMediaItemIndex" -> 0
+                "removeMediaItem" -> {
+                    mediaItems.removeAt(args!![0] as Int)
+                    Unit
+                }
+                "isPlaying" -> playWhenReady
+                "getPlayWhenReady" -> playWhenReady
+                "setPlayWhenReady" -> {
+                    playWhenReady = args?.get(0) as Boolean
+                    Unit
+                }
+                else -> null
+            }
+        } as Player
+        val songs = mediaItems.toList()
+        val runtime = RecordingQueueRuntime(
+            PlaybackUiState(
+                queue = songs,
+                currentIndex = 0,
+                transportShowsPause = true,
+            ),
+        ).apply {
+            playerDelegate = player
+            audioFocusGranted = false
+        }
+
+        PlaybackQueueController(runtime, PlaybackQueueMetadataRefresher()).removeQueueIndex(0)
+
+        assertFalse(playWhenReady)
+    }
+
+    @Test
     fun authoritativeReconciliationRemovesMissingItemsAndPreservesStableOrder() {
         val first = song(1L).copy(
             libraryPath = "/music/first.mp3",

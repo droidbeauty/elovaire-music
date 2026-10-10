@@ -122,7 +122,7 @@ private fun deserializeContainsRule(
     create: (query: String, negate: Boolean) -> SmartPlaylistRule,
 ): SmartPlaylistRule? {
     if (parts.size != 3) return null
-    val query = parts[1].smartDecode()?.takeIf(String::isNotBlank) ?: return null
+    val query = parts[1].smartDecode() ?: return null
     val negate = parts[2].toBooleanStrictOrNull() ?: return null
     return create(query, negate)
 }

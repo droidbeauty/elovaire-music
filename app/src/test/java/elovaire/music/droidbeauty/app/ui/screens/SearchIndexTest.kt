@@ -68,6 +68,19 @@ class SearchIndexTest {
     }
 
     @Test
+    fun fallbackSnapshotSignatureChangesWhenArtworkChanges() {
+        val song = song(id = 1L, title = "Track", artist = "Artist", albumArtist = null)
+
+        val before = SearchLibrarySnapshot(songs = listOf(song), albums = emptyList()).signature()
+        val after = SearchLibrarySnapshot(
+            songs = listOf(song.copy(artUri = TestUri("content://art/updated"))),
+            albums = emptyList(),
+        ).signature()
+
+        assertFalse(before == after)
+    }
+
+    @Test
     fun scoreMatch_keepsScoreWithPrecomputedComposite() {
         val query = NormalizedSearchQuery.from("glass harbor awake")
         val normalizedTitle = normalizeSearchText("Awake")

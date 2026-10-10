@@ -144,6 +144,22 @@ class SmartPlaylistEngineTest {
     }
 
     @Test
+    fun serialize_roundTripsAnEmptyTitleRuleAddedByTheEditor() {
+        val playlist = SmartPlaylist(
+            id = 13L,
+            name = "Draft",
+            rules = listOf(SmartPlaylistRule.TitleContains("")),
+            createdAtMs = 1L,
+            updatedAtMs = 1L,
+        )
+
+        assertEquals(
+            listOf(playlist),
+            deserializeSmartPlaylists(serializeSmartPlaylists(listOf(playlist))),
+        )
+    }
+
+    @Test
     fun deserializationKeepsOnlyTheFirstDefinitionForDuplicateIds() {
         val first = SmartPlaylist(
             id = 12L,

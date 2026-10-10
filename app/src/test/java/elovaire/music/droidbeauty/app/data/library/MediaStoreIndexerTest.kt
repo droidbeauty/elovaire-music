@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
@@ -37,6 +38,15 @@ class MediaStoreIndexerTest {
         File(root, "notes.txt").writeText("x")
 
         assertEquals(emptyList<File>(), audioFilesForPaths(listOf(root.absolutePath, File(root, "missing.mp3").absolutePath)))
+    }
+
+    @Test
+    fun audioFilesForPaths_doesNotFollowAudioFileSymlinksOutsideTheSelectedFolder() {
+        val selectedRoot = temp.newFolder("selected")
+        val outsideTrack = File(temp.newFolder("outside"), "track.mp3").apply { writeText("x") }
+        Files.createSymbolicLink(File(selectedRoot, "linked.mp3").toPath(), outsideTrack.toPath())
+
+        assertEquals(emptyList<File>(), audioFilesForPaths(listOf(selectedRoot.absolutePath)))
     }
 
     @Test

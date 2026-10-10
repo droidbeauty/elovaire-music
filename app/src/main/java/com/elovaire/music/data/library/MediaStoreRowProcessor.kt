@@ -374,4 +374,4 @@ internal class MediaStoreRowProcessor(
 internal inline fun resolveMediaStoreGenre(
     metadataGenre: String?,
     fallbackGenre: () -> String?,
-): String? = metadataGenre ?: fallbackGenre()
+): String? = metadataGenre?.takeIf(String::isNotBlank) ?: fallbackGenre()

@@ -93,6 +93,7 @@ internal data class SearchLibrarySnapshot(
             digest.appendSearchRevisionValue(song.artist)
             digest.appendSearchRevisionValue(song.album)
             digest.appendSearchRevisionValue(song.albumArtist.orEmpty())
+            digest.appendSearchRevisionValue(song.artUri?.toString().orEmpty())
         }
         audiobooks.forEach { audiobook ->
             digest.appendSearchRevisionValue(audiobook.stableKey)
@@ -104,6 +105,7 @@ internal data class SearchLibrarySnapshot(
             digest.appendSearchRevisionValue(album.id)
             digest.appendSearchRevisionValue(album.title)
             digest.appendSearchRevisionValue(album.artist)
+            digest.appendSearchRevisionValue(album.artUri?.toString().orEmpty())
         }
         return digest.digest().toSearchRevisionHex()
     }

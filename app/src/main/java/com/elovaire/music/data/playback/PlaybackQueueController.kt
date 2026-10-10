@@ -191,6 +191,8 @@ internal class PlaybackQueueController(
             if (!player.isPlaying) {
                 player.play()
             }
+        } else if (shouldKeepPlaying) {
+            player.playWhenReady = false
         }
         runtime.updateState()
     }
@@ -206,6 +208,7 @@ internal class PlaybackQueueController(
             return
         }
         val player = runtime.player
+        val shouldKeepPlaying = state.transportShowsPause || player.isPlaying || player.playWhenReady
         runtime.cancelPauseFade(true)
         runtime.clearInterruptionResumeState()
         indicesToRemove.asReversed().forEach(player::removeMediaItem)
@@ -214,8 +217,16 @@ internal class PlaybackQueueController(
             state.copy(
                 queue = updatedQueue,
                 currentIndex = player.currentMediaItemIndex.coerceIn(0, updatedQueue.lastIndex),
+                transportShowsPause = shouldKeepPlaying,
             ),
         )
+        if (shouldKeepPlaying && runtime.requestAudioFocus()) {
+            player.volume = runtime.effectivePlayerGain()
+            player.playWhenReady = true
+            if (!player.isPlaying) player.play()
+        } else if (shouldKeepPlaying) {
+            player.playWhenReady = false
+        }
         runtime.updateState()
     }
 
@@ -352,6 +363,8 @@ internal class PlaybackQueueController(
             player.volume = runtime.effectivePlayerGain()
             player.playWhenReady = true
             if (!player.isPlaying) player.play()
+        } else if (shouldKeepPlaying) {
+            player.playWhenReady = false
         }
         queueMetadataRefresher.onQueueReplaced(reconciliation.queue)
         runtime.updateState()
