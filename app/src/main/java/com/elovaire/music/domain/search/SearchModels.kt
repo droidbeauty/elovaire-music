@@ -376,13 +376,14 @@ internal fun rankedSongComparator(
 }
 
 internal fun searchableSongComparator(sortMode: SearchSortMode): Comparator<SearchableSong> {
+    fun SearchableSong.libraryArtistKey(): String = normalizedAlbumArtist.ifBlank { normalizedArtist }
     return when (sortMode) {
         SearchSortMode.Title -> compareBy<SearchableSong> { it.normalizedTitle }
-            .thenBy { it.normalizedArtist }
+            .thenBy { it.libraryArtistKey() }
             .thenBy { it.normalizedAlbum }
             .thenBy { it.song.id }
 
-        SearchSortMode.Artist -> compareBy<SearchableSong> { it.normalizedArtist }
+        SearchSortMode.Artist -> compareBy<SearchableSong> { it.libraryArtistKey() }
             .thenBy { it.normalizedTitle }
             .thenBy { it.normalizedAlbum }
             .thenBy { it.song.id }

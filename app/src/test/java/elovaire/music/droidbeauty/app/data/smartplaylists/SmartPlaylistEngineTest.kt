@@ -61,6 +61,29 @@ class SmartPlaylistEngineTest {
     }
 
     @Test
+    fun artistSortFallsBackToTrackArtistWhenAlbumArtistIsBlank() {
+        val playlist = SmartPlaylist(
+            id = 2L,
+            name = "By artist",
+            sort = SmartPlaylistSort(SmartPlaylistSortField.Artist, SortDirection.Ascending),
+            createdAtMs = 1L,
+            updatedAtMs = 1L,
+        )
+
+        val result = engine.resolve(
+            definition = playlist,
+            songs = listOf(
+                song(1L, "B track").copy(artist = "B Artist", albumArtist = ""),
+                song(2L, "A track").copy(artist = "A Artist"),
+            ),
+            favoriteSongIds = emptySet(),
+            playCounts = emptyMap(),
+        )
+
+        assertEquals(listOf(2L, 1L), result.songs.map(Song::id))
+    }
+
+    @Test
     fun resolveAllMatchesIndependentResolution() {
         val playlists = listOf(
             SmartPlaylist(

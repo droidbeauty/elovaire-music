@@ -81,8 +81,8 @@ internal fun decideForegroundReconcile(
 internal fun mediaStoreIncrementalRefreshRequest(
     cached: LibraryMediaStoreSyncState,
 ): LibraryRefreshRequest {
+    if (cached.volumes.any { it.generation < 0L }) return LibraryRefreshRequest()
     val floors = cached.volumes
-        .filter { it.generation >= 0L }
         .associate { it.volumeName to it.generation }
     return when {
         floors.isEmpty() -> LibraryRefreshRequest()

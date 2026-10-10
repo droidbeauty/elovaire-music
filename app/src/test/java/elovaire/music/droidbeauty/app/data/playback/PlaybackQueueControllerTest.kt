@@ -155,6 +155,53 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun authoritativeReconciliationSelectsNextSurvivingTrackAfterRemovingCurrent() {
+        val queue = (1L..5L).map(::song)
+        val mediaItems = queue.toMutableList()
+        var seekIndex = -1
+        val player = Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "getMediaItemCount" -> mediaItems.size
+                "removeMediaItem" -> {
+                    mediaItems.removeAt(args!![0] as Int)
+                    Unit
+                }
+                "seekToDefaultPosition" -> {
+                    seekIndex = args!![0] as Int
+                    Unit
+                }
+                "isPlaying" -> false
+                "getPlayWhenReady" -> false
+                else -> null
+            }
+        } as Player
+        val runtime = RecordingQueueRuntime(
+            PlaybackUiState(queue = queue, currentIndex = 2),
+        ).apply { playerDelegate = player }
+        val controller = PlaybackQueueController(runtime, PlaybackQueueMetadataRefresher())
+        controller.stageExternalQueue(
+            songs = queue,
+            startIndex = 2,
+            sourceLabel = "External",
+            sourcePlaylistId = null,
+            audioPathDelayMs = 80L,
+            libraryBacked = true,
+        )
+
+        controller.refreshQueuedLibraryMetadataIfNeeded(
+            updatedSongs = queue.drop(3),
+            authoritative = true,
+        )
+
+        assertEquals(0, seekIndex)
+        assertEquals(listOf(4L, 5L), runtime.state.queue.map(Song::id))
+        assertEquals(0, runtime.state.currentIndex)
+    }
+
+    @Test
     fun authoritativeReconciliationDoesNotRebindAmbiguousMetadata() {
         val queued = song(1L).copy(
             title = "Duplicate",

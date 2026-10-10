@@ -327,7 +327,9 @@ internal class PlaybackQueueController(
                 .takeIf { it >= 0 }
                 ?: player.currentMediaItemIndex
         } else {
-            oldCurrentIndex.coerceIn(reconciliation.queue.indices)
+            reconciliation.retainedOriginalIndices.indexOfFirst { it > oldCurrentIndex }
+                .takeIf { it >= 0 }
+                ?: reconciliation.queue.lastIndex
         }.coerceIn(reconciliation.queue.indices)
         if (currentWasRemoved) {
             player.seekToDefaultPosition(newCurrentIndex)

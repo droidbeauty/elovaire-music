@@ -111,9 +111,8 @@ object LibraryFolderSelectionResolver {
 
     fun relativeRoots(selections: List<LibraryFolderSelection>): Set<String> {
         return selections.mapNotNullTo(linkedSetOf()) { selection ->
-            val pathRoot = sharedStorageRelativePath(selection.path)
-            val treeRoot = selection.uri?.let(::treeRelativePath)
-            pathRoot ?: treeRoot
+            if (selection.uri != null) return@mapNotNullTo null
+            sharedStorageRelativePath(selection.path)
         }
     }
 
@@ -203,12 +202,6 @@ object LibraryFolderSelectionResolver {
         return treeId.substringAfter(':', treeId)
             .substringAfterLast('/')
             .ifBlank { "Library folder" }
-    }
-
-    private fun treeRelativePath(uri: Uri): String? {
-        val treeId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
-        val relativePath = treeId.substringAfter(':', "").trim('/')
-        return relativePath.takeIf { it.isNotBlank() }
     }
 
     private fun sharedStorageRelativePath(path: String): String? {

@@ -171,7 +171,7 @@ private class NormalizedSong(
             return NormalizedSong(
                 song = song,
                 normalizedTitle = song.title.takeIf { needs.title }?.normalizeSmartText().orEmpty(),
-                normalizedArtist = (song.albumArtist ?: song.artist)
+                normalizedArtist = (song.albumArtist?.takeIf(String::isNotBlank) ?: song.artist)
                     .takeIf { needs.artist }
                     ?.normalizeSmartText()
                     .orEmpty(),

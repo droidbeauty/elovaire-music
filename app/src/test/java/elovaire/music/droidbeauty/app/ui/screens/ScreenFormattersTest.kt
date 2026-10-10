@@ -115,7 +115,29 @@ class ScreenFormattersTest {
         )
 
         assertEquals(listOf("Library Artist" to 2, "Other" to 1), artistEntriesFor(songs).map { it.name to it.songCount })
+        assertEquals(2, distinctMusicArtistCount(songs))
         assertEquals(listOf("Jazz" to 1, "Unknown Genre" to 1), genreEntriesFor(songs).map { it.name to it.albumCount })
+    }
+
+    @Test
+    fun songCollectionArtistSortUsesAlbumArtistWhileSongsKeepTheirTrackArtist() {
+        val songs = listOf(
+            song(1L, albumId = 1L, durationMs = 1_000L).copy(
+                title = "Track",
+                artist = "Track Artist Z",
+                albumArtist = "Album Artist A",
+            ),
+            song(2L, albumId = 2L, durationMs = 1_000L).copy(
+                title = "Track",
+                artist = "Track Artist A",
+                albumArtist = "Album Artist Z",
+            ),
+        )
+
+        val sorted = sortSongCollection(songCollectionSortEntries(songs), SongSortMode.Artist)
+
+        assertEquals(listOf(1L, 2L), sorted.map(Song::id))
+        assertEquals(listOf("Track Artist Z", "Track Artist A"), sorted.map(Song::artist))
     }
 
     @Test

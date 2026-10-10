@@ -116,6 +116,8 @@ internal data class LibraryRefreshRequest(
                 forceMediaIndex = false,
                 targetedPaths = emptyList(),
                 targetedSafTreeIds = null,
+                mediaStoreGenerationFloor = null,
+                mediaStoreGenerationFloors = emptyMap(),
             )
         }
         return copy(

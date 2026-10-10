@@ -146,6 +146,19 @@ class LibraryMediaStoreSyncStateTest {
     }
 
     @Test
+    fun incrementalRequestFallsBackToFullScanWhenAnyVolumeHasUnknownGeneration() {
+        val cached = LibraryMediaStoreSyncState(
+            filterFingerprint = "folders-a",
+            volumes = listOf(
+                LibraryMediaStoreVolumeSyncState("external", "1", 10L),
+                LibraryMediaStoreVolumeSyncState("external_secondary", "1", -1L),
+            ),
+        )
+
+        assertEquals(LibraryRefreshRequest(), mediaStoreIncrementalRefreshRequest(cached))
+    }
+
+    @Test
     fun foregroundReconcileTargetsOnlyStaleNetworkSources() {
         val state = syncState()
 

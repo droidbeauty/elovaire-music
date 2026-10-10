@@ -147,7 +147,10 @@ private const val HOME_RECENT_SONG_LIMIT = 5
 
 internal fun distinctMusicArtistCount(songs: List<Song>): Int {
     val artists = HashSet<String>()
-    songs.forEach { song -> artists += song.artist.ifBlank { "Unknown Artist" } }
+    songs.forEach { song ->
+        artists += song.albumArtist?.takeIf { it.isNotBlank() }
+            ?: song.artist.ifBlank { "Unknown Artist" }
+    }
     return artists.size
 }
 
@@ -181,7 +184,7 @@ internal fun sortAlbumCollection(
 internal data class SongCollectionSortEntry(
     val song: Song,
     val titleKey: String = song.title.lowercase(),
-    val artistKey: String = song.artist.lowercase(),
+    val artistKey: String = (song.albumArtist?.takeIf { it.isNotBlank() } ?: song.artist).lowercase(),
     val albumKey: String = song.album.lowercase(),
 )
 

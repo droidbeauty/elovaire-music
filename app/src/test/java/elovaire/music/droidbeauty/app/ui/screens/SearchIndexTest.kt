@@ -124,6 +124,23 @@ class SearchIndexTest {
     }
 
     @Test
+    fun searchSongArtistSortUsesAlbumArtistAndKeepsTrackArtistOnSongs() {
+        val songs = listOf(
+            song(id = 1L, title = "Track", artist = "Track Artist Z", albumArtist = "Album Artist A"),
+            song(id = 2L, title = "Track", artist = "Track Artist A", albumArtist = "Album Artist Z"),
+        )
+
+        val result = buildSearchResults(
+            query = NormalizedSearchQuery.from("track"),
+            sortMode = SearchSortMode.Artist,
+            index = buildSearchIndex(songs, emptyList()),
+        )
+
+        assertEquals(listOf(1L, 2L), result.allMatchingSongs.map(Song::id))
+        assertEquals(listOf("Track Artist Z", "Track Artist A"), result.allMatchingSongs.map(Song::artist))
+    }
+
+    @Test
     fun buildSearchResults_honorsCooperativeCancellationChecks() {
         val index = buildSearchIndex(
             songs = (1L..1_000L).map {

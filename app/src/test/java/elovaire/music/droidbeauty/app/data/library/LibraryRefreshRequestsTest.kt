@@ -92,6 +92,19 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun oversizedTargetedPathList_dropsDeltaFloorsForFullReconciliation() {
+        val request = LibraryRefreshRequest(
+            targetedPaths = (1..65).map { "/music/$it.mp3" },
+            mediaStoreGenerationFloor = 12L,
+            mediaStoreGenerationFloors = mapOf("external" to 8L),
+        ).normalized()
+
+        assertNull(request.mediaStoreGenerationFloor)
+        assertTrue(request.mediaStoreGenerationFloors.isEmpty())
+        assertTrue(request.targetedPaths.isEmpty())
+    }
+
+    @Test
     fun tooManyPaths_doNotBroadenAnUnrelatedNetworkRefresh() {
         val merged = LibraryRefreshRequest(
             targetedNetworkSourceIds = setOf("nas-a"),

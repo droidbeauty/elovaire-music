@@ -88,6 +88,17 @@ class LibraryScanRootsTest {
     }
 
     @Test
+    fun safSelectionDoesNotBroadenMediaStoreFilterByVolumeAmbiguousRelativePath() {
+        val selection = LibraryFolderSelection(
+            uri = TestUri("content://com.android.externalstorage.documents/tree/ABCD-1234%3AMusic"),
+            path = "/storage/ABCD-1234/Music",
+            displayName = "Music",
+        )
+
+        assertTrue(LibraryScanRoots(listOf(selection)).relativeRoots().isEmpty())
+    }
+
+    @Test
     fun directFileRoots_excludesResolvedSafPaths() {
         val roots = LibraryScanRoots(
             listOf(
