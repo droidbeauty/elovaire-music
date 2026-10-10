@@ -64,6 +64,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
+import elovaire.music.droidbeauty.app.ui.components.subtleArtworkShadow
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -345,6 +346,7 @@ private fun CompactNowPlayingBar(
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
+                                .subtleArtworkShadow(ElovaireRadii.artworkSmall)
                                 .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center,
@@ -594,6 +596,7 @@ private fun NowPlayingBar(
                     modifier = Modifier
                         .size(48.dp)
                         .onGloballyPositioned { artworkBounds = it.boundsInRoot() }
+                        .subtleArtworkShadow(ElovaireRadii.artworkSmall)
                         .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,

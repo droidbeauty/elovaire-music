@@ -109,7 +109,7 @@ internal fun rememberRootLibraryDerivedState(
     val albumsById = remember(library.albums) { library.albums.associateBy(Album::id) }
     val playlistsById = remember(playlists) { playlists.associateBy(Playlist::id) }
     val recentlyAddedAlbums = remember(library.albums) {
-        recentlyAddedAlbumsFor(library)
+        recentlyAddedAlbumsFor(library, limit = 6)
     }
     val recentAlbums = remember(albumsById, playback.recentAlbumIds) {
         recentAlbumsFor(albumsById, playback)

@@ -204,6 +204,24 @@ class SearchIndexTest {
     }
 
     @Test
+    fun buildSearchIndex_selectsMostCommonArtistSpellingAndFirstArtwork() {
+        val firstArtwork = TestUri("content://art/first")
+        val index = buildSearchIndex(
+            songs = listOf(
+                song(id = 1L, artist = "Main Artist", albumArtist = "main artist"),
+                song(id = 2L, artist = "Main Artist", albumArtist = "Main Artist").copy(artUri = firstArtwork),
+                song(id = 3L, artist = "Main Artist", albumArtist = "Main Artist").copy(artUri = TestUri("content://art/later")),
+            ),
+            albums = emptyList(),
+        )
+
+        val artist = index.artists.single()
+        assertEquals("Main Artist", artist.displayName)
+        assertEquals(3, artist.songCount)
+        assertEquals(firstArtwork, artist.artUri)
+    }
+
+    @Test
     fun buildSearchResults_previewDoesNotRetainFullSongList() {
         val songs = (1L..30L).map { id ->
             song(

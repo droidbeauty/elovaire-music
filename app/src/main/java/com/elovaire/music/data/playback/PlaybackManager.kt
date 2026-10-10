@@ -91,7 +91,7 @@ enum class PlaybackCommandOrigin {
 internal enum class InterruptionResumeReason {
     None,
     TransientFocusLoss,
-    PermanentLossWithActiveExternalMedia,
+    PermanentLossWithActiveExternalPlayback,
 }
 
 internal data class InterruptionResumeState(
@@ -2069,11 +2069,11 @@ internal class PlaybackManager internal constructor(
                 val wasAudiblyPlaying = player.isPlaying ||
                     player.playWhenReady ||
                     _state.value.transportShowsPause
-                val looksLikeExternalMediaInterruption = wasAudiblyPlaying &&
+                val looksLikeExternalPlaybackInterruption = wasAudiblyPlaying &&
                     _state.value.queue.isNotEmpty() &&
                     hasActiveExternalMediaPlayback()
-                if (looksLikeExternalMediaInterruption) {
-                    markInterruptedForResume(InterruptionResumeReason.PermanentLossWithActiveExternalMedia)
+                if (looksLikeExternalPlaybackInterruption) {
+                    markInterruptedForResume(InterruptionResumeReason.PermanentLossWithActiveExternalPlayback)
                 } else {
                     clearInterruptionResumeState()
                 }
@@ -2081,7 +2081,7 @@ internal class PlaybackManager internal constructor(
                 isPauseTransitioningToStopped = true
                 beginPauseFadeOut(PauseFadeReason.AudioInterruption)
                 abandonAudioFocus()
-                if (looksLikeExternalMediaInterruption) {
+                if (looksLikeExternalPlaybackInterruption) {
                     scheduleExternalInterruptionResumeWatch()
                 }
             }
@@ -2100,7 +2100,6 @@ internal class PlaybackManager internal constructor(
         isManualPausePending = false
         isPauseTransitioningToStopped = true
         beginPauseFadeOut(PauseFadeReason.AudioInterruption)
-        scheduleExternalInterruptionResumeWatch()
     }
 
     private fun recoverUnexpectedIdleState(shouldAutoPlay: Boolean) {
@@ -2251,6 +2250,7 @@ internal class PlaybackManager internal constructor(
         if (!state.shouldResume) return false
         if (_state.value.queue.isEmpty()) return false
         if (isManualPausePending || isStoppingQueue) return false
+        if (state.reason == InterruptionResumeReason.TransientFocusLoss) return true
         val elapsedMs = clock.elapsedTimeMs() - state.startedAtElapsedMs
         return elapsedMs <= EXTERNAL_INTERRUPTION_MAX_WATCH_MS
     }
@@ -2323,7 +2323,13 @@ internal class PlaybackManager internal constructor(
                     clearInterruptionResumeState()
                     break
                 }
-                if (hasActiveExternalMediaPlayback()) {
+                if (
+                    shouldWaitForExternalMediaBeforeAutoResume(
+                        isTransientFocusInterruption =
+                            interruptionResumeState.reason == InterruptionResumeReason.TransientFocusLoss,
+                        hasActiveExternalMedia = hasActiveExternalMediaPlayback(),
+                    )
+                ) {
                     quietConfirmations = 0
                 } else {
                     quietConfirmations += 1

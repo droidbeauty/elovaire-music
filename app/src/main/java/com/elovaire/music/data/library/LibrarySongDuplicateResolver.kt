@@ -118,12 +118,18 @@ internal object LibrarySongDuplicateResolver {
 
     private fun dedupeByStrongIdentity(songs: List<Song>): List<Song> {
         val accepted = ArrayList<Song>(songs.size)
-        val keys = linkedSetOf<String>()
+        val keys = HashSet<String>(songs.size)
         songs.forEach { song ->
-            val songKeys = strongKeys(song)
-            if (songKeys.isEmpty() || songKeys.none { it in keys }) {
+            val stableKey = MediaIdentityResolver.stableKey(song)
+            val pathKey = normalizedRealPath(song.libraryPath)?.let { "path:$it" }
+            val uriKey = song.uri.canonicalOpaqueIdentity()
+                .takeIf(String::isNotBlank)
+                ?.let { "uri:$it" }
+            if (stableKey !in keys && pathKey !in keys && uriKey !in keys) {
                 accepted += song
-                keys += songKeys
+                keys += stableKey
+                pathKey?.let(keys::add)
+                uriKey?.let(keys::add)
             }
         }
         return accepted

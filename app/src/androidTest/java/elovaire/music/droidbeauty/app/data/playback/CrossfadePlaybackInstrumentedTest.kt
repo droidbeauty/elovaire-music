@@ -1,6 +1,11 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.content.ContentValues
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -21,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -35,6 +41,8 @@ class CrossfadePlaybackInstrumentedTest {
     private lateinit var secondUri: Uri
     private lateinit var scope: CoroutineScope
     private lateinit var playbackManager: PlaybackManager
+    private var alarmAudioTrack: AudioTrack? = null
+    private var alarmFocusRequest: AudioFocusRequest? = null
 
     @Before
     fun setUp() {
@@ -46,6 +54,15 @@ class CrossfadePlaybackInstrumentedTest {
     @After
     fun tearDown() {
         instrumentation.runOnMainSync {
+            alarmAudioTrack?.let { track ->
+                if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.stop()
+                track.release()
+            }
+            alarmAudioTrack = null
+            alarmFocusRequest?.let { request ->
+                context.getSystemService(AudioManager::class.java)?.abandonAudioFocusRequest(request)
+            }
+            alarmFocusRequest = null
             if (::playbackManager.isInitialized) playbackManager.release()
         }
         scope.cancel()
@@ -69,6 +86,7 @@ class CrossfadePlaybackInstrumentedTest {
 
         instrumentation.runOnMainSync {
             playbackManager = PlaybackManager(context, scope)
+            playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, true)
             playbackManager.setCrossfadeDurationMs(5_000L)
             playbackManager.setCrossfadeSilenceThresholdDb(-90f)
             playbackManager.setCrossfadeEnabled(true)
@@ -83,6 +101,101 @@ class CrossfadePlaybackInstrumentedTest {
 
         assertEquals(incoming.id, playbackManager.state.value.currentSong?.id)
         assertTrue(playbackManager.playerInstanceVersion.value > initialPlayerVersion)
+        val positionAfterPromotion = runBlocking {
+            withTimeout(3_000L) {
+                playbackManager.progressState.first { progress ->
+                    progress.currentMediaId == incoming.id && progress.isPlaying
+                }.positionMs
+            }
+        }
+        val advancedPosition = runBlocking {
+            withTimeout(5_000L) {
+                playbackManager.progressState.first { progress ->
+                    progress.currentMediaId == incoming.id && progress.positionMs >= positionAfterPromotion + 2_500L
+                }.positionMs
+            }
+        }
+        assertTrue(advancedPosition >= positionAfterPromotion + 2_500L)
+        assertEquals(incoming.id, playbackManager.state.value.currentSong?.id)
+    }
+
+    @Test
+    fun transientAlarmInterruptionWaitsForFocusGainBeforeResumingMusic() {
+        val outgoing = fixtureSong(1L, firstUri, 20_000L)
+        val album = Album(
+            id = 9_002L,
+            title = "Generated Interruption",
+            artist = "Elovaire Test",
+            artUri = null,
+            songCount = 1,
+            durationMs = outgoing.durationMs,
+            songs = listOf(outgoing),
+        )
+        val audioManager = context.getSystemService(AudioManager::class.java)
+            ?: error("AudioManager is unavailable")
+        val alarmAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(alarmAttributes)
+            .setOnAudioFocusChangeListener { }
+            .build()
+        val sampleRate = 8_000
+        val alarmBuffer = ByteArray(sampleRate * Short.SIZE_BYTES)
+        val alarmTrack = AudioTrack.Builder()
+            .setAudioAttributes(alarmAttributes)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(sampleRate)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build(),
+            )
+            .setBufferSizeInBytes(alarmBuffer.size)
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .build()
+        alarmAudioTrack = alarmTrack
+        alarmFocusRequest = focusRequest
+
+        instrumentation.runOnMainSync {
+            playbackManager = PlaybackManager(context, scope)
+            playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, true)
+            playbackManager.playAlbum(album)
+        }
+        runBlocking {
+            withTimeout(5_000L) {
+                playbackManager.state.first { state -> state.currentSong?.id == outgoing.id && state.isPlaying }
+            }
+        }
+        instrumentation.runOnMainSync {
+            check(audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            check(alarmTrack.write(alarmBuffer, 0, alarmBuffer.size, AudioTrack.WRITE_BLOCKING) == alarmBuffer.size)
+            alarmTrack.setLoopPoints(0, sampleRate, -1)
+            alarmTrack.setVolume(0f)
+            alarmTrack.play()
+        }
+
+        runBlocking {
+            withTimeout(5_000L) {
+                playbackManager.state.first { state -> state.currentSong?.id == outgoing.id && !state.isPlaying }
+            }
+            kotlinx.coroutines.delay(2_600L)
+        }
+        assertFalse(playbackManager.state.value.isPlaying)
+
+        instrumentation.runOnMainSync {
+            alarmTrack.stop()
+            audioManager.abandonAudioFocusRequest(focusRequest)
+            alarmTrack.release()
+            alarmAudioTrack = null
+            alarmFocusRequest = null
+        }
+        runBlocking {
+            withTimeout(5_000L) {
+                playbackManager.state.first { state -> state.isPlaying }
+            }
+        }
     }
 
     private fun insertFixture(name: String): Uri {

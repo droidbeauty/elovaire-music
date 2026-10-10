@@ -41,8 +41,10 @@ import androidx.test.filters.SdkSuppress
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.screens.DynamicBackdropSurface
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
+import kotlin.math.roundToInt
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -52,6 +54,42 @@ import org.junit.runner.RunWith
 class BackdropBlurRenderingTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
+
+    @Test
+    fun artworkImageCastsASubtleShadowBeyondItsBounds() {
+        composeRule.setContent {
+            MaterialTheme(colorScheme = lightColorScheme()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White)
+                        .testTag("artwork_shadow_fixture"),
+                ) {
+                    ArtworkImage(
+                        uri = null,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(100.dp)
+                            .testTag("artwork_shadow"),
+                        cornerRadius = 12.dp,
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val bounds = composeRule.onNodeWithTag("artwork_shadow").fetchSemanticsNode().boundsInRoot
+        val pixels = composeRule.onNodeWithTag("artwork_shadow_fixture").captureToImage().toPixelMap()
+        val shadowOffset = (2f * composeRule.activity.resources.displayMetrics.density).roundToInt()
+        val sampleY = bounds.center.y.toInt()
+        val nearShadow = pixels[(bounds.right + shadowOffset).toInt(), sampleY].luminance()
+        val clearBackground = pixels[(bounds.right + (shadowOffset * 5)).toInt(), sampleY].luminance()
+
+        assertTrue(
+            "artwork shadow should soften the background immediately outside the art bounds",
+            nearShadow < clearBackground,
+        )
+    }
 
     @Test
     @SdkSuppress(minSdkVersion = 31)

@@ -1759,13 +1759,13 @@ internal fun LibraryHubScreen(
     val totalSongs = musicSongs.size
     val totalAlbums = libraryState.albums.size
     val recentlyAddedAlbums = remember(libraryState.albums) {
-        recentlyAddedAlbumsFor(libraryState).take(4)
+        recentlyAddedAlbumsFor(libraryState, limit = 4)
     }
     val totalArtists = remember(musicSongs) {
-        musicSongs.map { it.artist.ifBlank { "Unknown Artist" } }.distinct().size
+        distinctMusicArtistCount(musicSongs)
     }
     val totalGenres = remember(musicSongs) {
-        musicSongs.map { it.genre.ifBlank { "Unknown Genre" } }.distinct().size
+        distinctMusicGenreCount(musicSongs)
     }
 
     val listState = rememberElovaireLazyListState("library_hub")

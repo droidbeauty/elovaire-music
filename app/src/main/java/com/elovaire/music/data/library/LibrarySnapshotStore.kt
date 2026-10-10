@@ -535,7 +535,7 @@ internal fun buildAlbumsFromSongs(
         .map { albumSongs ->
             val sortedSongs = sortAlbumSongs(albumSongs)
             val firstSong = sortedSongs.first()
-            Album(
+            val album = Album(
                 id = firstSong.albumId,
                 title = firstSong.album,
                 artist = firstSong.albumArtist?.takeIf { it.isNotBlank() } ?: firstSong.artist,
@@ -544,11 +544,23 @@ internal fun buildAlbumsFromSongs(
                 durationMs = sortedSongs.sumDurationMs(),
                 songs = sortedSongs,
             )
+            AlbumSortEntry(
+                album = album,
+                artistKey = album.artist.lowercase(Locale.ROOT),
+                titleKey = album.title.lowercase(Locale.ROOT),
+            )
         }
         .sortedWith(
             compareBy(
-                { it.artist.lowercase(Locale.ROOT) },
-                { it.title.lowercase(Locale.ROOT) },
+                AlbumSortEntry::artistKey,
+                AlbumSortEntry::titleKey,
             ),
         )
+        .map(AlbumSortEntry::album)
 }
+
+private data class AlbumSortEntry(
+    val album: Album,
+    val artistKey: String,
+    val titleKey: String,
+)

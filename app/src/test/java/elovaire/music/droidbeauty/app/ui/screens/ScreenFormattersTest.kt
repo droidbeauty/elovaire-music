@@ -20,6 +20,22 @@ class ScreenFormattersTest {
     }
 
     @Test
+    fun recentlyAddedAlbumsFor_limitPreservesStableOrdering() {
+        val nowSeconds = System.currentTimeMillis() / 1_000L
+        val albums = listOf(
+            album(1L, nowSeconds - 1L),
+            album(2L, nowSeconds - 3L),
+            album(3L, nowSeconds - 1L),
+        )
+
+        assertEquals(
+            recentlyAddedAlbumsFor(LibraryUiState(albums = albums)).take(2).map(Album::id),
+            recentlyAddedAlbumsFor(LibraryUiState(albums = albums), limit = 2).map(Album::id),
+        )
+        assertEquals(emptyList<Album>(), recentlyAddedAlbumsFor(LibraryUiState(albums = albums), limit = 0))
+    }
+
+    @Test
     fun buildPlaylistPreviewBoundsArtworkSongsButKeepsFullDuration() {
         val songs = (1L..6L).map { id ->
             song(
@@ -100,6 +116,18 @@ class ScreenFormattersTest {
 
         assertEquals(listOf("Library Artist" to 2, "Other" to 1), artistEntriesFor(songs).map { it.name to it.songCount })
         assertEquals(listOf("Jazz" to 1, "Unknown Genre" to 1), genreEntriesFor(songs).map { it.name to it.albumCount })
+    }
+
+    @Test
+    fun libraryHubCountsUseTheSameUnknownLabels() {
+        val songs = listOf(
+            song(1L, albumId = 1L, durationMs = 1_000L).copy(artist = "", genre = ""),
+            song(2L, albumId = 2L, durationMs = 1_000L).copy(artist = "Unknown Artist", genre = "Unknown Genre"),
+            song(3L, albumId = 3L, durationMs = 1_000L).copy(artist = "Second", genre = "Jazz"),
+        )
+
+        assertEquals(songs.map { it.artist.ifBlank { "Unknown Artist" } }.distinct().size, distinctMusicArtistCount(songs))
+        assertEquals(songs.map { it.genre.ifBlank { "Unknown Genre" } }.distinct().size, distinctMusicGenreCount(songs))
     }
 
     @Test

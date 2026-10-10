@@ -19,7 +19,7 @@ internal class LibrarySnapshotPublisher(
     private var albumSongPositions = emptyMap<Long, List<Int>>()
     private var albumPositions = emptyMap<Long, Int>()
     private var songPositionsById = emptyMap<Long, Int>()
-    private var songPositionsByStableKey = emptyMap<String, Int>()
+    private var songPositionsByStableKey: Map<String, Int>? = null
 
     fun stateForSnapshot(
         snapshot: LibrarySnapshot,
@@ -62,7 +62,7 @@ internal class LibrarySnapshotPublisher(
         val replacementsByPosition = hashMapOf<Int, Song>()
         editedSongs.forEach { edited ->
             val position = songPositionsById[edited.id]
-                ?: songPositionsByStableKey[MediaIdentityResolver.stableKey(edited)]
+                ?: positionByStableKey(edited)
             if (position != null) replacementsByPosition[position] = edited
         }
         val replacementPositions = replacementsByPosition.keys.sorted()
@@ -178,18 +178,27 @@ internal class LibrarySnapshotPublisher(
     private fun updateIndices(state: LibraryContentState) {
         if (indexedSongs === state.songs) return
         indexedSongs = state.songs
-        val nextAlbumSongPositions = hashMapOf<Long, MutableList<Int>>()
-        val nextSongPositionsById = hashMapOf<Long, Int>()
-        val nextSongPositionsByStableKey = hashMapOf<String, Int>()
+        songPositionsByStableKey = null
+        val nextAlbumSongPositions = HashMap<Long, MutableList<Int>>(state.albums.size)
+        val nextSongPositionsById = HashMap<Long, Int>(state.songs.size)
+        val nextAlbumPositions = HashMap<Long, Int>(state.albums.size)
         state.songs.forEachIndexed { index, song ->
             nextAlbumSongPositions.getOrPut(song.albumId) { mutableListOf() }.add(index)
             nextSongPositionsById.putIfAbsent(song.id, index)
-            nextSongPositionsByStableKey.putIfAbsent(MediaIdentityResolver.stableKey(song), index)
         }
+        state.albums.forEachIndexed { index, album -> nextAlbumPositions[album.id] = index }
         albumSongPositions = nextAlbumSongPositions
         songPositionsById = nextSongPositionsById
-        songPositionsByStableKey = nextSongPositionsByStableKey
-        albumPositions = state.albums.mapIndexed { index, album -> album.id to index }.toMap()
+        albumPositions = nextAlbumPositions
+    }
+
+    private fun positionByStableKey(song: Song): Int? {
+        val indexedPositions = songPositionsByStableKey ?: HashMap<String, Int>(indexedSongs.orEmpty().size).apply {
+            indexedSongs.orEmpty().forEachIndexed { index, indexedSong ->
+                putIfAbsent(MediaIdentityResolver.stableKey(indexedSong), index)
+            }
+        }.also { songPositionsByStableKey = it }
+        return indexedPositions[MediaIdentityResolver.stableKey(song)]
     }
 
     private fun audiobookContentChanged(

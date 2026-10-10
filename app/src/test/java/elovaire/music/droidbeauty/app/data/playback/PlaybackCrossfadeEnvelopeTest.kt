@@ -240,6 +240,36 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
+    fun transitionPlan_usesAnalyzedIncomingDurationWhenCatalogDurationIsStale() {
+        val plan = CrossfadeTransitionPlan.from(
+            cue = CrossfadeCue.fallback(outgoingDurationMs = 20_000L).copy(
+                incomingMixInMs = 1_000L,
+                incomingDurationMs = 20_000L,
+            ),
+            outgoingDurationMs = 20_000L,
+            incomingDurationMs = 3_000L,
+        )
+
+        assertEquals(2_500L, plan.fadeDurationMs)
+        assertEquals(1_000L, plan.incomingMixInMs)
+    }
+
+    @Test
+    fun transitionPlan_startsFromBeginningWhenSilenceCueIsAtEndOfIncomingTrack() {
+        val plan = CrossfadeTransitionPlan.from(
+            cue = CrossfadeCue.fallback(outgoingDurationMs = 20_000L).copy(
+                incomingMixInMs = 20_000L,
+                incomingDurationMs = 20_000L,
+            ),
+            outgoingDurationMs = 20_000L,
+            incomingDurationMs = 0L,
+        )
+
+        assertEquals(0L, plan.incomingMixInMs)
+        assertEquals(2_500L, plan.fadeDurationMs)
+    }
+
+    @Test
     fun transitionPlan_durationChangesStartWithoutChangingCue() {
         val cue = CrossfadeCue.fallback(outgoingDurationMs = 25_000L).copy(
             outgoingMixOutMs = 20_000L,

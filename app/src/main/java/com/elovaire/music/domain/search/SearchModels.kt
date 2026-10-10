@@ -152,16 +152,23 @@ internal fun buildSearchIndex(
     audiobooks: List<Audiobook> = emptyList(),
     cancellationCheck: () -> Unit = {},
 ): SearchIndex {
+    val normalizedMetadata = HashMap<String, String>()
+    fun normalizeMetadata(value: String): String =
+        normalizedMetadata.getOrPut(value) { normalizeSearchText(value) }
+
     val searchableSongs = ArrayList<SearchableSong>(songs.size)
+    val artistCounts = linkedMapOf<String, SearchableArtistCounts>()
     songs.forEachIndexed { index, song ->
         if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
-        searchableSongs += song.toSearchableSong()
+        val searchableSong = song.toSearchableSong(::normalizeMetadata)
+        searchableSongs += searchableSong
+        addSearchableArtist(song, searchableSong, artistCounts)
     }
     cancellationCheck()
     val searchableAlbums = ArrayList<SearchableAlbum>(albums.size)
     albums.forEachIndexed { index, album ->
         if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
-        searchableAlbums += album.toSearchableAlbum()
+        searchableAlbums += album.toSearchableAlbum(::normalizeMetadata)
     }
     cancellationCheck()
     val searchableAudiobooks = ArrayList<SearchableAudiobook>(audiobooks.size)
@@ -170,7 +177,7 @@ internal fun buildSearchIndex(
         searchableAudiobooks += audiobook.toSearchableAudiobook()
     }
     cancellationCheck()
-    val searchableArtists = buildSearchableArtists(songs, cancellationCheck)
+    val searchableArtists = buildSearchableArtists(artistCounts)
 
     return SearchIndex(
         songs = searchableSongs,
@@ -403,11 +410,13 @@ internal fun buildNormalizedComposite(vararg parts: String): String {
     }
 }
 
-internal fun Song.toSearchableSong(): SearchableSong {
+internal fun Song.toSearchableSong(): SearchableSong = toSearchableSong(::normalizeSearchText)
+
+private fun Song.toSearchableSong(normalizeMetadata: (String) -> String): SearchableSong {
     val normalizedTitle = normalizeSearchText(title)
-    val normalizedArtist = normalizeSearchText(artist)
-    val normalizedAlbumArtist = normalizeSearchText(albumArtist.orEmpty())
-    val normalizedAlbum = normalizeSearchText(album)
+    val normalizedArtist = normalizeMetadata(artist)
+    val normalizedAlbumArtist = normalizeMetadata(albumArtist.orEmpty())
+    val normalizedAlbum = normalizeMetadata(album)
     return SearchableSong(
         song = this,
         normalizedTitle = normalizedTitle,
@@ -423,9 +432,11 @@ internal fun Song.toSearchableSong(): SearchableSong {
     )
 }
 
-internal fun Album.toSearchableAlbum(): SearchableAlbum {
-    val normalizedTitle = normalizeSearchText(title)
-    val normalizedArtist = normalizeSearchText(artist)
+internal fun Album.toSearchableAlbum(): SearchableAlbum = toSearchableAlbum(::normalizeSearchText)
+
+private fun Album.toSearchableAlbum(normalizeMetadata: (String) -> String): SearchableAlbum {
+    val normalizedTitle = normalizeMetadata(title)
+    val normalizedArtist = normalizeMetadata(artist)
     return SearchableAlbum(
         album = this,
         normalizedTitle = normalizedTitle,
@@ -448,44 +459,56 @@ internal fun Audiobook.toSearchableAudiobook(): SearchableAudiobook {
     )
 }
 
-private fun buildSearchableArtists(
-    songs: List<Song>,
-    cancellationCheck: () -> Unit,
-): List<SearchableArtist> {
-    val groups = LinkedHashMap<String, MutableList<Song>>()
-    songs.forEachIndexed { index, song ->
-        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
-        val artistName = song.libraryArtistName()
-        if (artistName.isNotBlank()) {
-            val normalizedName = normalizeSearchText(artistName)
-            if (normalizedName.isNotBlank()) {
-                groups.getOrPut(normalizedName, ::mutableListOf).add(song)
-            }
-        }
+private data class SearchableArtistCounts(
+    val displayNameCounts: LinkedHashMap<String, Int> = linkedMapOf(),
+    var firstDisplayName: String = "",
+    var artUri: Uri? = null,
+    var songCount: Int = 0,
+)
+
+private fun addSearchableArtist(
+    song: Song,
+    searchableSong: SearchableSong,
+    groups: MutableMap<String, SearchableArtistCounts>,
+) {
+    val artistName = song.libraryArtistName()
+    if (artistName.isBlank()) return
+    val normalizedName = if (song.albumArtist?.isNotBlank() == true) {
+        searchableSong.normalizedAlbumArtist
+    } else {
+        searchableSong.normalizedArtist
     }
-    return groups
-        .mapNotNull { (normalizedName, artistSongs) ->
-            val displayName = artistSongs
-                .map { it.libraryArtistName().trim() }
-                .filter { it.isNotBlank() }
-                .groupingBy { it }
-                .eachCount()
-                .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
-                ?.key
-                ?: artistSongs.first().libraryArtistName().trim()
-            SearchableArtist(
-                displayName = displayName,
-                normalizedName = normalizedName,
-                songCount = artistSongs.size,
-                artUri = artistSongs.firstOrNull { it.artUri != null }?.artUri,
-            )
-        }
-        .sortedWith(
-            compareBy<SearchableArtist> { it.normalizedName }
-                .thenByDescending { it.songCount }
-                .thenBy { it.displayName },
-        )
+    if (normalizedName.isBlank()) return
+    val displayName = artistName.trim()
+    val counts = groups.getOrPut(normalizedName, ::SearchableArtistCounts)
+    if (counts.songCount == 0) counts.firstDisplayName = displayName
+    counts.songCount++
+    if (displayName.isNotBlank()) {
+        counts.displayNameCounts[displayName] = (counts.displayNameCounts[displayName] ?: 0) + 1
+    }
+    if (counts.artUri == null) counts.artUri = song.artUri
 }
+
+private fun buildSearchableArtists(
+    groups: Map<String, SearchableArtistCounts>,
+): List<SearchableArtist> = groups
+    .map { (normalizedName, counts) ->
+        val displayName = counts.displayNameCounts.entries
+            .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
+            ?.key
+            ?: counts.firstDisplayName
+        SearchableArtist(
+            displayName = displayName,
+            normalizedName = normalizedName,
+            songCount = counts.songCount,
+            artUri = counts.artUri,
+        )
+    }
+    .sortedWith(
+        compareBy<SearchableArtist> { it.normalizedName }
+            .thenByDescending { it.songCount }
+            .thenBy { it.displayName },
+    )
 
 private fun Song.libraryArtistName(): String {
     return albumArtist?.takeIf { it.isNotBlank() } ?: artist

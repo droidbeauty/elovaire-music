@@ -88,6 +88,23 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun patchSongs_fallsBackToStableIdentityOnlyWhenIdIsMissing() {
+        val original = song(1L, "content://media/external/audio/media/1")
+        val initial = LibrarySnapshotAssembler.assemble(listOf(original))
+        val current = LibraryContentState(initial.songs, initial.albums, contentRevision = initial.contentRevision)
+        val publisher = LibrarySnapshotPublisher({}, { current })
+
+        val result = publisher.patchSongs(
+            editedSongs = listOf(original.copy(id = 99L, title = "Edited")),
+            removingSongIds = emptySet(),
+            removingAlbumIds = emptySet(),
+        )
+
+        assertEquals("Edited", result.state.songs.single().title)
+        assertEquals(99L, result.state.songs.single().id)
+    }
+
+    @Test
     fun patchSongs_reusesAudiobookCatalogForMusicOnlyEdits() {
         val music = song(1L, "content://media/external/audio/media/1")
         val audiobook = song(2L, "file:///books/book/part-1.m4b").copy(

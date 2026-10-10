@@ -20,6 +20,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -78,6 +79,20 @@ class CrossfadeCueAnalyzerInstrumentedTest {
         } finally {
             resolver.delete(uri, null, null)
         }
+    }
+
+    @Test
+    fun usesSourceDurationWhenCatalogDurationIsStale() = runBlocking {
+        val song = fixtureSong(uri = fixtureUri, durationMs = 5_000L)
+        val cue = withTimeout(30_000L) {
+            CrossfadeCueAnalyzer(context, scope).analyzePair(song, song)
+        }
+
+        assertTrue(cue.outgoingAnalysisSucceeded)
+        assertTrue(cue.incomingAnalysisSucceeded)
+        assertWithin(15_000L, cue.outgoingMixOutMs)
+        assertWithin(1_000L, cue.incomingMixInMs)
+        assertEquals(20_000L, cue.incomingDurationMs)
     }
 
     @Test

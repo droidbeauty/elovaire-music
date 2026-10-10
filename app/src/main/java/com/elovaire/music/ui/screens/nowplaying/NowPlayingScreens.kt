@@ -152,6 +152,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -352,6 +353,8 @@ import kotlin.math.roundToInt
 import kotlin.math.pow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1804,7 +1807,7 @@ private fun QueueSheet(
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
-    val queueEdgeHazeState = rememberHazeState()
+    val queueEdgeHazeState = LocalPlayerHazeState.current ?: rememberHazeState()
     val motionSpecs = rememberMotionSpecs()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
@@ -2104,8 +2107,7 @@ private fun QueueSongList(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .ensureSingleItemRubberBand(listState)
-                .hazeSource(queueEdgeHazeState, zIndex = -1f),
+                .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
@@ -2175,7 +2177,7 @@ internal fun BoxScope.QueueEdgeHaze(
 ) {
     if (!visible) return
     val surface = MaterialTheme.colorScheme.surface
-    val edgeMask = softEdgeBlurMask(
+    val edgeMask = rememberSoftEdgeBlurMask(
         startIntensity = startIntensity,
         endIntensity = endIntensity,
     )
@@ -2186,17 +2188,14 @@ internal fun BoxScope.QueueEdgeHaze(
             .height(edgeHeight)
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .hazeEffect(hazeState) {
-                progressive = softEdgeBlurProgressive(
-                    startIntensity = startIntensity,
-                    endIntensity = endIntensity,
-                )
+                progressive = softEdgeBlurProgressive(edgeMask)
                 blurRadius = 34.dp
-                backgroundColor = surface.copy(alpha = 0.42f)
+                backgroundColor = surface.copy(alpha = 0.18f)
                 tints = listOf(
-                    HazeTint(surface.copy(alpha = 0.12f)),
-                    HazeTint(tint.copy(alpha = 0.025f)),
+                    HazeTint(surface.copy(alpha = 0.08f)),
+                    HazeTint(tint.copy(alpha = 0.035f)),
                 )
-                noiseFactor = 0.012f
+                noiseFactor = 0.006f
             }
             .drawWithContent {
                 drawContent()
@@ -2217,26 +2216,26 @@ private fun softEdgeBlurMask(
         (startIntensity + (endIntensity - startIntensity) * smoothStep(fraction))
             .coerceIn(0f, 1f)
 
+    val stopCount = 17
     return Brush.verticalGradient(
-        colorStops = arrayOf(
-            0f to Color.Black.copy(alpha = intensityAt(0f)),
-            0.16f to Color.Black.copy(alpha = intensityAt(0.16f)),
-            0.4f to Color.Black.copy(alpha = intensityAt(0.4f)),
-            0.68f to Color.Black.copy(alpha = intensityAt(0.68f)),
-            1f to Color.Black.copy(alpha = intensityAt(1f)),
-        ),
+        colorStops = Array(stopCount) { index ->
+            val fraction = index / (stopCount - 1).toFloat()
+            fraction to Color.Black.copy(alpha = intensityAt(fraction))
+        },
     )
 }
 
-private fun softEdgeBlurProgressive(
+@Composable
+private fun rememberSoftEdgeBlurMask(
     startIntensity: Float,
     endIntensity: Float,
-): HazeProgressive = HazeProgressive.Brush(
-    softEdgeBlurMask(
-        startIntensity = startIntensity,
-        endIntensity = endIntensity,
-    ),
-)
+): Brush = remember(startIntensity, endIntensity) {
+    softEdgeBlurMask(startIntensity, endIntensity)
+}
+
+private fun softEdgeBlurProgressive(
+    edgeMask: Brush,
+): HazeProgressive = HazeProgressive.Brush(edgeMask)
 
 @Composable
 private fun QueueSeparator(
@@ -3725,17 +3724,6 @@ private fun LyricsOverlay(
     val copy = remember(language) { rootUiCopy(language) }
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
-    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
-    val playbackProgressFraction = remember(
-        playbackProgress.displayPositionMs,
-        playbackProgress.durationMs,
-    ) {
-        if (playbackProgress.durationMs > 0L) {
-            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    }
     var overlayEntered by remember(song?.id) { mutableStateOf(false) }
     var displayedLyricsSongId by remember { mutableStateOf(song?.id) }
     val animateLyricsForTrackChange = song?.id != displayedLyricsSongId
@@ -4076,7 +4064,6 @@ private fun LyricsOverlay(
                                         lyricsBottomBlurArea = lyricsBottomBlurArea,
                                         contentColor = contentColor,
                                         onSeekTo = onSeekTo,
-                                        scope = scope,
                                     )
                                 }
                             }
@@ -4102,7 +4089,7 @@ private fun LyricsOverlay(
                 label = "lyrics_bottom_shadow_visibility",
             ) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val edgeMask = softEdgeBlurMask(
+                    val edgeMask = rememberSoftEdgeBlurMask(
                         startIntensity = 0f,
                         endIntensity = 1f,
                     )
@@ -4116,10 +4103,7 @@ private fun LyricsOverlay(
                             )
                             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                             .hazeEffect(lyricsHazeState) {
-                                progressive = softEdgeBlurProgressive(
-                                    startIntensity = 0f,
-                                    endIntensity = 1f,
-                                )
+                                progressive = softEdgeBlurProgressive(edgeMask)
                                 blurRadius = 34.dp
                                 backgroundColor = surface.copy(alpha = 0.42f)
                                 tints = listOf(
@@ -4225,32 +4209,7 @@ private fun LyricsOverlay(
                             onClick = onTogglePlayback,
                             label = "lyrics_play_pause",
                         ) {
-                            Canvas(modifier = Modifier.matchParentSize()) {
-                                val strokeWidth = size.minDimension * 0.1f
-                                val arcInset = strokeWidth / 2f + 2.2f
-                                val arcSize = Size(
-                                    width = size.width - (arcInset * 2f),
-                                    height = size.height - (arcInset * 2f),
-                                )
-                                drawArc(
-                                    color = contentColor.copy(alpha = 0.18f),
-                                    startAngle = -90f,
-                                    sweepAngle = 360f,
-                                    useCenter = false,
-                                    topLeft = Offset(arcInset, arcInset),
-                                    size = arcSize,
-                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                                )
-                                drawArc(
-                                    color = contentColor,
-                                    startAngle = -90f,
-                                    sweepAngle = 360f * playbackProgressFraction,
-                                    useCenter = false,
-                                    topLeft = Offset(arcInset, arcInset),
-                                    size = arcSize,
-                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                                )
-                            }
+                            LyricsPlaybackProgressRing(playbackManager, contentColor)
                             AnimatedContent(
                                 targetState = isPlaying,
                                 transitionSpec = {
@@ -4564,6 +4523,47 @@ private fun LyricsControlButton(
 }
 
 @Composable
+private fun LyricsPlaybackProgressRing(
+    playbackManager: NowPlayingPlayback,
+    contentColor: Color,
+) {
+    val progress by playbackManager.progressState.collectAsStateWithLifecycle()
+    val fraction = remember(progress.displayPositionMs, progress.durationMs) {
+        if (progress.durationMs > 0L) {
+            (progress.displayPositionMs.toFloat() / progress.durationMs.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val strokeWidth = size.minDimension * 0.1f
+        val arcInset = strokeWidth / 2f + 2.2f
+        val arcSize = Size(
+            width = size.width - (arcInset * 2f),
+            height = size.height - (arcInset * 2f),
+        )
+        drawArc(
+            color = contentColor.copy(alpha = 0.18f),
+            startAngle = -90f,
+            sweepAngle = 360f,
+            useCenter = false,
+            topLeft = Offset(arcInset, arcInset),
+            size = arcSize,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+        )
+        drawArc(
+            color = contentColor,
+            startAngle = -90f,
+            sweepAngle = 360f * fraction,
+            useCenter = false,
+            topLeft = Offset(arcInset, arcInset),
+            size = arcSize,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+        )
+    }
+}
+
+@Composable
 private fun LyricsEditorActionButton(
     @DrawableRes iconResId: Int,
     contentDescription: String,
@@ -4668,7 +4668,6 @@ private fun LyricsReadyContent(
     lyricsBottomBlurArea: Dp,
     contentColor: Color,
     onSeekTo: (Long) -> Unit,
-    scope: kotlinx.coroutines.CoroutineScope,
 ) {
     val motionSpecs = rememberMotionSpecs()
     val density = LocalDensity.current
@@ -4676,6 +4675,7 @@ private fun LyricsReadyContent(
     val lineEntryOffsetPx = with(density) { 10.dp.toPx() }
     val lineEntryDurationMs = MotionDuration.Standard.toFloat()
     val lineEntryMaxStaggerMs = 6 * 16f
+    val latestActiveLineIndex = rememberUpdatedState(activeLyricLineIndex)
     val lineEntryClock = remember(song?.id, animateTrackChange) {
         Animatable(if (animateTrackChange) 0f else 1f)
     }
@@ -4697,13 +4697,19 @@ private fun LyricsReadyContent(
     LaunchedEffect(song?.id) {
         if (animateTrackChange) onTrackChangeAnimationStarted()
     }
-    LaunchedEffect(activeLyricLineIndex, payload.isSynced, autoScrollHeld) {
-        if (!autoScrollHeld && payload.isSynced && activeLyricLineIndex >= 0) {
-            listState.animateLyricJumpToItem(
-                index = activeLyricLineIndex,
-                scrollOffset = -autoScrollCenterOffsetPx,
-            )
-        }
+    LaunchedEffect(song?.id, payload.isSynced, autoScrollHeld) {
+        if (autoScrollHeld || !payload.isSynced) return@LaunchedEffect
+        snapshotFlow { latestActiveLineIndex.value }
+            .distinctUntilChanged()
+            .conflate()
+            .collect { index ->
+                if (index >= 0) {
+                    listState.animateLyricJumpToItem(
+                        index = index,
+                        scrollOffset = -autoScrollCenterOffsetPx,
+                    )
+                }
+            }
     }
 
     val bottomMaskHeightPx = with(LocalDensity.current) {
@@ -4715,22 +4721,22 @@ private fun LyricsReadyContent(
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .drawWithContent {
-                drawContent()
+            .drawWithCache {
                 val maskStartY = (size.height - bottomMaskHeightPx).coerceAtLeast(0f)
                 val maskStartFraction = if (size.height == 0f) 0f else {
                     (maskStartY / size.height).coerceIn(0f, 1f)
                 }
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0f to Color.Black,
-                            maskStartFraction to Color.Black,
-                            1f to Color.Transparent,
-                        ),
+                val edgeMask = Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0f to Color.Black,
+                        maskStartFraction to Color.Black,
+                        1f to Color.Transparent,
                     ),
-                    blendMode = BlendMode.DstIn,
                 )
+                onDrawWithContent {
+                    drawContent()
+                    drawRect(brush = edgeMask, blendMode = BlendMode.DstIn)
+                }
             }
             .nestedScroll(lyricsScrollObserver)
             .ensureSingleItemRubberBand(listState),
@@ -4746,42 +4752,42 @@ private fun LyricsReadyContent(
         ) { index, line ->
             val latestLyricsLines by rememberUpdatedState(payload.lines)
             val latestLyricsSynced by rememberUpdatedState(payload.isSynced)
-            val lineEntryProgress = if (animateTrackChange) {
-                val staggerMs = (index - lineEntryStartIndex).coerceIn(0, 6) * 16f
-                val elapsedMs = lineEntryClock.value * (lineEntryDurationMs + lineEntryMaxStaggerMs)
-                val lineProgress = ((elapsedMs - staggerMs) / lineEntryDurationMs).coerceIn(0f, 1f)
-                MotionEasing.RefinedDecelerate.transform(lineProgress)
-            } else {
-                1f
-            }
             val isActive = payload.isSynced && index == activeLyricLineIndex
-            val lineFontSize by animateFloatAsState(
-                targetValue = if (isActive) 24f else 22f,
+            val lineScale = animateFloatAsState(
+                targetValue = if (isActive) 24f / 22f else 1f,
                 animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
-                label = "lyrics_line_font_$index",
+                label = "lyrics_line_scale_$index",
             )
-            val lineColor by animateColorAsState(
-                targetValue = when {
-                    isActive -> contentColor.copy(alpha = 1f)
-                    else -> contentColor.copy(alpha = 0.7f)
-                },
+            val lineAlpha = animateFloatAsState(
+                targetValue = if (isActive) 1f else 0.7f,
                 animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
-                label = "lyrics_line_color_$index",
+                label = "lyrics_line_alpha_$index",
             )
             Text(
                 text = line.text,
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = lineFontSize.sp,
-                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
-                    lineHeight = if (isActive) 31.sp else 29.sp,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 29.sp,
                 ),
-                color = lineColor,
+                color = contentColor,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        alpha = lineEntryProgress
-                        translationY = (1f - lineEntryProgress) * -lineEntryOffsetPx
+                        val entryProgress = if (animateTrackChange) {
+                            val staggerMs = (index - lineEntryStartIndex).coerceIn(0, 6) * 16f
+                            val elapsedMs = lineEntryClock.value * (lineEntryDurationMs + lineEntryMaxStaggerMs)
+                            val progress = ((elapsedMs - staggerMs) / lineEntryDurationMs).coerceIn(0f, 1f)
+                            MotionEasing.RefinedDecelerate.transform(progress)
+                        } else {
+                            1f
+                        }
+                        val scale = lineScale.value
+                        alpha = entryProgress * lineAlpha.value
+                        translationY = (1f - entryProgress) * -lineEntryOffsetPx
+                        scaleX = scale
+                        scaleY = scale
                     }
                     .pointerInput(song?.id, payload.lines.size) {
                         detectTapGestures {
@@ -4794,12 +4800,6 @@ private fun LyricsReadyContent(
                                 setUserLyricsScrollActive(false)
                                 autoScrollResumeJob?.cancel()
                                 setAutoScrollResumeJob(null)
-                                scope.launch {
-                                    listState.animateLyricJumpToItem(
-                                        index = index,
-                                        scrollOffset = -autoScrollCenterOffsetPx,
-                                    )
-                                }
                                 onSeekTo(seekPositionMs)
                             }
                         }

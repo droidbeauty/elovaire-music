@@ -35,6 +35,7 @@ internal data class CrossfadeCue(
     val incomingAnalysisSucceeded: Boolean,
     val outgoingFallbackReason: String? = null,
     val incomingFallbackReason: String? = null,
+    val incomingDurationMs: Long? = null,
 ) {
     companion object {
         fun fallback(outgoingDurationMs: Long): CrossfadeCue = CrossfadeCue(
@@ -65,9 +66,20 @@ internal data class CrossfadeTransitionPlan(
         ): CrossfadeTransitionPlan {
             val duration = outgoingDurationMs.coerceAtLeast(0L)
             val mixOut = cue.outgoingMixOutMs.coerceIn(0L, duration)
-            val incomingMixIn = cue.incomingMixInMs.coerceAtLeast(0L)
-            val incomingAvailable = if (incomingDurationMs > 0L) {
-                (incomingDurationMs - incomingMixIn).coerceAtLeast(0L)
+            val resolvedIncomingDurationMs = cue.incomingDurationMs
+                ?.takeIf { it > 0L }
+                ?: incomingDurationMs
+            val requestedIncomingMixIn = cue.incomingMixInMs.coerceAtLeast(0L)
+            val incomingMixIn = if (
+                resolvedIncomingDurationMs > 0L &&
+                requestedIncomingMixIn >= resolvedIncomingDurationMs
+            ) {
+                0L
+            } else {
+                requestedIncomingMixIn
+            }
+            val incomingAvailable = if (resolvedIncomingDurationMs > 0L) {
+                (resolvedIncomingDurationMs - incomingMixIn).coerceAtLeast(0L)
             } else {
                 Long.MAX_VALUE
             }
@@ -332,7 +344,7 @@ internal class CrossfadeCueAnalyzer(
                 "analysis_success=${outgoingCue.mixOutMs != null}/${incomingCue.mixInMs != null} " +
                 "fallback_reason=${outgoingCue.failureReason ?: incomingCue.failureReason ?: "none"}",
         )
-        val outgoingDurationMs = outgoing.durationMs.coerceAtLeast(0L)
+        val outgoingDurationMs = outgoingCue.durationMs
         return CrossfadeCue(
             outgoingMixOutMs = outgoingCue.mixOutMs ?: outgoingDurationMs,
             incomingMixInMs = incomingCue.mixInMs ?: 0L,
@@ -342,6 +354,7 @@ internal class CrossfadeCueAnalyzer(
             incomingAnalysisSucceeded = incomingCue.mixInMs != null,
             outgoingFallbackReason = outgoingCue.failureReason,
             incomingFallbackReason = incomingCue.failureReason,
+            incomingDurationMs = incomingCue.durationMs.takeIf { it > 0L },
         )
     }
 
@@ -381,9 +394,10 @@ internal class CrossfadeCueAnalyzer(
 
     private fun analyzeSongUncached(song: Song, silenceLevelDb: Float): SongCue {
         val fallbackDuration = song.durationMs.coerceAtLeast(0L)
-        val durationMs = fallbackDuration.takeIf { it > 0L } ?: findDurationMs(song) ?: 0L
+        val durationMs = findDurationMs(song)?.takeIf { it > 0L } ?: fallbackDuration
         if (durationMs <= 0L) {
             return SongCue(
+                durationMs = durationMs,
                 mixOutMs = null,
                 mixInMs = null,
                 trailingSilenceMs = 0L,
@@ -395,6 +409,7 @@ internal class CrossfadeCueAnalyzer(
         val tailCue = analyzeTrailingRegion(song, durationMs, silenceFloor)
         val headCue = analyzeLeadingRegion(song, durationMs, silenceFloor)
         return SongCue(
+            durationMs = durationMs,
             mixOutMs = tailCue.cueMs,
             mixInMs = headCue.cueMs,
             trailingSilenceMs = tailCue.silenceMs,
@@ -771,6 +786,7 @@ internal class CrossfadeCueAnalyzer(
     )
 
     private data class SongCue(
+        val durationMs: Long,
         val mixOutMs: Long?,
         val mixInMs: Long?,
         val trailingSilenceMs: Long,

@@ -12,16 +12,47 @@ import kotlin.math.roundToInt
 
 internal fun recentlyAddedAlbumsFor(
     libraryState: LibraryUiState,
+    limit: Int? = null,
 ): List<Album> {
     val cutoffSeconds = (System.currentTimeMillis() / 1_000L) - RECENTLY_ADDED_WINDOW_SECONDS
-    return libraryState.albums.mapNotNull { album ->
-        val timestampSeconds = album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds)
-            ?: return@mapNotNull null
-        if (timestampSeconds > 0L && timestampSeconds >= cutoffSeconds) album to timestampSeconds else null
+    if (limit == null || limit >= libraryState.albums.size) {
+        return libraryState.albums.mapNotNull { album ->
+            val timestampSeconds = album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds)
+                ?: return@mapNotNull null
+            if (timestampSeconds > 0L && timestampSeconds >= cutoffSeconds) album to timestampSeconds else null
+        }
+            .sortedByDescending { (_, timestampSeconds) -> timestampSeconds }
+            .map { (album, _) -> album }
     }
-        .sortedByDescending { (_, timestampSeconds) -> timestampSeconds }
-        .map { (album, _) -> album }
+    if (limit <= 0) return emptyList()
+
+    val bestAlbums = ArrayList<RecentAlbum>(limit.coerceAtMost(libraryState.albums.size))
+    libraryState.albums.forEachIndexed { index, album ->
+        val timestampSeconds = album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds) ?: return@forEachIndexed
+        if (timestampSeconds <= 0L || timestampSeconds < cutoffSeconds) return@forEachIndexed
+        var insertionIndex = 0
+        while (insertionIndex < bestAlbums.size) {
+            val existing = bestAlbums[insertionIndex]
+            if (timestampSeconds > existing.timestampSeconds ||
+                (timestampSeconds == existing.timestampSeconds && index < existing.index)
+            ) {
+                break
+            }
+            insertionIndex++
+        }
+        if (insertionIndex < limit) {
+            bestAlbums.add(insertionIndex, RecentAlbum(album, timestampSeconds, index))
+            if (bestAlbums.size > limit) bestAlbums.removeAt(limit)
+        }
+    }
+    return bestAlbums.map(RecentAlbum::album)
 }
+
+private data class RecentAlbum(
+    val album: Album,
+    val timestampSeconds: Long,
+    val index: Int,
+)
 
 private fun Song.recentLibraryTimestampSeconds(): Long {
     return dateAddedSeconds.takeIf { it > 0L } ?: dateModifiedSeconds ?: 0L
@@ -63,6 +94,14 @@ internal fun favoriteAlbumsFor(
     libraryState.albums.forEachIndexed { index, album ->
         val playCount = album.songs.sumOf { songPlayCounts[it.id] ?: 0 }
         if (playCount <= 0) return@forEachIndexed
+        val existing = bestAlbumsById[album.id]
+        val worst = if (existing == null && bestAlbums.size == HOME_FAVORITE_ALBUM_LIMIT) {
+            requireNotNull(bestAlbums.peek())
+        } else {
+            null
+        }
+        if (existing != null && playCount < existing.playCount) return@forEachIndexed
+        if (worst != null && playCount < worst.playCount) return@forEachIndexed
         val candidate = RankedFavoriteAlbum(
             album = album,
             playCount = playCount,
@@ -70,15 +109,14 @@ internal fun favoriteAlbumsFor(
             titleKey = album.title.lowercase(),
             index = index,
         )
-        val existing = bestAlbumsById[album.id]
         if (existing != null) {
             if (comparator.compare(candidate, existing) >= 0) return@forEachIndexed
             bestAlbums.remove(existing)
         } else if (bestAlbums.size == HOME_FAVORITE_ALBUM_LIMIT) {
-            val worst = requireNotNull(bestAlbums.peek())
-            if (comparator.compare(candidate, worst) >= 0) return@forEachIndexed
+            val currentWorst = requireNotNull(bestAlbums.peek())
+            if (comparator.compare(candidate, currentWorst) >= 0) return@forEachIndexed
             bestAlbums.poll()
-            bestAlbumsById.remove(worst.album.id)
+            bestAlbumsById.remove(currentWorst.album.id)
         }
         bestAlbumsById[album.id] = candidate
         bestAlbums += candidate
@@ -106,6 +144,18 @@ private data class RankedFavoriteAlbum(
 private const val HOME_FAVORITE_ALBUM_LIMIT = 6
 private const val HOME_RECENT_ALBUM_LIMIT = 6
 private const val HOME_RECENT_SONG_LIMIT = 5
+
+internal fun distinctMusicArtistCount(songs: List<Song>): Int {
+    val artists = HashSet<String>()
+    songs.forEach { song -> artists += song.artist.ifBlank { "Unknown Artist" } }
+    return artists.size
+}
+
+internal fun distinctMusicGenreCount(songs: List<Song>): Int {
+    val genres = HashSet<String>()
+    songs.forEach { song -> genres += song.genre.ifBlank { "Unknown Genre" } }
+    return genres.size
+}
 
 internal data class AlbumCollectionSortEntry(
     val album: Album,
