@@ -11,6 +11,14 @@ import org.junit.Test
 
 class PlaybackQueueControllerTest {
     @Test
+    fun queueStartIndexClampsOutOfRangeIndices() {
+        val songs = listOf(song(1L), song(2L))
+
+        assertEquals(1, songs.safeStartIndex(Int.MAX_VALUE))
+        assertEquals(0, songs.safeStartIndex(Int.MIN_VALUE))
+    }
+
+    @Test
     fun stageExternalQueue_doesNotStartPlaybackOrRequestAudioFocus() {
         val runtime = RecordingQueueRuntime(
             PlaybackUiState(

@@ -6,6 +6,17 @@ import org.junit.Test
 
 class MediaStoreDeltaMergeTest {
     @Test
+    fun albumSortTreatsMissingDiscNumberAsDiscOne() {
+        val unknownDisc = testSong(id = 1L).copy(discNumber = 0, trackNumber = 2)
+        val secondDisc = testSong(id = 2L).copy(discNumber = 2, trackNumber = 1)
+        val firstDisc = testSong(id = 3L).copy(discNumber = 1, trackNumber = 3)
+
+        assertEquals(
+            listOf(unknownDisc, firstDisc, secondDisc),
+            sortAlbumSongs(listOf(secondDisc, firstDisc, unknownDisc)),
+        )
+    }
+    @Test
     fun deltaReplacesRetainsAndAppendsByStableIdentity() {
         val original = testSong(id = 1L, title = "Original")
         val retained = testSong(id = 2L, title = "Retained")
@@ -61,5 +72,22 @@ class MediaStoreDeltaMergeTest {
 
         assertEquals(listOf(unchanged), result.songs)
         assertEquals(setOf(unchangedKey), result.retainedIdentityKeys)
+    }
+
+    @Test
+    fun deltaDeduplicatesChangedRowsWithTheSameStableIdentity() {
+        val first = testSong(id = 1L, title = "Old title")
+        val second = first.copy(title = "Updated title")
+        val key = MediaIdentityResolver.stableKey(first)
+
+        val result = mergeMediaStoreDelta(
+            baseSongs = emptyList(),
+            changedSongs = listOf(first, second),
+            changedRowIdentityKeys = setOf(key),
+            currentIdentityKeys = setOf(key),
+        )
+
+        assertEquals(listOf(second), result.songs)
+        assertEquals(setOf(key), result.retainedIdentityKeys)
     }
 }

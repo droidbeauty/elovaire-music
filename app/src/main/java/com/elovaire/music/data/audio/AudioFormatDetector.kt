@@ -67,6 +67,11 @@ internal class AudioFormatDetector(
             return size > MAX_PROBE_CACHE_ENTRIES
         }
     }
+    private val failedFormatCache = object : LinkedHashMap<AudioProbeCacheKey, DetectedAudioFormat>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AudioProbeCacheKey, DetectedAudioFormat>?): Boolean {
+            return size > MAX_PROBE_CACHE_ENTRIES
+        }
+    }
 
     @Suppress("TooGenericExceptionCaught")
     fun detect(
@@ -89,7 +94,8 @@ internal class AudioFormatDetector(
             )
         }
         if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) {
-            return fallbackFormat(extension, mediaStoreMimeType, signature = null)
+            val failedFormat = cacheKey?.let { key -> synchronized(failedFormatCache) { failedFormatCache[key] } }
+            return failedFormat ?: fallbackFormat(extension, mediaStoreMimeType, signature = readSignature(uri))
         }
         val signature = readSignature(uri)
         val extractor = MediaExtractor()
@@ -161,7 +167,12 @@ internal class AudioFormatDetector(
         } finally {
             runCatching { extractor.release() }
         }
-        if (detected.detectionSucceeded) failureKey?.let(failureRegistry::recordSuccess)
+        if (detected.detectionSucceeded) {
+            failureKey?.let(failureRegistry::recordSuccess)
+            cacheKey?.let { key -> synchronized(failedFormatCache) { failedFormatCache.remove(key) } }
+        } else {
+            cacheKey?.let { key -> synchronized(failedFormatCache) { failedFormatCache[key] = detected } }
+        }
         if (detected.detectionSucceeded) {
             cacheKey?.let { key -> synchronized(detectedFormatCache) { detectedFormatCache[key] = detected } }
         }

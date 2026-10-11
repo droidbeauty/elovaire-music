@@ -17,6 +17,6 @@ internal fun resolveNetworkRange(
     val availableBytes = totalLength - position
     return NetworkRangeResolution(
         availableBytes = availableBytes,
-        exposedLength = if (requestedLength >= 0L) requestedLength else availableBytes,
+        exposedLength = if (requestedLength >= 0L) minOf(requestedLength, availableBytes) else availableBytes,
     )
 }

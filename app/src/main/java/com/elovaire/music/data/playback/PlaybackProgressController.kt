@@ -19,6 +19,7 @@ internal data class ScrubCommitResult(
 
 internal class PlaybackProgressController {
     private var currentMediaId: Long? = null
+    private var currentMediaItemOccurrence: Long = 0L
     private var generation: Long = 0L
     private var positionMs: Long = 0L
     private var durationMs: Long = 0L
@@ -31,14 +32,16 @@ internal class PlaybackProgressController {
 
     fun onPlayerSnapshot(
         mediaId: Long?,
+        mediaItemOccurrence: Long = 0L,
         positionMs: Long,
         durationMs: Long,
         bufferedPositionMs: Long,
         isPlaying: Boolean,
     ): PlaybackProgressState {
-        if (mediaId != currentMediaId) {
+        if (mediaId != currentMediaId || mediaItemOccurrence != currentMediaItemOccurrence) {
             generation += 1L
             currentMediaId = mediaId
+            currentMediaItemOccurrence = mediaItemOccurrence
             clearScrubState()
             pendingSeekPositionMs = null
         }
@@ -69,6 +72,7 @@ internal class PlaybackProgressController {
             generation += 1L
         }
         currentMediaId = null
+        currentMediaItemOccurrence = 0L
         positionMs = 0L
         durationMs = 0L
         bufferedPositionMs = 0L

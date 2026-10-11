@@ -64,4 +64,32 @@ class PlaybackProgressControllerTest {
 
         assertTrue(controller.needsActivePolling())
     }
+
+    @Test
+    fun repeatedQueueOccurrenceClearsPendingSeekForSameSongId() {
+        val controller = PlaybackProgressController()
+        controller.onPlayerSnapshot(
+            mediaId = 1L,
+            mediaItemOccurrence = 1L,
+            positionMs = 0L,
+            durationMs = 60_000L,
+            bufferedPositionMs = 0L,
+            isPlaying = true,
+        )
+        controller.beginScrub()
+        controller.finishScrub(45_000L)
+
+        val nextOccurrence = controller.onPlayerSnapshot(
+            mediaId = 1L,
+            mediaItemOccurrence = 2L,
+            positionMs = 0L,
+            durationMs = 60_000L,
+            bufferedPositionMs = 0L,
+            isPlaying = true,
+        )
+
+        assertEquals(0L, nextOccurrence.displayPositionMs)
+        assertFalse(controller.needsActivePolling())
+        assertFalse(nextOccurrence.isUserScrubbing)
+    }
 }

@@ -7,6 +7,12 @@ import org.junit.Test
 
 class ExternalAudioMetadataPolicyTest {
     @Test
+    fun acceptsUriSchemesWithoutCaseSensitivity() {
+        assertEquals(true, ExternalAudioMetadataPolicy.acceptsUri("CONTENT", 24))
+        assertEquals(true, ExternalAudioMetadataPolicy.acceptsUri("FILE", 18))
+    }
+
+    @Test
     fun sanitizeDisplayName_removesControlsAndPathSeparators() {
         assertEquals(
             "folder song.flac",

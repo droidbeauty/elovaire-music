@@ -494,11 +494,9 @@ internal fun mergeMediaStoreDelta(
     currentIdentityKeys: Set<String>,
 ): MediaStoreDeltaMergeResult {
     val changedByKey = LinkedHashMap<String, Song>(changedSongs.size)
-    val changedKeys = ArrayList<String>(changedSongs.size)
     changedSongs.forEach { changedSong ->
         val key = MediaIdentityResolver.stableKey(changedSong)
         changedByKey[key] = changedSong
-        changedKeys += key
     }
     val baseKeys = HashSet<String>(baseSongs.size)
     val retainedIdentityKeys = changedByKey.keys.toMutableSet()
@@ -516,9 +514,9 @@ internal fun mergeMediaStoreDelta(
                 retainedIdentityKeys += key
             }
         }
-        changedKeys.forEachIndexed { index, key ->
+        changedByKey.forEach { (key, changedSong) ->
             if (key !in baseKeys) {
-                add(changedSongs[index])
+                add(changedSong)
             }
         }
     }
@@ -547,7 +545,7 @@ internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
     return if (hasTrackTags) {
         albumSongs.sortedWith(
             compareBy<Song>(
-                { it.discNumber },
+                { it.discNumber.takeIf { discNumber -> discNumber > 0 } ?: 1 },
                 { if (it.trackNumber > 0) 0 else 1 },
                 { if (it.trackNumber > 0) it.trackNumber else Int.MAX_VALUE },
                 { it.fileName.lowercase(Locale.ROOT) },

@@ -388,6 +388,7 @@ internal class PlaybackManager internal constructor(
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
     private val audioSinkRecoveryGuard = AudioSinkRecoveryGuard()
     private val playbackProgressController = PlaybackProgressController()
+    private var progressMediaItemOccurrence = 0L
     private val progressDemandController = PlaybackProgressDemandController()
     private val playbackProgressTicker = PlaybackProgressTicker(
         scope = scope,
@@ -434,6 +435,7 @@ internal class PlaybackManager internal constructor(
             reason: Int,
         ) {
             if (released.get()) return
+            progressMediaItemOccurrence += 1L
             resetUnexpectedIdleRecoveryGuard()
             crossfadeController.cancel()
             bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
@@ -1810,6 +1812,7 @@ internal class PlaybackManager internal constructor(
     private fun publishProgressSnapshot(force: Boolean = false) {
         val updatedProgress = playbackProgressController.onPlayerSnapshot(
             mediaId = currentSong()?.id,
+            mediaItemOccurrence = progressMediaItemOccurrence,
             positionMs = player.currentPosition.coerceAtLeast(0L),
             durationMs = player.duration.takeIf { it > 0 }?.coerceAtLeast(0L) ?: 0L,
             bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),

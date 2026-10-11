@@ -6,7 +6,7 @@ import java.util.Locale
 
 internal object ExternalAudioMetadataPolicy {
     fun acceptsUri(scheme: String?, uriLength: Int): Boolean {
-        return scheme in SUPPORTED_URI_SCHEMES && uriLength in 1..MAX_URI_LENGTH
+        return scheme?.lowercase(Locale.ROOT) in SUPPORTED_URI_SCHEMES && uriLength in 1..MAX_URI_LENGTH
     }
 
     fun acceptsDeclaredMimeType(mimeType: String?): Boolean {

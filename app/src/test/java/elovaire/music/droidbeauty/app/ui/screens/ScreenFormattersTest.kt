@@ -168,6 +168,31 @@ class ScreenFormattersTest {
     }
 
     @Test
+    fun favoriteAlbumPlayCountsDoNotOverflowWhenSummed() {
+        val firstSong = song(1L, albumId = 1L, durationMs = 1_000L)
+        val secondSong = song(2L, albumId = 1L, durationMs = 1_000L)
+        val album = album(1L, addedAtSeconds = 1L).copy(
+            songCount = 2,
+            songs = listOf(firstSong, secondSong),
+        )
+
+        val result = favoriteAlbumsFor(
+            libraryState = LibraryUiState(albums = listOf(album)),
+            songPlayCounts = mapOf(1L to Int.MAX_VALUE, 2L to Int.MAX_VALUE),
+            recentAlbums = emptyList(),
+            recentlyAddedAlbums = emptyList(),
+        )
+
+        assertEquals(listOf(1L), result.map(Album::id))
+    }
+
+    @Test
+    fun durationFractionSupportsLongAudiobooksAndNonFiniteInput() {
+        assertEquals(3_600_000L, fractionToDurationPosition(0.5f, 7_200_000L))
+        assertEquals(0L, fractionToDurationPosition(Float.NaN, 7_200_000L))
+    }
+
+    @Test
     fun suggestedAlbumsKeepsStableTopSixAndBestDuplicateAlbumEntry() {
         val albums = (1L..9L).map { id -> album(id, id).copy(title = "Album $id") }
             .toMutableList()

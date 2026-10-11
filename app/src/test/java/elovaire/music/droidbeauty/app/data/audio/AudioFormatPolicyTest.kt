@@ -23,6 +23,14 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun resolveContainerKeepsSignatureDetectedOggCodecWhenExtensionIsGeneric() {
+        assertEquals(
+            AudioContainerFormat.OggOpus,
+            AudioFormatPolicy.resolveContainer("ogg", "application/ogg", "audio/opus"),
+        )
+    }
+
+    @Test
     fun resolveContainer_treatsM4bAsMp4Audio() {
         assertEquals(
             AudioContainerFormat.Mp4Audio,

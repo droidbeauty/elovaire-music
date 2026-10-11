@@ -58,7 +58,9 @@ internal object ExternalAudioIntentHandler {
     ): Song? = withContext(ioDispatcher) {
         if (!canHandle(intent)) return@withContext null
         val uri = intent?.data ?: return@withContext null
-        if (uri.scheme == ContentResolver.SCHEME_FILE && !uri.isReadableFileAudioInput()) return@withContext null
+        if (uri.scheme.equals(ContentResolver.SCHEME_FILE, ignoreCase = true) && !uri.isReadableFileAudioInput()) {
+            return@withContext null
+        }
 
         val contentResolver = context.contentResolver
         val mimeType = intent.type
@@ -75,7 +77,7 @@ internal object ExternalAudioIntentHandler {
             pathSegment = uri.lastPathSegment,
             mimeType = mimeType,
         )
-        if (declaredCapability == null && uri.scheme != ContentResolver.SCHEME_CONTENT) {
+        if (declaredCapability == null && !uri.scheme.equals(ContentResolver.SCHEME_CONTENT, ignoreCase = true)) {
             return@withContext null
         }
         val playbackUri = context.resolvePlaybackUri(uri, displayName, clock)
@@ -118,7 +120,7 @@ internal object ExternalAudioIntentHandler {
         displayName: String,
         clock: AppClock,
     ): Uri? {
-        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return uri
+        if (!uri.scheme.equals(ContentResolver.SCHEME_CONTENT, ignoreCase = true)) return uri
         if (hasDurableContentAccess(uri)) return uri
         return ExternalAudioPrivateCopy.materialize(this, uri, displayName, clock)
     }

@@ -44,6 +44,7 @@ internal class PlaybackQueueController(
         startPositionMs: Long = 0L,
     ) {
         if (songs.isEmpty()) return
+        val safeStartIndex = songs.safeStartIndex(startIndex)
         queueBackedByLibrary = libraryBacked
         prepareQueueReplacement(audioPathDelayMs)
 
@@ -52,7 +53,7 @@ internal class PlaybackQueueController(
             // MediaSession metadata publication may synchronously ask MediaProvider to validate artwork URI grants.
             player.setMediaItems(
                 songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem),
-                startIndex,
+                safeStartIndex,
                 startPositionMs.coerceAtLeast(0L),
             )
         }
@@ -69,7 +70,7 @@ internal class PlaybackQueueController(
         runtime.publishState(
             runtime.state.copy(
                 queue = songs,
-                currentIndex = startIndex.coerceIn(songs.indices),
+                currentIndex = safeStartIndex,
                 sourceLabel = sourceLabel,
                 transportShowsPause = shouldAutoPlay,
                 sourcePlaylistId = sourcePlaylistId,
@@ -94,7 +95,7 @@ internal class PlaybackQueueController(
         runtime.publishState(
             state.copy(
                 queue = songs,
-                currentIndex = startIndex.coerceIn(songs.indices),
+                currentIndex = songs.safeStartIndex(startIndex),
                 sourceLabel = sourceLabel,
                 sourcePlaylistId = sourcePlaylistId,
             ),
@@ -370,3 +371,5 @@ internal class PlaybackQueueController(
         runtime.updateState()
     }
 }
+
+internal fun List<Song>.safeStartIndex(startIndex: Int): Int = startIndex.coerceIn(indices)

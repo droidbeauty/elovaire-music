@@ -8,7 +8,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.PriorityQueue
-import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 internal fun recentlyAddedAlbumsFor(
     libraryState: LibraryUiState,
@@ -92,7 +92,7 @@ internal fun favoriteAlbumsFor(
     val bestAlbums = PriorityQueue(HOME_FAVORITE_ALBUM_LIMIT, comparator.reversed())
     val bestAlbumsById = HashMap<Long, RankedFavoriteAlbum>(HOME_FAVORITE_ALBUM_LIMIT)
     libraryState.albums.forEachIndexed { index, album ->
-        val playCount = album.songs.sumOf { songPlayCounts[it.id] ?: 0 }
+        val playCount = album.songs.sumOf { (songPlayCounts[it.id] ?: 0).toLong() }
         if (playCount <= 0) return@forEachIndexed
         val existing = bestAlbumsById[album.id]
         val worst = if (existing == null && bestAlbums.size == HOME_FAVORITE_ALBUM_LIMIT) {
@@ -135,7 +135,7 @@ internal fun favoriteAlbumsFor(
 
 private data class RankedFavoriteAlbum(
     val album: Album,
-    val playCount: Int,
+    val playCount: Long,
     val artistKey: String,
     val titleKey: String,
     val index: Int,
@@ -331,7 +331,10 @@ internal fun fractionToDurationPosition(
     durationMs: Long,
 ): Long {
     if (durationMs <= 0L) return 0L
-    return (durationMs * fraction.coerceIn(0f, 1f)).roundToInt().toLong().coerceIn(0L, durationMs)
+    val normalizedFraction = fraction.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f
+    return (durationMs.toDouble() * normalizedFraction.toDouble())
+        .roundToLong()
+        .coerceIn(0L, durationMs)
 }
 
 internal fun formatDuration(durationMs: Long): String {

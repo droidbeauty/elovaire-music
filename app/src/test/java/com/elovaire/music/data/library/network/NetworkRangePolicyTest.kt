@@ -6,9 +6,9 @@ import org.junit.Test
 
 class NetworkRangePolicyTest {
     @Test
-    fun boundedReadPastEofExposesRequestedLengthButStopsAtEof() {
+    fun boundedReadPastEofReportsOnlyAvailableBytes() {
         assertEquals(
-            NetworkRangeResolution(50L, 90L),
+            NetworkRangeResolution(50L, 50L),
             resolveNetworkRange(totalLength = 100L, position = 50L, requestedLength = 90L),
         )
     }
@@ -16,7 +16,7 @@ class NetworkRangePolicyTest {
     @Test
     fun exactEofIsValidAndHasNoAvailableBytes() {
         assertEquals(
-            NetworkRangeResolution(0L, 25L),
+            NetworkRangeResolution(0L, 0L),
             resolveNetworkRange(totalLength = 100L, position = 100L, requestedLength = 25L),
         )
     }
