@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,7 +66,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
-import elovaire.music.droidbeauty.app.ui.components.subtleArtworkShadow
+import elovaire.music.droidbeauty.app.ui.components.ArtworkBlurShadow
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -346,9 +348,10 @@ private fun CompactNowPlayingBar(
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .subtleArtworkShadow(ElovaireRadii.artworkSmall)
-                                .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(ElovaireRadii.artworkSmall),
+                                ),
                             contentAlignment = Alignment.Center,
                         ) {
                             AnimatedContent(
@@ -356,46 +359,60 @@ private fun CompactNowPlayingBar(
                                 contentKey = { it.songId },
                                 transitionSpec = {
                                     (
-                                        fadeIn(
-                                            animationSpec = motionSpecs.tween(
-                                                durationMillis = 260,
-                                                delayMillis = 25,
-                                                easing = FastOutSlowInEasing,
-                                            ),
-                                        ) +
-                                            scaleIn(
-                                                initialScale = 0.96f,
+                                        (
+                                            fadeIn(
                                                 animationSpec = motionSpecs.tween(
                                                     durationMillis = 300,
+                                                    delayMillis = 25,
                                                     easing = FastOutSlowInEasing,
                                                 ),
-                                            )
+                                            ) +
+                                                scaleIn(
+                                                    initialScale = 0.96f,
+                                                    animationSpec = motionSpecs.tween(
+                                                        durationMillis = 300,
+                                                        easing = FastOutSlowInEasing,
+                                                    ),
+                                                )
                                         ) togetherWith (
-                                        fadeOut(
-                                            animationSpec = motionSpecs.tween(
-                                                durationMillis = 170,
-                                                easing = FastOutSlowInEasing,
-                                            ),
-                                        ) +
-                                            scaleOut(
-                                                targetScale = 1.04f,
+                                            fadeOut(
                                                 animationSpec = motionSpecs.tween(
-                                                    durationMillis = 220,
+                                                    durationMillis = 170,
                                                     easing = FastOutSlowInEasing,
                                                 ),
-                                            )
+                                            ) +
+                                                scaleOut(
+                                                    targetScale = 1.04f,
+                                                    animationSpec = motionSpecs.tween(
+                                                        durationMillis = 220,
+                                                        easing = FastOutSlowInEasing,
+                                                    ),
+                                                )
                                         )
+                                    ).using(SizeTransform(clip = false))
                                 },
                                 label = "compact_player_artwork_transition",
                             ) { frame ->
                                 val artworkBitmap = frame.bitmap
                                 if (artworkBitmap != null) {
-                                    Image(
-                                        bitmap = artworkBitmap,
-                                        contentDescription = song.title,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(40.dp),
-                                    )
+                                    Box(Modifier.fillMaxSize()) {
+                                        ArtworkBlurShadow(
+                                            bitmap = artworkBitmap,
+                                            cornerRadius = ElovaireRadii.artworkSmall,
+                                            fallbackTint = barGradient.first(),
+                                            blurRadius = 10.dp,
+                                            verticalOffset = 3.dp,
+                                        )
+                                        Image(
+                                            bitmap = artworkBitmap,
+                                            contentDescription = song.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .align(Alignment.Center)
+                                                .clip(RoundedCornerShape(ElovaireRadii.artworkSmall)),
+                                        )
+                                    }
                                 } else {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_lucide_music),
@@ -596,9 +613,10 @@ private fun NowPlayingBar(
                     modifier = Modifier
                         .size(48.dp)
                         .onGloballyPositioned { artworkBounds = it.boundsInRoot() }
-                        .subtleArtworkShadow(ElovaireRadii.artworkSmall)
-                        .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(ElovaireRadii.artworkSmall),
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     AnimatedContent(
@@ -606,48 +624,61 @@ private fun NowPlayingBar(
                         contentKey = { it.songId },
                         transitionSpec = {
                             (
-                                fadeIn(
-                                    animationSpec = motionSpecs.tween(
-                                        durationMillis = 260,
-                                        delayMillis = 25,
-                                        easing = FastOutSlowInEasing,
-                                    ),
-                                ) +
-                                    scaleIn(
-                                        initialScale = 0.96f,
+                                (
+                                    fadeIn(
                                         animationSpec = motionSpecs.tween(
                                             durationMillis = 300,
+                                            delayMillis = 25,
                                             easing = FastOutSlowInEasing,
                                         ),
-                                    )
-                            ) togetherWith (
-                                fadeOut(
-                                    animationSpec = motionSpecs.tween(
-                                        durationMillis = 170,
-                                        easing = FastOutSlowInEasing,
-                                    ),
-                                ) +
-                                    scaleOut(
-                                        targetScale = 1.04f,
+                                    ) +
+                                        scaleIn(
+                                            initialScale = 0.96f,
+                                            animationSpec = motionSpecs.tween(
+                                                durationMillis = 300,
+                                                easing = FastOutSlowInEasing,
+                                            ),
+                                        )
+                                ) togetherWith (
+                                    fadeOut(
                                         animationSpec = motionSpecs.tween(
-                                            durationMillis = 220,
+                                            durationMillis = 170,
                                             easing = FastOutSlowInEasing,
                                         ),
+                                    ) +
+                                        scaleOut(
+                                            targetScale = 1.04f,
+                                            animationSpec = motionSpecs.tween(
+                                                durationMillis = 220,
+                                                easing = FastOutSlowInEasing,
+                                            ),
+                                        )
                                     )
-                                )
+                                ).using(SizeTransform(clip = false))
                         },
                         label = "mini_player_artwork_transition",
                     ) { frame ->
                         val artworkBitmap = frame.bitmap
                         if (artworkBitmap != null) {
-                            Image(
-                                bitmap = artworkBitmap,
-                                contentDescription = song.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                            )
+                            Box(Modifier.fillMaxSize()) {
+                                ArtworkBlurShadow(
+                                    bitmap = artworkBitmap,
+                                    cornerRadius = ElovaireRadii.artworkSmall,
+                                    fallbackTint = barGradient.first(),
+                                    blurRadius = 12.dp,
+                                    verticalOffset = 4.dp,
+                                )
+                                Image(
+                                    bitmap = artworkBitmap,
+                                    contentDescription = song.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .align(Alignment.Center)
+                                        .clip(RoundedCornerShape(ElovaireRadii.artworkSmall)),
+                                )
+                            }
                         } else {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_lucide_music),

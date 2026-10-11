@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.components
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -18,18 +20,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.padding
@@ -72,11 +77,21 @@ fun ArtworkImage(
     } else {
         null
     }
-    val shape = RoundedCornerShape(cornerRadius)
+    val legacyShadowTint = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        rememberArtworkPaletteAccent(uri, requestedSizePx).value
+    } else {
+        null
+    }
+    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
 
     Box(
-        modifier = Modifier.subtleArtworkShadow(cornerRadius).then(modifier),
+        modifier = modifier,
     ) {
+        ArtworkBlurShadow(
+            bitmap = artworkBitmap,
+            cornerRadius = cornerRadius,
+            fallbackTint = legacyShadowTint,
+        )
         if (showArtworkGlow) {
             if (artworkBitmap != null) {
                 Image(
@@ -157,12 +172,48 @@ fun ArtworkImage(
     }
 }
 
-internal fun Modifier.subtleArtworkShadow(cornerRadius: Dp): Modifier =
-    shadow(
-        elevation = 3.dp,
-        shape = RoundedCornerShape(cornerRadius),
-        clip = false,
-    )
+@Composable
+internal fun BoxScope.ArtworkBlurShadow(
+    bitmap: ImageBitmap?,
+    cornerRadius: Dp,
+    fallbackTint: Color? = null,
+    blurRadius: Dp = 18.dp,
+    verticalOffset: Dp = 6.dp,
+) {
+    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxSize(0.88f)
+                .offset(y = verticalOffset)
+                .clip(shape)
+                .blur(blurRadius, edgeTreatment = BlurredEdgeTreatment.Unbounded),
+            alpha = 0.68f,
+        )
+    } else if (fallbackTint != null) {
+        val shadowElevation = with(LocalDensity.current) {
+            (blurRadius * 0.42f).toPx()
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxSize(0.88f)
+                .offset(y = verticalOffset)
+                .graphicsLayer {
+                    this.shadowElevation = shadowElevation
+                    this.shape = shape
+                    clip = false
+                    ambientShadowColor = fallbackTint.copy(alpha = 0.46f)
+                    spotShadowColor = fallbackTint.copy(alpha = 0.46f)
+                }
+                .background(fallbackTint.copy(alpha = 0.12f), shape),
+        )
+    }
+}
 
 @Composable
 fun rememberArtworkBitmap(

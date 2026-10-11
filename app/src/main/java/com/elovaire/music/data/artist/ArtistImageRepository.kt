@@ -99,10 +99,12 @@ internal class ArtistImageRepository(
     )
 
     init {
-        appContext?.cacheDir?.resolve(ARTIST_IMAGE_CACHE_DIRECTORY)
-            ?.listFiles()
-            ?.filter { it.isFile && it.extension == "tmp" }
-            ?.forEach(File::delete)
+        scope.launch(ioDispatcher) {
+            appContext?.cacheDir?.resolve(ARTIST_IMAGE_CACHE_DIRECTORY)
+                ?.listFiles()
+                ?.filter { it.isFile && it.extension == "tmp" }
+                ?.forEach(File::delete)
+        }
     }
 
     override fun imageState(

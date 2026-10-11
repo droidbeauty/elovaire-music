@@ -353,8 +353,7 @@ import kotlin.math.roundToInt
 import kotlin.math.pow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -4701,8 +4700,7 @@ private fun LyricsReadyContent(
         if (autoScrollHeld || !payload.isSynced) return@LaunchedEffect
         snapshotFlow { latestActiveLineIndex.value }
             .distinctUntilChanged()
-            .conflate()
-            .collect { index ->
+            .collectLatest { index ->
                 if (index >= 0) {
                     listState.animateLyricJumpToItem(
                         index = index,
@@ -4754,13 +4752,13 @@ private fun LyricsReadyContent(
             val latestLyricsSynced by rememberUpdatedState(payload.isSynced)
             val isActive = payload.isSynced && index == activeLyricLineIndex
             val lineScale = animateFloatAsState(
-                targetValue = if (isActive) 24f / 22f else 1f,
-                animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
+                targetValue = if (isActive) 26f / 22f else 1f,
+                animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
                 label = "lyrics_line_scale_$index",
             )
             val lineAlpha = animateFloatAsState(
                 targetValue = if (isActive) 1f else 0.7f,
-                animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
+                animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
                 label = "lyrics_line_alpha_$index",
             )
             Text(
@@ -4775,6 +4773,7 @@ private fun LyricsReadyContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
+                        transformOrigin = TransformOrigin(0f, 0.5f)
                         val entryProgress = if (animateTrackChange) {
                             val staggerMs = (index - lineEntryStartIndex).coerceIn(0, 6) * 16f
                             val elapsedMs = lineEntryClock.value * (lineEntryDurationMs + lineEntryMaxStaggerMs)

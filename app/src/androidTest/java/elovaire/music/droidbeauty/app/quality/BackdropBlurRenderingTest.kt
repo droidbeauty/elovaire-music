@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -23,6 +24,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -41,7 +43,7 @@ import androidx.test.filters.SdkSuppress
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.components.ArtworkBlurShadow
 import elovaire.music.droidbeauty.app.ui.screens.DynamicBackdropSurface
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
 import kotlin.math.roundToInt
@@ -56,7 +58,10 @@ class BackdropBlurRenderingTest {
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
 
     @Test
-    fun artworkImageCastsASubtleShadowBeyondItsBounds() {
+    fun artworkShadowUsesBlurredCoverColorsBeyondArtworkBounds() {
+        val cover = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(android.graphics.Color.rgb(20, 90, 220)) }
+            .asImageBitmap()
         composeRule.setContent {
             MaterialTheme(colorScheme = lightColorScheme()) {
                 Box(
@@ -65,13 +70,20 @@ class BackdropBlurRenderingTest {
                         .background(Color.White)
                         .testTag("artwork_shadow_fixture"),
                 ) {
-                    ArtworkImage(
-                        uri = null,
+                    ArtworkBlurShadow(
+                        bitmap = cover,
+                        cornerRadius = 12.dp,
+                        fallbackTint = Color(0xFF145ADC),
+                    )
+                    Image(
+                        bitmap = cover,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .size(100.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .testTag("artwork_shadow"),
-                        cornerRadius = 12.dp,
                     )
                 }
             }
@@ -82,13 +94,11 @@ class BackdropBlurRenderingTest {
         val pixels = composeRule.onNodeWithTag("artwork_shadow_fixture").captureToImage().toPixelMap()
         val shadowOffset = (2f * composeRule.activity.resources.displayMetrics.density).roundToInt()
         val sampleY = bounds.center.y.toInt()
-        val nearShadow = pixels[(bounds.right + shadowOffset).toInt(), sampleY].luminance()
-        val clearBackground = pixels[(bounds.right + (shadowOffset * 5)).toInt(), sampleY].luminance()
+        val nearShadow = pixels[(bounds.right + shadowOffset).toInt(), sampleY]
+        val clearBackground = pixels[(bounds.right + (shadowOffset * 5)).toInt(), sampleY]
 
-        assertTrue(
-            "artwork shadow should soften the background immediately outside the art bounds",
-            nearShadow < clearBackground,
-        )
+        assertTrue("the blurred shadow should retain the cover's blue hue", nearShadow.blue > nearShadow.red)
+        assertTrue("the shadow should soften the background beyond the art bounds", nearShadow.luminance() < clearBackground.luminance())
     }
 
     @Test
