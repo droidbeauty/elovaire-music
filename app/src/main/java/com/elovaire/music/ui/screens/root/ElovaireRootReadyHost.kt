@@ -56,7 +56,7 @@ internal fun ElovaireRootReadyHost(
         uiRuntime = uiRuntime,
     )
 
-    RootShellHost(
+    ElovaireRootShell(
         overscrollFactory = uiRuntime.shellInputs.overscrollFactory,
         songMenuActions = actionRuntime.songMenuActions,
         chromeHazeState = uiRuntime.shellInputs.chromeHazeState,

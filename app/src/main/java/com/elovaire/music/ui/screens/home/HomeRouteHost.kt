@@ -5,26 +5,26 @@ import androidx.compose.runtime.Composable
 @Composable
 internal fun HomeRouteHost(
     navState: RootNavigationState,
-    state: HomeRouteState,
+    state: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
     HomeScreen(
-        lastPlayedAlbum = state.lastPlayedAlbum,
-        lastPlayedPlaylist = state.lastPlayedPlaylist,
-        songsById = state.songsById,
-        recentlyAddedAlbums = state.recentlyAddedAlbums,
+        lastPlayedAlbum = state.libraryDerivedState.lastPlayedAlbum,
+        lastPlayedPlaylist = state.libraryDerivedState.lastPlayedPlaylist,
+        songsById = state.libraryDerivedState.songsById,
+        recentlyAddedAlbums = state.libraryDerivedState.recentlyAddedAlbums,
         recentSongs = state.recentSongs,
-        favoriteAlbums = state.favoriteAlbums,
-        playbackState = state.playbackState,
-        isLibraryLoading = state.isLibraryLoading,
-        libraryScanProgress = state.libraryScanProgress,
-        favoriteSongIds = state.favoriteSongIds,
+        favoriteAlbums = state.libraryDerivedState.favoriteAlbums,
+        playbackState = state.appState.playback,
+        isLibraryLoading = state.appState.library.isLoading,
+        libraryScanProgress = state.appState.library.scanProgress,
+        favoriteSongIds = state.appState.favoriteSongIds,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.homeScrollRequestVersion,
-        resetScrollOnColdStart = state.resetScrollOnColdStart,
-        playInitialReveal = state.playInitialReveal,
+        resetScrollOnColdStart = state.resetHomeScrollOnColdStart,
+        playInitialReveal = state.playFirstLaunchHomeReveal,
         onInitialRevealFinished = routeActions.onInitialRevealFinished,
         onAlbumSelected = { album, origin ->
             routeActions.openAlbum(album, origin, AlbumOpenSource.HomeSection)

@@ -1,63 +1,24 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
-import dev.chrisbanes.haze.HazeState
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
-import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-@Composable
-internal fun RootShellHost(
-    overscrollFactory: OverscrollFactory,
-    songMenuActions: SongMenuActions,
-    chromeHazeState: HazeState,
-    sharedBackIconPainter: Painter,
-    sharedTopMenuIconPainter: Painter,
-    appLanguage: AppLanguage,
-    chromeVisibility: RootChromeVisibility,
-    sharedTopBarController: SharedTopBarController,
-    navHostBlur: Dp,
-    navHostScrimAlpha: Float,
-    routeHost: @Composable (RootRoutePadding, Modifier) -> Unit,
-    chromeHost: @Composable BoxScope.(RootChromeLayout) -> Unit,
-    overlayHost: @Composable BoxScope.(RootChromeLayout) -> Unit,
-    playerLayerHost: @Composable BoxScope.() -> Unit,
-) {
-    ElovaireRootShell(
-        overscrollFactory = overscrollFactory,
-        songMenuActions = songMenuActions,
-        chromeHazeState = chromeHazeState,
-        sharedBackIconPainter = sharedBackIconPainter,
-        sharedTopMenuIconPainter = sharedTopMenuIconPainter,
-        appLanguage = appLanguage,
-        chromeVisibility = chromeVisibility,
-        sharedTopBarController = sharedTopBarController,
-        navHostBlur = navHostBlur,
-        navHostScrimAlpha = navHostScrimAlpha,
-        routeHost = routeHost,
-        chromeHost = chromeHost,
-        overlayHost = overlayHost,
-        playerLayerHost = playerLayerHost,
-    )
-}
 
 @Composable
 internal fun BoxScope.RootChromeSlot(

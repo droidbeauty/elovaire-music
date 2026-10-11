@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistEngine
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
@@ -10,53 +11,53 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun PlaylistsRouteHost(
     navState: RootNavigationState,
-    state: PlaylistRouteState,
+    state: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
     val smartSummaries = remember(
-        state.smartPlaylists,
-        state.libraryState.songs,
-        state.favoriteSongIds,
-        state.songPlayCounts,
+        state.appState.smartPlaylists,
+        state.appState.library.songs,
+        state.appState.favoriteSongIds,
+        state.appState.songPlayCounts,
     ) {
-        buildSmartPlaylistSummaries(
-            playlists = state.smartPlaylists,
-            songs = state.libraryState.songs,
-            favoriteSongIds = state.favoriteSongIds,
-            songPlayCounts = state.songPlayCounts,
+        SmartPlaylistEngine.resolveAll(
+            definitions = state.appState.smartPlaylists,
+            songs = state.appState.library.songs,
+            favoriteSongIds = state.appState.favoriteSongIds,
+            playCounts = state.appState.songPlayCounts,
         )
     }
     PlaylistsScreen(
-        playlists = state.playlists,
+        playlists = state.appState.playlists,
         smartPlaylists = smartSummaries,
-        songsById = state.songsById,
+        songsById = state.libraryDerivedState.songsById,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.playlistsScrollRequestVersion,
         onRenamePlaylist = routeActions::renamePlaylist,
         onDeletePlaylists = routeActions::deletePlaylists,
         onOpenPlaylist = { playlist, origin -> routeActions.openPlaylist(playlist.id, origin) },
-        onOpenSmartPlaylist = { summary, origin -> routeActions.openSmartPlaylist(summary.playlist.id, origin) },
+        onOpenSmartPlaylist = { result, origin -> routeActions.openSmartPlaylist(result.playlist.id, origin) },
     )
 }
 
 @Composable
 internal fun SmartPlaylistDetailRouteHost(
     playlistId: Long?,
-    state: PlaylistRouteState,
+    state: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val playlist = state.smartPlaylists.firstOrNull { it.id == playlistId }
+    val playlist = state.appState.smartPlaylists.firstOrNull { it.id == playlistId }
     val scope = rememberCoroutineScope()
     SmartPlaylistDetailScreen(
         playlist = playlist,
-        songs = state.libraryState.songs,
-        favoriteSongIds = state.favoriteSongIds,
-        songPlayCounts = state.songPlayCounts,
-        currentSongId = state.currentSongId,
-        isCurrentSongPlaying = state.isCurrentSongPlaying,
+        songs = state.appState.library.songs,
+        favoriteSongIds = state.appState.favoriteSongIds,
+        songPlayCounts = state.appState.songPlayCounts,
+        currentSongId = state.appState.playback.currentSong?.id,
+        isCurrentSongPlaying = state.isPlaybackActuallyPlaying,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onEdit = { routeActions.openSmartPlaylistEditor(it.id) },
@@ -87,17 +88,17 @@ internal fun SmartPlaylistDetailRouteHost(
 @Composable
 internal fun SmartPlaylistEditorRouteHost(
     playlistId: Long?,
-    state: PlaylistRouteState,
+    state: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val playlist = playlistId?.let { id -> state.smartPlaylists.firstOrNull { it.id == id } }
+    val playlist = playlistId?.let { id -> state.appState.smartPlaylists.firstOrNull { it.id == id } }
     val scope = rememberCoroutineScope()
     SmartPlaylistEditorScreen(
         playlist = playlist,
-        songs = state.libraryState.songs,
-        favoriteSongIds = state.favoriteSongIds,
-        songPlayCounts = state.songPlayCounts,
+        songs = state.appState.library.songs,
+        favoriteSongIds = state.appState.favoriteSongIds,
+        songPlayCounts = state.appState.songPlayCounts,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onSave = { smart ->
@@ -122,18 +123,18 @@ internal fun SmartPlaylistEditorRouteHost(
 @Composable
 internal fun PlaylistDetailRouteHost(
     playlistId: Long?,
-    state: PlaylistRouteState,
+    state: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val playlist = playlistId?.let { id -> state.playlists.firstOrNull { it.id == id } }
+    val playlist = playlistId?.let { id -> state.appState.playlists.firstOrNull { it.id == id } }
     PlaylistDetailScreen(
         playlist = playlist,
-        librarySongs = state.libraryState.songs,
-        songsById = state.songsById,
-        favoriteSongIds = state.favoriteSongIds,
-        currentSongId = state.currentSongId,
-        isCurrentSongPlaying = state.isCurrentSongPlaying,
+        librarySongs = state.appState.library.songs,
+        songsById = state.libraryDerivedState.songsById,
+        favoriteSongIds = state.appState.favoriteSongIds,
+        currentSongId = state.appState.playback.currentSong?.id,
+        isCurrentSongPlaying = state.isPlaybackActuallyPlaying,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onPlayPlaylist = { songs, sourceLabel ->
@@ -163,7 +164,7 @@ internal fun PlaylistDetailRouteHost(
                 queue = queue,
                 sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
                     fallbackAlbum = song.album,
-                    language = state.appLanguage,
+                    language = state.appState.appLanguage,
                 ),
                 sourcePlaylistId = playlist?.id,
             )

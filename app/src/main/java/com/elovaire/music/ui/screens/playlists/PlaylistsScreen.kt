@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistResult
 import kotlinx.coroutines.launch
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -69,7 +70,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 @Composable
 internal fun PlaylistsScreen(
     playlists: List<Playlist>,
-    smartPlaylists: List<SmartPlaylistSummary>,
+    smartPlaylists: List<SmartPlaylistResult>,
     songsById: Map<Long, Song>,
     topPadding: Dp,
     bottomPadding: Dp,
@@ -77,7 +78,7 @@ internal fun PlaylistsScreen(
     onRenamePlaylist: (Long, String) -> PlaylistMutationRequest,
     onDeletePlaylists: (Set<Long>) -> PlaylistMutationRequest,
     onOpenPlaylist: (Playlist, ExpandOrigin) -> Unit,
-    onOpenSmartPlaylist: (SmartPlaylistSummary, ExpandOrigin) -> Unit,
+    onOpenSmartPlaylist: (SmartPlaylistResult, ExpandOrigin) -> Unit,
 ) {
     val motionTransitions = rememberMotionTransitions()
     val motionSpecs = rememberMotionSpecs()
@@ -194,7 +195,7 @@ internal fun PlaylistsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             smartPlaylists.forEach { row ->
                                 SmartPlaylistListRow(
-                                    summary = row,
+                                    result = row,
                                     copy = playlistMainCopy(LocalAppLanguage.current),
                                     onClick = { origin -> onOpenSmartPlaylist(row, origin) },
                                 )
@@ -298,15 +299,15 @@ private fun PlaylistSectionHeader(text: String) {
 
 @Composable
 private fun SmartPlaylistListRow(
-    summary: SmartPlaylistSummary,
+    result: SmartPlaylistResult,
     copy: PlaylistMainCopy,
     onClick: (ExpandOrigin) -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val title = summary.playlist.builtInType?.let { builtInSmartPlaylistTitle(it, language) } ?: summary.playlist.name
+    val title = result.playlist.builtInType?.let { builtInSmartPlaylistTitle(it, language) } ?: result.playlist.name
     val screenSizePx = screenContainerSizePx()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val songs = summary.result.songs
+    val songs = result.songs
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -346,7 +347,7 @@ private fun SmartPlaylistListRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = smartPlaylistSortLabel(language, summary.playlist.sort.field),
+                text = smartPlaylistSortLabel(language, result.playlist.sort.field),
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor().copy(alpha = 0.7f),
                 maxLines = 1,

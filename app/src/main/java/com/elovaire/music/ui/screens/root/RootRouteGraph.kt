@@ -32,7 +32,7 @@ internal fun RootRouteGraph(
     ) {
         composable(RootRouteRegistry.HOME) {
             AlbumTransitionContent(this) {
-                HomeRouteHost(navState, routeState.home, routeActions, padding)
+                HomeRouteHost(navState, routeState, routeActions, padding)
             }
         }
         composable(RootRouteRegistry.ALBUMS) {
@@ -83,7 +83,7 @@ internal fun RootRouteGraph(
             )
         }
         composable(RootRouteRegistry.PLAYLISTS) {
-            PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
+            PlaylistsRouteHost(navState, routeState, routeActions, padding)
         }
         composable(RootRouteRegistry.SEARCH) {
             AlbumTransitionContent(this) {
@@ -94,22 +94,22 @@ internal fun RootRouteGraph(
             route = RootRouteRegistry.PLAYLIST,
             arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            PlaylistDetailRouteHost(backStackEntry.playlistRouteId(), routeState.playlists, routeActions, padding)
+            PlaylistDetailRouteHost(backStackEntry.playlistRouteId(), routeState, routeActions, padding)
         }
         composable(
             route = RootRouteRegistry.SMART_PLAYLIST,
             arguments = listOf(navArgument("smartPlaylistId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            SmartPlaylistDetailRouteHost(backStackEntry.smartPlaylistRouteId(), routeState.playlists, routeActions, padding)
+            SmartPlaylistDetailRouteHost(backStackEntry.smartPlaylistRouteId(), routeState, routeActions, padding)
         }
         composable(RootRouteRegistry.SMART_PLAYLIST_EDITOR) {
-            SmartPlaylistEditorRouteHost(null, routeState.playlists, routeActions, padding)
+            SmartPlaylistEditorRouteHost(null, routeState, routeActions, padding)
         }
         composable(
             route = RootRouteRegistry.SMART_PLAYLIST_EDITOR_EXISTING,
             arguments = listOf(navArgument("smartPlaylistId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            SmartPlaylistEditorRouteHost(backStackEntry.smartPlaylistRouteId(), routeState.playlists, routeActions, padding)
+            SmartPlaylistEditorRouteHost(backStackEntry.smartPlaylistRouteId(), routeState, routeActions, padding)
         }
         composable(
             route = RootRouteRegistry.ALBUM,
@@ -165,7 +165,7 @@ internal fun RootRouteGraph(
             EqualizerRouteHost(viewModelFactory, routeActions)
         }
         composable(RootRouteRegistry.CROSSFADE) {
-            CrossfadeRouteHost(routeState, routeActions, padding)
+            CrossfadeRouteHost(routeActions, padding)
         }
         composable(RootRouteRegistry.AUDIOBOOK_SETTINGS) {
             AudiobookSettingsRouteHost(routeActions, padding)
@@ -207,8 +207,8 @@ private fun SearchRouteHost(
 ) {
     SearchRoute(
         viewModel = searchViewModel,
-        libraryState = routeState.libraryState,
-        playlists = routeState.playlists.playlists,
+        libraryState = routeState.appState.library,
+        playlists = routeState.appState.playlists,
         favoriteSongIds = routeState.appState.favoriteSongIds,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,

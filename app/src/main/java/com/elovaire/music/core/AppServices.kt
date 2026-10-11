@@ -63,7 +63,7 @@ import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
-import elovaire.music.droidbeauty.app.data.update.createUpdateController
+import elovaire.music.droidbeauty.app.data.update.GitHubUpdateController
 import elovaire.music.droidbeauty.app.widget.AtomicWidgetSnapshotStore
 import elovaire.music.droidbeauty.app.widget.WidgetProviderRegistry
 import elovaire.music.droidbeauty.app.widget.WidgetUpdateRuntime
@@ -188,7 +188,7 @@ internal class AppServices(
         mutationJournal = networkSourceMutationJournal,
     )
     private val updateControllerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        createUpdateController(
+        GitHubUpdateController(
             context = applicationContext,
             scope = optionalScope,
             preferences = preferenceStore,

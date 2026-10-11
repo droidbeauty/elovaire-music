@@ -26,17 +26,17 @@ internal fun LibraryHubRouteHost(
     padding: RootRoutePadding,
 ) {
     val audiobookProgressRevision by routeActions.playback.audiobookProgressRevision.collectAsStateWithLifecycle()
-    val audiobookProgressByKey = remember(routeState.libraryState.audiobooks, audiobookProgressRevision) {
-        routeState.libraryState.audiobooks.mapNotNull { book ->
+    val audiobookProgressByKey = remember(routeState.appState.library.audiobooks, audiobookProgressRevision) {
+        routeState.appState.library.audiobooks.mapNotNull { book ->
             routeActions.playback.audiobookProgress(book.stableKey)?.let { progress ->
                 book.stableKey to progress
             }
         }.toMap()
     }
     LibraryHubScreen(
-        libraryState = routeState.libraryState,
+        libraryState = routeState.appState.library,
         audiobookProgressByKey = audiobookProgressByKey,
-        currentSongId = routeState.playbackState.currentSong?.id,
+        currentSongId = routeState.appState.playback.currentSong?.id,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.libraryScrollRequestVersion,
@@ -57,12 +57,12 @@ internal fun AudiobooksRouteHost(
     padding: RootRoutePadding,
 ) {
     AudiobooksScreen(
-        books = routeState.libraryState.audiobooks,
+        books = routeState.appState.library.audiobooks,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onBookSelected = { book -> routeActions.openAudiobook(book.stableKey) },
-        playlists = routeState.playlists.playlists,
-        playlistSongsById = routeState.songsById,
+        playlists = routeState.appState.playlists,
+        playlistSongsById = routeState.libraryDerivedState.songsById,
         onAddSongsToPlaylist = routeActions.playlists::addSongsToPlaylist,
         onCreatePlaylist = routeActions.playlists::createPlaylist,
         onDeleteSongsFromDevice = routeActions.delete::deleteSongsFromDevice,
@@ -78,7 +78,7 @@ internal fun AudiobookDetailRouteHost(
     chapterReader: AudiobookChapterReader,
     descriptionReader: AudiobookDescriptionReader,
 ) {
-    val book = routeState.libraryState.audiobooks.firstOrNull { it.stableKey == stableKey }
+    val book = routeState.appState.library.audiobooks.firstOrNull { it.stableKey == stableKey }
     if (book == null) {
         AudiobookUnavailableScreen(bottomPadding = padding.detailBottom, onBack = routeActions::navigateUp)
         return
@@ -153,8 +153,8 @@ internal fun AudiobookDetailRouteHost(
     }
     AudiobookDetailScreen(
         book = displayedBook,
-        currentSongId = routeState.playbackState.currentSong?.id,
-        isPlaying = routeState.playbackState.isPlaying,
+        currentSongId = routeState.appState.playback.currentSong?.id,
+        isPlaying = routeState.appState.playback.isPlaying,
         progressMs = progress.positionMs,
         savedProgress = savedProgress,
         descriptionState = descriptionState,
@@ -195,12 +195,12 @@ internal fun AlbumRouteHost(
     padding: RootRoutePadding,
 ) {
     val appState = routeState.appState
-    val libraryState = routeState.libraryState
+    val libraryState = routeState.appState.library
     var routedAlbumSongIds by remember(albumId) { mutableStateOf<Set<Long>>(emptySet()) }
     val album = resolveRoutedAlbum(
         albumId = albumId,
         albums = libraryState.albums,
-        albumsById = routeState.albumsById,
+        albumsById = routeState.libraryDerivedState.albumsById,
         routedSongIds = routedAlbumSongIds,
     )
     LaunchedEffect(album?.id) {
@@ -211,7 +211,7 @@ internal fun AlbumRouteHost(
         album = album,
         removingSongIds = libraryState.removingSongIds,
         favoriteSongIds = appState.favoriteSongIds,
-        currentSongId = routeState.playbackState.currentSong?.id,
+        currentSongId = routeState.appState.playback.currentSong?.id,
         isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
         bottomPadding = padding.detailBottom,
         collapsedTopBarTitle = detailFallbackTitle(previousRoute, appState.appLanguage),
@@ -230,7 +230,7 @@ internal fun AlbumRouteHost(
         playlists = appState.playlists,
         onAddSongsToPlaylist = routeActions.playlists::addSongsToPlaylist,
         onCreatePlaylist = routeActions.playlists::createPlaylist,
-        playlistSongsById = routeState.songsById,
+        playlistSongsById = routeState.libraryDerivedState.songsById,
         onDeleteSongsFromDevice = routeActions.delete::deleteSongsFromDevice,
         onToggleFavorite = routeActions.playlists::toggleFavorite,
         onSetAlbumFavorite = routeActions.playlists::setSongsFavorite,
@@ -248,7 +248,7 @@ internal fun LibraryCollectionRouteHost(
     val appState = routeState.appState
     LibraryCollectionScreen(
         kind = kind,
-        libraryState = routeState.libraryState,
+        libraryState = routeState.appState.library,
         playlists = appState.playlists,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,
@@ -257,7 +257,7 @@ internal fun LibraryCollectionRouteHost(
         albumSortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
         songSortMode = appState.songCollectionSortModeName.toSongSortMode(),
         artistImageRepository = artistImageRepository,
-        currentSongId = routeState.playbackState.currentSong?.id,
+        currentSongId = routeState.appState.playback.currentSong?.id,
         isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
@@ -275,7 +275,7 @@ internal fun LibraryCollectionRouteHost(
         onToggleFavorite = routeActions.playlists::toggleFavorite,
         onAddAlbumToPlaylist = routeActions.playlists::addAlbumToPlaylist,
         onCreatePlaylist = routeActions.playlists::createPlaylist,
-        playlistSongsById = routeState.songsById,
+        playlistSongsById = routeState.libraryDerivedState.songsById,
         onSetAlbumFavorite = routeActions.playlists::setSongsFavorite,
         onDeleteAlbumFromDevice = routeActions.delete::deleteAlbumFromDevice,
         onAlbumCollectionLayoutModeChanged = routeActions::setAlbumCollectionLayoutMode,
@@ -294,9 +294,9 @@ internal fun RecentlyAddedRouteHost(
     padding: RootRoutePadding,
 ) {
     RecentlyAddedAlbumsScreen(
-        albums = recentlyAddedAlbumsFor(routeState.libraryState),
+        albums = recentlyAddedAlbumsFor(routeState.appState.library),
         playlists = routeState.appState.playlists,
-        playlistSongsById = routeState.songsById,
+        playlistSongsById = routeState.libraryDerivedState.songsById,
         favoriteSongIds = routeState.appState.favoriteSongIds,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
@@ -319,7 +319,7 @@ internal fun GenreRouteHost(
     val appState = routeState.appState
     GenreAlbumsScreen(
         genre = genre,
-        libraryState = routeState.libraryState,
+        libraryState = routeState.appState.library,
         playlists = appState.playlists,
         layoutMode = routeState.albumCollectionLayoutMode,
         sortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
@@ -333,7 +333,7 @@ internal fun GenreRouteHost(
         onAddAlbumToQueue = routeActions::enqueueAlbum,
         onAddAlbumToPlaylist = routeActions.playlists::addAlbumToPlaylist,
         onCreatePlaylist = routeActions.playlists::createPlaylist,
-        playlistSongsById = routeState.songsById,
+        playlistSongsById = routeState.libraryDerivedState.songsById,
         favoriteSongIds = appState.favoriteSongIds,
         onSetAlbumFavorite = routeActions.playlists::setSongsFavorite,
         onDeleteAlbumFromDevice = routeActions.delete::deleteAlbumFromDevice,
@@ -350,14 +350,14 @@ internal fun ArtistRouteHost(
 ) {
     val appState = routeState.appState
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
-    val artistSongs = remember(normalizedArtist, routeState.libraryState.songs) {
-        routeState.libraryState.songs.filter { song ->
+    val artistSongs = remember(normalizedArtist, routeState.appState.library.songs) {
+        routeState.appState.library.songs.filter { song ->
             song.mediaKind == AudioMediaKind.Music &&
             song.libraryArtistName().equals(normalizedArtist, ignoreCase = true)
         }
     }
-    val artistAlbums = remember(normalizedArtist, routeState.libraryState.albums) {
-        routeState.libraryState.albums
+    val artistAlbums = remember(normalizedArtist, routeState.appState.library.albums) {
+        routeState.appState.library.albums
             .filter { album -> album.artist.equals(normalizedArtist, ignoreCase = true) }
             .sortedBy { it.title.lowercase() }
     }
@@ -377,7 +377,7 @@ internal fun ArtistRouteHost(
         artistBackdropState = artistBackdropState,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,
-        currentSongId = routeState.playbackState.currentSong?.id,
+        currentSongId = routeState.appState.playback.currentSong?.id,
         isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
@@ -496,7 +496,6 @@ internal fun NowPlayingBarStyleRouteHost(
 
 @Composable
 internal fun CrossfadeRouteHost(
-    routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
@@ -562,7 +561,7 @@ internal fun LibraryFoldersRouteHost(
         folders = libraryFolders,
         networkSources = networkSources,
         networkProbeResults = networkProbeResults,
-        songs = routeState.libraryState.songs,
+        songs = routeState.appState.library.songs,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onAddFolder = routeActions::addLibraryFolder,
@@ -581,8 +580,8 @@ internal fun ManagePlaylistsRouteHost(
 ) {
     ManagePlaylistsScreen(
         appLanguage = routeState.appState.appLanguage,
-        playlists = routeState.playlists.playlists,
-        songsById = routeState.songsById,
+        playlists = routeState.appState.playlists,
+        songsById = routeState.libraryDerivedState.songsById,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onImportPlaylists = routeActions::importPlaylists,

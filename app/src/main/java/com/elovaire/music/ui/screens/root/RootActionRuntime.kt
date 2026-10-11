@@ -73,7 +73,7 @@ internal fun rememberRootActionRuntime(
         updateController = updateController,
         onRequestCreatePlaylist = uiRuntime.overlayState::requestCreatePlaylist,
         onInitialRevealFinished = permissionController::onInitialRevealFinished,
-        onSearchActiveChanged = uiRuntime.searchChromeState::onActiveChanged,
+        onSearchActiveChanged = uiRuntime.onSearchActiveChanged,
         openAlbum = uiRuntime.openAlbum,
     )
     return RootActionRuntime(

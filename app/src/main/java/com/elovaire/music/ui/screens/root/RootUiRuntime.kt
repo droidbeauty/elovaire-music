@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
@@ -26,7 +29,7 @@ internal data class RootUiRuntime(
     val navigationState: RootNavigationState,
     val routeObservation: RootRouteObservation,
     val playerLayerController: RootPlayerLayerController,
-    val searchChromeState: RootSearchChromeState,
+    val onSearchActiveChanged: (Boolean) -> Unit,
     val chromeVisibility: RootChromeVisibility,
     val shellInputs: RootShellInputs,
     val overlayState: RootOverlayStateHolder,
@@ -69,12 +72,12 @@ internal fun rememberRootUiRuntime(
         currentSongId = playbackState.currentSong?.id,
         currentSongPresent = currentSongPresent,
     )
-    val searchChromeState = rememberRootSearchChromeState()
+    var searchQueryActive by remember { mutableStateOf(false) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val chromeVisibility = rootChromeVisibility(
         currentRoute = routeObservation.route,
         keyboardVisible = keyboardVisible,
-        searchQueryActive = searchChromeState.isActive,
+        searchQueryActive = searchQueryActive,
         currentSongPresent = currentSongPresent,
         playerLayerState = playerLayerController.state,
     )
@@ -100,7 +103,7 @@ internal fun rememberRootUiRuntime(
         navigationState = navigationState,
         routeObservation = routeObservation,
         playerLayerController = playerLayerController,
-        searchChromeState = searchChromeState,
+        onSearchActiveChanged = { searchQueryActive = it },
         chromeVisibility = chromeVisibility,
         shellInputs = shellInputs,
         overlayState = overlayState,
