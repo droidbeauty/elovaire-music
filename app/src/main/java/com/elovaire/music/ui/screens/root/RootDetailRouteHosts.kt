@@ -197,10 +197,12 @@ internal fun AlbumRouteHost(
     val appState = routeState.appState
     val libraryState = routeState.libraryState
     var routedAlbumSongIds by remember(albumId) { mutableStateOf<Set<Long>>(emptySet()) }
-    val album = libraryState.albums.firstOrNull { it.id == albumId }
-        ?: libraryState.albums.firstOrNull { candidate ->
-            routedAlbumSongIds.isNotEmpty() && candidate.songs.any { it.id in routedAlbumSongIds }
-        }
+    val album = resolveRoutedAlbum(
+        albumId = albumId,
+        albums = libraryState.albums,
+        albumsById = routeState.albumsById,
+        routedSongIds = routedAlbumSongIds,
+    )
     LaunchedEffect(album?.id) {
         album?.songs?.mapTo(linkedSetOf(), Song::id)?.let { routedAlbumSongIds = it }
     }

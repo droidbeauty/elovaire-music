@@ -615,9 +615,12 @@ internal object ArtworkBitmapCache {
     @Synchronized
     fun removeAllMatchingUris(uris: Collection<String>) {
         if (uris.isEmpty()) return
-        cache.snapshot().keys
-            .filter { key -> uris.any { uri -> key == uri || key.startsWith("$uri|") } }
-            .forEach(cache::remove)
+        val invalidatedUris = uris.toHashSet()
+        cache.snapshot().keys.forEach { key ->
+            if (key in invalidatedUris || artworkCacheKeyUri(key) in invalidatedUris) {
+                cache.remove(key)
+            }
+        }
     }
 
     @Synchronized
@@ -642,6 +645,12 @@ internal object ArtworkBitmapCache {
         val size = key.substring(sizeSeparator + 1, purposeSeparator).toIntOrNull() ?: return null
         return "${key.substring(0, sizeSeparator)}|${key.substring(purposeSeparator + 1)}" to size
     }
+}
+
+internal fun artworkCacheKeyUri(key: String): String? {
+    val purposeSeparator = key.lastIndexOf('|')
+    val sizeSeparator = key.lastIndexOf('|', purposeSeparator - 1)
+    return if (purposeSeparator <= 0 || sizeSeparator <= 0) null else key.substring(0, sizeSeparator)
 }
 
 internal fun invalidateArtworkBitmapCache(uris: Collection<String>) {

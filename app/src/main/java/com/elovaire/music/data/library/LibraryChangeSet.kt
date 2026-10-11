@@ -86,53 +86,57 @@ internal object LibraryChangeSetCalculator {
         previous: List<Song>,
         next: List<Song>,
     ): LibraryChangeSet {
-        val previousByKey = previous.map(::index).associateBy(IndexedLibrarySong::stableKey)
-        val nextByKey = next.map(::index).associateBy(IndexedLibrarySong::stableKey)
-        val directRelocations = nextByKey.mapNotNull { (key, after) ->
-            val before = previousByKey[key] ?: return@mapNotNull null
+        val previousByKey = indexByStableKey(previous)
+        val nextByKey = indexByStableKey(next)
+        val directRelocations = ArrayList<IndexedLibrarySongRelocation>()
+        nextByKey.forEach { (key, after) ->
+            val before = previousByKey[key] ?: return@forEach
             if (locatorChanged(before.song, after.song) && sameLogicalContent(before.song, after.song)) {
-                IndexedLibrarySongRelocation(before, after)
-            } else {
-                null
+                directRelocations += IndexedLibrarySongRelocation(before, after)
             }
         }
-        val previousUnmatchedByPath = previousByKey
-            .filterKeys { it !in nextByKey }
-            .values
-            .mapNotNull { song ->
-                song.normalizedRealPath?.let { it to song }
+        val previousUnmatchedByPath = HashMap<String, IndexedLibrarySong>()
+        previousByKey.forEach { (key, song) ->
+            if (key !in nextByKey) song.normalizedRealPath?.let { previousUnmatchedByPath[it] = song }
+        }
+        val reindexedRelocations = ArrayList<IndexedLibrarySongRelocation>()
+        nextByKey.forEach { (key, after) ->
+            if (key in previousByKey) return@forEach
+            val path = after.normalizedRealPath ?: return@forEach
+            val before = previousUnmatchedByPath[path] ?: return@forEach
+            if (sameLogicalContent(before.song, after.song)) {
+                reindexedRelocations += IndexedLibrarySongRelocation(before, after)
             }
-            .toMap()
-        val reindexedRelocations = nextByKey
-            .filterKeys { it !in previousByKey }
-            .values
-            .mapNotNull { after ->
-                val path = after.normalizedRealPath ?: return@mapNotNull null
-                val before = previousUnmatchedByPath[path] ?: return@mapNotNull null
-                if (sameLogicalContent(before.song, after.song)) {
-                    IndexedLibrarySongRelocation(before, after)
-                } else {
-                    null
-                }
-            }
+        }
         val relocatedCandidates = directRelocations + reindexedRelocations
         val relocated = relocatedCandidates.map { LibrarySongRelocation(it.before.song, it.after.song) }
         val relocatedBeforeKeys = relocatedCandidates.mapTo(hashSetOf()) { it.before.stableKey }
         val relocatedAfterKeys = relocatedCandidates.mapTo(hashSetOf()) { it.after.stableKey }
-        val added = nextByKey
-            .filterKeys { it !in previousByKey && it !in relocatedAfterKeys }
-            .values
-            .map(IndexedLibrarySong::song)
-        val removed = previousByKey
-            .filterKeys { it !in nextByKey && it !in relocatedBeforeKeys }
-            .values
-            .map(IndexedLibrarySong::song)
-        val updated = nextByKey.mapNotNull { (key, after) ->
-            val before = previousByKey[key] ?: return@mapNotNull null
-            after.song.takeIf { !sameSong(before.song, it) && key !in relocatedBeforeKeys }
-                ?.let { LibrarySongUpdate(before.song, it, after.stableKey) }
+        val added = ArrayList<Song>()
+        nextByKey.forEach { (key, song) ->
+            if (key !in previousByKey && key !in relocatedAfterKeys) added += song.song
+        }
+        val removed = ArrayList<Song>()
+        previousByKey.forEach { (key, song) ->
+            if (key !in nextByKey && key !in relocatedBeforeKeys) removed += song.song
+        }
+        val updated = ArrayList<LibrarySongUpdate>()
+        nextByKey.forEach { (key, after) ->
+            val before = previousByKey[key] ?: return@forEach
+            if (!sameSong(before.song, after.song) && key !in relocatedBeforeKeys) {
+                updated += LibrarySongUpdate(before.song, after.song, after.stableKey)
+            }
         }
         return buildChangeSet(added, updated, relocated, removed)
+    }
+
+    private fun indexByStableKey(songs: List<Song>): LinkedHashMap<String, IndexedLibrarySong> {
+        val indexedSongs = LinkedHashMap<String, IndexedLibrarySong>(songs.size)
+        songs.forEach { song ->
+            val indexedSong = index(song)
+            indexedSongs[indexedSong.stableKey] = indexedSong
+        }
+        return indexedSongs
     }
 
     private fun buildChangeSet(

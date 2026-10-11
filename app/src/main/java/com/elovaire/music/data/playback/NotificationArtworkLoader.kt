@@ -47,7 +47,7 @@ internal class NotificationArtworkLoader(
         mediaUri: Uri?,
         fallbackArtUri: Uri?,
     ) {
-        currentKey = artworkSources(mediaUri, fallbackArtUri)
+        currentKey = notificationArtworkSources(mediaUri, fallbackArtUri)
             .firstOrNull()
             ?.let(::notificationArtworkLoadKey)
         trimPendingLoads(currentKey)
@@ -57,7 +57,7 @@ internal class NotificationArtworkLoader(
         mediaUri: Uri?,
         fallbackArtUri: Uri?,
     ): Bitmap? {
-        return artworkSources(mediaUri, fallbackArtUri).firstNotNullOfOrNull { uri ->
+        return notificationArtworkSources(mediaUri, fallbackArtUri).firstNotNullOfOrNull { uri ->
             ArtworkBitmapCache[notificationArtworkLoadKey(uri).cacheKey]
         }
     }
@@ -69,7 +69,7 @@ internal class NotificationArtworkLoader(
         callback: PlayerNotificationManager.BitmapCallback,
         onMediaSessionArtworkLoaded: ((ByteArray) -> Unit)? = null,
     ) {
-        val sources = artworkSources(mediaUri, fallbackArtUri)
+        val sources = notificationArtworkSources(mediaUri, fallbackArtUri)
         val primaryUri = sources.firstOrNull() ?: return
         val key = notificationArtworkLoadKey(primaryUri)
         val cacheKey = key.cacheKey
@@ -155,13 +155,17 @@ internal fun removePendingArtworkLoadIfCurrent(
     if (pendingLoads[cacheKey] === completedJob) pendingLoads.remove(cacheKey)
 }
 
-private fun artworkSources(
+internal fun notificationArtworkSources(
     mediaUri: Uri?,
     fallbackArtUri: Uri?,
 ): List<Uri> {
-    return listOfNotNull(fallbackArtUri, mediaUri)
-        .filter { it.toString().isNotBlank() }
-        .distinct()
+    val fallback = fallbackArtUri?.takeIf { it.toString().isNotBlank() }
+    val media = mediaUri?.takeIf { it.toString().isNotBlank() }
+    return when {
+        fallback == null -> media?.let(::listOf).orEmpty()
+        media == null || media == fallback -> listOf(fallback)
+        else -> listOf(fallback, media)
+    }
 }
 
 internal fun notificationArtworkLoadKey(uri: Uri): ArtworkRequestKey {

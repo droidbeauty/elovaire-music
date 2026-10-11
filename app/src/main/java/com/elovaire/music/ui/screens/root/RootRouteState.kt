@@ -57,6 +57,17 @@ internal data class RootRouteState(
     val playFirstLaunchHomeReveal: Boolean,
 )
 
+internal fun resolveRoutedAlbum(
+    albumId: Long?,
+    albums: List<Album>,
+    albumsById: Map<Long, Album>,
+    routedSongIds: Set<Long>,
+): Album? {
+    albumId?.let(albumsById::get)?.let { return it }
+    if (routedSongIds.isEmpty()) return null
+    return albums.firstOrNull { candidate -> candidate.songs.any { it.id in routedSongIds } }
+}
+
 internal fun rootRouteStateOf(
     appState: RootAppState,
     derivedState: RootLibraryDerivedState,

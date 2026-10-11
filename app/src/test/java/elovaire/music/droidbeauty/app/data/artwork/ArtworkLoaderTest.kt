@@ -29,6 +29,19 @@ class ArtworkLoaderTest {
     }
 
     @Test
+    fun artworkCacheKeyUriMatchesTheWholeUriWithoutPrefixCollisions() {
+        assertEquals(
+            "content://artwork/12",
+            artworkCacheKeyUri("content://artwork/12|256|rgb565-stream"),
+        )
+        assertEquals(null, artworkCacheKeyUri("content://artwork/12"))
+        assertNotEquals(
+            artworkCacheKeyUri("content://artwork/12|256|rgb565-stream"),
+            "content://artwork/123",
+        )
+    }
+
+    @Test
     fun normalizeArtworkRequestSize_usesBoundedBuckets() {
         assertEquals(96, normalizeArtworkRequestSize(1))
         assertEquals(256, normalizeArtworkRequestSize(240))

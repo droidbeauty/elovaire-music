@@ -113,6 +113,21 @@ class MediaTreeSnapshotCacheTest {
     }
 
     @Test
+    fun artistAndGenreNamesKeepDisplayCaseAndStableCaseInsensitiveOrder() {
+        val songs = listOf(
+            testSong(id = 1L).copy(albumArtist = "b", genre = "jazz"),
+            testSong(id = 2L).copy(albumArtist = "A", genre = "Ambient"),
+            testSong(id = 3L).copy(albumArtist = "a", genre = "ambient"),
+        )
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true, songs, emptyList(), emptyList(), emptyList(), emptyList(), null, null,
+        )
+
+        assertEquals(listOf("A", "a", "b"), snapshot.artistNames())
+        assertEquals(listOf("Ambient", "ambient", "jazz"), snapshot.genreNames())
+    }
+
+    @Test
     fun equalTitlesUseStableSongIdTieBreakers() {
         val snapshot = MediaTreeSnapshotCache().snapshot(
             true,

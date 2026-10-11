@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -19,6 +20,44 @@ class RootStateBindingsTest {
         assertEquals(listOf(2L, 1L), indexes.songsByAlbumId.getValue(42L).map(Song::id))
         assertSame(second, indexes.songsByAlbumId.getValue(42L).first())
     }
+
+    @Test
+    fun resolveRoutedAlbumUsesIndexesAndPreservesAlbumOrderForSongFallback() {
+        val firstSong = song(1L, 10L)
+        val secondSong = song(2L, 20L)
+        val firstAlbum = album(10L, firstSong)
+        val secondAlbum = album(20L, secondSong)
+        val albums = listOf(firstAlbum, secondAlbum)
+
+        assertSame(
+            firstAlbum,
+            resolveRoutedAlbum(
+                albumId = 99L,
+                albums = albums,
+                albumsById = albums.associateBy(Album::id),
+                routedSongIds = linkedSetOf(secondSong.id, firstSong.id),
+            ),
+        )
+        assertSame(
+            secondAlbum,
+            resolveRoutedAlbum(
+                albumId = 20L,
+                albums = albums,
+                albumsById = albums.associateBy(Album::id),
+                routedSongIds = emptySet(),
+            ),
+        )
+    }
+
+    private fun album(id: Long, song: Song) = Album(
+        id = id,
+        title = "Album $id",
+        artist = "Artist",
+        artUri = null,
+        songCount = 1,
+        durationMs = song.durationMs,
+        songs = listOf(song),
+    )
 
     private fun song(id: Long, albumId: Long) = Song(
         id = id,

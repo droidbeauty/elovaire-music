@@ -35,6 +35,13 @@ private val songContextComparator = compareBy<Song>(
     { it.id },
 )
 
+private fun sortedDistinctNames(names: Sequence<String>): List<String> = names
+    .distinct()
+    .map { name -> name to name.lowercase(Locale.ROOT) }
+    .sortedBy { it.second }
+    .map { it.first }
+    .toList()
+
 internal interface MediaLibraryBrowser {
     fun childrenOf(id: ElovaireMediaId): List<MediaItem>
     fun childrenOfPage(id: ElovaireMediaId, page: Int, pageSize: Int): List<MediaItem> {
@@ -704,10 +711,10 @@ internal class ElovaireMediaTree(
             )
         }
         private val artistNames by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songs.map(Song::libraryArtistName).distinct().sortedBy { it.lowercase(Locale.ROOT) }
+            sortedDistinctNames(songs.asSequence().map(Song::libraryArtistName))
         }
         private val genreNames by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songs.map { it.genre.ifBlank { UNKNOWN_GENRE } }.distinct().sortedBy { it.lowercase(Locale.ROOT) }
+            sortedDistinctNames(songs.asSequence().map { it.genre.ifBlank { UNKNOWN_GENRE } })
         }
         private val usefulGenres by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }

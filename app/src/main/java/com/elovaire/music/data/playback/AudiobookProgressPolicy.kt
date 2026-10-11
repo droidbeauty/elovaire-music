@@ -85,14 +85,25 @@ internal fun resolveAudiobookProgress(
     currentPositionMs: Long,
     partPrefixDurations: LongArray? = null,
 ): ResolvedAudiobookProgress {
-    val activeSongId = currentSongId?.takeIf { id -> book.parts.any { it.song.id == id } }
-        ?: savedProgress?.songId?.takeIf { id -> book.parts.any { it.song.id == id } }
+    val currentPartIndex = currentSongId?.let { id ->
+        book.parts.indexOfActivePart(id, currentPositionMs)
+    }
+    val savedPartIndex = if (currentPartIndex == null) {
+        savedProgress?.songId?.let { id -> book.parts.indexOfActivePart(id, savedProgress.positionMs) }
+    } else {
+        null
+    }
+    val activeSongId = when {
+        currentPartIndex != null -> currentSongId
+        savedPartIndex != null -> savedProgress?.songId
+        else -> null
+    }
     val positionMs = if (activeSongId != null && activeSongId == currentSongId) {
         currentPositionMs
     } else {
         savedProgress?.positionMs ?: 0L
     }
-    val partIndex = book.parts.indexOfActivePart(activeSongId, positionMs)
+    val partIndex = currentPartIndex ?: savedPartIndex
     val part = partIndex?.let(book.parts::get)
     val normalizedPositionMs = part?.let { partPositionMs(it, positionMs) } ?: positionMs.coerceAtLeast(0L)
     val offsetMs = part?.let { partOffsetMs(it, normalizedPositionMs) } ?: 0L

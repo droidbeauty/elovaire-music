@@ -31,15 +31,23 @@ internal object LibrarySongDuplicateResolver {
         val accepted = ArrayList<Song>(acceptedMediaStoreSongs.size + acceptedSafSongs.size)
         accepted += acceptedMediaStoreSongs
 
-        val mediaStoreStrongKeys = acceptedMediaStoreSongs
-            .asSequence()
-            .flatMap { song -> strongKeys(song).asSequence() }
-            .toSet()
+        val mediaStoreStrongKeys = HashSet<String>(acceptedMediaStoreSongs.size * 3)
+        acceptedMediaStoreSongs.forEach { song -> addStrongKeys(song, mediaStoreStrongKeys) }
 
         acceptedSafSongs.forEach { safSong ->
-            val duplicate = strongKeys(safSong).any { key -> key in mediaStoreStrongKeys }
+            val stableKey = MediaIdentityResolver.stableKey(safSong)
+            val pathKey = normalizedRealPath(safSong.libraryPath)?.let { "path:$it" }
+            val uriKey = safSong.uri.canonicalOpaqueIdentity()
+                .takeIf(String::isNotBlank)
+                ?.let { "uri:$it" }
+            val duplicate = stableKey in mediaStoreStrongKeys ||
+                pathKey in mediaStoreStrongKeys ||
+                uriKey in mediaStoreStrongKeys
             if (!duplicate) {
                 accepted += safSong
+                mediaStoreStrongKeys += stableKey
+                pathKey?.let(mediaStoreStrongKeys::add)
+                uriKey?.let(mediaStoreStrongKeys::add)
             }
         }
         return accepted
@@ -81,11 +89,15 @@ internal object LibrarySongDuplicateResolver {
     }
 
     internal fun strongKeys(song: Song): Set<String> = buildSet {
-        add(MediaIdentityResolver.stableKey(song))
-        normalizedRealPath(song.libraryPath)?.let { add("path:$it") }
+        addStrongKeys(song, this)
+    }
+
+    private fun addStrongKeys(song: Song, keys: MutableSet<String>) {
+        keys += MediaIdentityResolver.stableKey(song)
+        normalizedRealPath(song.libraryPath)?.let { keys += "path:$it" }
         song.uri.canonicalOpaqueIdentity()
-            .takeIf { it.isNotBlank() }
-            ?.let { add("uri:$it") }
+            .takeIf(String::isNotBlank)
+            ?.let { keys += "uri:$it" }
     }
 
     internal fun normalizedRealPath(path: String?): String? {

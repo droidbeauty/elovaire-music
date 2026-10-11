@@ -167,6 +167,39 @@ class ScreenFormattersTest {
         assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L), result.map(Album::id))
     }
 
+    @Test
+    fun suggestedAlbumsKeepsStableTopSixAndBestDuplicateAlbumEntry() {
+        val albums = (1L..9L).map { id -> album(id, id).copy(title = "Album $id") }
+            .toMutableList()
+        albums += albums[7].copy(title = "A better title")
+        val playCounts = mapOf(
+            1L to 8,
+            2L to 0,
+            3L to 2,
+            4L to 1,
+            5L to 0,
+            6L to 1,
+            7L to 0,
+            8L to 0,
+            9L to -1,
+        )
+        val recentIds = listOf(2L, 5L, 8L)
+        val comparator = compareBy<Album> { if ((playCounts[it.id] ?: 0) > 0) 0 else 1 }
+            .thenBy { playCounts[it.id] ?: 0 }
+            .thenBy { if (it.id in recentIds) 1 else 0 }
+            .thenBy { it.artist.lowercase() }
+            .thenBy { it.title.lowercase() }
+        val expected = albums
+            .filter { (playCounts[it.id] ?: 0) >= 0 }
+            .sortedWith(comparator)
+            .distinctBy(Album::id)
+            .take(6)
+
+        val result = suggestedAlbumsFor(LibraryUiState(albums = albums), playCounts, recentIds)
+
+        assertEquals(expected, result)
+    }
+
     private fun album(id: Long, addedAtSeconds: Long): Album {
         val song = song(id, id, 1_000L).copy(dateAddedSeconds = addedAtSeconds)
         return Album(

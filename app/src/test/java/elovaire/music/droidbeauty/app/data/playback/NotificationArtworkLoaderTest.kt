@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import android.net.TestUri
 import kotlinx.coroutines.Job
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -7,6 +8,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NotificationArtworkLoaderTest {
+    @Test
+    fun notificationArtworkSourcesKeepFallbackFirstAndRemoveEmptyOrDuplicateUris() {
+        val fallback = TestUri("content://art/fallback")
+        val media = TestUri("content://media/song")
+
+        assertEquals(listOf(fallback, media), notificationArtworkSources(media, fallback))
+        assertEquals(listOf(fallback), notificationArtworkSources(fallback, fallback))
+        assertEquals(emptyList<android.net.Uri>(), notificationArtworkSources(TestUri(""), null))
+    }
+
     @Test
     fun completionOfCancelledLoadDoesNotRemoveItsReplacement() {
         val oldJob = Job()

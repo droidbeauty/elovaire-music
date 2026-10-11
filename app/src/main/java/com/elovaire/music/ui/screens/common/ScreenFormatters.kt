@@ -142,6 +142,7 @@ private data class RankedFavoriteAlbum(
 )
 
 private const val HOME_FAVORITE_ALBUM_LIMIT = 6
+private const val HOME_SUGGESTED_ALBUM_LIMIT = 6
 private const val HOME_RECENT_ALBUM_LIMIT = 6
 private const val HOME_RECENT_SONG_LIMIT = 5
 
@@ -247,22 +248,52 @@ internal fun suggestedAlbumsFor(
     recentAlbumIds: List<Long>,
 ): List<Album> {
     val recentAlbumIdSet = recentAlbumIds.toSet()
-    val comparator = compareBy<Album> { album -> if ((albumPlayCounts[album.id] ?: 0) > 0) 0 else 1 }
-        .thenBy { album -> albumPlayCounts[album.id] ?: 0 }
-        .thenBy { album -> if (album.id in recentAlbumIdSet) 1 else 0 }
-        .thenBy { it.artist.lowercase() }
-        .thenBy { it.title.lowercase() }
-    val sortedAlbums = libraryState.albums
-        .filter { (albumPlayCounts[it.id] ?: 0) >= 0 }
-        .sortedWith(comparator)
-
-    return buildList {
-        sortedAlbums.forEach { album ->
-            if (none { it.id == album.id }) add(album)
-            if (size == 6) return@buildList
+    val comparator = compareBy<RankedSuggestedAlbum> { if (it.playCount > 0) 0 else 1 }
+        .thenBy(RankedSuggestedAlbum::playCount)
+        .thenBy { if (it.isRecent) 1 else 0 }
+        .thenBy(RankedSuggestedAlbum::artistKey)
+        .thenBy(RankedSuggestedAlbum::titleKey)
+        .thenBy(RankedSuggestedAlbum::index)
+    val selected = ArrayList<RankedSuggestedAlbum>(HOME_SUGGESTED_ALBUM_LIMIT)
+    val selectedById = HashMap<Long, RankedSuggestedAlbum>(HOME_SUGGESTED_ALBUM_LIMIT)
+    libraryState.albums.forEachIndexed { index, album ->
+        val playCount = albumPlayCounts[album.id] ?: 0
+        if (playCount < 0) return@forEachIndexed
+        val candidate = RankedSuggestedAlbum(
+            album = album,
+            playCount = playCount,
+            isRecent = album.id in recentAlbumIdSet,
+            artistKey = album.artist.lowercase(),
+            titleKey = album.title.lowercase(),
+            index = index,
+        )
+        val existing = selectedById[album.id]
+        if (existing != null) {
+            if (comparator.compare(candidate, existing) >= 0) return@forEachIndexed
+            selected.remove(existing)
+        }
+        val insertionIndex = selected.indexOfFirst { comparator.compare(candidate, it) < 0 }
+            .takeIf { it >= 0 }
+            ?: selected.size
+        if (insertionIndex >= HOME_SUGGESTED_ALBUM_LIMIT) return@forEachIndexed
+        selected.add(insertionIndex, candidate)
+        selectedById[album.id] = candidate
+        if (selected.size > HOME_SUGGESTED_ALBUM_LIMIT) {
+            val removed = selected.removeAt(selected.lastIndex)
+            selectedById.remove(removed.album.id)
         }
     }
+    return selected.map(RankedSuggestedAlbum::album)
 }
+
+private data class RankedSuggestedAlbum(
+    val album: Album,
+    val playCount: Int,
+    val isRecent: Boolean,
+    val artistKey: String,
+    val titleKey: String,
+    val index: Int,
+)
 
 internal fun lyricsSeekPositionMs(
     lines: List<LyricsLine>,

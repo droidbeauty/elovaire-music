@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal sealed interface AlbumTagEditorPlatformAction {
     val operationId: String
@@ -110,6 +111,8 @@ internal fun Album.toTagEditorUiState(): AlbumTagEditorUiState {
 
 internal fun AlbumTagEditorUiState.toAlbumTagEditRequest(): AlbumTagEditRequest? {
     val album = originalAlbum ?: return null
+    val originalSongsById = HashMap<Long, Song>(album.songs.size)
+        .apply { album.songs.forEach { putIfAbsent(it.id, it) } }
     return AlbumTagEditRequest(
         album = album,
         albumTitle = albumTitle.toTextEdit(album.title),
@@ -125,7 +128,7 @@ internal fun AlbumTagEditorUiState.toAlbumTagEditRequest(): AlbumTagEditRequest?
         },
         coverArtBytes = selectedArtworkBytes,
         tracks = tracks.mapIndexedNotNull { index, track ->
-            val original = album.songs.firstOrNull { it.id == track.songId } ?: return@mapIndexedNotNull null
+            val original = originalSongsById[track.songId] ?: return@mapIndexedNotNull null
             val resolvedTrackNumber = track.trackNumber.toIntOrNull()?.coerceAtLeast(1) ?: (index + 1)
             val resolvedDiscNumber = track.discNumber.toIntOrNull()?.coerceAtLeast(1) ?: 1
             val originalTrackNumber = original.trackNumber.takeIf { it > 0 } ?: (index + 1)

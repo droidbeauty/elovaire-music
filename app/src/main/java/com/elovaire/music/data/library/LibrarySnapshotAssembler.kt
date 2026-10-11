@@ -49,9 +49,10 @@ internal object LibrarySnapshotAssembler {
         }
         if (collidingOriginalIds.isEmpty()) return songs
 
+        val albumGroups = songs.map(::albumGroupKey)
         val groups = linkedMapOf<AlbumGroupKey, MutableList<Song>>()
-        songs.forEach { song ->
-            groups.getOrPut(albumGroupKey(song), ::mutableListOf).add(song)
+        songs.forEachIndexed { index, song ->
+            groups.getOrPut(albumGroups[index], ::mutableListOf).add(song)
         }
         val collidingGroups = groups.keys
             .filter { it.originalId in collidingOriginalIds }
@@ -84,9 +85,9 @@ internal object LibrarySnapshotAssembler {
                     }
                 }
         }
-        return songs.map { song ->
-            val group = albumGroupKey(song)
-            val replacement = replacementIds[group] ?: return@map song
+        return songs.mapIndexed { index, song ->
+            val group = albumGroups[index]
+            val replacement = replacementIds[group] ?: return@mapIndexed song
             if (replacement == song.albumId) song else song.copy(albumId = replacement)
         }
     }
