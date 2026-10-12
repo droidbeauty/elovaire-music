@@ -522,6 +522,13 @@ internal enum class HomeScreenState {
     Content,
 }
 
+internal fun shouldShowHomeEmptyLibraryState(
+    isLibraryLoading: Boolean,
+    isLibraryAuthoritative: Boolean,
+    hasMusic: Boolean,
+    hasHomeContent: Boolean,
+): Boolean = !isLibraryLoading && isLibraryAuthoritative && !hasMusic && !hasHomeContent
+
 internal data class ExpandOrigin(
     val xFraction: Float = 0.5f,
     val yFraction: Float = 0.5f,

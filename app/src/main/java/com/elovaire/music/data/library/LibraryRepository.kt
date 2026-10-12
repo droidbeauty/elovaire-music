@@ -67,6 +67,7 @@ data class LibraryUiState(
     val permissionGranted: Boolean = false,
     val isLoading: Boolean = false,
     val scanProgress: Float = 0f,
+    val isAuthoritative: Boolean = false,
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
     val audiobooks: List<Audiobook> = emptyList(),

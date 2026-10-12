@@ -1,13 +1,61 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.data.library.LibraryContentState
+import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RootStateBindingsTest {
+    @Test
+    fun libraryUiStatePreservesWhetherTheLibraryScanIsAuthoritative() {
+        assertFalse(
+            libraryUiStateOf(
+                content = LibraryContentState(),
+                scan = LibraryScanState(permissionGranted = true),
+            ).isAuthoritative,
+        )
+        assertTrue(
+            libraryUiStateOf(
+                content = LibraryContentState(),
+                scan = LibraryScanState(permissionGranted = true, isAuthoritative = true),
+            ).isAuthoritative,
+        )
+    }
+
+    @Test
+    fun homeDoesNotClaimLibraryIsEmptyWhenMusicExistsOrScanIsIncomplete() {
+        assertFalse(
+            shouldShowHomeEmptyLibraryState(
+                isLibraryLoading = false,
+                isLibraryAuthoritative = true,
+                hasMusic = true,
+                hasHomeContent = false,
+            ),
+        )
+        assertFalse(
+            shouldShowHomeEmptyLibraryState(
+                isLibraryLoading = false,
+                isLibraryAuthoritative = false,
+                hasMusic = false,
+                hasHomeContent = false,
+            ),
+        )
+        assertTrue(
+            shouldShowHomeEmptyLibraryState(
+                isLibraryLoading = false,
+                isLibraryAuthoritative = true,
+                hasMusic = false,
+                hasHomeContent = false,
+            ),
+        )
+    }
+
     @Test
     fun buildRootSongIndexes_preservesSourceOrderInBothIndexes() {
         val first = song(1L, 42L)

@@ -373,6 +373,7 @@ internal fun HomeScreen(
     favoriteAlbums: List<Album>,
     playbackState: PlaybackUiState,
     isLibraryLoading: Boolean,
+    isLibraryAuthoritative: Boolean,
     libraryScanProgress: Float,
     favoriteSongIds: Set<Long>,
     topPadding: Dp,
@@ -421,14 +422,22 @@ internal fun HomeScreen(
             revealModules = true
         }
     }
+    val hasMusic = remember(songsById) {
+        songsById.values.any { it.mediaKind == AudioMediaKind.Music }
+    }
     val showInitialLoadingState = isLibraryLoading &&
+        !hasMusic &&
         recentlyAddedAlbums.isEmpty() &&
         favoriteAlbums.isEmpty() &&
         playbackState.recentSongIds.isEmpty()
-    val showEmptyLibraryState = !isLibraryLoading &&
-        recentlyAddedAlbums.isEmpty() &&
-        favoriteAlbums.isEmpty() &&
-        recentSongs.isEmpty()
+    val showEmptyLibraryState = shouldShowHomeEmptyLibraryState(
+        isLibraryLoading = isLibraryLoading,
+        isLibraryAuthoritative = isLibraryAuthoritative,
+        hasMusic = hasMusic,
+        hasHomeContent = recentlyAddedAlbums.isNotEmpty() ||
+            favoriteAlbums.isNotEmpty() ||
+            recentSongs.isNotEmpty(),
+    )
     val lastPlayedPlaylistSongs = remember(lastPlayedPlaylist, songsById) {
         lastPlayedPlaylist?.songIds
             ?.mapNotNull(songsById::get)

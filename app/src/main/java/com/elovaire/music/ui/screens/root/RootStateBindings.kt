@@ -87,6 +87,7 @@ internal fun libraryUiStateOf(
         permissionGranted = scan.permissionGranted,
         isLoading = scan.isLoading,
         scanProgress = scan.scanProgress,
+        isAuthoritative = scan.isAuthoritative,
         songs = content.songs,
         albums = content.albums,
         audiobooks = content.audiobooks,

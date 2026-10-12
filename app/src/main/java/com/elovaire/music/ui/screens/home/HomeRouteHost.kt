@@ -18,6 +18,7 @@ internal fun HomeRouteHost(
         favoriteAlbums = state.libraryDerivedState.favoriteAlbums,
         playbackState = state.appState.playback,
         isLibraryLoading = state.appState.library.isLoading,
+        isLibraryAuthoritative = state.appState.library.isAuthoritative,
         libraryScanProgress = state.appState.library.scanProgress,
         favoriteSongIds = state.appState.favoriteSongIds,
         topPadding = padding.topContent,
