@@ -18,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
+import elovaire.music.droidbeauty.app.quality.SharedPreferencesSnapshot
 import android.net.Uri
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
@@ -35,16 +36,14 @@ import org.junit.runner.RunWith
 class RoomUserDataStoreTest {
     private val databaseName = "playlist_reliability_test.db"
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val preferences = context.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, 0)
+    private var originalPreferences: SharedPreferencesSnapshot? = null
     private lateinit var database: ElovaireDatabase
 
     @Before
     fun setUp() {
-        assertTrue(
-            context.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, 0)
-                .edit()
-                .clear()
-                .commit(),
-        )
+        originalPreferences = SharedPreferencesSnapshot.capture(preferences)
+        assertTrue(preferences.edit().clear().commit())
         context.deleteDatabase(databaseName)
         database = Room.databaseBuilder(context, ElovaireDatabase::class.java, databaseName).build()
     }
@@ -53,10 +52,8 @@ class RoomUserDataStoreTest {
     fun tearDown() {
         database.close()
         context.deleteDatabase(databaseName)
-        context.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, 0)
-            .edit()
-            .clear()
-            .commit()
+        originalPreferences?.restore(preferences)
+        originalPreferences = null
     }
 
     @Test
@@ -319,6 +316,7 @@ class RoomUserDataStoreTest {
         val fileName = "user_data_recovery_test.json"
         val file = context.filesDir.resolve(fileName)
         file.delete()
+        file.resolveSibling("${file.name}.bak").delete()
         val recovery = UserDataRecoverySnapshot(context, FixedClock, fileName)
         val expected = UserDataSnapshot(
             playlists = listOf(Playlist(41L, "Saved", listOf(11L, -22L))),
@@ -342,6 +340,7 @@ class RoomUserDataStoreTest {
             ),
         )
 
+        assertEquals(null, recovery.read())
         recovery.write(expected)
         assertEquals(expected, recovery.read())
 

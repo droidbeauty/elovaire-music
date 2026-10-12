@@ -8,6 +8,7 @@ import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
@@ -32,6 +33,7 @@ class CrossfadeCueAnalyzerInstrumentedTest {
     private val context = instrumentation.targetContext
     private val resolver = context.contentResolver
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val insertedUris = mutableListOf<Uri>()
     private lateinit var fixtureUri: Uri
 
     @Before
@@ -41,8 +43,12 @@ class CrossfadeCueAnalyzerInstrumentedTest {
 
     @After
     fun tearDown() {
-        resolver.delete(fixtureUri, null, null)
-        scope.cancel()
+        try {
+            resolver.deleteTestOwnedRows(insertedUris, "crossfade cue")
+        } finally {
+            insertedUris.clear()
+            scope.cancel()
+        }
     }
 
     @Test
@@ -67,18 +73,14 @@ class CrossfadeCueAnalyzerInstrumentedTest {
             durationSeconds = 35,
             toneEndSecond = 10,
         )
-        try {
-            val song = fixtureSong(uri = uri, durationMs = 35_000L)
-            val cue = withTimeout(30_000L) {
-                CrossfadeCueAnalyzer(context, scope).analyzePair(song, song)
-            }
-
-            assertTrue(cue.outgoingAnalysisSucceeded)
-            assertWithin(10_000L, cue.outgoingMixOutMs)
-            assertWithin(25_000L, cue.outgoingTrailingSilenceMs)
-        } finally {
-            resolver.delete(uri, null, null)
+        val song = fixtureSong(uri = uri, durationMs = 35_000L)
+        val cue = withTimeout(30_000L) {
+            CrossfadeCueAnalyzer(context, scope).analyzePair(song, song)
         }
+
+        assertTrue(cue.outgoingAnalysisSucceeded)
+        assertWithin(10_000L, cue.outgoingMixOutMs)
+        assertWithin(25_000L, cue.outgoingTrailingSilenceMs)
     }
 
     @Test
@@ -106,22 +108,18 @@ class CrossfadeCueAnalyzerInstrumentedTest {
             // Two 16-bit PCM steps are approximately -84 dBFS: below -80, above -90.
             quietTailAmplitude = 2.0 / Short.MAX_VALUE,
         )
-        try {
-            val song = fixtureSong(uri = uri, durationMs = 6_000L)
-            val analyzer = CrossfadeCueAnalyzer(context, scope)
-            val atMinus80 = withTimeout(30_000L) {
-                analyzer.analyzePair(song, song, silenceLevelDb = -80f)
-            }
-            val atMinus90 = withTimeout(30_000L) {
-                analyzer.analyzePair(song, song, silenceLevelDb = -90f)
-            }
-
-            assertWithin(2_000L, atMinus80.outgoingMixOutMs)
-            assertWithin(4_000L, atMinus90.outgoingMixOutMs)
-            assertTrue(atMinus90.outgoingMixOutMs > atMinus80.outgoingMixOutMs + 1_000L)
-        } finally {
-            resolver.delete(uri, null, null)
+        val song = fixtureSong(uri = uri, durationMs = 6_000L)
+        val analyzer = CrossfadeCueAnalyzer(context, scope)
+        val atMinus80 = withTimeout(30_000L) {
+            analyzer.analyzePair(song, song, silenceLevelDb = -80f)
         }
+        val atMinus90 = withTimeout(30_000L) {
+            analyzer.analyzePair(song, song, silenceLevelDb = -90f)
+        }
+
+        assertWithin(2_000L, atMinus80.outgoingMixOutMs)
+        assertWithin(4_000L, atMinus90.outgoingMixOutMs)
+        assertTrue(atMinus90.outgoingMixOutMs > atMinus80.outgoingMixOutMs + 1_000L)
     }
 
     @Test
@@ -133,19 +131,15 @@ class CrossfadeCueAnalyzerInstrumentedTest {
             "mp3" to "audio/mpeg",
         ).forEach { (extension, mimeType) ->
             val uri = insertAssetFixture(extension, mimeType)
-            try {
-                val cue = withTimeout(30_000L) {
-                    analyzer.analyzePair(
-                        outgoing = fixtureSong(uri = uri, durationMs = 500L),
-                        incoming = fixtureSong(uri = uri, durationMs = 500L),
-                    )
-                }
-
-                assertTrue("$extension outgoing analysis failed", cue.outgoingAnalysisSucceeded)
-                assertTrue("$extension incoming analysis failed", cue.incomingAnalysisSucceeded)
-            } finally {
-                resolver.delete(uri, null, null)
+            val cue = withTimeout(30_000L) {
+                analyzer.analyzePair(
+                    outgoing = fixtureSong(uri = uri, durationMs = 500L),
+                    incoming = fixtureSong(uri = uri, durationMs = 500L),
+                )
             }
+
+            assertTrue("$extension outgoing analysis failed", cue.outgoingAnalysisSucceeded)
+            assertTrue("$extension incoming analysis failed", cue.incomingAnalysisSucceeded)
         }
     }
 
@@ -169,6 +163,7 @@ class CrossfadeCueAnalyzerInstrumentedTest {
         }
         val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
             ?: error("Unable to create crossfade fixture")
+        insertedUris += uri
         resolver.openOutputStream(uri)?.use { output ->
             output.write(
                 createWaveFixture(
@@ -200,6 +195,7 @@ class CrossfadeCueAnalyzerInstrumentedTest {
         }
         val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
             ?: error("Unable to create compressed crossfade fixture")
+        insertedUris += uri
         resolver.openOutputStream(uri)?.use { output ->
             instrumentation.context.assets.open("media-metadata/write-fixture.$extension").use { input ->
                 input.copyTo(output)

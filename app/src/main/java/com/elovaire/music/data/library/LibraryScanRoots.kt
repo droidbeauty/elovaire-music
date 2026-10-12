@@ -61,6 +61,16 @@ internal class LibraryScanRoots(
         return LibraryFolderSelectionResolver.relativeRoots(selectedFolders)
     }
 
+    /**
+     * MediaStore can safely restrict results when every selected folder is a shared-storage path.
+     * The default Music root and SAF trees keep their existing provider behavior.
+     */
+    fun mediaStoreQueryRelativeRoots(): Set<String>? {
+        if (selectedFolders.isEmpty()) return emptySet()
+        if (selectedFolders.any { it.uri != null || it.isDefaultMusicFolder }) return null
+        return relativeRoots().takeIf(Set<String>::isNotEmpty)
+    }
+
     fun normalizedFileRootPaths(): Set<String> {
         return accessibleFileRoots()
             .map { normalizeAbsolutePath(it.absolutePath) }

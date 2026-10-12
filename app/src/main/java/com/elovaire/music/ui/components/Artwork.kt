@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.ui.components
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -23,7 +22,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -77,20 +75,15 @@ fun ArtworkImage(
     } else {
         null
     }
-    val legacyShadowTint = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-        rememberArtworkPaletteAccent(uri, requestedSizePx).value
-    } else {
-        null
-    }
+    val shadowTint = rememberArtworkPaletteAccent(uri, requestedSizePx).value
     val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
 
     Box(
         modifier = modifier,
     ) {
-        ArtworkBlurShadow(
-            bitmap = artworkBitmap,
+        ArtworkPaletteShadow(
             cornerRadius = cornerRadius,
-            fallbackTint = legacyShadowTint,
+            tint = shadowTint,
         )
         if (showArtworkGlow) {
             if (artworkBitmap != null) {
@@ -173,28 +166,14 @@ fun ArtworkImage(
 }
 
 @Composable
-internal fun BoxScope.ArtworkBlurShadow(
-    bitmap: ImageBitmap?,
+internal fun BoxScope.ArtworkPaletteShadow(
     cornerRadius: Dp,
-    fallbackTint: Color? = null,
+    tint: Color?,
     blurRadius: Dp = 18.dp,
     verticalOffset: Dp = 6.dp,
 ) {
-    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && bitmap != null) {
-        Image(
-            bitmap = bitmap,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxSize(0.88f)
-                .offset(y = verticalOffset)
-                .clip(shape)
-                .blur(blurRadius, edgeTreatment = BlurredEdgeTreatment.Unbounded),
-            alpha = 0.68f,
-        )
-    } else if (fallbackTint != null) {
+    if (tint != null) {
+        val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
         val shadowElevation = with(LocalDensity.current) {
             (blurRadius * 0.42f).toPx()
         }
@@ -207,10 +186,10 @@ internal fun BoxScope.ArtworkBlurShadow(
                     this.shadowElevation = shadowElevation
                     this.shape = shape
                     clip = false
-                    ambientShadowColor = fallbackTint.copy(alpha = 0.46f)
-                    spotShadowColor = fallbackTint.copy(alpha = 0.46f)
+                    ambientShadowColor = tint.copy(alpha = 0.46f)
+                    spotShadowColor = tint.copy(alpha = 0.46f)
                 }
-                .background(fallbackTint.copy(alpha = 0.12f), shape),
+                .background(tint.copy(alpha = 0.12f), shape),
         )
     }
 }

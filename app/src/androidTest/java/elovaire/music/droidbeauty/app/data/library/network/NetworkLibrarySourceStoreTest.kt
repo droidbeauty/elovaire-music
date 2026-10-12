@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import elovaire.music.droidbeauty.app.quality.SharedPreferencesSnapshot
 import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertEquals
@@ -13,15 +14,19 @@ import kotlinx.coroutines.runBlocking
 
 class NetworkLibrarySourceStoreTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val sourcePreferences = preferences()
+    private var originalPreferences: SharedPreferencesSnapshot? = null
 
     @Before
     fun setUp() {
-        preferences().edit().clear().commit()
+        originalPreferences = SharedPreferencesSnapshot.capture(sourcePreferences)
+        sourcePreferences.edit().clear().commit()
     }
 
     @After
     fun tearDown() {
-        preferences().edit().clear().commit()
+        originalPreferences?.restore(sourcePreferences)
+        originalPreferences = null
     }
 
     @Test

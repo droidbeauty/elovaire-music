@@ -13,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
@@ -37,6 +38,7 @@ class CrossfadePlaybackInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
     private val resolver = context.contentResolver
+    private val fixtureUris = mutableListOf<Uri>()
     private lateinit var firstUri: Uri
     private lateinit var secondUri: Uri
     private lateinit var scope: CoroutineScope
@@ -53,21 +55,57 @@ class CrossfadePlaybackInstrumentedTest {
 
     @After
     fun tearDown() {
-        instrumentation.runOnMainSync {
-            alarmAudioTrack?.let { track ->
-                if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.stop()
-                track.release()
+        val failures = mutableListOf<Throwable>()
+        fun attempt(action: () -> Unit) {
+            try {
+                action()
+            } catch (failure: IllegalStateException) {
+                failures += failure
+            } catch (failure: SecurityException) {
+                failures += failure
+            } catch (failure: IllegalArgumentException) {
+                failures += failure
+            } catch (failure: UnsupportedOperationException) {
+                failures += failure
             }
-            alarmAudioTrack = null
-            alarmFocusRequest?.let { request ->
-                context.getSystemService(AudioManager::class.java)?.abandonAudioFocusRequest(request)
-            }
-            alarmFocusRequest = null
-            if (::playbackManager.isInitialized) playbackManager.release()
         }
-        scope.cancel()
-        resolver.delete(firstUri, null, null)
-        resolver.delete(secondUri, null, null)
+        try {
+            instrumentation.runOnMainSync {
+                alarmAudioTrack?.let { track ->
+                    if (track.playState == AudioTrack.PLAYSTATE_PLAYING) attempt(track::stop)
+                    attempt(track::release)
+                }
+                alarmAudioTrack = null
+                alarmFocusRequest?.let { request ->
+                    attempt {
+                        context.getSystemService(AudioManager::class.java)?.abandonAudioFocusRequest(request)
+                    }
+                }
+                alarmFocusRequest = null
+                if (::playbackManager.isInitialized) attempt(playbackManager::release)
+            }
+        } catch (failure: IllegalStateException) {
+            failures += failure
+        } catch (failure: SecurityException) {
+            failures += failure
+        } catch (failure: IllegalArgumentException) {
+            failures += failure
+        } catch (failure: UnsupportedOperationException) {
+            failures += failure
+        }
+        attempt(scope::cancel)
+        try {
+            resolver.deleteTestOwnedRows(fixtureUris, "crossfade playback")
+        } catch (failure: AssertionError) {
+            failures += failure
+        } finally {
+            fixtureUris.clear()
+        }
+        if (failures.isNotEmpty()) {
+            throw AssertionError("Crossfade playback fixture cleanup failed.").apply {
+                failures.forEach(::addSuppressed)
+            }
+        }
     }
 
     @Test
@@ -86,6 +124,7 @@ class CrossfadePlaybackInstrumentedTest {
 
         instrumentation.runOnMainSync {
             playbackManager = PlaybackManager(context, scope)
+            playbackManager.setVolume(0f)
             playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, true)
             playbackManager.setCrossfadeDurationMs(5_000L)
             playbackManager.setCrossfadeSilenceThresholdDb(-90f)
@@ -160,6 +199,7 @@ class CrossfadePlaybackInstrumentedTest {
 
         instrumentation.runOnMainSync {
             playbackManager = PlaybackManager(context, scope)
+            playbackManager.setVolume(0f)
             playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, true)
             playbackManager.playAlbum(album)
         }
@@ -207,6 +247,7 @@ class CrossfadePlaybackInstrumentedTest {
         }
         val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
             ?: error("Unable to create crossfade fixture")
+        fixtureUris += uri
         resolver.openOutputStream(uri)?.use { output ->
             output.write(createWaveFixture())
         } ?: error("Unable to write crossfade fixture")

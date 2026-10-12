@@ -22,6 +22,7 @@ import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.jaudiotagger.audio.AudioFileIO
@@ -41,7 +42,11 @@ class MetadataWritePersistenceTest {
 
     @After
     fun tearDown() {
-        insertedUris.forEach { uri -> runCatching { resolver.delete(uri, null, null) } }
+        try {
+            resolver.deleteTestOwnedRows(insertedUris, "metadata persistence")
+        } finally {
+            insertedUris.clear()
+        }
     }
 
     @Test

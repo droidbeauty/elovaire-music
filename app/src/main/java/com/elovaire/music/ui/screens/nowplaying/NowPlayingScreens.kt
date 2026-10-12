@@ -4751,11 +4751,6 @@ private fun LyricsReadyContent(
             val latestLyricsLines by rememberUpdatedState(payload.lines)
             val latestLyricsSynced by rememberUpdatedState(payload.isSynced)
             val isActive = payload.isSynced && index == activeLyricLineIndex
-            val lineScale = animateFloatAsState(
-                targetValue = if (isActive) 26f / 22f else 1f,
-                animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
-                label = "lyrics_line_scale_$index",
-            )
             val lineAlpha = animateFloatAsState(
                 targetValue = if (isActive) 1f else 0.7f,
                 animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
@@ -4764,16 +4759,17 @@ private fun LyricsReadyContent(
             Text(
                 text = line.text,
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 22.sp,
+                    fontSize = if (isActive) 26.sp else 22.sp,
                     fontWeight = FontWeight.Medium,
-                    lineHeight = 29.sp,
+                    lineHeight = if (isActive) 34.sp else 29.sp,
                 ),
                 color = contentColor,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                softWrap = true,
+                maxLines = Int.MAX_VALUE,
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        transformOrigin = TransformOrigin(0f, 0.5f)
                         val entryProgress = if (animateTrackChange) {
                             val staggerMs = (index - lineEntryStartIndex).coerceIn(0, 6) * 16f
                             val elapsedMs = lineEntryClock.value * (lineEntryDurationMs + lineEntryMaxStaggerMs)
@@ -4782,11 +4778,8 @@ private fun LyricsReadyContent(
                         } else {
                             1f
                         }
-                        val scale = lineScale.value
                         alpha = entryProgress * lineAlpha.value
                         translationY = (1f - entryProgress) * -lineEntryOffsetPx
-                        scaleX = scale
-                        scaleY = scale
                     }
                     .pointerInput(song?.id, payload.lines.size) {
                         detectTapGestures {

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import elovaire.music.droidbeauty.app.quality.SharedPreferencesSnapshot
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -14,15 +15,18 @@ import org.junit.runner.RunWith
 class NetworkSourceMutationJournalTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val preferences = context.getSharedPreferences("network_source_mutations_v1", 0)
+    private var originalPreferences: SharedPreferencesSnapshot? = null
 
     @Before
     fun setUp() {
+        originalPreferences = SharedPreferencesSnapshot.capture(preferences)
         check(preferences.edit().clear().commit())
     }
 
     @After
     fun tearDown() {
-        check(preferences.edit().clear().commit())
+        originalPreferences?.restore(preferences)
+        originalPreferences = null
     }
 
     @Test

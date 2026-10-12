@@ -18,6 +18,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
@@ -49,7 +50,11 @@ class GeneratedAudioConformanceInstrumentedTest {
 
     @After
     fun tearDown() {
-        insertedUris.forEach { resolver.delete(it, null, null) }
+        try {
+            resolver.deleteTestOwnedRows(insertedUris, "generated audio conformance")
+        } finally {
+            insertedUris.clear()
+        }
     }
 
     @Test
@@ -88,6 +93,7 @@ class GeneratedAudioConformanceInstrumentedTest {
             instrumentation.runOnMainSync {
                 val manager = PlaybackManager(context, scope)
                 playbackManager = manager
+                manager.setVolume(0f)
                 manager.playAlbum(album)
             }
             val state = playbackManager?.let { manager ->

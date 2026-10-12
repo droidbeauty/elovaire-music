@@ -8,10 +8,24 @@ import android.os.Build
 import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.MediaFilePathResolver
+import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PreferenceCollectionCodec
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
+import elovaire.music.droidbeauty.app.data.settings.elovaireSettingsDataStore
+import elovaire.music.droidbeauty.app.data.settings.editSettings
+import elovaire.music.droidbeauty.app.data.settings.putString
+import elovaire.music.droidbeauty.app.data.settings.remove
+import java.io.IOException
 import java.io.File
 import java.util.UUID
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /** Creates only test-owned MediaStore rows so content-dependent routes are reproducible. */
 internal class RapidUiFixture(
@@ -23,11 +37,15 @@ internal class RapidUiFixture(
         PreferenceStorage.PREFERENCE_FILE_NAME,
         Context.MODE_PRIVATE,
     )
+    private val bootSnapshotPreferences = context.getSharedPreferences(BOOT_SNAPSHOT_FILE_NAME, Context.MODE_PRIVATE)
+    private val settingsDataStore = context.elovaireSettingsDataStore()
     private val insertedUris = ArrayList<Uri>(FIXTURES.size)
     private val runId = UUID.randomUUID().toString()
     private val relativePath = "$FIXTURE_RELATIVE_PATH_PREFIX$runId/"
-    private var originalLibraryFolders: String? = null
-    private var hadOriginalLibraryFolders = false
+    private var originalSharedPreferences: SharedPreferencesSnapshot? = null
+    private var originalBootSnapshot: SharedPreferencesSnapshot? = null
+    private var originalDataStoreLibraryFolders: String? = null
+    private var hadOriginalDataStoreLibraryFolders = false
     private var libraryFoldersCaptured = false
     private var fixtureRootSelected = false
 
@@ -82,11 +100,25 @@ internal class RapidUiFixture(
     }
 
     override fun close() {
+        val cleanupFailures = mutableListOf<Throwable>()
         try {
-            insertedUris.forEach { uri -> resolver.delete(uri, null, null) }
+            insertedUris.forEach { uri ->
+                captureCleanupFailure(cleanupFailures) {
+                    if (resolver.delete(uri, null, null) != 1) {
+                        error("A rapid UI fixture row was not removed.")
+                    }
+                }
+            }
         } finally {
             insertedUris.clear()
-            restoreLibraryFolderSelection()
+            captureCleanupFailure(cleanupFailures) {
+                restoreLibraryFolderSelection()
+            }
+        }
+        if (cleanupFailures.isNotEmpty()) {
+            val failure = AssertionError("Rapid UI fixture cleanup failed.")
+            cleanupFailures.forEach(failure::addSuppressed)
+            throw failure
         }
     }
 
@@ -101,11 +133,11 @@ internal class RapidUiFixture(
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             while (cursor.moveToNext()) {
-                resolver.delete(
+                check(resolver.delete(
                     Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getString(idIndex)),
                     null,
                     null,
-                )
+                ) == 1) { "A stale rapid UI fixture row was not removed." }
             }
         }
     }
@@ -117,25 +149,83 @@ internal class RapidUiFixture(
             displayName = "Elovaire UI qualification fixtures",
         )
         val encodedSelection = PreferenceCollectionCodec.serializeLibraryFolder(selection)
+        val libraryFoldersKey = stringPreferencesKey(LIBRARY_FOLDERS_KEY)
         if (!libraryFoldersCaptured) {
-            hadOriginalLibraryFolders = libraryPreferences.contains(LIBRARY_FOLDERS_KEY)
-            originalLibraryFolders = libraryPreferences.getString(LIBRARY_FOLDERS_KEY, null)
+            originalSharedPreferences = SharedPreferencesSnapshot.capture(libraryPreferences)
+            originalBootSnapshot = SharedPreferencesSnapshot.capture(bootSnapshotPreferences)
+            runBlocking {
+                val settings = settingsDataStore.data.first()
+                hadOriginalDataStoreLibraryFolders = settings.contains(libraryFoldersKey)
+                originalDataStoreLibraryFolders = settings[libraryFoldersKey]
+            }
             libraryFoldersCaptured = true
         }
         fixtureRootSelected = true
         check(libraryPreferences.edit().putString(LIBRARY_FOLDERS_KEY, encodedSelection).commit())
+        runBlocking {
+            settingsDataStore.editSettings { putString(LIBRARY_FOLDERS_KEY, encodedSelection) }
+        }
+        updateBootLibraryFolderSelection(encodedSelection)
     }
 
     private fun restoreLibraryFolderSelection() {
         if (!fixtureRootSelected) return
-        val editor = libraryPreferences.edit()
-        if (hadOriginalLibraryFolders) {
-            editor.putString(LIBRARY_FOLDERS_KEY, originalLibraryFolders)
-        } else {
-            editor.remove(LIBRARY_FOLDERS_KEY)
+        val failures = mutableListOf<Throwable>()
+        captureCleanupFailure(failures) {
+            runBlocking {
+                settingsDataStore.editSettings {
+                    if (hadOriginalDataStoreLibraryFolders) {
+                        putString(LIBRARY_FOLDERS_KEY, checkNotNull(originalDataStoreLibraryFolders))
+                    } else {
+                        remove(LIBRARY_FOLDERS_KEY)
+                    }
+                }
+            }
         }
-        check(editor.commit())
+        listOf(
+            { originalSharedPreferences?.restore(libraryPreferences) },
+            { originalBootSnapshot?.restore(bootSnapshotPreferences) },
+        ).forEach { restore ->
+            captureCleanupFailure(failures) {
+                restore()
+            }
+        }
         fixtureRootSelected = false
+        if (failures.isNotEmpty()) {
+            throw AssertionError("Unable to restore rapid UI fixture settings.").apply {
+                failures.forEach(::addSuppressed)
+            }
+        }
+    }
+
+    private inline fun captureCleanupFailure(failures: MutableList<Throwable>, action: () -> Unit) {
+        try {
+            action()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: IOException) {
+            failures += failure
+        } catch (failure: IllegalStateException) {
+            failures += failure
+        } catch (failure: SecurityException) {
+            failures += failure
+        } catch (failure: IllegalArgumentException) {
+            failures += failure
+        } catch (failure: UnsupportedOperationException) {
+            failures += failure
+        }
+    }
+
+    private fun updateBootLibraryFolderSelection(encodedSelection: String) {
+        val ownerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val backup = PortableSettingsBackup(context, ownerScope = ownerScope)
+            val values = backup.bootSettingsSnapshot().asMap() + (LIBRARY_FOLDERS_KEY to encodedSelection)
+            backup.checkpointBootSettings(values)
+            runBlocking { backup.flushBootSnapshot() }
+        } finally {
+            ownerScope.cancel()
+        }
     }
 
     private data class Fixture(
@@ -154,6 +244,7 @@ internal class RapidUiFixture(
         const val IS_AUDIOBOOK_COLUMN = "is_audiobook"
         const val FIXTURE_RELATIVE_PATH_PREFIX = "Music/ElovaireRapidUi/"
         const val LIBRARY_FOLDERS_KEY = "library_folders"
+        const val BOOT_SNAPSHOT_FILE_NAME = "settings_boot_snapshot"
         val FIXTURES = listOf(
             Fixture(
                 "playback-fixture.wav",

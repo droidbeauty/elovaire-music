@@ -17,6 +17,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.serializeSmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import java.io.File
+import java.io.FileNotFoundException
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import org.json.JSONObject
@@ -50,6 +51,8 @@ internal class UserDataRecoverySnapshot(
                 if (root.optInt(KEY_VERSION, 0) != FORMAT_VERSION) return@synchronized null
                 if (root.optString(KEY_CHECKSUM) != checksum(root)) return@synchronized null
                 decode(root)
+            } catch (_: FileNotFoundException) {
+                null
             } catch (failure: Exception) {
                 Log.w(TAG, "Ignoring invalid user-data recovery snapshot.", failure)
                 null

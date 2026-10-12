@@ -16,6 +16,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.test.platform.app.InstrumentationRegistry
+import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import org.junit.After
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -35,7 +36,11 @@ class DeviceAudioCodecInstrumentedTest {
 
     @After
     fun tearDown() {
-        insertedUris.forEach { uri -> runCatching { context.contentResolver.delete(uri, null, null) } }
+        try {
+            context.contentResolver.deleteTestOwnedRows(insertedUris, "device codec")
+        } finally {
+            insertedUris.clear()
+        }
     }
 
     @Before

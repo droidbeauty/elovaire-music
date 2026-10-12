@@ -66,7 +66,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
-import elovaire.music.droidbeauty.app.ui.components.ArtworkBlurShadow
+import elovaire.music.droidbeauty.app.ui.components.ArtworkPaletteShadow
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -396,10 +396,9 @@ private fun CompactNowPlayingBar(
                                 val artworkBitmap = frame.bitmap
                                 if (artworkBitmap != null) {
                                     Box(Modifier.fillMaxSize()) {
-                                        ArtworkBlurShadow(
-                                            bitmap = artworkBitmap,
+                                        ArtworkPaletteShadow(
                                             cornerRadius = ElovaireRadii.artworkSmall,
-                                            fallbackTint = barGradient.first(),
+                                            tint = barGradient.first(),
                                             blurRadius = 10.dp,
                                             verticalOffset = 3.dp,
                                         )
@@ -661,10 +660,9 @@ private fun NowPlayingBar(
                         val artworkBitmap = frame.bitmap
                         if (artworkBitmap != null) {
                             Box(Modifier.fillMaxSize()) {
-                                ArtworkBlurShadow(
-                                    bitmap = artworkBitmap,
+                                ArtworkPaletteShadow(
                                     cornerRadius = ElovaireRadii.artworkSmall,
-                                    fallbackTint = barGradient.first(),
+                                    tint = barGradient.first(),
                                     blurRadius = 12.dp,
                                     verticalOffset = 4.dp,
                                 )

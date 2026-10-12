@@ -91,8 +91,20 @@ private class BenchmarkMediaFixture(
     }
 
     override fun close() {
-        insertedUris.forEach { uri -> resolver.delete(uri, null, null) }
+        var cleanupFailure: Exception? = null
+        insertedUris.forEach { uri ->
+            try {
+                check(resolver.delete(uri, null, null) == 1) { "A benchmark fixture row was not removed." }
+            } catch (failure: Exception) {
+                if (cleanupFailure == null) {
+                    cleanupFailure = failure
+                } else {
+                    cleanupFailure?.addSuppressed(failure)
+                }
+            }
+        }
         insertedUris.clear()
+        cleanupFailure?.let { throw it }
     }
 
     private fun removeStaleRows() {
@@ -106,11 +118,11 @@ private class BenchmarkMediaFixture(
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             while (cursor.moveToNext()) {
-                resolver.delete(
+                check(resolver.delete(
                     Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getString(idIndex)),
                     null,
                     null,
-                )
+                ) == 1) { "A stale benchmark fixture row was not removed." }
             }
         }
     }

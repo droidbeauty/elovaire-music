@@ -8,7 +8,9 @@ import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.ByteArrayOutputStream
+import java.io.File
 import kotlinx.coroutines.runBlocking
+import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,7 +27,8 @@ class MediaStoreScannerInstrumentedTest {
 
     @After
     fun tearDown() {
-        insertedUris.forEach { uri -> runCatching { resolver.delete(uri, null, null) } }
+        resolver.deleteTestOwnedRows(insertedUris, "scanner")
+        insertedUris.clear()
     }
 
     @Test
@@ -34,7 +37,7 @@ class MediaStoreScannerInstrumentedTest {
         val uri = insertWav(fixtureName)
 
         val directRows = runBlocking {
-            MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
+            MediaStoreAudioQuery.query(resolver, TEST_RELATIVE_ROOTS).cursor.use { cursor ->
                 val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                 buildList {
                     while (cursor.moveToNext()) add(cursor.getString(nameIndex))
@@ -43,8 +46,9 @@ class MediaStoreScannerInstrumentedTest {
         }
         assertTrue(fixtureName in directRows)
 
+        val scanner = MediaStoreScanner(context).apply { setLibraryFolders(testLibraryFolders()) }
         val songs = runBlocking {
-            MediaStoreScanner(context).scan(
+            scanner.scan(
                 refreshMediaIndex = false,
                 enrichMetadata = false,
             )
@@ -60,20 +64,21 @@ class MediaStoreScannerInstrumentedTest {
         val fixtureName = "elovaire-scan-failure-${System.nanoTime()}.wav"
         insertWav(fixtureName)
 
-        val songs = runBlocking {
-            MediaStoreScanner(
-                context = context,
-                indexRefresher = object : MediaStoreIndexRefresher {
-                    override fun refreshAll(shouldContinue: () -> Unit): MediaStoreIndexRefreshResult =
-                        MediaStoreIndexRefreshResult.Unavailable(IllegalStateException("test index failure"))
+        val scanner = MediaStoreScanner(
+            context = context,
+            indexRefresher = object : MediaStoreIndexRefresher {
+                override fun refreshAll(shouldContinue: () -> Unit): MediaStoreIndexRefreshResult =
+                    MediaStoreIndexRefreshResult.Unavailable(IllegalStateException("test index failure"))
 
-                    override fun refreshPaths(
-                        paths: List<String>,
-                        shouldContinue: () -> Unit,
-                    ): MediaStoreIndexRefreshResult =
-                        MediaStoreIndexRefreshResult.Unavailable(IllegalStateException("test index failure"))
-                },
-            ).scan(
+                override fun refreshPaths(
+                    paths: List<String>,
+                    shouldContinue: () -> Unit,
+                ): MediaStoreIndexRefreshResult =
+                    MediaStoreIndexRefreshResult.Unavailable(IllegalStateException("test index failure"))
+            },
+        ).apply { setLibraryFolders(testLibraryFolders()) }
+        val songs = runBlocking {
+            scanner.scan(
                 refreshMediaIndex = true,
                 enrichMetadata = false,
             )
@@ -101,7 +106,7 @@ class MediaStoreScannerInstrumentedTest {
             ?: error("Unable to write pending MediaStore fixture.")
 
         fun queryContainsFixture(): Boolean = runBlocking {
-            MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
+            MediaStoreAudioQuery.query(resolver, TEST_RELATIVE_ROOTS).cursor.use { cursor ->
                 val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                 buildList {
                     while (cursor.moveToNext()) add(cursor.getString(nameIndex))
@@ -212,13 +217,36 @@ class MediaStoreScannerInstrumentedTest {
         )
     }
 
-    private fun insertWav(fileName: String): Uri {
+    @Test
+    fun relativePathQueryReturnsOnlyRowsUnderSelectedFixtureRoot() {
+        val selectedName = "elovaire-selected-${System.nanoTime()}.wav"
+        val outsideName = "elovaire-outside-${System.nanoTime()}.wav"
+        insertWav(selectedName)
+        insertWav(outsideName, "Music/ElovaireScanTestOutside")
+
+        val rows = runBlocking {
+            MediaStoreAudioQuery.query(resolver, TEST_RELATIVE_ROOTS).cursor.use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                buildSet {
+                    while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+                }
+            }
+        }
+
+        assertTrue(selectedName in rows)
+        assertFalse(outsideName in rows)
+    }
+
+    private fun insertWav(
+        fileName: String,
+        relativePath: String = TEST_RELATIVE_PATH,
+    ): Uri {
         val uri = resolver.insert(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
                 put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav")
-                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/ElovaireScanTest")
+                put(MediaStore.Audio.Media.RELATIVE_PATH, relativePath)
                 put(MediaStore.Audio.Media.IS_MUSIC, 1)
                 put(MediaStore.Audio.Media.IS_PENDING, 1)
             },
@@ -275,6 +303,19 @@ class MediaStoreScannerInstrumentedTest {
         write((value ushr 8) and 0xff)
         write((value ushr 16) and 0xff)
         write((value ushr 24) and 0xff)
+    }
+
+    private fun testLibraryFolders(): List<LibraryFolderSelection> = listOf(
+        LibraryFolderSelection(
+            uri = null,
+            path = File(MediaFilePathResolver.defaultMusicDirectory(), "ElovaireScanTest").absolutePath,
+            displayName = "Elovaire scan test",
+        ),
+    )
+
+    private companion object {
+        const val TEST_RELATIVE_PATH = "Music/ElovaireScanTest"
+        val TEST_RELATIVE_ROOTS = setOf(TEST_RELATIVE_PATH)
     }
 
 }

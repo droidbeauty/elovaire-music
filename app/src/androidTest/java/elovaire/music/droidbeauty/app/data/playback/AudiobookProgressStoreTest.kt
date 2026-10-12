@@ -1,18 +1,28 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.test.core.app.ApplicationProvider
+import elovaire.music.droidbeauty.app.quality.SharedPreferencesSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
 class AudiobookProgressStoreTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val preferences = context.getSharedPreferences("audiobook_progress", 0)
+    private var originalPreferences: SharedPreferencesSnapshot? = null
 
     @Before
     fun clearProgress() {
+        originalPreferences = SharedPreferencesSnapshot.capture(preferences)
         preferences.edit().clear().commit()
+    }
+
+    @After
+    fun restoreProgress() {
+        originalPreferences?.restore(preferences)
+        originalPreferences = null
     }
 
     @Test

@@ -43,7 +43,7 @@ import androidx.test.filters.SdkSuppress
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import elovaire.music.droidbeauty.app.ui.components.ArtworkBlurShadow
+import elovaire.music.droidbeauty.app.ui.components.ArtworkPaletteShadow
 import elovaire.music.droidbeauty.app.ui.screens.DynamicBackdropSurface
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
 import kotlin.math.roundToInt
@@ -58,7 +58,7 @@ class BackdropBlurRenderingTest {
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
 
     @Test
-    fun artworkShadowUsesBlurredCoverColorsBeyondArtworkBounds() {
+    fun artworkShadowUsesPaletteTintBeyondArtworkBounds() {
         val cover = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
             .apply { eraseColor(android.graphics.Color.rgb(20, 90, 220)) }
             .asImageBitmap()
@@ -70,21 +70,22 @@ class BackdropBlurRenderingTest {
                         .background(Color.White)
                         .testTag("artwork_shadow_fixture"),
                 ) {
-                    ArtworkBlurShadow(
-                        bitmap = cover,
-                        cornerRadius = 12.dp,
-                        fallbackTint = Color(0xFF145ADC),
-                    )
-                    Image(
-                        bitmap = cover,
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .testTag("artwork_shadow"),
-                    )
+                    Box(modifier = Modifier.align(Alignment.Center).size(120.dp)) {
+                        ArtworkPaletteShadow(
+                            cornerRadius = 12.dp,
+                            tint = Color(0xFF145ADC),
+                        )
+                        Image(
+                            bitmap = cover,
+                            contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .testTag("artwork_shadow"),
+                        )
+                    }
                 }
             }
         }
@@ -92,12 +93,13 @@ class BackdropBlurRenderingTest {
 
         val bounds = composeRule.onNodeWithTag("artwork_shadow").fetchSemanticsNode().boundsInRoot
         val pixels = composeRule.onNodeWithTag("artwork_shadow_fixture").captureToImage().toPixelMap()
-        val shadowOffset = (2f * composeRule.activity.resources.displayMetrics.density).roundToInt()
+        val shadowOffset = (4f * composeRule.activity.resources.displayMetrics.density).roundToInt()
         val sampleY = bounds.center.y.toInt()
         val nearShadow = pixels[(bounds.right + shadowOffset).toInt(), sampleY]
-        val clearBackground = pixels[(bounds.right + (shadowOffset * 5)).toInt(), sampleY]
+        val clearBackgroundOffset = (40f * composeRule.activity.resources.displayMetrics.density).roundToInt()
+        val clearBackground = pixels[(bounds.right + clearBackgroundOffset).toInt(), sampleY]
 
-        assertTrue("the blurred shadow should retain the cover's blue hue", nearShadow.blue > nearShadow.red)
+        assertTrue("the palette shadow should retain the cover's blue hue", nearShadow.blue > nearShadow.red)
         assertTrue("the shadow should soften the background beyond the art bounds", nearShadow.luminance() < clearBackground.luminance())
     }
 

@@ -163,6 +163,7 @@ internal class MediaStoreScanner(
 
         suspend fun queryPlanForCurrentProvider(useDelta: Boolean): MediaStoreQueryPlan {
             return ElovaireTrace.section("library_mediastore_scan") {
+                val queryRelativeRoots = scanRoots.mediaStoreQueryRelativeRoots()
                 val deltaQuery = if (
                     useDelta &&
                     (mediaStoreGenerationFloor != null || mediaStoreGenerationFloors.isNotEmpty()) &&
@@ -176,11 +177,13 @@ internal class MediaStoreScanner(
                                 MediaStoreAudioQuery.queryDelta(
                                     context.contentResolver,
                                     mediaStoreGenerationFloors,
+                                    queryRelativeRoots,
                                 )
                             } else {
                                 MediaStoreAudioQuery.queryDelta(
                                     context.contentResolver,
                                     requireNotNull(mediaStoreGenerationFloor),
+                                    queryRelativeRoots,
                                 )
                             }
                         }
@@ -194,7 +197,10 @@ internal class MediaStoreScanner(
                         mediaStoreDeltaIdentityOrFallback {
                             val scanContext = currentCoroutineContext()
                             ElovaireTrace.section("mediastore_delta_identity") {
-                                MediaStoreAudioQuery.queryIdentity(context.contentResolver)?.use { cursor ->
+                                MediaStoreAudioQuery.queryIdentity(
+                                    context.contentResolver,
+                                    queryRelativeRoots,
+                                )?.use { cursor ->
                                     val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                                     val volumeIndex = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
                                     if (volumeIndex < 0) {
@@ -229,7 +235,7 @@ internal class MediaStoreScanner(
                             ElovaireTrace.section(
                                 if (refreshMediaPaths.isEmpty()) "mediastore_query_full" else "mediastore_query_delta",
                             ) {
-                                MediaStoreAudioQuery.query(context.contentResolver)
+                                MediaStoreAudioQuery.query(context.contentResolver, queryRelativeRoots)
                             }
                         }
                     }

@@ -68,7 +68,11 @@ internal object MediaStoreAudioQuery {
     }
 
     @Suppress("TooGenericExceptionCaught")
-    suspend fun query(resolver: ContentResolver): QueryResult {
+    suspend fun query(
+        resolver: ContentResolver,
+        relativeRoots: Set<String>? = null,
+    ): QueryResult {
+        val scopedSelection = scopedSelection(relativeRoots)
         return query(QueryExecutor { projection, selection, selectionArgs, sortOrder ->
             resolver.queryCancellable(
                 collectionUri,
@@ -77,14 +81,25 @@ internal object MediaStoreAudioQuery {
                 selectionArgs,
                 sortOrder,
             )
-        })
+        }, scopedSelection)
     }
 
     @Suppress("TooGenericExceptionCaught")
-    internal suspend fun query(executor: QueryExecutor): QueryResult {
+    internal suspend fun query(
+        executor: QueryExecutor,
+        relativeRoots: Set<String>? = null,
+    ): QueryResult {
+        return query(executor, scopedSelection(relativeRoots))
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun query(
+        executor: QueryExecutor,
+        scopedSelection: ScopedSelection,
+    ): QueryResult {
         var firstFailure: Throwable? = null
         try {
-            executor.query(projection, selection, null, orderBy)?.let {
+            executor.query(projection, scopedSelection.selection, scopedSelection.arguments, orderBy)?.let {
                 return QueryResult(it, ProjectionKind.Full)
             }
         } catch (failure: SecurityException) {
@@ -96,7 +111,7 @@ internal object MediaStoreAudioQuery {
         }
 
         try {
-            executor.query(compatibilityProjection, selection, null, orderBy)?.let {
+            executor.query(compatibilityProjection, scopedSelection.selection, scopedSelection.arguments, orderBy)?.let {
                 return QueryResult(it, ProjectionKind.Compatibility)
             }
         } catch (failure: SecurityException) {
@@ -115,14 +130,16 @@ internal object MediaStoreAudioQuery {
     suspend fun queryDelta(
         resolver: ContentResolver,
         generation: Long,
+        relativeRoots: Set<String>? = null,
     ): QueryResult? {
         if (generation < 0L) return null
+        val scopedSelection = scopedSelection(relativeRoots)
         return try {
             resolver.queryCancellable(
                 collectionUri,
                 deltaProjection,
-                "$selection AND ($DELTA_SELECTION)",
-                arrayOf(generation.toString(), generation.toString()),
+                "${scopedSelection.selection} AND ($DELTA_SELECTION)",
+                scopedSelection.arguments.withAdditional(generation.toString(), generation.toString()),
                 orderBy,
             )?.let { QueryResult(it, ProjectionKind.Full) }
         } catch (failure: SecurityException) {
@@ -139,6 +156,7 @@ internal object MediaStoreAudioQuery {
     suspend fun queryDelta(
         resolver: ContentResolver,
         generationFloors: Map<String, Long>,
+        relativeRoots: Set<String>? = null,
     ): QueryResult? {
         val validFloors = generationFloors
             .filterKeys(String::isNotBlank)
@@ -152,12 +170,13 @@ internal object MediaStoreAudioQuery {
         val args = validFloors.flatMap { (volume, generation) ->
             listOf(volume, generation.toString(), generation.toString())
         }.toTypedArray()
+        val scopedSelection = scopedSelection(relativeRoots)
         return try {
             resolver.queryCancellable(
                 collectionUri,
                 deltaProjection,
-                "$selection AND ($clauses)",
-                args,
+                "${scopedSelection.selection} AND ($clauses)",
+                scopedSelection.arguments.withAdditional(*args),
                 orderBy,
             )?.let { QueryResult(it, ProjectionKind.Full) }
         } catch (failure: SecurityException) {
@@ -170,13 +189,17 @@ internal object MediaStoreAudioQuery {
     }
 
     @Suppress("TooGenericExceptionCaught")
-    suspend fun queryIdentity(resolver: ContentResolver): Cursor? {
+    suspend fun queryIdentity(
+        resolver: ContentResolver,
+        relativeRoots: Set<String>? = null,
+    ): Cursor? {
+        val scopedSelection = scopedSelection(relativeRoots)
         return try {
             resolver.queryCancellable(
                 collectionUri,
                 identityProjection,
-                selection,
-                null,
+                scopedSelection.selection,
+                scopedSelection.arguments,
                 null,
             )
         } catch (failure: SecurityException) {
@@ -197,4 +220,27 @@ internal object MediaStoreAudioQuery {
         MediaStore.MediaColumns.GENERATION_ADDED,
         MediaStore.MediaColumns.GENERATION_MODIFIED,
     )
+
+    internal data class ScopedSelection(
+        val selection: String,
+        val arguments: Array<String>?,
+    )
+
+    internal fun scopedSelection(relativeRoots: Set<String>?): ScopedSelection {
+        if (relativeRoots == null) return ScopedSelection(selection, null)
+        val roots = relativeRoots.mapNotNull(::normalizeLibraryRelativePath).distinct()
+        if (roots.isEmpty()) return ScopedSelection("$selection AND 0", null)
+        val rootSelection = roots.joinToString(" OR ") {
+            "(${MediaStore.MediaColumns.RELATIVE_PATH} = ? OR " +
+                "substr(${MediaStore.MediaColumns.RELATIVE_PATH}, 1, length(?)) = ?)"
+        }
+        val rootArguments = roots.flatMap { root ->
+            val prefix = "$root/"
+            listOf(root, prefix, prefix)
+        }.toTypedArray()
+        return ScopedSelection("$selection AND ($rootSelection)", rootArguments)
+    }
+
+    private fun Array<String>?.withAdditional(vararg additional: String): Array<String>? =
+        (orEmpty().toList() + additional).takeIf(List<String>::isNotEmpty)?.toTypedArray()
 }

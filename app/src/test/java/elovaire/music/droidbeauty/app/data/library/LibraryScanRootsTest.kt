@@ -85,6 +85,23 @@ class LibraryScanRootsTest {
         )
 
         assertEquals(setOf("Music"), roots.relativeRoots())
+        assertEquals(null, roots.mediaStoreQueryRelativeRoots())
+    }
+
+    @Test
+    fun mediaStoreQueryScopeIsRestrictedToExplicitPathRoots() {
+        val roots = LibraryScanRoots(
+            listOf(
+                LibraryFolderSelection(
+                    uri = null,
+                    path = "/storage/emulated/0/Music/ElovaireMacrobenchmark/run-1",
+                    displayName = "Fixture",
+                ),
+            ),
+        )
+
+        assertEquals(setOf("Music/ElovaireMacrobenchmark/run-1"), roots.mediaStoreQueryRelativeRoots())
+        assertEquals(emptySet<String>(), LibraryScanRoots(emptyList()).mediaStoreQueryRelativeRoots())
     }
 
     @Test
@@ -95,7 +112,9 @@ class LibraryScanRootsTest {
             displayName = "Music",
         )
 
-        assertTrue(LibraryScanRoots(listOf(selection)).relativeRoots().isEmpty())
+        val roots = LibraryScanRoots(listOf(selection))
+        assertTrue(roots.relativeRoots().isEmpty())
+        assertEquals(null, roots.mediaStoreQueryRelativeRoots())
     }
 
     @Test

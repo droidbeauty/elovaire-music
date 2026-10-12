@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import java.util.UUID
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -13,7 +14,7 @@ import org.junit.runner.RunWith
 class NetworkCredentialStoreInstrumentedTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val sourceId = "instrumented-source"
-    private val key = "instrumented-credential-test"
+    private val key = "instrumented-credential-test-${UUID.randomUUID()}"
     private val store = NetworkCredentialStore(context)
 
     @After
