@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.playback.CrossfadeSilencePolicy
 import kotlin.math.roundToInt
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.crossfadeCopy
@@ -42,9 +43,18 @@ internal fun CrossfadeScreen(
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val copy = crossfadeCopy(LocalAppLanguage.current)
     val durationSeconds = durationMs.coerceIn(2_000L, 5_000L) / 1_000f
-    val silenceDb = silenceThresholdDb.coerceIn(-100f, -80f)
+    val silenceStepCount = (
+        (CrossfadeSilencePolicy.MAX_LEVEL_DB - CrossfadeSilencePolicy.MIN_LEVEL_DB) /
+            CrossfadeSilencePolicy.LEVEL_STEP_DB
+        ).roundToInt() + 1
+    val silenceDb = silenceThresholdDb.coerceIn(
+        CrossfadeSilencePolicy.MIN_LEVEL_DB,
+        CrossfadeSilencePolicy.MAX_LEVEL_DB,
+    )
     val durationStep = (((durationSeconds - 2f) * 2f).roundToInt()).coerceIn(0, 6)
-    val silenceStep = (((silenceDb + 100f) / 5f).roundToInt()).coerceIn(0, 4)
+    val silenceStep = (
+        (silenceDb - CrossfadeSilencePolicy.MIN_LEVEL_DB) / CrossfadeSilencePolicy.LEVEL_STEP_DB
+        ).roundToInt().coerceIn(0, silenceStepCount - 1)
     BoxWithCrossfadeTopBar(
         listState = listState,
         bottomPadding = bottomPadding,
@@ -146,9 +156,15 @@ internal fun CrossfadeScreen(
                         )
                         SteppedSlider(
                             selectedIndex = silenceStep,
-                            stepCount = 5,
+                            stepCount = silenceStepCount,
                             onSelectedIndexChanged = { index ->
-                                onSilenceThresholdChanged((-100f + index * 5f).coerceIn(-100f, -80f))
+                                onSilenceThresholdChanged(
+                                    (CrossfadeSilencePolicy.MIN_LEVEL_DB + index * CrossfadeSilencePolicy.LEVEL_STEP_DB)
+                                        .coerceIn(
+                                            CrossfadeSilencePolicy.MIN_LEVEL_DB,
+                                            CrossfadeSilencePolicy.MAX_LEVEL_DB,
+                                        ),
+                                )
                             },
                             modifier = Modifier.fillMaxWidth(),
                         )

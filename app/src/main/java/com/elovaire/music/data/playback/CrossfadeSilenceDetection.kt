@@ -6,7 +6,7 @@ import kotlin.math.roundToInt
 internal object CrossfadeSilencePolicy {
     const val BASE_LEVEL_DB = -90f
     const val MIN_LEVEL_DB = -100f
-    const val MAX_LEVEL_DB = -80f
+    const val MAX_LEVEL_DB = -60f
     const val LEVEL_STEP_DB = 5f
     const val MIN_SILENCE_DURATION_MS = 100L
 

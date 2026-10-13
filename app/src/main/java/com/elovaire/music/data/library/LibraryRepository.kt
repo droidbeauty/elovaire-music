@@ -506,9 +506,10 @@ internal class LibraryRepository internal constructor(
             attempt = attempt,
         ) ?: return
         commitMutex.withLock {
-            // A queued refresh supersedes a prepared but unclaimed commit. Once this check
-            // succeeds, the mutex is the commit claim: later refreshes wait for this boundary.
-            if (!isCurrentScan(attempt) || refreshRequests.hasPending()) return@withLock
+            // Publish this completed snapshot even if another refresh is queued. The queued
+            // request is reconciled after this commit; withholding valid snapshots during a
+            // burst of media notifications can otherwise keep the UI stale until the burst ends.
+            if (!isCurrentScan(attempt)) return@withLock
             val commitId = operation.id
             applyRelocations(
                 commitId = commitId,

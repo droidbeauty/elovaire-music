@@ -84,7 +84,8 @@ class PlaybackCrossfadeEnvelopeTest {
         assertEquals(5_000L, CrossfadeDurationPolicy.sanitizeSettingsDuration(Long.MAX_VALUE))
         assertEquals(-100f, CrossfadeSilencePolicy.sanitizeLevelDb(-120f))
         assertEquals(-85f, CrossfadeSilencePolicy.sanitizeLevelDb(-86f))
-        assertEquals(-80f, CrossfadeSilencePolicy.sanitizeLevelDb(0f))
+        assertEquals(-60f, CrossfadeSilencePolicy.sanitizeLevelDb(-59f))
+        assertEquals(-60f, CrossfadeSilencePolicy.sanitizeLevelDb(0f))
     }
 
     @Test
