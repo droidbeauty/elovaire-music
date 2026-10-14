@@ -191,8 +191,7 @@ internal class AudiobookProgressStore(
                 ?.let { elapsed -> normalizedBookDuration?.let(elapsed::coerceAtMost) ?: elapsed }
             val completionDuration = normalizedBookDuration ?: durationMs
             val completionPosition = normalizedBookElapsed ?: position.coerceAtMost(durationMs.coerceAtLeast(0L))
-            val completed = completionDuration > 0L &&
-                completionDuration - completionPosition <= COMPLETION_THRESHOLD_MS
+            val completed = isAudiobookComplete(completionDuration, completionPosition)
             return AudiobookProgress(
                 songId = songId,
                 positionMs = position,
@@ -211,7 +210,6 @@ internal class AudiobookProgressStore(
 
         const val LEGACY_FILE_NAME = "audiobook_progress"
         const val LEGACY_SPEED_KEY = "playback_speed"
-        const val COMPLETION_THRESHOLD_MS = 10_000L
         const val BOOK_KEY_PREFIX = "book_"
         const val FUTURE_TIMESTAMP_SKEW_MS = 5 * 60 * 1_000L
     }

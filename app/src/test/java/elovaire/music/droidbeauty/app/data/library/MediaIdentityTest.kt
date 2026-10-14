@@ -100,6 +100,21 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun portableIdentityRevisionDoesNotDependOnSongOrderWhenIdsCollide() {
+        val primary = song(0L).copy(id = 7L, uri = TestUri("content://media/external_primary/audio/media/7"))
+        val removable = song(0L).copy(
+            id = 7L,
+            uri = TestUri("content://media/1234-5678/audio/media/7"),
+            title = "Removable",
+        )
+
+        assertEquals(
+            MediaIdentityResolver.portableIdentityRevision(listOf(primary, removable)),
+            MediaIdentityResolver.portableIdentityRevision(listOf(removable, primary)),
+        )
+    }
+
+    @Test
     fun portableIdentityRevisionChangesWhenMatchFieldsChange() {
         val original = song(modifiedSeconds = 10L)
         val renamed = original.copy(title = "Renamed")

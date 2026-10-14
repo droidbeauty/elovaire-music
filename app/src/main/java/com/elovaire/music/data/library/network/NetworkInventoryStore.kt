@@ -242,20 +242,48 @@ internal data class NetworkRevisionKey(
     val etag: String,
 )
 
-/** A null value represents an ambiguous revision and intentionally cannot relocate identity. */
-internal fun buildNetworkRevisionIndex(
+internal data class NetworkInventoryIndexes(
+    val byPath: Map<String, NetworkInventoryEntry>,
+    val bySourceEntryId: Map<String, NetworkInventoryEntry>,
+    /** A null value represents an ambiguous revision and cannot safely relocate identity. */
+    val byRevision: Map<NetworkRevisionKey, NetworkInventoryEntry?>,
+)
+
+/** Builds the per-scan lookup maps in one pass over the committed inventory. */
+internal fun buildNetworkInventoryIndexes(
     entries: List<NetworkInventoryEntry>,
-): Map<NetworkRevisionKey, NetworkInventoryEntry?> {
-    val index = LinkedHashMap<NetworkRevisionKey, NetworkInventoryEntry?>()
+    includeRevisionIndex: Boolean = true,
+): NetworkInventoryIndexes {
+    val byPath = LinkedHashMap<String, NetworkInventoryEntry>(entries.size)
+    val bySourceEntryId = LinkedHashMap<String, NetworkInventoryEntry>(entries.size)
+    val ambiguousSourceEntryIds = HashSet<String>()
+    val byRevision: MutableMap<NetworkRevisionKey, NetworkInventoryEntry?> = if (includeRevisionIndex) {
+        LinkedHashMap<NetworkRevisionKey, NetworkInventoryEntry?>(entries.size)
+    } else {
+        mutableMapOf()
+    }
     entries.forEach { entry ->
-        val key = entry.entry.networkRevisionKey() ?: return@forEach
-        if (index.containsKey(key)) {
-            index[key] = null
-        } else {
-            index[key] = entry
+        byPath[entry.entry.path] = entry
+
+        entry.entry.sourceEntryId?.let { sourceEntryId ->
+            if (sourceEntryId !in ambiguousSourceEntryIds &&
+                bySourceEntryId.putIfAbsent(sourceEntryId, entry) != null
+            ) {
+                bySourceEntryId.remove(sourceEntryId)
+                ambiguousSourceEntryIds += sourceEntryId
+            }
+        }
+
+        if (includeRevisionIndex) {
+            val key = entry.entry.networkRevisionKey() ?: return@forEach
+            if (byRevision.containsKey(key)) {
+                byRevision[key] = null
+            } else {
+                byRevision[key] = entry
+            }
         }
     }
-    return index
+    return NetworkInventoryIndexes(byPath, bySourceEntryId, byRevision)
 }
 
 internal fun NetworkFileEntry.networkRevisionKey(): NetworkRevisionKey? {

@@ -91,6 +91,7 @@ internal fun libraryUiStateOf(
         songs = content.songs,
         albums = content.albums,
         audiobooks = content.audiobooks,
+        contentRevision = content.contentRevision,
         removingSongIds = content.removingSongIds,
         removingAlbumIds = content.removingAlbumIds,
         errorMessage = scan.errorMessage,

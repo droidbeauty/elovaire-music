@@ -6,9 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.9.2">
-        <item>Technical upgrades to reduce backend complexity</item>
+    <release version="2.9.3">
         <item>New UI for playlist creation</item>
+        <item>Added a popup info bar for interaction with Scan button in settings</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

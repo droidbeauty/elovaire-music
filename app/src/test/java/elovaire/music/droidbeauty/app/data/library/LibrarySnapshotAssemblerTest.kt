@@ -105,6 +105,24 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun patchSongsUsesVolumeScopedIdentityWhenMediaStoreIdsCollide() {
+        val primary = song(1L, "content://media/external_primary/audio/media/1")
+        val removable = song(1L, "content://media/1234-5678/audio/media/1")
+            .copy(fileName = "removable.mp3", libraryPath = "/storage/1234-5678/Music/removable.mp3")
+        val initial = LibrarySnapshotAssembler.assemble(listOf(primary, removable))
+        val publisher = LibrarySnapshotPublisher({}, { LibraryContentState(initial.songs, initial.albums) })
+
+        val result = publisher.patchSongs(
+            editedSongs = listOf(removable.copy(title = "Edited")),
+            removingSongIds = emptySet(),
+            removingAlbumIds = emptySet(),
+        )
+
+        assertEquals("Track", result.state.songs.first { it.uri == primary.uri }.title)
+        assertEquals("Edited", result.state.songs.first { it.uri == removable.uri }.title)
+    }
+
+    @Test
     fun patchSongs_reusesAudiobookCatalogForMusicOnlyEdits() {
         val music = song(1L, "content://media/external/audio/media/1")
         val audiobook = song(2L, "file:///books/book/part-1.m4b").copy(

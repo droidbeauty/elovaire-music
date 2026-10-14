@@ -240,6 +240,22 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun mixedGenerationFloorFormsFallBackToFullReconciliation() {
+        val merged = LibraryRefreshRequest(mediaStoreGenerationFloor = 10L).mergedWith(
+            LibraryRefreshRequest(mediaStoreGenerationFloors = mapOf("external_secondary" to 4L)),
+        )
+        val normalized = LibraryRefreshRequest(
+            mediaStoreGenerationFloor = 10L,
+            mediaStoreGenerationFloors = mapOf("external" to 8L),
+        ).normalized()
+
+        assertNull(merged.mediaStoreGenerationFloor)
+        assertTrue(merged.mediaStoreGenerationFloors.isEmpty())
+        assertNull(normalized.mediaStoreGenerationFloor)
+        assertTrue(normalized.mediaStoreGenerationFloors.isEmpty())
+    }
+
+    @Test
     fun targetedSafRefresh_reusesPublishedMediaStoreState() {
         assertTrue(
             shouldReusePublishedMediaStoreState(

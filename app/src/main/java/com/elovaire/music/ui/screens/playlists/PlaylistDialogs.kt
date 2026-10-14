@@ -3,6 +3,7 @@ import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextCol
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,16 +23,22 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -61,13 +69,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -87,9 +98,11 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
+import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -324,12 +337,247 @@ internal fun PlaylistNameDialog(
 }
 
 @Composable
+internal fun PlaylistCreateFullScreenLayer(
+    visible: Boolean,
+    surfaceId: String,
+    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
+    onCreatePlaylist: PlaylistCreateAction,
+    onCreated: (Long?) -> Unit,
+    onExitFinished: (() -> Unit)? = null,
+) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
+    val transitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
+    val scope = rememberCoroutineScope()
+    var name by rememberSaveable(surfaceId) { mutableStateOf("") }
+    var isCreating by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var mounted by remember { mutableStateOf(visible) }
+    val hasName = name.trim().isNotEmpty()
+    val canCreate = hasName && !isCreating
+    val backdropAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = motionSpecs.tween(
+            durationMillis = if (visible) MotionDuration.FullScreenEnter else MotionDuration.FullScreenExit,
+            easing = if (visible) MotionEasing.FadeIn else MotionEasing.FadeOut,
+        ),
+        label = "playlist_create_backdrop_alpha",
+    )
+
+    fun submitPlaylist() {
+        if (!canCreate) return
+        val playlistName = name.trim()
+        isCreating = true
+        errorMessage = null
+        scope.launch {
+            try {
+                when (val result = onCreatePlaylist(playlistName).await()) {
+                    is PlaylistMutationResult.Success -> onCreated(result.playlistId)
+                    is PlaylistMutationResult.Failure -> errorMessage = result.reason
+                    else -> Unit
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                errorMessage = failure.localizedMessage
+            } finally {
+                isCreating = false
+            }
+        }
+    }
+
+    LaunchedEffect(visible) {
+        if (visible) mounted = true
+    }
+    BackHandler(enabled = visible) {
+        if (!isCreating) onDismiss()
+    }
+
+    if (mounted) {
+        Box(
+            modifier = modifier
+                .zIndex(1f)
+                .background(MaterialTheme.colorScheme.background.copy(alpha = backdropAlpha))
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent(PointerEventPass.Final).changes.forEach { it.consume() }
+                        }
+                    }
+                },
+        ) {
+            MotionVisibilityHost(
+                visible = visible,
+                surfaceId = surfaceId,
+                modifier = Modifier.fillMaxSize(),
+                enter = transitions.fullScreenForwardEnter(),
+            exit = transitions.fullScreenBackExit(),
+                onExitFinished = {
+                    mounted = false
+                    name = ""
+                    errorMessage = null
+                    onExitFinished?.invoke()
+                },
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp)
+                            .padding(top = topBarOccupiedHeight() + 20.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        val previewName = name.trim().ifEmpty { copy.newPlaylist }
+                        val previewShape = RoundedCornerShape(ElovaireRadii.module)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(previewShape)
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.56f))
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                    shape = previewShape,
+                                )
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PlaylistArtworkPreview(
+                                songs = emptyList(),
+                                title = previewName,
+                                modifier = Modifier.size(88.dp),
+                                placeholderIconSize = 24.dp,
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                AnimatedContent(
+                                    targetState = previewName,
+                                    transitionSpec = { transitions.titleSwapTransform() },
+                                    label = "playlist_create_name_preview",
+                                ) { displayedName ->
+                                    Text(
+                                        text = displayedName,
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Text(
+                                    text = copy.noSongsInPlaylistYet,
+                                    style = secondaryBodyTextStyle().copy(fontWeight = FontWeight.Medium),
+                                    color = readableSecondaryTextColor(),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+
+                        PlaylistNameInputField(
+                            value = name,
+                            onValueChange = {
+                                name = it
+                                errorMessage = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            requestFocusOnStart = visible,
+                            enabled = !isCreating,
+                            onImeDone = ::submitPlaylist,
+                        )
+                        AnimatedVisibility(visible = errorMessage != null) {
+                            Text(
+                                text = errorMessage.orEmpty(),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+
+                    val createInteractionSource = rememberElovaireInteractionSource()
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .navigationBarsPadding()
+                            .imePadding()
+                            .padding(bottom = 20.dp)
+                            .height(56.dp)
+                            .elovaireActionBump(
+                                enabled = canCreate,
+                                interactionSource = createInteractionSource,
+                                label = "playlist_create_fullscreen_bump",
+                            ),
+                        onClick = ::submitPlaylist,
+                        enabled = canCreate,
+                        shape = RoundedCornerShape(ElovaireRadii.pill),
+                        color = if (hasName) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.94f)
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        },
+                        contentColor = if (hasName) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        },
+                        interactionSource = createInteractionSource,
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (isCreating) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_plus),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = copy.createPlaylistButton,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                        }
+                    }
+                }
+                PinnedBackTopBar(
+                    title = copy.newPlaylist,
+                    onBack = { if (!isCreating) onDismiss() },
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+                    }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun PlaylistNameInputField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = rootUiCopy(AppLanguage.English).playlistNamePlaceholder,
     requestFocusOnStart: Boolean = false,
+    enabled: Boolean = true,
     onImeDone: (() -> Unit)? = null,
 ) {
     val language = LocalAppLanguage.current
@@ -355,6 +603,7 @@ internal fun PlaylistNameInputField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.focusRequester(focusRequester),
+        enabled = enabled,
         singleLine = true,
         shape = RoundedCornerShape(ElovaireRadii.input),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -394,10 +643,12 @@ internal fun PlaylistNameInputField(
                         .clip(CircleShape)
                         .background(contentColor.copy(alpha = 0.1f))
                         .elovaireActionBump(
+                            enabled = enabled,
                             interactionSource = clearInteractionSource,
                             label = "playlist_name_clear_bump",
                         )
                         .clickable(
+                            enabled = enabled,
                             interactionSource = clearInteractionSource,
                             indication = null,
                             onClick = { onValueChange("") },
@@ -465,10 +716,10 @@ internal fun PlaylistSelectionDialog(
     val language = LocalAppLanguage.current
     val motionSpecs = rememberMotionSpecs()
     val listState = rememberElovaireLazyListState(title, subtitle, "playlist_picker")
-    var draftPlaylistName by rememberSaveable(title, subtitle) { mutableStateOf("") }
-    var showInlineCreator by rememberSaveable(title, subtitle) { mutableStateOf(false) }
+    val createPlaylist = onCreatePlaylist
+    var showPlaylistCreator by rememberSaveable(title, subtitle) { mutableStateOf(false) }
+    var playlistCreatorMounted by remember { mutableStateOf(false) }
     var selectedPlaylistId by rememberSaveable(title, subtitle) { mutableStateOf<Long?>(null) }
-    var isCreatingPlaylist by rememberSaveable(title, subtitle) { mutableStateOf(false) }
     var isAddingToPlaylist by rememberSaveable(title, subtitle) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val visibleRows = 4
@@ -484,12 +735,6 @@ internal fun PlaylistSelectionDialog(
             selectedPlaylistId = null
         }
     }
-    LaunchedEffect(showInlineCreator, displayedRows.size) {
-        if (showInlineCreator) {
-            listState.animateScrollToItem(displayedRows.size)
-        }
-    }
-
     var mounted by remember { mutableStateOf(visible) }
     LaunchedEffect(visible) {
         if (visible) mounted = true
@@ -556,7 +801,7 @@ internal fun PlaylistSelectionDialog(
                             .fillMaxWidth()
                             .height(listHeight),
                     ) {
-                        if (displayedRows.isEmpty() && !showInlineCreator) {
+                        if (displayedRows.isEmpty()) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center,
@@ -598,42 +843,10 @@ internal fun PlaylistSelectionDialog(
                                         },
                                     )
                                 }
-                                if (showInlineCreator && onCreatePlaylist != null) {
-                                    item(key = "inline_playlist_creator", contentType = { "playlist_inline_creator" }) {
-                                        InlinePlaylistCreatorRow(
-                                            name = draftPlaylistName,
-                                            onNameChange = { draftPlaylistName = it },
-                                            modifier = Modifier
-                                                .elovaireListReveal(
-                                                    itemKey = "inline_playlist_creator",
-                                                    index = displayedRows.size,
-                                                    registry = revealRegistry,
-                                                ),
-                                            onSave = {
-                                                val trimmedName = draftPlaylistName.trim()
-                                                if (trimmedName.isBlank()) return@InlinePlaylistCreatorRow
-                                                if (!isCreatingPlaylist) {
-                                                    isCreatingPlaylist = true
-                                                    scope.launch {
-                                                        when (val result = onCreatePlaylist(trimmedName).await()) {
-                                                            is PlaylistMutationResult.Success -> {
-                                                                result.playlistId?.let { selectedPlaylistId = it }
-                                                                draftPlaylistName = ""
-                                                                showInlineCreator = false
-                                                            }
-                                                            else -> Unit
-                                                        }
-                                                        isCreatingPlaylist = false
-                                                    }
-                                                }
-                                            },
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
-                    if (onCreatePlaylist != null) {
+                    if (createPlaylist != null) {
                         val newPlaylistInteractionSource = rememberElovaireInteractionSource()
                         Surface(
                             modifier = Modifier
@@ -645,7 +858,8 @@ internal fun PlaylistSelectionDialog(
                                     label = "playlist_new_playlist_bump",
                                 ),
                             onClick = {
-                                showInlineCreator = true
+                                showPlaylistCreator = true
+                                playlistCreatorMounted = true
                                 selectedPlaylistId = null
                             },
                             shape = RoundedCornerShape(ElovaireRadii.pill),
@@ -729,6 +943,25 @@ internal fun PlaylistSelectionDialog(
             }
         }
     }
+    if (playlistCreatorMounted && createPlaylist != null) {
+        Dialog(
+            onDismissRequest = { showPlaylistCreator = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            PlaylistCreateFullScreenLayer(
+                visible = showPlaylistCreator,
+                surfaceId = "playlists.picker_create_screen",
+                modifier = Modifier.fillMaxSize(),
+                onDismiss = { showPlaylistCreator = false },
+                onCreatePlaylist = createPlaylist,
+                onCreated = { playlistId ->
+                    playlistId?.let { selectedPlaylistId = it }
+                    showPlaylistCreator = false
+                },
+                onExitFinished = { playlistCreatorMounted = false },
+            )
+        }
+    }
 }
 
 @Composable
@@ -805,83 +1038,6 @@ internal fun PlaylistPickerRow(
                 selected = selected,
                 modifier = Modifier.padding(end = 6.dp),
             )
-        }
-    }
-}
-
-@Composable
-internal fun InlinePlaylistCreatorRow(
-    name: String,
-    onNameChange: (String) -> Unit,
-    onSave: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val language = LocalAppLanguage.current
-    val copy = remember(language) { rootUiCopy(language) }
-    val canSave = name.trim().isNotBlank()
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(ElovaireRadii.tile))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .padding(10.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PlaylistArtworkPreview(
-                    songs = emptyList(),
-                    title = uiPhrase(LocalAppLanguage.current, UiPhrase.NewPlaylist),
-                    modifier = Modifier.size(62.dp),
-                )
-                PlaylistNameInputField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    modifier = Modifier.weight(1f),
-                    requestFocusOnStart = true,
-                    onImeDone = {
-                        if (name.trim().isNotBlank()) {
-                            onSave()
-                        }
-                    },
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val saveInteractionSource = rememberElovaireInteractionSource()
-                Surface(
-                    modifier = Modifier.elovaireActionBump(
-                        enabled = canSave,
-                        interactionSource = saveInteractionSource,
-                        label = "playlist_rename_save_bump",
-                    ),
-                    onClick = onSave,
-                    enabled = canSave,
-                    interactionSource = saveInteractionSource,
-                    shape = RoundedCornerShape(ElovaireRadii.pill),
-                    color = if (canSave) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
-                    } else {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                    },
-                    contentColor = if (canSave) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.52f)
-                    },
-                ) {
-                    Text(
-                        text = copy.save,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                }
-            }
         }
     }
 }

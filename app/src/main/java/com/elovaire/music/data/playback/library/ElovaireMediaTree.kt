@@ -27,20 +27,23 @@ import elovaire.music.droidbeauty.app.domain.search.toSearchableAudiobook
 import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import java.util.Locale
 
-private val songContextComparator = compareBy<Song>(
-    { it.album.lowercase(Locale.ROOT) },
-    { it.discNumber },
-    { it.trackNumber },
-    { it.title.lowercase(Locale.ROOT) },
-    { it.id },
-)
-
 private fun sortedDistinctNames(names: Sequence<String>): List<String> = names
     .distinct()
     .map { name -> name to name.lowercase(Locale.ROOT) }
     .sortedBy { it.second }
     .map { it.first }
     .toList()
+
+private const val SYMBOL_BUCKET = "#"
+private val bucketLabelComparator = compareBy<String> { if (it == SYMBOL_BUCKET) "ZZ" else it }
+
+private fun bucketKey(label: String): String {
+    val first = label.trim().firstOrNull()?.uppercaseChar() ?: return SYMBOL_BUCKET
+    return if (first in 'A'..'Z') first.toString() else SYMBOL_BUCKET
+}
+
+private fun sortedBucketLabels(labels: Collection<String>): List<String> =
+    labels.sortedWith(bucketLabelComparator)
 
 internal interface MediaLibraryBrowser {
     fun childrenOf(id: ElovaireMediaId): List<MediaItem>
@@ -119,19 +122,19 @@ internal class ElovaireMediaTree(
             ElovaireMediaId.Songs -> bucketIfLarge(
                 parent = BUCKET_PARENT_SONGS,
                 rows = snapshot.songsByTitle(),
-                label = Song::title,
+                bucketKeys = snapshot::songBucketKeys,
                 item = ElovaireMediaItems::song,
             )
             ElovaireMediaId.Albums -> bucketIfLarge(
                 parent = BUCKET_PARENT_ALBUMS,
                 rows = snapshot.albumsByTitle(),
-                label = Album::title,
+                bucketKeys = snapshot::albumBucketKeys,
                 item = ElovaireMediaItems::album,
             )
             ElovaireMediaId.Artists -> bucketIfLarge(
                 parent = BUCKET_PARENT_ARTISTS,
                 rows = snapshot.artistNames(),
-                label = { it },
+                bucketKeys = snapshot::artistBucketKeys,
                 item = ElovaireMediaItems::artist,
             )
             ElovaireMediaId.Genres -> snapshot.genreNames().map(ElovaireMediaItems::genre)
@@ -173,7 +176,7 @@ internal class ElovaireMediaTree(
             ElovaireMediaId.Songs -> bucketIfLargePage(
                 parent = BUCKET_PARENT_SONGS,
                 rows = snapshot.songsByTitle(),
-                label = Song::title,
+                bucketKeys = snapshot::songBucketKeys,
                 item = ElovaireMediaItems::song,
                 page = page,
                 pageSize = pageSize,
@@ -181,7 +184,7 @@ internal class ElovaireMediaTree(
             ElovaireMediaId.Albums -> bucketIfLargePage(
                 parent = BUCKET_PARENT_ALBUMS,
                 rows = snapshot.albumsByTitle(),
-                label = Album::title,
+                bucketKeys = snapshot::albumBucketKeys,
                 item = ElovaireMediaItems::album,
                 page = page,
                 pageSize = pageSize,
@@ -189,7 +192,7 @@ internal class ElovaireMediaTree(
             ElovaireMediaId.Artists -> bucketIfLargePage(
                 parent = BUCKET_PARENT_ARTISTS,
                 rows = snapshot.artistNames(),
-                label = { it },
+                bucketKeys = snapshot::artistBucketKeys,
                 item = ElovaireMediaItems::artist,
                 page = page,
                 pageSize = pageSize,
@@ -550,14 +553,11 @@ internal class ElovaireMediaTree(
         snapshot: MediaTreeSnapshot,
     ): List<MediaItem> {
         return when (id.parent) {
-            BUCKET_PARENT_SONGS -> snapshot.songsByTitle()
-                .filter { bucketKey(it.title) == id.key }
+            BUCKET_PARENT_SONGS -> snapshot.songsForBucket(id.key)
                 .map(ElovaireMediaItems::song)
-            BUCKET_PARENT_ALBUMS -> snapshot.albumsByTitle()
-                .filter { bucketKey(it.title) == id.key }
+            BUCKET_PARENT_ALBUMS -> snapshot.albumsForBucket(id.key)
                 .map(ElovaireMediaItems::album)
-            BUCKET_PARENT_ARTISTS -> snapshot.artistNames()
-                .filter { bucketKey(it) == id.key }
+            BUCKET_PARENT_ARTISTS -> snapshot.artistsForBucket(id.key)
                 .map(ElovaireMediaItems::artist)
             else -> emptyList()
         }
@@ -570,21 +570,12 @@ internal class ElovaireMediaTree(
         pageSize: Int,
     ): List<MediaItem> {
         return when (id.parent) {
-            BUCKET_PARENT_SONGS -> pageWindow(
-                snapshot.songsByTitle().filter { bucketKey(it.title) == id.key },
-                page,
-                pageSize,
-            ).map(ElovaireMediaItems::song)
-            BUCKET_PARENT_ALBUMS -> pageWindow(
-                snapshot.albumsByTitle().filter { bucketKey(it.title) == id.key },
-                page,
-                pageSize,
-            ).map(ElovaireMediaItems::album)
-            BUCKET_PARENT_ARTISTS -> pageWindow(
-                snapshot.artistNames().filter { bucketKey(it) == id.key },
-                page,
-                pageSize,
-            ).map(ElovaireMediaItems::artist)
+            BUCKET_PARENT_SONGS -> pageWindow(snapshot.songsForBucket(id.key), page, pageSize)
+                .map(ElovaireMediaItems::song)
+            BUCKET_PARENT_ALBUMS -> pageWindow(snapshot.albumsForBucket(id.key), page, pageSize)
+                .map(ElovaireMediaItems::album)
+            BUCKET_PARENT_ARTISTS -> pageWindow(snapshot.artistsForBucket(id.key), page, pageSize)
+                .map(ElovaireMediaItems::artist)
             else -> emptyList()
         }
     }
@@ -594,9 +585,7 @@ internal class ElovaireMediaTree(
         snapshot: MediaTreeSnapshot,
     ): ResolvedPlayableQueue? {
         return when (id.parent) {
-            BUCKET_PARENT_SONGS -> snapshot.songsByTitle()
-                .filter { bucketKey(it.title) == id.key }
-                .toQueue("Songs ${id.key}")
+            BUCKET_PARENT_SONGS -> snapshot.songsForBucket(id.key).toQueue("Songs ${id.key}")
             else -> null
         }
     }
@@ -604,21 +593,17 @@ internal class ElovaireMediaTree(
     private inline fun <T> bucketIfLarge(
         parent: String,
         rows: List<T>,
-        crossinline label: (T) -> String,
+        crossinline bucketKeys: () -> List<String>,
         item: (T) -> MediaItem,
     ): List<MediaItem> {
         if (rows.size <= DIRECT_BROWSE_LIMIT) return rows.map(item)
-        return rows
-            .map { bucketKey(label(it)) }
-            .distinct()
-            .sortedWith(compareBy<String> { if (it == SYMBOL_BUCKET) "ZZ" else it })
-            .map { ElovaireMediaItems.bucket(parent, it) }
+        return bucketKeys().map { ElovaireMediaItems.bucket(parent, it) }
     }
 
     private inline fun <T> bucketIfLargePage(
         parent: String,
         rows: List<T>,
-        crossinline label: (T) -> String,
+        crossinline bucketKeys: () -> List<String>,
         item: (T) -> MediaItem,
         page: Int,
         pageSize: Int,
@@ -626,14 +611,8 @@ internal class ElovaireMediaTree(
         if (rows.size <= DIRECT_BROWSE_LIMIT) {
             return pageWindow(rows, page, pageSize).map(item)
         }
-        return pageWindow(
-            rows
-                .map { bucketKey(label(it)) }
-                .distinct()
-                .sortedWith(compareBy<String> { if (it == SYMBOL_BUCKET) "ZZ" else it }),
-            page,
-            pageSize,
-        ).map { ElovaireMediaItems.bucket(parent, it) }
+        return pageWindow(bucketKeys(), page, pageSize)
+            .map { ElovaireMediaItems.bucket(parent, it) }
     }
 
     private fun <T> pageWindow(rows: List<T>, page: Int, pageSize: Int): List<T> {
@@ -642,11 +621,6 @@ internal class ElovaireMediaTree(
         if (from >= rows.size) return emptyList()
         val to = (from + pageSize.toLong()).coerceAtMost(rows.size.toLong())
         return rows.subList(from.toInt(), to.toInt())
-    }
-
-    private fun bucketKey(label: String): String {
-        val first = label.trim().firstOrNull()?.uppercaseChar() ?: return SYMBOL_BUCKET
-        return if (first in 'A'..'Z') first.toString() else SYMBOL_BUCKET
     }
 
     private fun defaultQueue(snapshot: MediaTreeSnapshot): ResolvedPlayableQueue? {
@@ -689,29 +663,52 @@ internal class ElovaireMediaTree(
     ) {
         private val favoriteSongs by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { songs.filter { it.id in favoriteSongIds } }
         private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            favoriteSongs.sortedWith(songTitleComparator)
+            sortedByDisplayName(favoriteSongs, Song::title, Song::id)
         }
-        private val songsByTitle by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { songs.sortedWith(songTitleComparator) }
+        private val songsByTitle by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            sortedByDisplayName(songs, Song::title, Song::id)
+        }
         private val albumsByTitle by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            albums.sortedWith(
-                compareBy<Album>({ it.title.lowercase(Locale.ROOT) }, { it.title }, { it.id }),
-            )
+            sortedByDisplayName(albums, Album::title, Album::id)
         }
         private val nonEmptyPlaylistsByName by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            playlists.filter { it.songIds.isNotEmpty() }.sortedWith(
-                compareBy<Playlist>({ it.name.lowercase(Locale.ROOT) }, { it.name }, { it.id }),
+            sortedByDisplayName(
+                playlists.filter { it.songIds.isNotEmpty() },
+                Playlist::name,
+                Playlist::id,
             )
         }
         private val recentlyAddedSongs by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songs.sortedWith(
-                compareByDescending<Song> { it.dateAddedSeconds }
-                    .thenBy { it.title.lowercase(Locale.ROOT) }
-                    .thenBy(Song::title)
-                    .thenBy(Song::id),
-            )
+            val keyedSongs = songs.map { song ->
+                song to song.title.lowercase(Locale.ROOT)
+            }
+            keyedSongs.sortedWith(
+                compareByDescending<Pair<Song, String>> { it.first.dateAddedSeconds }
+                    .thenBy { it.second }
+                    .thenBy { it.first.title }
+                    .thenBy { it.first.id },
+            ).map { it.first }
         }
         private val artistNames by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             sortedDistinctNames(songs.asSequence().map(Song::libraryArtistName))
+        }
+        private val songsByBucket by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            songsByTitle().groupBy { bucketKey(it.title) }
+        }
+        private val albumsByBucket by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            albumsByTitle().groupBy { bucketKey(it.title) }
+        }
+        private val artistsByBucket by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            artistNames().groupBy(::bucketKey)
+        }
+        private val songBucketLabels by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            sortedBucketLabels(songsByBucket.keys)
+        }
+        private val albumBucketLabels by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            sortedBucketLabels(albumsByBucket.keys)
+        }
+        private val artistBucketLabels by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            sortedBucketLabels(artistsByBucket.keys)
         }
         private val genreNames by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             sortedDistinctNames(songs.asSequence().map { it.genre.ifBlank { UNKNOWN_GENRE } })
@@ -766,24 +763,16 @@ internal class ElovaireMediaTree(
             songs.groupBy { it.genre.ifBlank { UNKNOWN_GENRE }.lowercase(Locale.ROOT) }
         }
         private val songsByArtistForContext by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songsByArtist.mapValues { (_, songs) -> songs.sortedWith(songContextComparator) }
+            songsByArtist.mapValues { (_, songs) -> sortedSongsForContext(songs) }
         }
         private val songsByGenreForContext by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songsByGenre.mapValues { (_, songs) -> songs.sortedWith(songContextComparator) }
+            songsByGenre.mapValues { (_, songs) -> sortedSongsForContext(songs) }
         }
         private val artistSearchRows by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             artistNames.map { name -> NamedSongs(name = name, songs = songsForArtist(name)) }
         }
         private val genreSearchRows by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             genreNames.map { name -> NamedSongs(name = name, songs = songsForGenre(name)) }
-        }
-
-        private companion object {
-            val songTitleComparator = compareBy<Song>(
-                { it.title.lowercase(Locale.ROOT) },
-                { it.title },
-                { it.id },
-            )
         }
 
         fun favoriteSongs(): List<Song> = favoriteSongs
@@ -793,6 +782,12 @@ internal class ElovaireMediaTree(
         fun nonEmptyPlaylistsByName(): List<Playlist> = nonEmptyPlaylistsByName
         fun recentlyAddedSongs(): List<Song> = recentlyAddedSongs
         fun artistNames(): List<String> = artistNames
+        fun songBucketKeys(): List<String> = songBucketLabels
+        fun albumBucketKeys(): List<String> = albumBucketLabels
+        fun artistBucketKeys(): List<String> = artistBucketLabels
+        fun songsForBucket(key: String): List<Song> = songsByBucket[key].orEmpty()
+        fun albumsForBucket(key: String): List<Album> = albumsByBucket[key].orEmpty()
+        fun artistsForBucket(key: String): List<String> = artistsByBucket[key].orEmpty()
         fun genreNames(): List<String> = genreNames
         fun searchableSongs(): List<SearchableSong> = searchableSongs
         fun searchableSongTitleMatches(query: String, limit: Int): List<Song> {
@@ -857,10 +852,57 @@ internal class ElovaireMediaTree(
         const val BUCKET_PARENT_SONGS = "songs"
         const val BUCKET_PARENT_ALBUMS = "albums"
         const val BUCKET_PARENT_ARTISTS = "artists"
-        const val SYMBOL_BUCKET = "#"
         const val UNKNOWN_GENRE = "Unknown Genre"
     }
 }
+
+private data class DisplayNameSortKey<T>(
+    val value: T,
+    val normalizedName: String,
+    val originalName: String,
+    val id: Long,
+)
+
+private fun <T> sortedByDisplayName(
+    values: List<T>,
+    name: (T) -> String,
+    id: (T) -> Long,
+): List<T> = values
+    .map { value ->
+        val originalName = name(value)
+        DisplayNameSortKey(value, originalName.lowercase(Locale.ROOT), originalName, id(value))
+    }
+    .sortedWith(
+        compareBy<DisplayNameSortKey<T>>(
+            DisplayNameSortKey<T>::normalizedName,
+            DisplayNameSortKey<T>::originalName,
+            DisplayNameSortKey<T>::id,
+        ),
+    )
+    .map(DisplayNameSortKey<T>::value)
+
+private data class ContextSongSortKey(
+    val song: Song,
+    val normalizedAlbum: String,
+    val normalizedTitle: String,
+)
+
+private fun sortedSongsForContext(songs: List<Song>): List<Song> = songs
+    .map { song ->
+        ContextSongSortKey(
+            song = song,
+            normalizedAlbum = song.album.lowercase(Locale.ROOT),
+            normalizedTitle = song.title.lowercase(Locale.ROOT),
+        )
+    }
+    .sortedWith(
+        compareBy<ContextSongSortKey>(ContextSongSortKey::normalizedAlbum)
+            .thenBy { it.song.discNumber }
+            .thenBy { it.song.trackNumber }
+            .thenBy(ContextSongSortKey::normalizedTitle)
+            .thenBy { it.song.id },
+    )
+    .map(ContextSongSortKey::song)
 
 internal class MediaTreeSnapshotCache {
     private var snapshot: ElovaireMediaTree.MediaTreeSnapshot? = null

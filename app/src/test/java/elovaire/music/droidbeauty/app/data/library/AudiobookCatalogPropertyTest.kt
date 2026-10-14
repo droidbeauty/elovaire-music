@@ -21,7 +21,10 @@ class AudiobookCatalogPropertyTest {
         val books = AudiobookCatalog.build(firstBook + secondSource + secondAuthor)
 
         assertEquals(3, books.size)
-        assertEquals(listOf(1L, 2L), books.first { it.author == "Author" && it.parts.size == 2 }.parts.map { it.song.id })
+        assertEquals(
+            listOf(1L, 1L, 2L),
+            books.first { it.author == "Author" && it.parts.size == 3 }.parts.map { it.song.id },
+        )
     }
 
     @Test
@@ -68,7 +71,7 @@ class AudiobookCatalogPropertyTest {
     }
 
     @Test
-    fun directContextResolutionMatchesTheFullCatalogWithDuplicateIds() {
+    fun directContextResolutionUsesPhysicalSongIdentityWhenIdsCollide() {
         val songs = listOf(
             song(1L, "Book A", "Author", "/books/a/part-1.m4b", 1),
             song(2L, "Book A", "Author", "/books/a/part-2.m4b", 2),
@@ -76,10 +79,18 @@ class AudiobookCatalogPropertyTest {
             song(3L, "Book B", "Author", "/books/b/part-3.m4b", 3),
         )
         val expected = AudiobookCatalog.build(songs).first { book ->
-            book.parts.any { part -> part.song.id == 2L }
+            book.parts.any { part -> part.song.libraryPath == "/books/b/part-2.m4b" }
         }
 
-        assertEquals(expected, AudiobookCatalog.findContaining(songs, 2L))
+        assertEquals(expected, AudiobookCatalog.findContaining(songs, songs[2]))
+    }
+
+    @Test
+    fun bookRetainsDifferentPhysicalPartsWithCollidingNumericIds() {
+        val first = song(2L, "Book A", "Author", "/books/a/part-1.m4b", 1)
+        val second = song(2L, "Book A", "Author", "/books/a/part-2.m4b", 2)
+
+        assertEquals(2, AudiobookCatalog.build(listOf(first, second)).single().parts.size)
     }
 
     private fun song(

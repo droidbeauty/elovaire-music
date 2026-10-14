@@ -45,6 +45,47 @@ internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (l
     AppLanguage.English -> SettingsLanguageCopy("Settings", "Appearance", "Theme", "Text size", "Language", "Currently used: ${language.nativeName}", "Sound", "Bass boost", "Spaciousness", "Equalizer", "Other settings", "Scan library", "Refresh indexing in search for new media", "Scan", "Changelog", "Designed with passion for music and great design")
 }.withLocalizedVolumeNormalization(language).withLocalizedSettingsEntries(language)
 
+internal data class LibraryScanStatusCopy(
+    val scanning: String,
+    val done: String,
+)
+
+internal fun libraryScanStatusCopy(language: AppLanguage): LibraryScanStatusCopy = when (language) {
+    AppLanguage.Albanian -> LibraryScanStatusCopy("Po skanohet", "U krye")
+    AppLanguage.Bengali -> LibraryScanStatusCopy("স্ক্যান চলছে", "সম্পন্ন")
+    AppLanguage.ChineseSimplified -> LibraryScanStatusCopy("正在扫描", "完成")
+    AppLanguage.Croatian -> LibraryScanStatusCopy("Skeniranje", "Gotovo")
+    AppLanguage.Czech -> LibraryScanStatusCopy("Skenování", "Hotovo")
+    AppLanguage.Danish -> LibraryScanStatusCopy("Scanner", "Færdig")
+    AppLanguage.Dutch -> LibraryScanStatusCopy("Scannen", "Gereed")
+    AppLanguage.English -> LibraryScanStatusCopy("Scanning", "Done")
+    AppLanguage.Estonian -> LibraryScanStatusCopy("Skannimine", "Valmis")
+    AppLanguage.French -> LibraryScanStatusCopy("Analyse en cours", "Terminé")
+    AppLanguage.German -> LibraryScanStatusCopy("Wird gescannt", "Fertig")
+    AppLanguage.Greek -> LibraryScanStatusCopy("Σάρωση", "Ολοκληρώθηκε")
+    AppLanguage.Hindi -> LibraryScanStatusCopy("स्कैन हो रहा है", "पूरा हुआ")
+    AppLanguage.Hungarian -> LibraryScanStatusCopy("Vizsgálat folyamatban", "Kész")
+    AppLanguage.Italian -> LibraryScanStatusCopy("Scansione in corso", "Fatto")
+    AppLanguage.Japanese -> LibraryScanStatusCopy("スキャン中", "完了")
+    AppLanguage.Korean -> LibraryScanStatusCopy("스캔 중", "완료")
+    AppLanguage.Latin -> LibraryScanStatusCopy("Lustratio", "Perfectum")
+    AppLanguage.Latvian -> LibraryScanStatusCopy("Skenēšana", "Pabeigts")
+    AppLanguage.Lithuanian -> LibraryScanStatusCopy("Nuskaitoma", "Baigta")
+    AppLanguage.Macedonian -> LibraryScanStatusCopy("Скенирање", "Готово")
+    AppLanguage.Malay -> LibraryScanStatusCopy("Mengimbas", "Selesai")
+    AppLanguage.Norwegian -> LibraryScanStatusCopy("Skanner", "Ferdig")
+    AppLanguage.Polish -> LibraryScanStatusCopy("Skanowanie", "Gotowe")
+    AppLanguage.Portuguese -> LibraryScanStatusCopy("A analisar", "Concluído")
+    AppLanguage.Russian -> LibraryScanStatusCopy("Сканирование", "Готово")
+    AppLanguage.Serbian -> LibraryScanStatusCopy("Скенирање", "Готово")
+    AppLanguage.Slovak -> LibraryScanStatusCopy("Skenovanie", "Hotovo")
+    AppLanguage.Spanish -> LibraryScanStatusCopy("Escaneando", "Listo")
+    AppLanguage.Swedish -> LibraryScanStatusCopy("Skannar", "Klart")
+    AppLanguage.Thai -> LibraryScanStatusCopy("กำลังสแกน", "เสร็จแล้ว")
+    AppLanguage.Ukrainian -> LibraryScanStatusCopy("Сканування", "Готово")
+    AppLanguage.Urdu -> LibraryScanStatusCopy("اسکین جاری ہے", "مکمل")
+}
+
 internal fun SettingsLanguageCopy.withLocalizedVolumeNormalization(language: AppLanguage): SettingsLanguageCopy {
     return copy(
         volumeNormalization = volumeNormalizationTitle(language),

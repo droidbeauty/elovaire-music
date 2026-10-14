@@ -20,11 +20,15 @@ internal object AudiobookCatalog {
             .toList()
     }
 
-    /** Resolves only the book(s) that can contain [songId], without materializing the catalog. */
-    fun findContaining(songs: List<Song>, songId: Long): Audiobook? {
+    /** Resolves only the book that contains [song], without materializing the catalog. */
+    fun findContaining(songs: List<Song>, song: Song): Audiobook? {
+        val songIdentity = MediaIdentityResolver.stableKey(song)
         val matchingKeys = songs
             .asSequence()
-            .filter { it.mediaKind == AudioMediaKind.Audiobook && it.id == songId }
+            .filter {
+                it.mediaKind == AudioMediaKind.Audiobook &&
+                    MediaIdentityResolver.stableKey(it) == songIdentity
+            }
             .mapTo(linkedSetOf(), ::groupKey)
         if (matchingKeys.isEmpty()) return null
 
@@ -74,7 +78,7 @@ internal object AudiobookCatalog {
     }
 
     private fun buildBook(parts: List<Song>): Audiobook? {
-        val ordered = parts.sortedWith(PART_COMPARATOR).distinctBy(Song::id)
+        val ordered = parts.sortedWith(PART_COMPARATOR).distinctBy(MediaIdentityResolver::stableKey)
         val first = ordered.firstOrNull() ?: return null
         val stableKey = stableBookKey(ordered)
         val author = ordered
@@ -118,6 +122,7 @@ internal object AudiobookCatalog {
         { it.trackNumber.coerceAtLeast(0) },
         { it.fileName.lowercase(Locale.ROOT) },
         { it.id },
+        { MediaIdentityResolver.stableKey(it) },
     )
 
     private val AUDIOBOOK_COMPARATOR = compareBy<Audiobook>(

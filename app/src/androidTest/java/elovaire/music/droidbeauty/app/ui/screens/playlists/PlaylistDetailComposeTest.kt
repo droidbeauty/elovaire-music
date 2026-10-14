@@ -27,7 +27,9 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PlaylistDetailComposeTest {
-    private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).also { it.wakeUp() }
+    private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).also {
+        it.executeShellCommand("input keyevent KEYCODE_WAKEUP")
+    }
 
     @get:Rule
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()

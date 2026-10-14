@@ -144,6 +144,26 @@ class MediaTreeSnapshotCacheTest {
     }
 
     @Test
+    fun caseInsensitiveTitleSortRetainsOriginalCaseOrdering() {
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true,
+            listOf(
+                testSong(id = 1L).copy(title = "track"),
+                testSong(id = 2L).copy(title = "Track"),
+                testSong(id = 3L).copy(title = "TRACK"),
+            ),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            null,
+            null,
+        )
+
+        assertEquals(listOf(3L, 2L, 1L), snapshot.songsByTitle().map(Song::id))
+    }
+
+    @Test
     fun titlePrefixMatchesAreOrderedAndCappedWithoutChangingResults() {
         val songs = listOf(
             testSong(id = 3L).copy(title = "Other"),
@@ -193,6 +213,24 @@ class MediaTreeSnapshotCacheTest {
         assertEquals(listOf(2L, 1L, 3L), genreSongs.map(Song::id))
         assertSame(artistSongs, snapshot.songsForArtistInContext("Artist"))
         assertSame(genreSongs, snapshot.songsForGenreInContext("Genre"))
+    }
+
+    @Test
+    fun mediaBrowserBucketsAreSortedAndReusedForPagedChildren() {
+        val songs = listOf(
+            testSong(id = 1L).copy(title = "Beta"),
+            testSong(id = 2L).copy(title = "alpha"),
+            testSong(id = 3L).copy(title = "1 instrumental"),
+            testSong(id = 4L).copy(title = "zeta"),
+        )
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true, songs, emptyList(), emptyList(), emptyList(), emptyList(), null, null,
+        )
+
+        assertEquals(listOf("A", "B", "Z", "#"), snapshot.songBucketKeys())
+        assertEquals(listOf(2L), snapshot.songsForBucket("A").map(Song::id))
+        assertEquals(listOf(3L), snapshot.songsForBucket("#").map(Song::id))
+        assertSame(snapshot.songsForBucket("A"), snapshot.songsForBucket("A"))
     }
 
     private fun testSong(

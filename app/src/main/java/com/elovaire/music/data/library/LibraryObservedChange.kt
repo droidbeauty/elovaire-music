@@ -30,7 +30,7 @@ internal fun directFileOperation(
     event: Int,
     changedFileIsDirectory: Boolean = false,
 ): DirectFileOperation {
-    if (changedFileIsDirectory && event and FileObserver.CREATE != 0) {
+    if (changedFileIsDirectory && event and (FileObserver.CREATE or FileObserver.MOVED_TO) != 0) {
         return DirectFileOperation.DirectoryTopology
     }
     return when {

@@ -36,6 +36,8 @@ android {
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] =
             "NOT-SELF-INSTRUMENTING"
+        normalizedInstrumentationTestClass(providers.gradleProperty(ANDROID_TEST_CLASS_PROPERTY).orNull)
+            ?.let { testInstrumentationRunnerArguments["class"] = it }
         testInstrumentationRunnerArguments["elovaire.runBenchmarks"] = runBenchmarks.get()
         benchmarkIterations?.let { value ->
             testInstrumentationRunnerArguments["elovaire.benchmarkIterations"] = value

@@ -56,13 +56,24 @@ internal class PlaybackStateReducer(
         } else {
             existingState.recentAlbumIds
         }
-        val lastPlayedCollectionKind = if (hasNewSong) {
-            if (normalizedQueue.sourcePlaylistId != null) PlaybackCollectionKind.Playlist else PlaybackCollectionKind.Album
+        val currentCollectionKind = if (normalizedQueue.sourcePlaylistId != null) {
+            PlaybackCollectionKind.Playlist
+        } else {
+            PlaybackCollectionKind.Album
+        }
+        val currentCollectionId = normalizedQueue.sourcePlaylistId ?: currentSong?.albumId
+        val collectionChanged = currentSong != null && (
+            existingState.lastPlayedCollectionKind != currentCollectionKind ||
+                existingState.lastPlayedCollectionId != currentCollectionId
+            )
+        val updateCollection = hasNewSong || collectionChanged
+        val lastPlayedCollectionKind = if (updateCollection) {
+            currentCollectionKind
         } else {
             existingState.lastPlayedCollectionKind
         }
-        val lastPlayedCollectionId = if (hasNewSong) {
-            normalizedQueue.sourcePlaylistId ?: currentSong.albumId
+        val lastPlayedCollectionId = if (updateCollection) {
+            currentCollectionId
         } else {
             existingState.lastPlayedCollectionId
         }

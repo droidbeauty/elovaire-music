@@ -291,16 +291,13 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
-import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
-import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
-import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -1351,6 +1348,7 @@ internal fun NowPlayingScreen(
                         PlayerSecondaryActionButton(
                             iconResId = R.drawable.ic_lucide_list_music,
                             label = "",
+                            contentDescription = "Queue",
                             iconSize = 20.dp,
                             tint = contentColor,
                             showBackground = showQueueSheet,
@@ -1803,7 +1801,6 @@ private fun QueueSheet(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
     val queueEdgeHazeState = LocalPlayerHazeState.current ?: rememberHazeState()
@@ -1845,7 +1842,6 @@ private fun QueueSheet(
                     tint = tint,
                     secondaryTint = secondaryTint,
                     listState = listState,
-                    revealRegistry = revealRegistry,
                     queueEdgeHazeState = queueEdgeHazeState,
                     isPlaying = isPlaying,
                     onSongSelected = onSongSelected,
@@ -2080,7 +2076,6 @@ private fun QueueSongList(
     tint: Color,
     secondaryTint: Color,
     listState: LazyListState,
-    revealRegistry: MotionRevealRegistry,
     queueEdgeHazeState: HazeState,
     isPlaying: Boolean,
     onSongSelected: (Int) -> Unit,
@@ -2122,11 +2117,6 @@ private fun QueueSongList(
                                 durationMillis = MotionDuration.ListPlacement,
                                 easing = MotionEasing.RefinedDecelerate,
                             ),
-                        )
-                        .elovaireListReveal(
-                            itemKey = queueKeys[index],
-                            index = index,
-                            registry = revealRegistry,
                         ),
                 ) {
                     QueueSongRow(

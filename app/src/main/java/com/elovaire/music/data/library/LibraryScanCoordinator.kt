@@ -403,6 +403,7 @@ internal data class CoordinatedLibraryScan(
     val isComplete: Boolean,
     val incompleteMessage: String? = null,
     val retryableSafTreeIds: Set<String> = emptySet(),
+    val mediaStoreSyncStateAtStart: LibraryMediaStoreSyncState? = null,
 )
 
 internal fun shouldReusePublishedMediaStoreState(

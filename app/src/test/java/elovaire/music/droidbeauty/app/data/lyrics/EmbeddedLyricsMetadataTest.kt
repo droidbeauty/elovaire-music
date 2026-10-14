@@ -1,11 +1,12 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.CapabilityLevel
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.audio.mp3.MP3File
@@ -46,6 +47,18 @@ class EmbeddedLyricsMetadataTest {
     }
 
     @Test
+    fun mp4CanStoreTimestampedLyricsInItsPlainLyricsField() {
+        val capability = AudioFormatPolicy.lyricsWriteCapability(null, "song.m4a")
+
+        assertEquals(CapabilityLevel.Unsupported, capability.synced)
+        assertEquals(CapabilityLevel.Strong, capability.unsynced)
+        assertEquals(
+            null,
+            unsupportedLyricsWriteFailure(EmbeddedLyricsTagKind.SyncedLyrics, capability),
+        )
+    }
+
+    @Test
     fun mp3AndFlacWritesCommitReadableLyrics() {
         listOf("lyrics-id3v23.mp3", "lyrics-id3v24.mp3", "lyrics-no-id3.mp3", "lyrics.flac").forEach { fixture ->
             val file = copyFixture(fixture)
@@ -76,15 +89,21 @@ class EmbeddedLyricsMetadataTest {
     }
 
     @Test
-    fun mp4WritesOnlyUnsyncedLyrics() {
+    fun mp4WritesPlainAndTimestampedLyricsToLyricsField() {
         val file = copyFixture("lyrics.m4a")
         val plain = "Plain lyrics\nUnicode żółć"
         EmbeddedLyricsMetadata.write(file, request(file, plain))
         assertEquals(listOf(plain), AudioFileLyricsInspection.inspect(file).unsynced)
-        assertThrows(IllegalStateException::class.java) {
-            val synced = "[00:01.00]First line"
-            EmbeddedLyricsMetadata.write(file, request(file, synced))
-        }
+
+        val synced = "[00:01.00]First line\n[00:05.50]Second line"
+        EmbeddedLyricsMetadata.write(file, request(file, synced))
+        val fields = AudioFileLyricsInspection.inspect(file)
+        assertEquals(listOf(synced), fields.unsynced)
+        assertTrue(fields.synced.isEmpty())
+        assertEquals(
+            listOf(1_000L, 5_500L),
+            parseLrcOrPlain(fields.unsynced.single())?.lines?.map { it.startTimeMs },
+        )
     }
 
     @Test

@@ -95,8 +95,9 @@ internal object MediaFilePathResolver {
         context: Context,
         volumeName: String?,
     ): List<File> {
+        val primaryRoot = primarySharedStorageRoot()
         val roots = linkedSetOf<File>()
-        primarySharedStorageRoot()
+        primaryRoot
             .takeIf { it.exists() && it.isDirectory }
             ?.let(roots::add)
         context.getExternalFilesDirs(null)
@@ -110,18 +111,7 @@ internal object MediaFilePathResolver {
                     ?.takeIf { it.exists() && it.isDirectory }
             }
             .forEach(roots::add)
-        if (roots.isEmpty()) return emptyList()
-
-        val normalizedVolumeName = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
-        if (
-            normalizedVolumeName.isBlank() ||
-            normalizedVolumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY.lowercase(Locale.ROOT)
-        ) {
-            return roots.toList()
-        }
-        return roots.sortedByDescending { root ->
-            root.absolutePath.lowercase(Locale.ROOT).contains(normalizedVolumeName)
-        }
+        return mediaStoreRootsForVolume(roots.toList(), primaryRoot, volumeName)
     }
 
     internal fun sharedStorageRootsForScan(context: Context, volumeName: String?): List<File> {
@@ -135,6 +125,20 @@ internal object MediaFilePathResolver {
     }
 }
 
+internal fun mediaStoreRootsForVolume(
+    roots: List<File>,
+    primaryRoot: File,
+    volumeName: String?,
+): List<File> {
+    val normalizedVolumeName = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
+    return when {
+        normalizedVolumeName.isBlank() -> roots
+        normalizedVolumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY.lowercase(Locale.ROOT) ->
+            roots.filter { it.absoluteFile == primaryRoot.absoluteFile }
+        else -> roots.filter { it.name.lowercase(Locale.ROOT) == normalizedVolumeName }
+    }
+}
+
 internal fun File.resolveContainedChild(relativePath: String): File? = try {
     val canonicalRoot = canonicalFile
     val candidate = File(canonicalRoot, relativePath).canonicalFile
@@ -144,6 +148,19 @@ internal fun File.resolveContainedChild(relativePath: String): File? = try {
 } catch (_: SecurityException) {
     null
 }
+
+internal fun cachedRootsForVolume(
+    cache: MutableMap<String, List<File>>,
+    volumeKey: String,
+    resolve: () -> List<File>,
+): List<File> {
+    cache[volumeKey]?.takeIf { it.isNotEmpty() }?.let { return it }
+    val roots = resolve()
+    if (roots.isNotEmpty() && cache.size < MAX_VOLUME_ROOT_CACHE_ENTRIES) cache[volumeKey] = roots
+    return roots
+}
+
+private const val MAX_VOLUME_ROOT_CACHE_ENTRIES = 8
 
 internal class MediaStoreScanPathResolver(
     private val context: Context,
@@ -156,22 +173,14 @@ internal class MediaStoreScanPathResolver(
         volumeName: String?,
     ): String? {
         val cacheKey = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
-        val roots = rootsByVolume[cacheKey] ?: run {
-            val resolved = MediaFilePathResolver.sharedStorageRootsForScan(context, volumeName)
-            if (rootsByVolume.size < MAX_VOLUME_ROOT_CACHE_ENTRIES) {
-                rootsByVolume[cacheKey] = resolved
-            }
-            resolved
+        val roots = cachedRootsForVolume(rootsByVolume, cacheKey) {
+            MediaFilePathResolver.sharedStorageRootsForScan(context, volumeName)
         }
         return MediaFilePathResolver.resolveMediaStoreFilePath(
             relativePath = relativePath,
             displayName = displayName,
             roots = roots,
         )
-    }
-
-    private companion object {
-        const val MAX_VOLUME_ROOT_CACHE_ENTRIES = 8
     }
 }
 

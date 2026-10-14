@@ -222,7 +222,7 @@ internal object ExternalAudioIntentHandler {
     }
 }
 
-private object ExternalAudioPrivateCopy {
+internal object ExternalAudioPrivateCopy {
     private const val DIRECTORY_NAME = "external_audio"
     private const val COPY_BUFFER_SIZE = 32 * 1024
     private const val MAX_COPY_BYTES = 512L * 1024L * 1024L
@@ -457,7 +457,12 @@ private object ExternalAudioPrivateCopy {
         return suffix.takeIf(String::isNotBlank)?.let { ".$it" }.orEmpty()
     }
 
-    private fun prune(directory: File, keep: File, clock: AppClock) {
+    internal fun prune(
+        directory: File,
+        keep: File,
+        clock: AppClock,
+        maxCacheBytes: Long = MAX_CACHE_BYTES,
+    ) {
         val now = clock.wallTimeMs()
         val files = directory.listFiles().orEmpty()
         files
@@ -470,17 +475,17 @@ private object ExternalAudioPrivateCopy {
             }
             .forEach(File::delete)
 
-        val cacheFiles = files
+        val cacheFiles = directory.listFiles().orEmpty()
             .filter { it.isFile && !it.name.endsWith(".tmp") }
         var totalBytes = cacheFiles
             .sumOf(File::length)
-        if (totalBytes <= MAX_CACHE_BYTES) return
+        if (totalBytes <= maxCacheBytes) return
         cacheFiles
             .filter { it.isFile && it != keep && !it.name.endsWith(".tmp") }
             .filterNot(ExternalAudioStageUsage::isActive)
             .sortedBy(File::lastModified)
             .forEach { file ->
-                if (totalBytes <= MAX_CACHE_BYTES) return@forEach
+                if (totalBytes <= maxCacheBytes) return@forEach
                 val fileSize = file.length()
                 if (file.delete()) totalBytes -= fileSize
             }

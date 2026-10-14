@@ -27,7 +27,10 @@ internal class RootOverlayStateHolder(
         setChangelogSheet(true)
     }
     fun dismissChangelogSheet() = setChangelogSheet(false)
-    fun requestCreatePlaylist() = setPlaylistCreateDialog(true)
+    fun requestCreatePlaylist() {
+        setTopBarMenu(false)
+        setPlaylistCreateDialog(true)
+    }
     fun dismissPlaylistCreateDialog() = setPlaylistCreateDialog(false)
 
     fun onRouteChanged(route: String?) {

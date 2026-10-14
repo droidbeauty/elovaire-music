@@ -179,7 +179,7 @@ internal object MediaIdentityResolver {
         val digest = MessageDigest.getInstance("SHA-256")
         val appender = PortableIdentityDigestAppender(digest)
         songs.asSequence()
-            .sortedBy(Song::id)
+            .sortedWith(compareBy<Song>(Song::id, MediaIdentityResolver::stableKey))
             .forEach { song ->
                 appender.appendLong(song.id)
                 appender.appendInt(TRACK_MATCH_IDENTITY_VERSION)

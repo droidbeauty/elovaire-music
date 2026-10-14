@@ -108,6 +108,26 @@ class MetadataWritePersistenceTest {
     }
 
     @Test
+    fun mediaStoreM4aSyncedLyricsPersistAsLrcText() {
+        val song = insertFixtureSong("write-fixture.m4a", id = 104L)
+        val lyrics = "[00:01.00]Elovaire metadata write test\n[00:02.00]Lyrics persisted line"
+
+        val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
+
+        assertTrue(result is EmbeddedLyricsWriteResult.Success)
+        val persisted = runBlocking { LocalLyricsResolver(context).resolve(song) }?.payload
+        assertTrue(persisted?.isSynced == true)
+        assertEquals(listOf(1_000L, 2_000L), persisted?.lines?.map { it.startTimeMs })
+        assertEquals(
+            listOf("Elovaire metadata write test", "Lyrics persisted line"),
+            persisted?.lines?.map { it.text },
+        )
+        val raw = AudioFileLyricsInspection.inspect(copyPersistedToTemp(song))
+        assertTrue(raw.synced.isEmpty())
+        assertEquals(listOf(lyrics), raw.unsynced)
+    }
+
+    @Test
     fun mediaStoreMp3TagEditsPersistInEmbeddedMetadata() {
         val song = insertFixtureSong("write-fixture.mp3", id = 201L)
 

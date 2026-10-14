@@ -164,7 +164,7 @@ internal class AudiobookTagEditorViewModel(
                 val savedKey = request.bookKey
                     .let { oldKey ->
                         libraryRepository.contentState.value.songs.firstOrNull { it.id in result.editedSongIds }
-                            ?.let { song -> AudiobookCatalog.findContaining(libraryRepository.contentState.value.songs, song.id)?.stableKey }
+                            ?.let { song -> AudiobookCatalog.findContaining(libraryRepository.contentState.value.songs, song)?.stableKey }
                             ?: oldKey
                 }
                 if (result.permissionRequest == null && failures.isEmpty() && result.editedSongs.isNotEmpty() && savedKey != request.bookKey) {

@@ -16,6 +16,15 @@ class MediaStoreDeltaMergeTest {
             sortAlbumSongs(listOf(secondDisc, firstDisc, unknownDisc)),
         )
     }
+
+    @Test
+    fun albumSortKeepsStableInputOrderForCaseInsensitiveFileNameTies() {
+        val lowerCase = testSong(id = 1L).copy(fileName = "song.mp3", trackNumber = 1)
+        val upperCase = testSong(id = 2L).copy(fileName = "SONG.mp3", trackNumber = 1)
+
+        assertEquals(listOf(upperCase, lowerCase), sortAlbumSongs(listOf(upperCase, lowerCase)))
+    }
+
     @Test
     fun deltaReplacesRetainsAndAppendsByStableIdentity() {
         val original = testSong(id = 1L, title = "Original")
@@ -54,6 +63,22 @@ class MediaStoreDeltaMergeTest {
 
         assertEquals(listOf(retained), result.songs)
         assertEquals(setOf(retainedKey), result.retainedIdentityKeys)
+    }
+
+    @Test
+    fun deltaRetainsCurrentBaseRowWhenChangedRowCouldNotBeProcessed() {
+        val existing = testSong(id = 1L)
+        val key = MediaIdentityResolver.stableKey(existing)
+
+        val result = mergeMediaStoreDelta(
+            baseSongs = listOf(existing),
+            changedSongs = emptyList(),
+            changedRowIdentityKeys = emptySet(),
+            currentIdentityKeys = setOf(key),
+        )
+
+        assertEquals(listOf(existing), result.songs)
+        assertEquals(setOf(key), result.retainedIdentityKeys)
     }
 
     @Test

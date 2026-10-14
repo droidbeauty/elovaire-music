@@ -884,7 +884,7 @@ internal class PlaybackManager internal constructor(
         activeAudiobookContext = null
         val currentSong = songs.getOrNull(index)
         if (currentSong?.mediaKind == AudioMediaKind.Audiobook) {
-            val audiobook = AudiobookCatalog.findContaining(songs, currentSong.id)
+            val audiobook = AudiobookCatalog.findContaining(songs, currentSong)
             activeAudiobookContext = audiobook?.let { book ->
                 AudiobookPlaybackContext(
                     bookKey = book.stableKey,

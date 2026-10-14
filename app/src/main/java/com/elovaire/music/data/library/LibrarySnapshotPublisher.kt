@@ -19,6 +19,7 @@ internal class LibrarySnapshotPublisher(
     private var albumSongPositions = emptyMap<Long, List<Int>>()
     private var albumPositions = emptyMap<Long, Int>()
     private var songPositionsById = emptyMap<Long, Int>()
+    private var ambiguousSongIds = emptySet<Long>()
     private var songPositionsByStableKey: Map<String, Int>? = null
 
     fun stateForSnapshot(
@@ -61,8 +62,8 @@ internal class LibrarySnapshotPublisher(
         updateIndices(current)
         val replacementsByPosition = hashMapOf<Int, Song>()
         editedSongs.forEach { edited ->
-            val position = songPositionsById[edited.id]
-                ?: positionByStableKey(edited)
+            val position = positionByStableKey(edited)
+                ?: songPositionsById[edited.id]?.takeUnless { edited.id in ambiguousSongIds }
             if (position != null) replacementsByPosition[position] = edited
         }
         val replacementPositions = replacementsByPosition.keys.sorted()
@@ -181,14 +182,19 @@ internal class LibrarySnapshotPublisher(
         songPositionsByStableKey = null
         val nextAlbumSongPositions = HashMap<Long, MutableList<Int>>(state.albums.size)
         val nextSongPositionsById = HashMap<Long, Int>(state.songs.size)
+        val nextAmbiguousSongIds = HashSet<Long>()
         val nextAlbumPositions = HashMap<Long, Int>(state.albums.size)
         state.songs.forEachIndexed { index, song ->
             nextAlbumSongPositions.getOrPut(song.albumId) { mutableListOf() }.add(index)
-            nextSongPositionsById.putIfAbsent(song.id, index)
+            if (song.id !in nextAmbiguousSongIds && nextSongPositionsById.putIfAbsent(song.id, index) != null) {
+                nextSongPositionsById.remove(song.id)
+                nextAmbiguousSongIds += song.id
+            }
         }
         state.albums.forEachIndexed { index, album -> nextAlbumPositions[album.id] = index }
         albumSongPositions = nextAlbumSongPositions
         songPositionsById = nextSongPositionsById
+        ambiguousSongIds = nextAmbiguousSongIds
         albumPositions = nextAlbumPositions
     }
 

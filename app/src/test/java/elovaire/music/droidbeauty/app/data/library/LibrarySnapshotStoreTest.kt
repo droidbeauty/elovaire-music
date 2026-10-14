@@ -86,6 +86,7 @@ class LibrarySnapshotStoreTest {
     @Test
     fun librarySongsContentRevisionIsStableAndChangesWithSearchableContent() {
         val song = snapshotSong(id = 1L, modifiedSeconds = 10L)
+        val otherSong = snapshotSong(id = 2L, modifiedSeconds = 20L)
 
         assertEquals(
             librarySongsContentRevision(listOf(song)),
@@ -94,6 +95,10 @@ class LibrarySnapshotStoreTest {
         assertNotEquals(
             librarySongsContentRevision(listOf(song)),
             librarySongsContentRevision(listOf(song.copy(title = "Changed"))),
+        )
+        assertEquals(
+            librarySongsContentRevision(listOf(song, otherSong)),
+            librarySongsContentRevision(listOf(otherSong, song)),
         )
     }
 

@@ -22,8 +22,10 @@ data class AudiobookPlaybackContext(
             null
         }
         orderedSongIds.forEachIndexed { index, songId ->
-            if (songId > 0L && seenSongIds.add(songId)) uniqueSongIds += songId
-            durationBySongId?.set(songId, orderedSongDurationsMs[index].orZero())
+            if (songId > 0L && seenSongIds.add(songId)) {
+                uniqueSongIds += songId
+                durationBySongId?.set(songId, orderedSongDurationsMs[index].orZero())
+            }
         }
         normalizedSongIds = uniqueSongIds
         normalizedSongDurationsMs = durationBySongId?.let { durations ->
@@ -66,6 +68,13 @@ internal data class ResolvedAudiobookProgress(
         } else {
             0f
         }
+}
+
+internal fun isAudiobookComplete(durationMs: Long, elapsedMs: Long): Boolean {
+    val duration = durationMs.coerceAtLeast(0L)
+    if (duration == 0L) return false
+    val completionWindowMs = minOf(COMPLETION_THRESHOLD_MS, duration / 10L)
+    return elapsedMs.coerceIn(0L, duration) >= duration - completionWindowMs
 }
 
 internal fun audiobookPartPrefixDurations(parts: List<AudiobookPart>): LongArray {
@@ -119,7 +128,7 @@ internal fun resolveAudiobookProgress(
         partIndex = partIndex,
         bookElapsedMs = elapsedMs.coerceIn(0L, durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE),
         bookDurationMs = durationMs,
-        completed = durationMs > 0L && durationMs - elapsedMs <= COMPLETION_THRESHOLD_MS,
+        completed = isAudiobookComplete(durationMs, elapsedMs),
         updatedAtMs = savedProgress?.updatedAtMs,
     )
 }

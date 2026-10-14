@@ -45,9 +45,6 @@ internal object EmbeddedLyricsMetadata {
             is AbstractID3v2Tag -> writeId3(tag, request)
             is FlacTag -> writeFlac(tag, request)
             else -> {
-                check(request.tagKind == EmbeddedLyricsTagKind.UnsyncedLyrics) {
-                    "Synchronized lyrics are not supported by this audio format."
-                }
                 tag.deleteField(FieldKey.LYRICS)
                 if (request.canonicalLyrics.isNotBlank()) {
                     tag.setField(tag.createField(FieldKey.LYRICS, request.canonicalLyrics))

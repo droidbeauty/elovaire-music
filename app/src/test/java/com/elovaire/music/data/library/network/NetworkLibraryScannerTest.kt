@@ -63,6 +63,14 @@ class NetworkLibraryScannerTest {
     }
 
     @Test
+    fun artworkNamesKeepTheirPriorityAndIgnoreUnsupportedImages() {
+        assertEquals(0, NetworkFileEntry("album/COVER.jpeg", false).artworkPriorityOrNull())
+        assertEquals(1, NetworkFileEntry("album/folder.png", false).artworkPriorityOrNull())
+        assertEquals(2, NetworkFileEntry("album/front.jpg", false).artworkPriorityOrNull())
+        assertEquals(null, NetworkFileEntry("album/artist.jpg", false).artworkPriorityOrNull())
+    }
+
+    @Test
     fun partialListingPreservesUnseenCachedEntries() {
         val cached = listOf(inventory("old.mp3", 1L), inventory("kept.mp3", 2L))
         val discovered = listOf(inventory("new.mp3", 3L))
@@ -99,19 +107,23 @@ class NetworkLibraryScannerTest {
     }
 
     @Test
-    fun revisionIndexPreservesUniqueRelocationAndRejectsAmbiguity() {
+    fun inventoryIndexesPreserveUniqueRelocationAndRejectAmbiguousIdentities() {
         val unique = inventory("old.mp3", 1L).copy(
-            entry = NetworkFileEntry("old.mp3", false, sizeBytes = 42L, etag = "etag-a"),
+            entry = NetworkFileEntry("old.mp3", false, sizeBytes = 42L, etag = "etag-a", sourceEntryId = "stable-id"),
         )
         val ambiguous = inventory("other.mp3", 2L).copy(
-            entry = NetworkFileEntry("other.mp3", false, sizeBytes = 42L, etag = "etag-a"),
+            entry = NetworkFileEntry("other.mp3", false, sizeBytes = 42L, etag = "etag-a", sourceEntryId = "stable-id"),
         )
 
-        val uniqueIndex = buildNetworkRevisionIndex(listOf(unique))
-        val ambiguousIndex = buildNetworkRevisionIndex(listOf(unique, ambiguous))
+        val uniqueIndexes = buildNetworkInventoryIndexes(listOf(unique))
+        val ambiguousIndexes = buildNetworkInventoryIndexes(listOf(unique, ambiguous))
 
-        assertEquals(unique, uniqueIndex[NetworkRevisionKey(42L, "etag-a")])
-        assertEquals(null, ambiguousIndex[NetworkRevisionKey(42L, "etag-a")])
+        assertEquals(unique, uniqueIndexes.byPath["old.mp3"])
+        assertEquals(unique, uniqueIndexes.bySourceEntryId["stable-id"])
+        assertEquals(unique, uniqueIndexes.byRevision[NetworkRevisionKey(42L, "etag-a")])
+        assertEquals(null, ambiguousIndexes.bySourceEntryId["stable-id"])
+        assertEquals(null, ambiguousIndexes.byRevision[NetworkRevisionKey(42L, "etag-a")])
+        assertTrue(buildNetworkInventoryIndexes(listOf(unique), includeRevisionIndex = false).byRevision.isEmpty())
     }
 
     @Test

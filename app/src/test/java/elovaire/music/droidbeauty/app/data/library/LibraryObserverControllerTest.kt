@@ -54,6 +54,10 @@ class LibraryObserverControllerTest {
             DirectFileOperation.DirectoryTopology,
             directFileOperation(FileObserver.CREATE, changedFileIsDirectory = true),
         )
+        assertEquals(
+            DirectFileOperation.DirectoryTopology,
+            directFileOperation(FileObserver.MOVED_TO, changedFileIsDirectory = true),
+        )
     }
 
     @Test

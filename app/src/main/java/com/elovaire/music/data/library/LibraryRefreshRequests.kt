@@ -43,6 +43,11 @@ internal data class LibraryRefreshRequest(
         val reuseLocalState = reuseLocalState && other.reuseLocalState && !force
         val safProviderRetryAttempt = maxOf(safProviderRetryAttempt, other.safProviderRetryAttempt)
         val priority = maxOf(priority, other.priority)
+        val mixedGenerationFloors =
+            (mediaStoreGenerationFloor != null && mediaStoreGenerationFloors.isNotEmpty()) ||
+                (other.mediaStoreGenerationFloor != null && other.mediaStoreGenerationFloors.isNotEmpty()) ||
+                (mediaStoreGenerationFloor != null && other.mediaStoreGenerationFloors.isNotEmpty()) ||
+                (other.mediaStoreGenerationFloor != null && mediaStoreGenerationFloors.isNotEmpty())
         val mergedRemovedPaths = if (force) {
             emptyList()
         } else {
@@ -50,6 +55,7 @@ internal data class LibraryRefreshRequest(
         }
         val mergedGenerationFloor = if (
             force ||
+                mixedGenerationFloors ||
                 mergedPaths.isNotEmpty() ||
                 mergedSafTreeIds != null ||
                 targetedNetworkSourceIds != null ||
@@ -61,6 +67,7 @@ internal data class LibraryRefreshRequest(
             }
         val mergedGenerationFloors = if (
             force ||
+                mixedGenerationFloors ||
                 mergedPaths.isNotEmpty() ||
                 mergedSafTreeIds != null ||
                 targetedNetworkSourceIds != null ||
@@ -111,6 +118,7 @@ internal data class LibraryRefreshRequest(
         } else {
             targetedPaths.distinctNonBlankPaths()
         }
+        val hasMixedGenerationFloors = mediaStoreGenerationFloor != null && mediaStoreGenerationFloors.isNotEmpty()
         if (normalizedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
             return copy(
                 forceMediaIndex = false,
@@ -137,6 +145,7 @@ internal data class LibraryRefreshRequest(
             mediaStoreGenerationFloor = mediaStoreGenerationFloor
                 ?.takeIf {
                     !forceMediaIndex &&
+                        !hasMixedGenerationFloors &&
                         normalizedPaths.isEmpty() &&
                         targetedSafTreeIds.isNullOrEmpty() &&
                         targetedNetworkSourceIds.isNullOrEmpty()
@@ -145,6 +154,7 @@ internal data class LibraryRefreshRequest(
                 .filterValues { it >= 0L }
                 .takeIf {
                     !forceMediaIndex &&
+                        !hasMixedGenerationFloors &&
                         normalizedPaths.isEmpty() &&
                         targetedSafTreeIds.isNullOrEmpty() &&
                         targetedNetworkSourceIds.isNullOrEmpty()

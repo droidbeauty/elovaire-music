@@ -7,7 +7,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
@@ -15,8 +14,6 @@ import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
 import elovaire.music.droidbeauty.app.data.update.UpdateController
-import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
-import kotlinx.coroutines.launch
 import elovaire.music.droidbeauty.app.ui.screens.UpdateAvailableDialog
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
@@ -42,8 +39,6 @@ internal fun BoxScope.RootOverlayHost(
     updateState: AppUpdateUiState,
     motionTransitions: MotionTransitions,
 ) {
-    val scope = rememberCoroutineScope()
-    var isCreatingPlaylist by remember { mutableStateOf(false) }
     var displayedUpdateRelease by remember { mutableStateOf<AppReleaseInfo?>(null) }
     LaunchedEffect(updateState.availableRelease) {
         updateState.availableRelease?.let { displayedUpdateRelease = it }
@@ -74,22 +69,15 @@ internal fun BoxScope.RootOverlayHost(
             onDismiss = onDismissChangelogSheet,
         )
     }
-    PlaylistNameDialog(
+    PlaylistCreateFullScreenLayer(
         visible = showPlaylistCreateDialog,
-        surfaceId = "playlists.create_dialog",
+        surfaceId = "playlists.create_screen",
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(RootLayerZ.PlaylistCreate),
         onDismiss = onDismissPlaylistCreateDialog,
-        onConfirm = { name ->
-            if (!isCreatingPlaylist) {
-                isCreatingPlaylist = true
-                scope.launch {
-                    when (onCreatePlaylist(name).await()) {
-                        is PlaylistMutationResult.Success -> onDismissPlaylistCreateDialog()
-                        else -> isCreatingPlaylist = false
-                    }
-                    if (isCreatingPlaylist) isCreatingPlaylist = false
-                }
-            }
-        },
+        onCreatePlaylist = onCreatePlaylist,
+        onCreated = { onDismissPlaylistCreateDialog() },
     )
     if (updateController.isSupported) {
         MotionVisibilityHost(

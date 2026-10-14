@@ -8,7 +8,9 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.CapabilityLevel
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.data.audio.LyricsWriteCapability
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRuntime
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
@@ -193,8 +195,11 @@ internal class EmbeddedLyricsWriter(
                     ?.map { it.startTimeMs to it.text.trim() }
                     .orEmpty()
                 check(expectedLines.isNotEmpty()) { "Synchronized lyrics contain no timed lines." }
-                check(fields.synced.any { lines -> lines.map { it.startTimeMs to it.text.trim() } == expectedLines }) {
-                    "The synchronized lyrics field was not persisted."
+                check(
+                    fields.synced.any { lines -> lines.map { it.startTimeMs to it.text.trim() } == expectedLines } ||
+                        fields.unsynced.any { it == request.canonicalLyrics },
+                ) {
+                    "The synchronized lyrics or LRC text field was not persisted."
                 }
             }
             EmbeddedLyricsTagKind.UnsyncedLyrics -> {
@@ -277,15 +282,7 @@ internal class EmbeddedLyricsWriter(
         detectedFormat: DetectedAudioFormat?,
     ): EmbeddedLyricsWriteFailure? {
         val capability = AudioFormatPolicy.lyricsWriteCapability(detectedFormat, request.song.fileName)
-        if (
-            request.tagKind == EmbeddedLyricsTagKind.SyncedLyrics &&
-            capability.synced != elovaire.music.droidbeauty.app.data.audio.CapabilityLevel.Strong
-        ) {
-            return EmbeddedLyricsWriteFailure.UnsupportedSyncedLyrics
-        }
-        return EmbeddedLyricsWriteFailure.UnsupportedFormat.takeIf {
-            capability.unsynced != elovaire.music.droidbeauty.app.data.audio.CapabilityLevel.Strong
-        }
+        return unsupportedLyricsWriteFailure(request.tagKind, capability)
     }
 
     private fun preflightFailure(
@@ -341,6 +338,24 @@ internal class EmbeddedLyricsWriter(
     private companion object {
         const val TEMP_DIRECTORY = "lyrics-tag-edit"
         const val LOG_TAG = "EmbeddedLyricsWriter"
+    }
+}
+
+internal fun unsupportedLyricsWriteFailure(
+    tagKind: EmbeddedLyricsTagKind,
+    capability: LyricsWriteCapability,
+): EmbeddedLyricsWriteFailure? {
+    if (tagKind == EmbeddedLyricsTagKind.SyncedLyrics) {
+        return if (
+            capability.synced == CapabilityLevel.Strong || capability.unsynced == CapabilityLevel.Strong
+        ) {
+            null
+        } else {
+            EmbeddedLyricsWriteFailure.UnsupportedSyncedLyrics
+        }
+    }
+    return EmbeddedLyricsWriteFailure.UnsupportedFormat.takeIf {
+        capability.unsynced != CapabilityLevel.Strong
     }
 }
 

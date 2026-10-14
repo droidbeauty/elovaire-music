@@ -12,6 +12,26 @@ import org.junit.Test
 
 class AudiobookProgressPolicyTest {
     @Test
+    fun shortBookIsNotCompleteBeforeMostOfItsDurationHasPlayed() {
+        assertFalse(isAudiobookComplete(5_000L, 0L))
+        assertTrue(isAudiobookComplete(5_000L, 4_500L))
+        assertFalse(isAudiobookComplete(0L, 0L))
+    }
+
+    @Test
+    fun duplicateSongUsesDurationOfItsFirstOccurrence() {
+        val context = AudiobookPlaybackContext(
+            bookKey = "book",
+            orderedSongIds = listOf(1L, 1L, 2L),
+            bookDurationMs = 350L,
+            orderedSongDurationsMs = listOf(100L, 200L, 50L),
+        )
+
+        assertEquals(listOf(1L, 2L), context.normalizedSongIds)
+        assertEquals(listOf(100L, 50L), context.normalizedSongDurationsMs)
+    }
+
+    @Test
     fun finishingAnEarlierPhysicalPartDoesNotCompleteTheBook() {
         val book = book(partCount = 3)
 

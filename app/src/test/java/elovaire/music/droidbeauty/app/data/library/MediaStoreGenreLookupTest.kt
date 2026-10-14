@@ -10,8 +10,15 @@ class MediaStoreGenreLookupTest {
     fun genreVolumes_prioritizeTheRowVolumeWithoutRepeatingFallbacks() {
         val volumes = mediaStoreGenreVolumes("removable")
 
-        assertEquals("removable", volumes.first())
-        assertEquals(volumes.distinct(), volumes)
+        assertEquals(listOf("removable"), volumes)
+    }
+
+    @Test
+    fun genreVolumesUseAggregateFallbackOnlyWhenRowVolumeIsUnavailable() {
+        assertEquals(
+            listOf(android.provider.MediaStore.VOLUME_EXTERNAL, android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY),
+            mediaStoreGenreVolumes(null),
+        )
     }
 
     @Test

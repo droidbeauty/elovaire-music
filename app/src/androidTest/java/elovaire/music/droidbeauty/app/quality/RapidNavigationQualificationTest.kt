@@ -30,7 +30,7 @@ class RapidNavigationQualificationTest {
 
     @Before
     fun setUp() {
-        device.wakeUp()
+        device.executeShellCommand("input keyevent KEYCODE_WAKEUP")
         grantAudioPermission()
         fixture = RapidUiFixture(
             context = instrumentation.targetContext,

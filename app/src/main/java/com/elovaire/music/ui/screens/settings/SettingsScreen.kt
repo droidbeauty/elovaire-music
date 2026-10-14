@@ -5,18 +5,22 @@ import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +40,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -62,6 +68,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import elovaire.music.droidbeauty.app.R
@@ -77,6 +84,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.equalizerStatusLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
+import elovaire.music.droidbeauty.app.ui.i18n.libraryScanStatusCopy
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicyCopy
 import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicySettingsSubtitle
@@ -94,11 +102,13 @@ import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.ToggleEnabledGreen
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun SettingsScreen(
@@ -106,6 +116,11 @@ internal fun SettingsScreen(
     textSizePreset: TextSizePreset,
     appLanguage: AppLanguage,
     eqSettings: EqSettings,
+    libraryScanIsLoading: Boolean,
+    libraryScanProgress: Float,
+    libraryScanError: String?,
+    libraryScanPermissionGranted: Boolean,
+    libraryContentRevision: String,
     volumeNormalizationEnabled: Boolean,
     onlineLyricsEnabled: Boolean,
     crossfadeDurationMs: Long,
@@ -135,7 +150,51 @@ internal fun SettingsScreen(
     val audiobookCopy = remember(appLanguage) { audiobookSettingsCopy(appLanguage) }
     val smartPlaylistCopy = remember(appLanguage) { smartPlaylistSettingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
+    val scanStatusCopy = remember(appLanguage) { libraryScanStatusCopy(appLanguage) }
+    val motionTransitions = rememberMotionTransitions()
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
+    var scanPopupVisible by remember { mutableStateOf(false) }
+    var scanPopupDone by remember { mutableStateOf(false) }
+    var scanRequestId by remember { mutableStateOf(0) }
+    var scanStartedAtMillis by remember { mutableStateOf(0L) }
+    var scanStartingContentRevision by remember { mutableStateOf("") }
+    var scanObservedLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        scanRequestId,
+        scanPopupVisible,
+        libraryScanIsLoading,
+        libraryScanProgress,
+        libraryScanError,
+        libraryScanPermissionGranted,
+        libraryContentRevision,
+    ) {
+        if (scanRequestId == 0 || !scanPopupVisible) return@LaunchedEffect
+        val activeRequestId = scanRequestId
+        if (libraryScanIsLoading) {
+            scanObservedLoading = true
+            scanPopupDone = false
+            return@LaunchedEffect
+        }
+        val scanFinished = scanObservedLoading ||
+            libraryScanProgress >= 1f ||
+            libraryScanError != null ||
+            !libraryScanPermissionGranted
+        if (!scanFinished) return@LaunchedEffect
+
+        delay(80L)
+        if (!scanPopupVisible) return@LaunchedEffect
+        val foundNewMedia = libraryScanError == null &&
+            libraryContentRevision != scanStartingContentRevision
+        if (foundNewMedia) {
+            scanPopupDone = true
+            delay(1_500L)
+        } else {
+            val visibleForMs = SystemClock.elapsedRealtime() - scanStartedAtMillis
+            delay((1_500L - visibleForMs).coerceAtLeast(0L))
+        }
+        if (scanRequestId == activeRequestId) scanPopupVisible = false
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -309,7 +368,15 @@ internal fun SettingsScreen(
                             title = copy.scanLibrary,
                             subtitle = copy.scanLibrarySubtitle,
                             actionLabel = copy.scan,
-                            onAction = onScanLibrary,
+                            onAction = {
+                                scanStartingContentRevision = libraryContentRevision
+                                scanStartedAtMillis = SystemClock.elapsedRealtime()
+                                scanObservedLoading = libraryScanIsLoading
+                                scanPopupDone = false
+                                scanPopupVisible = true
+                                scanRequestId += 1
+                                onScanLibrary()
+                            },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                     }
@@ -397,6 +464,18 @@ internal fun SettingsScreen(
                 }
             }
         }
+        LibraryScanProgressPopup(
+            visible = scanPopupVisible,
+            done = scanPopupDone,
+            progress = if (scanObservedLoading || libraryScanIsLoading) {
+                libraryScanProgress.coerceIn(0f, 1f)
+            } else {
+                0f
+            },
+            motionTransitions = motionTransitions,
+            scanningLabel = scanStatusCopy.scanning,
+            doneLabel = scanStatusCopy.done,
+        )
         PinnedBackTopBar(
             title = copy.settings,
             onBack = onBack,
@@ -728,6 +807,90 @@ private fun LanguagePickerOptionRow(
                 overflow = TextOverflow.Ellipsis,
             )
             SelectionIndicatorIcon(selected = selected)
+        }
+
+    }
+}
+
+@Composable
+private fun BoxScope.LibraryScanProgressPopup(
+    visible: Boolean,
+    done: Boolean,
+    progress: Float,
+    motionTransitions: elovaire.music.droidbeauty.app.ui.motion.MotionTransitions,
+    scanningLabel: String,
+    doneLabel: String,
+) {
+    val motionSpecs = rememberMotionSpecs()
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = MotionEasing.RefinedDecelerate),
+        label = "settings_library_scan_progress",
+    )
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.TopCenter)
+            .offset(y = topBarOccupiedHeight())
+            .zIndex(3f),
+        enter = motionTransitions.verticalRevealEnter(),
+        exit = motionTransitions.verticalRevealExit(),
+        label = "settings_library_scan_popup",
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+        ) {
+            FrostedTopBarBackground(
+                darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f,
+                modifier = Modifier.matchParentSize(),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = scanningLabel,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = if (done) doneLabel else "${(animatedProgress * 100f).roundToInt()}%",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                if (done) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_check),
+                            contentDescription = doneLabel,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                } else {
+                    CircularProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                    )
+                }
+            }
         }
     }
 }

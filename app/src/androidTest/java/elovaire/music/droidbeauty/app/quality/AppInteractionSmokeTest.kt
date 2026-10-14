@@ -33,7 +33,7 @@ class AppInteractionSmokeTest {
 
     @Before
     fun setUp() {
-        device.wakeUp()
+        device.executeShellCommand("input keyevent KEYCODE_WAKEUP")
         val permission = audioPermission()
         if (instrumentation.targetContext.checkSelfPermission(permission) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -109,7 +109,7 @@ class AppInteractionSmokeTest {
         val fixtureResult = waitForSearchResult(fixtureTitle)
         fixtureResult.clickActionable()
         clickTopLevel("Home")
-        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Pause")), 1_000L))
+        assertTrue(device.wait(Until.hasObject(By.pkg(packageName).desc("Pause")), APP_READY_TIMEOUT_MS))
     }
 
     private fun waitForSearchResult(title: String): UiObject2 {

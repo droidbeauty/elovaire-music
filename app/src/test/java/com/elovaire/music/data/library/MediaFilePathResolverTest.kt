@@ -40,4 +40,40 @@ class MediaFilePathResolverTest {
         assertNull(root.resolveContainedChild("linked/track.mp3"))
         assertEquals(outsideFile.canonicalPath, outside.resolveContainedChild("track.mp3")?.canonicalPath)
     }
+
+    @Test
+    fun volumeScopedPathResolutionNeverFallsBackToAnotherVolume() {
+        val primaryRoot = temp.newFolder("primary")
+        val removableRoot = temp.newFolder("ABCD-1234")
+        val otherRoot = temp.newFolder("EFGH-5678")
+
+        assertEquals(
+            listOf(primaryRoot),
+            mediaStoreRootsForVolume(listOf(primaryRoot, removableRoot, otherRoot), primaryRoot, "external_primary"),
+        )
+        assertEquals(
+            listOf(removableRoot),
+            mediaStoreRootsForVolume(listOf(primaryRoot, removableRoot, otherRoot), primaryRoot, "ABCD-1234"),
+        )
+        assertEquals(
+            emptyList<File>(),
+            mediaStoreRootsForVolume(listOf(primaryRoot), primaryRoot, "ABCD-1234"),
+        )
+    }
+
+    @Test
+    fun unavailableVolumeRootsAreRetriedAfterTheVolumeBecomesAvailable() {
+        val cache = mutableMapOf<String, List<File>>()
+        val mountedRoot = temp.newFolder("ABCD-1234")
+        var available = false
+
+        assertEquals(emptyList<File>(), cachedRootsForVolume(cache, "abcd-1234") {
+            if (available) listOf(mountedRoot) else emptyList()
+        })
+        available = true
+
+        assertEquals(listOf(mountedRoot), cachedRootsForVolume(cache, "abcd-1234") {
+            if (available) listOf(mountedRoot) else emptyList()
+        })
+    }
 }

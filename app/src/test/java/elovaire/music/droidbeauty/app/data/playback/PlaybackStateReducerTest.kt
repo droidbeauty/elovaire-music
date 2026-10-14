@@ -33,6 +33,35 @@ class PlaybackStateReducerTest {
         assertEquals(0, updated.currentIndex)
     }
 
+    @Test
+    fun reduceUpdatesRecentCollectionWhenSameSongMovesToAnotherPlaylist() {
+        val playerHandler = CountingPlayerHandler()
+        val reducer = PlaybackStateReducer(
+            playerProvider = { playerHandler.player },
+            onRecentPlaybackChanged = { _, _, _, _ -> },
+        )
+        val existing = PlaybackUiState(
+            queue = listOf(song),
+            currentIndex = 0,
+            sourcePlaylistId = 7L,
+            recentSongIds = listOf(song.id),
+            lastPlayedCollectionKind = PlaybackCollectionKind.Album,
+            lastPlayedCollectionId = song.albumId,
+        )
+        val first = reducer.reduce(existing, false, 0, 1f)
+
+        val updated = reducer.reduce(
+            existingState = first.copy(sourcePlaylistId = 9L),
+            isPauseTransitioningToStopped = false,
+            resolvedQueueIndex = 0,
+            displayedVolume = 1f,
+        )
+
+        assertEquals(PlaybackCollectionKind.Playlist, updated.lastPlayedCollectionKind)
+        assertEquals(9L, updated.lastPlayedCollectionId)
+        assertEquals(listOf(song.id), updated.recentSongIds)
+    }
+
     private companion object {
         val song = Song(
             id = 1L,

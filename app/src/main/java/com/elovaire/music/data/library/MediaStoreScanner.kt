@@ -290,16 +290,17 @@ internal class MediaStoreScanner(
                         currentCoroutineContext().ensureActive()
                         processedRows += 1
                         try {
+                            val row = rowMapper.row(cursor)
+                            val processedSong = rowProcessor.process(row)
                             if (volumeIndex >= 0) {
                                 MediaIdentityResolver.mediaStore(
                                     cursor.getString(volumeIndex),
                                     cursor.getLong(idIndex),
                                 )?.stableKey?.let(rowIdentityKeys::add)
                             }
-                            val row = rowMapper.row(cursor)
-                            rowProcessor.process(row)?.let { processedSong ->
-                                scannedMetadataUris += processedSong.identityKey
-                                songs += processedSong.song
+                            processedSong?.let { song ->
+                                scannedMetadataUris += song.identityKey
+                                songs += song.song
                             }
                         } catch (failure: CancellationException) {
                             throw failure
@@ -539,26 +540,30 @@ internal fun canQueryMediaStoreGenre(songId: Long): Boolean {
 }
 
 internal fun mediaStoreGenreVolumes(preferredVolumeName: String?): List<String> {
-    return buildList {
-        preferredVolumeName?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
-        add(MediaStore.VOLUME_EXTERNAL)
-        add(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-    }.distinct()
+    val preferredVolume = preferredVolumeName?.trim()?.takeIf { it.isNotBlank() }
+    return if (preferredVolume != null) {
+        listOf(preferredVolume)
+    } else {
+        listOf(MediaStore.VOLUME_EXTERNAL, MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    }
 }
 
 internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
+    val songsByFileName = albumSongs.map { song ->
+        song to song.fileName.lowercase(Locale.ROOT)
+    }
     val hasTrackTags = albumSongs.any { it.trackNumber > 0 }
     return if (hasTrackTags) {
-        albumSongs.sortedWith(
-            compareBy<Song>(
-                { it.discNumber.takeIf { discNumber -> discNumber > 0 } ?: 1 },
-                { if (it.trackNumber > 0) 0 else 1 },
-                { if (it.trackNumber > 0) it.trackNumber else Int.MAX_VALUE },
-                { it.fileName.lowercase(Locale.ROOT) },
+        songsByFileName.sortedWith(
+            compareBy<Pair<Song, String>>(
+                { (song, _) -> song.discNumber.takeIf { discNumber -> discNumber > 0 } ?: 1 },
+                { (song, _) -> if (song.trackNumber > 0) 0 else 1 },
+                { (song, _) -> if (song.trackNumber > 0) song.trackNumber else Int.MAX_VALUE },
+                { (_, normalizedFileName) -> normalizedFileName },
             ),
-        )
+        ).map { (song, _) -> song }
     } else {
-        albumSongs.sortedBy { it.fileName.lowercase(Locale.ROOT) }
+        songsByFileName.sortedBy { it.second }.map { it.first }
     }
 }
 

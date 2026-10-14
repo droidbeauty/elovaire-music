@@ -71,6 +71,7 @@ data class LibraryUiState(
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
     val audiobooks: List<Audiobook> = emptyList(),
+    val contentRevision: String = "",
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
     val errorMessage: String? = null,
@@ -517,7 +518,7 @@ internal class LibraryRepository internal constructor(
             )
             val syncState = if (scanResult.isComplete) {
                 withContext(ioDispatcher) {
-                    val state = scanner.currentSyncState()
+                    val state = scanResult.mediaStoreSyncStateAtStart
                     ElovaireTrace.section("library_snapshot_persist") {
                         snapshotStore.save(
                             snapshot = prepared.snapshot,
@@ -661,13 +662,14 @@ internal class LibraryRepository internal constructor(
         progressThrottler: LibraryScanProgressThrottler,
     ): CoordinatedLibraryScan = withContext(ioDispatcher) {
         val request = attempt.request
+        val mediaStoreSyncStateAtStart = scanner.currentSyncState()
         val existingSnapshot = snapshotPublisher.snapshotOf(_contentState.value)
         // Lightweight reconciliation is allowed to skip extractor work, but it must never
         // replace a quality value already published to the library with a temporary null.
         // Re-prime from the committed snapshot before every scan so this remains true after
         // memory pressure or any other metadata-cache reset.
         scanner.primeMetadataCache(existingSnapshot.songs)
-        ElovaireTrace.suspendSection("library_refresh_scan") {
+        val result = ElovaireTrace.suspendSection("library_refresh_scan") {
             scanner.scanWithStatus(
                 refreshMediaIndex = request.forceMediaIndex,
                 refreshMediaPaths = request.targetedPaths,
@@ -702,6 +704,7 @@ internal class LibraryRepository internal constructor(
                 },
             )
         }
+        result.copy(mediaStoreSyncStateAtStart = mediaStoreSyncStateAtStart)
     }
 
     private fun enqueueFollowUpRequests(
@@ -1131,9 +1134,9 @@ internal class LibraryRepository internal constructor(
                 DirectFileOperation.CloseWrite,
                 DirectFileOperation.MoveTo,
                 -> directPathTombstones.remove(key)
-                DirectFileOperation.DirectoryTopology,
-                DirectFileOperation.Other,
-                -> Unit
+                DirectFileOperation.DirectoryTopology ->
+                    clearDirectPathTombstonesAtOrBelow(directPathTombstones, key)
+            DirectFileOperation.Other -> Unit
             }
         }
     }
@@ -1142,7 +1145,7 @@ internal class LibraryRepository internal constructor(
         val tombstones = synchronized(directPathTombstonesLock) { directPathTombstones.toSet() }
         if (tombstones.isEmpty()) return songs
         val filtered = songs.filterNot { song ->
-            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath) in tombstones
+            isDirectPathTombstoned(song.libraryPath, tombstones)
         }
         return filtered.takeIf { it.size != songs.size } ?: songs
     }
@@ -1152,7 +1155,7 @@ internal class LibraryRepository internal constructor(
             .mapNotNull { song -> LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath) }
             .toSet()
         synchronized(directPathTombstonesLock) {
-            directPathTombstones.retainAll(presentPaths)
+            directPathTombstones.retainAll(directPathTombstonesStillPresent(directPathTombstones, presentPaths))
         }
     }
 
@@ -1192,6 +1195,45 @@ internal class LibraryRepository internal constructor(
         }
     }
 
+}
+
+internal fun isDirectPathTombstoned(
+    path: String?,
+    tombstones: Set<String>,
+): Boolean {
+    var candidate = LibrarySongDuplicateResolver.normalizedRealPath(path) ?: return false
+    while (true) {
+        if (candidate in tombstones) return true
+        val separator = candidate.lastIndexOf('/')
+        if (separator <= 0) return false
+        candidate = candidate.substring(0, separator)
+    }
+}
+
+internal fun directPathTombstonesStillPresent(
+    tombstones: Set<String>,
+    presentPaths: Set<String>,
+): Set<String> {
+    if (tombstones.isEmpty() || presentPaths.isEmpty()) return emptySet()
+    val presentPathsAndParents = hashSetOf<String>()
+    presentPaths.forEach { path ->
+        var candidate = path
+        while (true) {
+            presentPathsAndParents += candidate
+            val separator = candidate.lastIndexOf('/')
+            if (separator <= 0) break
+            candidate = candidate.substring(0, separator)
+        }
+    }
+    return tombstones.filterTo(hashSetOf(), presentPathsAndParents::contains)
+}
+
+internal fun clearDirectPathTombstonesAtOrBelow(
+    tombstones: MutableSet<String>,
+    path: String,
+) {
+    val normalizedPath = LibrarySongDuplicateResolver.normalizedRealPath(path) ?: return
+    tombstones.removeAll { it == normalizedPath || it.startsWith("$normalizedPath/") }
 }
 
 private fun LibraryRuntimeState.pendingRefreshIsFreshnessCritical(): Boolean {
