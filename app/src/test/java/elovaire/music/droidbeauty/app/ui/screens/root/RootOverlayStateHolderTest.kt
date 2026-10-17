@@ -13,9 +13,11 @@ class RootOverlayStateHolderTest {
             showTopBarMenu = showTopBarMenu,
             showChangelogSheet = showChangelogSheet,
             showPlaylistCreateDialog = false,
+            artistInfoArtist = null,
             setTopBarMenu = { showTopBarMenu = it },
             setChangelogSheet = { showChangelogSheet = it },
             setPlaylistCreateDialog = {},
+            setArtistInfoArtist = {},
         )
 
         holder.openChangelogSheet()
@@ -33,9 +35,11 @@ class RootOverlayStateHolderTest {
             showTopBarMenu = showTopBarMenu,
             showChangelogSheet = showChangelogSheet,
             showPlaylistCreateDialog = showPlaylistCreateDialog,
+            artistInfoArtist = "Example Artist",
             setTopBarMenu = { showTopBarMenu = it },
             setChangelogSheet = { showChangelogSheet = it },
             setPlaylistCreateDialog = { showPlaylistCreateDialog = it },
+            setArtistInfoArtist = {},
         )
 
         holder.onRouteChanged(HOME_ROUTE)
@@ -52,13 +56,44 @@ class RootOverlayStateHolderTest {
             showTopBarMenu = false,
             showChangelogSheet = false,
             showPlaylistCreateDialog = showPlaylistCreateDialog,
+            artistInfoArtist = null,
             setTopBarMenu = {},
             setChangelogSheet = {},
             setPlaylistCreateDialog = { showPlaylistCreateDialog = it },
+            setArtistInfoArtist = {},
         )
 
         holder.onRouteChanged(PLAYLISTS_ROUTE)
 
         assertTrue(showPlaylistCreateDialog)
+    }
+
+    @Test
+    fun artistInfoOverlay_isOnlyExposedOnArtistDetailRoute() {
+        val visible = RootOverlayStateHolder(
+            currentRoute = "$ARTIST_ROUTE/{artistName}",
+            showTopBarMenu = false,
+            showChangelogSheet = false,
+            showPlaylistCreateDialog = false,
+            artistInfoArtist = "Example Artist",
+            setTopBarMenu = {},
+            setChangelogSheet = {},
+            setPlaylistCreateDialog = {},
+            setArtistInfoArtist = {},
+        )
+        val hidden = RootOverlayStateHolder(
+            currentRoute = HOME_ROUTE,
+            showTopBarMenu = false,
+            showChangelogSheet = false,
+            showPlaylistCreateDialog = false,
+            artistInfoArtist = "Example Artist",
+            setTopBarMenu = {},
+            setChangelogSheet = {},
+            setPlaylistCreateDialog = {},
+            setArtistInfoArtist = {},
+        )
+
+        assertTrue(visible.artistInfoArtist == "Example Artist")
+        assertTrue(hidden.artistInfoArtist == null)
     }
 }

@@ -108,7 +108,7 @@ internal class EqualizerViewModel(
     }
 
     fun updatePreamp(valueDb: Float) = updateState {
-        it.copy(preampDb = EqValuePolicy.clampPreamp(valueDb))
+        it.copy(preampDb = EqValuePolicy.snapPreamp(valueDb))
     }
 
     fun updateBass(value: Float) = updateState { it.copy(bassBoost = EqValuePolicy.clampPositiveMacro(value)) }

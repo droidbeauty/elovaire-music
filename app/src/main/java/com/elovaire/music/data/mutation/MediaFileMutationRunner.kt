@@ -124,6 +124,7 @@ internal class MediaFileMutationRunner(
     fun overwriteOriginal(
         uri: Uri,
         source: File,
+        onWriteStarted: () -> Unit = {},
     ) {
         faultInjector.checkpoint(MediaMutationTransactionPhase.OriginalOverwrite)
         check(source.isFile && source.length() > 0L) { "The replacement song file is empty." }
@@ -141,6 +142,7 @@ internal class MediaFileMutationRunner(
             try {
                 copyFileDurably(source, replacement)
                 try {
+                    onWriteStarted()
                     Files.move(
                         replacement.toPath(),
                         destination.toPath(),
@@ -158,7 +160,7 @@ internal class MediaFileMutationRunner(
             faultInjector.checkpoint(MediaMutationTransactionPhase.OriginalCommitted)
             return
         }
-        contentIo.replaceFromFile(uri, source)
+        contentIo.replaceFromFile(uri, source, onWriteStarted)
         faultInjector.checkpoint(MediaMutationTransactionPhase.OriginalCommitted)
     }
 

@@ -52,6 +52,7 @@ internal fun isValidMutationTransition(
     return next in when (current) {
         MediaMutationStatus.Created -> setOf(
             MediaMutationStatus.PreflightPassed,
+            MediaMutationStatus.NeedsPermission,
             MediaMutationStatus.Failed,
             MediaMutationStatus.Cancelled,
         )
@@ -67,6 +68,7 @@ internal fun isValidMutationTransition(
             MediaMutationStatus.Cancelled,
         )
         MediaMutationStatus.PermissionGranted -> setOf(
+            MediaMutationStatus.PreflightPassed,
             MediaMutationStatus.TempWritten,
             MediaMutationStatus.Failed,
             MediaMutationStatus.Cancelled,
@@ -78,6 +80,7 @@ internal fun isValidMutationTransition(
             MediaMutationStatus.Cancelled,
         )
         MediaMutationStatus.TempVerified -> setOf(
+            MediaMutationStatus.NeedsPermission,
             MediaMutationStatus.Committed,
             MediaMutationStatus.Failed,
             MediaMutationStatus.NeedsRepair,

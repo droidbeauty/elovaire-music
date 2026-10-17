@@ -38,7 +38,7 @@ internal fun equalPowerCrossfadeEnvelope(progress: Float): Pair<Float, Float> {
 
 internal object CrossfadeDurationPolicy {
     const val MIN_DURATION_MS = 1_000L
-    const val DEFAULT_DURATION_MS = 2_500L
+    const val DEFAULT_DURATION_MS = 3_000L
     const val MAX_DURATION_MS = 12_000L
     const val SETTINGS_MIN_DURATION_MS = 2_000L
     const val SETTINGS_MAX_DURATION_MS = 5_000L

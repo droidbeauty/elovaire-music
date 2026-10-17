@@ -56,6 +56,21 @@ class AlbumTagEditorUiStateTest {
         assertFalse(state.canSave)
     }
 
+    @Test
+    fun invalidTrackOrDiscNumberDisablesSaveInsteadOfReplacingItWithADefault() {
+        val original = testAlbum().toTagEditorUiState()
+        listOf("", "0", "10000", "999999999999").forEach { number ->
+            listOf(
+                original.tracks.first().copy(trackNumber = number),
+                original.tracks.first().copy(discNumber = number),
+            ).forEach { edited ->
+                val state = original.copy(tracks = listOf(edited) + original.tracks.drop(1)).recalculateFlags()
+                assertFalse(number, state.canSave)
+                assertTrue(number, state.validationErrors.isNotEmpty())
+            }
+        }
+    }
+
     private fun testAlbum(): Album {
         val songs = listOf(
             Song(

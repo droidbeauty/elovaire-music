@@ -14,3 +14,8 @@
 -keepclassmembers,allowobfuscation class org.jaudiotagger.** {
     public <init>(...);
 }
+
+# Frame creation builds these class names from ID3 frame IDs at runtime.
+-keep,allowoptimization class org.jaudiotagger.tag.id3.framebody.FrameBody* {
+    public <init>(...);
+}

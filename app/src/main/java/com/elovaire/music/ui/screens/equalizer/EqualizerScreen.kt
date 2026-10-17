@@ -266,6 +266,7 @@ internal fun EqualizerScreen(
                             onValueChange = onPreampChanged,
                             valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
                             centerValue = 0f,
+                            stepSize = EqValuePolicy.GAIN_STEP_DB,
                         )
                     }
                 }
@@ -1922,6 +1923,7 @@ internal fun ThinContinuousSlider(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     centerValue: Float? = null,
+    stepSize: Float? = null,
     lineThickness: Dp = 2.dp,
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
@@ -1937,7 +1939,6 @@ internal fun ThinContinuousSlider(
     }
     val activeStartFraction = centerFraction?.let { minOf(it, fraction) } ?: 0f
     val activeEndFraction = centerFraction?.let { maxOf(it, fraction) } ?: fraction
-    val markerSize = 4.dp
     val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
@@ -1994,7 +1995,9 @@ internal fun ThinContinuousSlider(
             if (maxWidthPx > 0f) {
                 val normalized = ((xPosition - trackStartPx) / trackWidthPx).coerceIn(0f, 1f)
                 val rangedValue = valueRange.start + ((valueRange.endInclusive - valueRange.start) * normalized)
-                currentOnValueChange(rangedValue.coerceIn(valueRange.start, valueRange.endInclusive))
+                val safeStep = stepSize?.takeIf { it.isFinite() && it > 0f }
+                val adjustedValue = safeStep?.let { (rangedValue / it).roundToInt() * it } ?: rangedValue
+                currentOnValueChange(adjustedValue.coerceIn(valueRange.start, valueRange.endInclusive))
             }
         }
 
@@ -2040,6 +2043,26 @@ internal fun ThinContinuousSlider(
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
                     .background(knobColor),
             )
+            val stepCount = stepSize
+                ?.takeIf { it.isFinite() && it > 0f }
+                ?.let { ((valueRange.endInclusive - valueRange.start) / it).roundToInt() }
+            if (stepCount != null && stepCount > 0) {
+                repeat(stepCount + 1) { index ->
+                    val stepFraction = index.toFloat() / stepCount
+                    val isOnActiveTrack = stepFraction in activeStartFraction..activeEndFraction
+                    Box(
+                        modifier = Modifier
+                            .offset(x = trackStart + trackWidth * stepFraction - 1.dp)
+                            .size(2.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isOnActiveTrack) MaterialTheme.colorScheme.background.copy(alpha = 0.68f)
+                                else knobColor.copy(alpha = 0.46f),
+                            )
+                            .align(Alignment.CenterStart),
+                    )
+                }
+            }
             Box(
                 modifier = Modifier
                     .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
@@ -2048,16 +2071,6 @@ internal fun ThinContinuousSlider(
                     .background(knobColor)
                     .align(Alignment.CenterStart),
             )
-            if (centerFraction != null) {
-                Box(
-                    modifier = Modifier
-                        .offset(x = trackStart + (trackWidth * centerFraction) - (markerSize / 2f))
-                        .size(markerSize)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .align(Alignment.CenterStart),
-                )
-            }
         }
     }
 }

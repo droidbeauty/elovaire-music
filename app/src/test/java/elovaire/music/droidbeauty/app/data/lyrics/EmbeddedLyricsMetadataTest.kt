@@ -14,6 +14,8 @@ import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.id3.AbstractID3v2Tag
 import org.jaudiotagger.tag.id3.ID3v22Tag
 import org.jaudiotagger.tag.id3.ID3v24Tag
+import org.jaudiotagger.tag.id3.ID3v11Tag
+import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
 
 class EmbeddedLyricsMetadataTest {
     @Test
@@ -104,6 +106,33 @@ class EmbeddedLyricsMetadataTest {
             listOf(1_000L, 5_500L),
             parseLrcOrPlain(fields.unsynced.single())?.lines?.map { it.startTimeMs },
         )
+    }
+
+    @Test
+    fun id3v1OnlyFilesGainModernTagsWithoutLosingExistingMetadata() {
+        val file = copyFixture("lyrics-no-id3.mp3")
+        val mp3 = AudioFileIO.read(file) as MP3File
+        mp3.setID3v1Tag(ID3v11Tag().apply {
+            setField(FieldKey.TITLE, "Legacy title")
+            setField(FieldKey.ARTIST, "Legacy artist")
+        })
+        mp3.commit()
+        assertTrue(AudioFileIO.read(file).tag is org.jaudiotagger.tag.id3.ID3v1Tag)
+
+        val lyrics = "[00:01.00]First lyrics\n[00:02.00]Second line"
+        EmbeddedLyricsMetadata.write(file, request(file, lyrics))
+        AudioTagIO.edit(file) { tag ->
+            tag.setField(FieldKey.ALBUM_ARTIST, "New album artist")
+            tag.setField(FieldKey.DISC_NO, "2")
+        }
+
+        val tag = AudioFileIO.read(file).tag
+        assertTrue(tag is ID3v24Tag)
+        assertEquals("Legacy title", tag.getFirst(FieldKey.TITLE))
+        assertEquals("Legacy artist", tag.getFirst(FieldKey.ARTIST))
+        assertEquals("New album artist", tag.getFirst(FieldKey.ALBUM_ARTIST))
+        assertEquals("2", tag.getFirst(FieldKey.DISC_NO))
+        assertEquals(listOf(1_000L, 2_000L), AudioFileLyricsInspection.inspect(file).synced.single().map { it.startTimeMs })
     }
 
     @Test

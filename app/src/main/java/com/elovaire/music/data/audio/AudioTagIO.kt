@@ -3,9 +3,14 @@ package elovaire.music.droidbeauty.app.data.audio
 import java.io.File
 import java.util.Locale
 import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.audio.mp4.Mp4TagReader
 import org.jaudiotagger.audio.mp4.Mp4TagWriter
 import org.jaudiotagger.tag.Tag
+import org.jaudiotagger.tag.id3.AbstractTag
+import org.jaudiotagger.tag.id3.ID3v1Tag
+import org.jaudiotagger.tag.id3.ID3v22Tag
+import org.jaudiotagger.tag.id3.ID3v24Tag
 
 internal object AudioTagIO {
     fun isMp4(file: File): Boolean = file.extension.lowercase(Locale.ROOT) in MP4_EXTENSIONS
@@ -24,7 +29,14 @@ internal object AudioTagIO {
             Mp4TagWriter(file.path).write(tag, file.toPath())
         } else {
             val audioFile = AudioFileIO.read(file)
-            update(audioFile.tagOrCreateAndSetDefault)
+            val tag = audioFile.tag
+            // ID3v1 cannot hold modern fields; ID3v2.2 has no writable USLT/SYLT bodies.
+            val writableTag = if (audioFile is MP3File && (tag is ID3v1Tag || tag is ID3v22Tag)) {
+                ID3v24Tag(tag as AbstractTag).also(audioFile::setID3v2TagOnly)
+            } else {
+                audioFile.tagOrCreateAndSetDefault
+            }
+            update(writableTag)
             audioFile.commit()
         }
     }

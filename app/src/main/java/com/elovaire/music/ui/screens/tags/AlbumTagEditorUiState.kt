@@ -167,6 +167,9 @@ private fun AlbumTagEditorUiState.computeValidationErrors(): List<String> {
         errors += "Release year must be between 1 and 9999."
     }
     tracks.forEach { track ->
+        if (track.trackNumber.toIntOrNull() !in 1..9999 || track.discNumber.toIntOrNull() !in 1..9999) {
+            errors += "${track.fileName}: track and disc numbers must be between 1 and 9999."
+        }
         if (track.title.isBlank()) {
             errors += "${track.fileName}: track title cannot be empty."
         }

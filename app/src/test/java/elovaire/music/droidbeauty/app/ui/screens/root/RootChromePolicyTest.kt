@@ -50,6 +50,21 @@ class RootChromePolicyTest {
     }
 
     @Test
+    fun rootChromeVisibility_hidesCompactPlayerForArtistInfoOverlay() {
+        val visibility = rootChromeVisibility(
+            currentRoute = "$ARTIST_ROUTE/{artistName}",
+            keyboardVisible = false,
+            searchQueryActive = false,
+            currentSongPresent = true,
+            playerLayerState = PlayerLayerState.Compact,
+            artistInfoOverlayVisible = true,
+        )
+
+        assertTrue(visibility.showBottomNavigation)
+        assertFalse(visibility.showGlobalNowPlaying)
+    }
+
+    @Test
     fun rootChromeVisibility_tracksExpandedAndReturningPlayerStates() {
         val expanded = rootChromeVisibility(
             currentRoute = HOME_ROUTE,

@@ -30,6 +30,10 @@ internal object EqValuePolicy {
 
     fun clampPreamp(value: Float): Float = value.finiteOr(0f).coerceIn(MIN_PREAMP_DB, MAX_PREAMP_DB)
 
+    fun snapPreamp(value: Float): Float =
+        (round(clampPreamp(value) / GAIN_STEP_DB) * GAIN_STEP_DB)
+            .coerceIn(MIN_PREAMP_DB, MAX_PREAMP_DB)
+
     fun normalizedToDb(value: Float): Float {
         val normalized = value.finiteOr(0f).coerceIn(MIN_NORMALIZED, MAX_NORMALIZED)
         return if (normalized >= 0f) normalized * MAX_GAIN_DB else -normalized * MIN_GAIN_DB

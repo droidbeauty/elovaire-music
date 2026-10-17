@@ -22,6 +22,7 @@ internal fun rootChromeVisibility(
     searchQueryActive: Boolean,
     currentSongPresent: Boolean,
     playerLayerState: PlayerLayerState,
+    artistInfoOverlayVisible: Boolean = false,
 ): RootChromeVisibility {
     val hideCompactNowPlaying = (keyboardVisible && currentRoute == PLAYLISTS_ROUTE) ||
         (currentRoute == SEARCH_ROUTE && searchQueryActive) ||
@@ -35,7 +36,8 @@ internal fun rootChromeVisibility(
         reserveCompactNowPlayingSpace = currentSongPresent && !hideCompactNowPlaying,
         canHostCompactNowPlaying = canHostCompactNowPlaying,
         showPlayerOverlay = showPlayerOverlay,
-        showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && playerLayerState != PlayerLayerState.Expanded,
+        showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying &&
+            !artistInfoOverlayVisible && playerLayerState != PlayerLayerState.Expanded,
         reenteringFromPlayer = playerLayerState == PlayerLayerState.ReturningToCompact,
         showSharedTopBarBackdrop = currentRoute != null && currentRoute != PLAYER_ROUTE,
     )

@@ -64,9 +64,9 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
-    fun durationPolicy_hasBoundedTwoPointFiveSecondDefault() {
+    fun durationPolicy_hasBoundedThreeSecondDefault() {
         assertEquals(1_000L, CrossfadeDurationPolicy.sanitize(0L))
-        assertEquals(2_500L, CrossfadeDurationPolicy.DEFAULT_DURATION_MS)
+        assertEquals(3_000L, CrossfadeDurationPolicy.DEFAULT_DURATION_MS)
         assertEquals(12_000L, CrossfadeDurationPolicy.sanitize(Long.MAX_VALUE))
     }
 
@@ -82,6 +82,7 @@ class PlaybackCrossfadeEnvelopeTest {
         assertEquals(2_000L, CrossfadeDurationPolicy.sanitizeSettingsDuration(0L))
         assertEquals(3_500L, CrossfadeDurationPolicy.sanitizeSettingsDuration(3_499L))
         assertEquals(5_000L, CrossfadeDurationPolicy.sanitizeSettingsDuration(Long.MAX_VALUE))
+        assertEquals(-80f, CrossfadeSilencePolicy.BASE_LEVEL_DB)
         assertEquals(-100f, CrossfadeSilencePolicy.sanitizeLevelDb(-120f))
         assertEquals(-85f, CrossfadeSilencePolicy.sanitizeLevelDb(-86f))
         assertEquals(-60f, CrossfadeSilencePolicy.sanitizeLevelDb(-59f))
@@ -211,8 +212,8 @@ class PlaybackCrossfadeEnvelopeTest {
         )
 
         assertEquals(20_000L, plan.outgoingMixOutMs)
-        assertEquals(17_500L, plan.fadeStartMs)
-        assertEquals(2_500L, plan.fadeDurationMs)
+        assertEquals(17_000L, plan.fadeStartMs)
+        assertEquals(3_000L, plan.fadeDurationMs)
         assertEquals(120L, plan.incomingMixInMs)
     }
 
@@ -251,7 +252,7 @@ class PlaybackCrossfadeEnvelopeTest {
             incomingDurationMs = 3_000L,
         )
 
-        assertEquals(2_500L, plan.fadeDurationMs)
+        assertEquals(3_000L, plan.fadeDurationMs)
         assertEquals(1_000L, plan.incomingMixInMs)
     }
 
@@ -267,7 +268,7 @@ class PlaybackCrossfadeEnvelopeTest {
         )
 
         assertEquals(0L, plan.incomingMixInMs)
-        assertEquals(2_500L, plan.fadeDurationMs)
+        assertEquals(3_000L, plan.fadeDurationMs)
     }
 
     @Test
@@ -349,9 +350,9 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
-    fun trailingCue_usesMinusNinetyDbfsRmsFloor() {
-        val belowFloor = CrossfadeLevelWindow(0L, 20L, 1f / 32_768f)
-        val aboveFloor = CrossfadeLevelWindow(20L, 40L, 2f / 32_768f)
+    fun trailingCue_usesMinusEightyDbfsRmsFloor() {
+        val belowFloor = CrossfadeLevelWindow(0L, 20L, 3f / 32_768f)
+        val aboveFloor = CrossfadeLevelWindow(20L, 40L, 4f / 32_768f)
 
         assertEquals(
             0L to 20L,

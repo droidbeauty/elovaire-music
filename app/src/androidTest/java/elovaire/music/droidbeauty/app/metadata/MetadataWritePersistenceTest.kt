@@ -6,10 +6,14 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Until
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
@@ -23,6 +27,9 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
+import elovaire.music.droidbeauty.app.data.tags.TagEditFailureCause
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationFaultInjector
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationTransactionPhase
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
@@ -35,6 +42,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -44,14 +52,104 @@ class MetadataWritePersistenceTest {
     private val testContext = InstrumentationRegistry.getInstrumentation().context
     private val resolver: ContentResolver = context.contentResolver
     private val insertedUris = mutableListOf<Uri>()
+    private val shellOwnedUris = mutableListOf<Uri>()
+    private val temporaryFiles = mutableListOf<File>()
 
     @After
     fun tearDown() {
         try {
+            shellOwnedUris.forEach { uri ->
+                UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+                    .executeShellCommand("content delete --uri $uri")
+            }
             resolver.deleteTestOwnedRows(insertedUris, "metadata persistence")
         } finally {
+            temporaryFiles.forEach(File::delete)
+            temporaryFiles.clear()
             insertedUris.clear()
+            shellOwnedUris.clear()
         }
+    }
+
+    @Test
+    fun newMp3TagsPersistLyricsAndTextWithoutChangingAudio() {
+        val song = insertFixtureSong("write-fixture.mp3", id = 100L)
+        val file = copyPersistedToTemp(song)
+        val mp3 = org.jaudiotagger.audio.AudioFileIO.read(file) as org.jaudiotagger.audio.mp3.MP3File
+        mp3.delete(mp3.getID3v2Tag())
+        resolver.openOutputStream(song.uri, "rwt")!!.use { output -> file.inputStream().use { it.copyTo(output) } }
+        assertEquals(null, AudioTagIO.read(file))
+        val originalAudio = encodedAudioDigest(song.uri)
+        val lyrics = "[00:01.00]First lyrics żółć\n[00:02.00]Second line"
+
+        val lyricsResult = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
+
+        assertTrue("$lyricsResult", lyricsResult is EmbeddedLyricsWriteResult.Success)
+        assertEquals(listOf(1_000L, 2_000L), runBlocking { LocalLyricsResolver(context).resolve(song) }?.payload?.lines?.map { it.startTimeMs })
+        val tagResult = runBlocking { AlbumTagEditorService(context).applyEdits(editRequest(song)) }
+        assertTrue("${tagResult.failures}", tagResult.failures.isEmpty())
+        assertEquals("Persisted Track Title", persistedTag(song).getFirst(FieldKey.TITLE))
+        assertArrayEquals(originalAudio, encodedAudioDigest(song.uri))
+        assertTrue(AudioFileLyricsInspection.inspect(copyPersistedToTemp(song)).synced.isNotEmpty())
+    }
+
+    @Test
+    fun failedPersistedVerificationRestoresOriginalFileExactly() {
+        val song = insertFixtureSong("write-fixture.mp3", id = 703L)
+        val original = copyPersistedToTemp(song).readBytes()
+        var injected = false
+        val editor = AlbumTagEditorService(context, faultInjector = MediaMutationFaultInjector { phase ->
+            if (phase == MediaMutationTransactionPhase.PersistedVerification && !injected) {
+                injected = true
+                throw java.io.IOException("Injected readback failure")
+            }
+        })
+
+        val result = runBlocking { editor.applyEdits(editRequest(song)) }
+
+        assertTrue(injected)
+        assertTrue(result.editedSongs.isEmpty())
+        assertEquals(TagEditFailureCause.PersistedVerificationFailed, result.failures.single().cause)
+        assertArrayEquals(original, copyPersistedToTemp(song).readBytes())
+        assertTrue(File(context.filesDir, "album-tag-edits").listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun deniedTagWriteRequestsPermissionWithoutRollbackOrLeakingBackup() {
+        val song = insertForeignFixtureSong(id = 701L)
+        val original = encodedAudioDigest(song.uri)
+
+        val result = runBlocking { AlbumTagEditorService(context).applyEdits(editRequest(song)) }
+
+        assertTrue(result.editedSongs.isEmpty())
+        assertEquals(TagEditFailureCause.PermissionRequired, result.failures.single().cause)
+        assertNotNull(result.permissionRequest)
+        assertArrayEquals(original, encodedAudioDigest(song.uri))
+        assertTrue(File(context.filesDir, "album-tag-edits").listFiles().orEmpty().isEmpty())
+        val retried = withWriteAccess(checkNotNull(result.permissionRequest)) {
+            runBlocking { AlbumTagEditorService(context).applyEdits(editRequest(song), writeConsentGranted = true) }
+        }
+        assertTrue("${retried.failures}", retried.failures.isEmpty())
+        assertEquals("Persisted Track Title", persistedTag(song).getFirst(FieldKey.TITLE))
+        assertArrayEquals(original, encodedAudioDigest(song.uri))
+    }
+
+    @Test
+    fun deniedLyricsWriteRequestsPermissionWithoutLeakingBackup() {
+        val song = insertForeignFixtureSong(id = 702L)
+        val original = encodedAudioDigest(song.uri)
+
+        val result = runBlocking { EmbeddedLyricsWriter(context).write(song, "First embedded lyrics") }
+
+        assertTrue("$result", result is EmbeddedLyricsWriteResult.PermissionRequired)
+        assertArrayEquals(original, encodedAudioDigest(song.uri))
+        assertTrue(File(context.filesDir, "lyrics-tag-edit").listFiles().orEmpty().isEmpty())
+        val retried = withWriteAccess((result as EmbeddedLyricsWriteResult.PermissionRequired).request) {
+            runBlocking { EmbeddedLyricsWriter(context).write(song, "First embedded lyrics", approvedMediaUri = song.uri) }
+        }
+        assertTrue("$retried", retried is EmbeddedLyricsWriteResult.Success)
+        assertEquals(listOf("First embedded lyrics"), AudioFileLyricsInspection.inspect(copyPersistedToTemp(song)).unsynced)
+        assertArrayEquals(original, encodedAudioDigest(song.uri))
     }
 
     @Test
@@ -193,7 +291,22 @@ class MetadataWritePersistenceTest {
                 val result = runBlocking { AlbumTagEditorService(context).applyEdits(request) }
 
                 assertTrue("$fixture: ${result.failures.joinToString { it.reason }}", result.failures.isEmpty())
-                assertTrue(persistedTag(song).firstArtwork?.binaryData?.isNotEmpty() == true)
+                assertArrayEquals(TEST_PNG, persistedTag(song).firstArtwork?.binaryData)
+                val bitmap = android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+                val replacement = try {
+                    bitmap.eraseColor(android.graphics.Color.BLUE)
+                    java.io.ByteArrayOutputStream().use { output ->
+                        check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output))
+                        output.toByteArray()
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+                val replaced = runBlocking {
+                    AlbumTagEditorService(context).applyEdits(request.copy(coverArtBytes = replacement))
+                }
+                assertTrue("$fixture: ${replaced.failures}", replaced.failures.isEmpty())
+                assertArrayEquals(replacement, persistedTag(song).firstArtwork?.binaryData)
             }
     }
 
@@ -350,6 +463,82 @@ class MetadataWritePersistenceTest {
         )
     }
 
+    private fun insertForeignFixtureSong(id: Long): Song {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val permission = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_AUDIO
+            else android.Manifest.permission.READ_EXTERNAL_STORAGE
+        instrumentation.uiAutomation.grantRuntimePermission(context.packageName, permission)
+        val song = insertFixtureSong("write-fixture.mp3", id)
+        val sourcePath = resolver.query(song.uri, arrayOf(MediaStore.Audio.Media.DATA), null, null, null)!!.use {
+            check(it.moveToFirst())
+            it.getString(0)
+        }
+        val fileName = "elovaire-foreign-$id-${System.nanoTime()}.mp3"
+        val path = "/sdcard/Music/ElovaireWriteTest/$fileName"
+        val device = UiDevice.getInstance(instrumentation)
+        check(sourcePath.none(Char::isWhitespace))
+        check(device.executeShellCommand("cp $sourcePath $path").isBlank()) { "Unable to copy the shell-owned fixture." }
+        device.executeShellCommand("am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://$path")
+        val deadline = SystemClock.elapsedRealtime() + 5_000L
+        while (SystemClock.elapsedRealtime() < deadline) {
+            val uri = resolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Audio.Media._ID),
+                "${MediaStore.Audio.Media.DISPLAY_NAME} = ?",
+                arrayOf(fileName),
+                null,
+            )?.use {
+                if (it.moveToFirst()) android.content.ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it.getLong(0))
+                else null
+            }
+            if (uri != null) {
+                shellOwnedUris += uri
+                return song.copy(uri = uri, fileName = fileName)
+            }
+            SystemClock.sleep(50L)
+        }
+        device.executeShellCommand("rm $path")
+        error("The shell-owned fixture was not indexed.")
+    }
+
+    private fun <T> withWriteAccess(request: android.app.PendingIntent, block: () -> T): T {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val device = UiDevice.getInstance(instrumentation)
+        device.wakeUp()
+        val activity = instrumentation.startActivitySync(
+            android.content.Intent(context, elovaire.music.droidbeauty.app.MainActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        ) as androidx.activity.ComponentActivity
+        val completed = java.util.concurrent.CountDownLatch(1)
+        val resultCode = java.util.concurrent.atomic.AtomicInteger(android.app.Activity.RESULT_CANCELED)
+        lateinit var launcher: androidx.activity.result.ActivityResultLauncher<androidx.activity.result.IntentSenderRequest>
+        instrumentation.runOnMainSync {
+            activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            launcher = activity.activityResultRegistry.register(
+                "metadata-write-permission",
+                androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult(),
+            ) { result ->
+                resultCode.set(result.resultCode)
+                completed.countDown()
+            }
+            launcher.launch(androidx.activity.result.IntentSenderRequest.Builder(request.intentSender).build())
+        }
+        try {
+            val allow = checkNotNull(device.wait(Until.findObject(By.res("android", "button1")), 5_000L)) {
+                "Unlock the device to allow the metadata test's write request."
+            }
+            allow.click()
+            assertTrue(completed.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(android.app.Activity.RESULT_OK, resultCode.get())
+            return block()
+        } finally {
+            instrumentation.runOnMainSync {
+                launcher.unregister()
+                activity.finish()
+            }
+        }
+    }
+
     private fun editRequest(song: Song): AlbumTagEditRequest {
         val album = Album(
             id = song.albumId,
@@ -385,6 +574,7 @@ class MetadataWritePersistenceTest {
     private fun copyPersistedToTemp(song: Song): File {
         val extension = song.fileName.substringAfterLast('.', "tmp")
         val temp = File.createTempFile("persisted-${song.id}-", ".$extension", context.cacheDir)
+        temporaryFiles += temp
         resolver.openInputStream(song.uri)?.use { input ->
             temp.outputStream().use(input::copyTo)
         } ?: error("Unable to read persisted fixture.")

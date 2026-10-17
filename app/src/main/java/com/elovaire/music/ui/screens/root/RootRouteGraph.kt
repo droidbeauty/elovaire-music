@@ -17,6 +17,7 @@ internal fun RootRouteGraph(
     motionTransitions: MotionTransitions,
     routeState: RootRouteState,
     routeActions: RootRouteActions,
+    overlayState: RootOverlayStateHolder,
     padding: RootRoutePadding,
     searchViewModel: SearchViewModel,
     viewModelFactory: ElovaireViewModelFactory,
@@ -158,7 +159,14 @@ internal fun RootRouteGraph(
             arguments = listOf(navArgument("artistName") { type = NavType.StringType }),
         ) { backStackEntry ->
             AlbumTransitionContent(this) {
-                ArtistRouteHost(backStackEntry.artistRouteArg(), routeState, routeActions, padding, artistImageRepository)
+                ArtistRouteHost(
+                    backStackEntry.artistRouteArg(),
+                    routeState,
+                    routeActions,
+                    padding,
+                    artistImageRepository,
+                    overlayState,
+                )
             }
         }
         composable(RootRouteRegistry.EQUALIZER) {

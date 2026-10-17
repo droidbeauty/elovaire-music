@@ -7,8 +7,6 @@ import java.io.DataOutputStream
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.TagTextField
 import org.jaudiotagger.tag.Tag
@@ -16,9 +14,7 @@ import org.jaudiotagger.tag.flac.FlacTag
 import org.jaudiotagger.tag.datatype.DataTypes
 import org.jaudiotagger.tag.id3.AbstractID3v2Frame
 import org.jaudiotagger.tag.id3.AbstractID3v2Tag
-import org.jaudiotagger.tag.id3.AbstractTag
 import org.jaudiotagger.tag.id3.ID3v24Tag
-import org.jaudiotagger.tag.id3.ID3v22Tag
 import org.jaudiotagger.tag.id3.framebody.FrameBodySYLT
 import org.jaudiotagger.tag.id3.framebody.FrameBodyUSLT
 
@@ -41,18 +37,12 @@ internal fun classifyLyricsTagKind(text: String): EmbeddedLyricsTagKind =
         ?: EmbeddedLyricsTagKind.UnsyncedLyrics
 
 internal object EmbeddedLyricsMetadata {
-    fun write(file: File, request: EmbeddedLyricsWriteRequest) {
-        if (AudioTagIO.isMp4(file)) {
-            AudioTagIO.edit(file) { tag -> writeTextLyrics(tag, request) }
-            return
-        }
-        val audioFile = AudioFileIO.read(file)
-        when (val tag = writableTag(audioFile)) {
+    fun write(file: File, request: EmbeddedLyricsWriteRequest) = AudioTagIO.edit(file) { tag ->
+        when (tag) {
             is AbstractID3v2Tag -> writeId3(tag, request)
             is FlacTag -> writeFlac(tag, request)
             else -> writeTextLyrics(tag, request)
         }
-        audioFile.commit()
     }
 
     private fun writeTextLyrics(tag: Tag, request: EmbeddedLyricsWriteRequest) {
@@ -60,18 +50,6 @@ internal object EmbeddedLyricsMetadata {
         if (request.canonicalLyrics.isNotBlank()) {
             tag.setField(tag.createField(FieldKey.LYRICS, request.canonicalLyrics))
         }
-    }
-
-    /**
-     * jaudiotagger has no writable USLT/SYLT frame bodies for ID3v2.2's three-character
-     * frame IDs. Convert that tag through MP3File's supported v2.4 conversion before
-     * creating lyrics frames, preserving the metadata it can represent.
-     */
-    private fun writableTag(audioFile: org.jaudiotagger.audio.AudioFile) = when {
-        audioFile is MP3File && audioFile.tag is ID3v22Tag -> {
-            ID3v24Tag(audioFile.tag as AbstractTag).also(audioFile::setID3v2TagOnly)
-        }
-        else -> audioFile.tagOrCreateAndSetDefault
     }
 
     private fun writeId3(tag: AbstractID3v2Tag, request: EmbeddedLyricsWriteRequest) {

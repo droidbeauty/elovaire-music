@@ -48,6 +48,7 @@ plugins {
 android {
     namespace = AppBuildConfig.Application.packageName
     compileSdk = AppBuildConfig.Android.compileSdk
+    testBuildType = providers.gradleProperty("app.testBuildType").orElse("debug").get()
 
     defaultConfig {
         applicationId = AppBuildConfig.Application.packageName
@@ -56,6 +57,7 @@ android {
         versionCode = AppBuildConfig.Application.versionCode
         versionName = AppBuildConfig.Application.versionName
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
+        testProguardFiles("proguard-android-test-rules.pro")
         instrumentationTestClass?.let { testInstrumentationRunnerArguments["class"] = it }
         // Orchestrator isolates instrumentation invocations without clearing target app data.
         testInstrumentationRunnerArguments["clearPackageData"] = "false"
@@ -95,6 +97,15 @@ android {
                 "proguard-rules.pro",
             )
         }
+        if (testBuildType == "releaseQualification") {
+            create("releaseQualification") {
+                initWith(getByName("release"))
+                applicationIdSuffix = ".qualification"
+                signingConfig = signingConfigs.getByName("debug")
+                matchingFallbacks += listOf("release")
+                proguardFiles("proguard-qualification-rules.pro")
+            }
+        }
     }
 
     compileOptions {
@@ -109,6 +120,12 @@ android {
 
     sourceSets.named("androidTest") {
         assets.directories.add("schemas")
+    }
+    if (testBuildType == "releaseQualification") {
+        sourceSets.named("releaseQualification") {
+            kotlin.srcDir("src/debug/java")
+            manifest.srcFile("src/debug/AndroidManifest.xml")
+        }
     }
 
     packaging {

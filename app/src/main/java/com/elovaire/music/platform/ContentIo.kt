@@ -68,7 +68,7 @@ internal class ContentIo(
     }
 
     @WorkerThread
-    fun replaceFromFile(uri: Uri, source: File) {
+    fun replaceFromFile(uri: Uri, source: File, onWriteStarted: () -> Unit = {}) {
         if (!source.isFile) {
             throw ContentIoException(
                 ContentIoFailureKind.LocalIo,
@@ -76,7 +76,7 @@ internal class ContentIo(
             )
         }
         if (Build.VERSION.SDK_INT >= 36 && uri.authority == MediaStore.AUTHORITY) {
-            replaceFromDescriptor(uri, source)
+            replaceFromDescriptor(uri, source, onWriteStarted)
         } else {
             val output = try {
                 resolver.openOutputStream(uri, "rwt")
@@ -88,6 +88,7 @@ internal class ContentIo(
                 null
             }
             if (output != null) {
+                onWriteStarted()
                 output.use { destination ->
                     source.inputStream().use { input ->
                         input.copyTo(destination)
@@ -96,7 +97,7 @@ internal class ContentIo(
                 }
                 logDebug(uri, "replace mode=rwt-stream bytes=${source.length()}")
             } else {
-                replaceFromDescriptor(uri, source)
+                replaceFromDescriptor(uri, source, onWriteStarted)
             }
         }
         val persistedSize = openDescriptor(uri, "r")?.use(ParcelFileDescriptor::getStatSize)
@@ -109,14 +110,14 @@ internal class ContentIo(
         }
     }
 
-    private fun replaceFromDescriptor(uri: Uri, source: File) {
-        openWritableDescriptor(uri).use { descriptor ->
-            FileOutputStream(descriptor.fileDescriptor).channel.use { output ->
-                FileInputStream(source).channel.use { input ->
-                    replaceFileContents(input, output)
-                }
-                output.force(true)
+    private fun replaceFromDescriptor(uri: Uri, source: File, onWriteStarted: () -> Unit) {
+        ParcelFileDescriptor.AutoCloseOutputStream(openWritableDescriptor(uri)).use { stream ->
+            onWriteStarted()
+            val output = stream.channel
+            FileInputStream(source).channel.use { input ->
+                replaceFileContents(input, output)
             }
+            output.force(true)
         }
     }
 

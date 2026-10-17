@@ -7,11 +7,36 @@ import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.screens.tags.toAudiobookTagEditRequest
 import elovaire.music.droidbeauty.app.ui.screens.tags.toTagEditorUiState
+import elovaire.music.droidbeauty.app.ui.screens.tags.recalculateFlags
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class AudiobookTagEditorModelsTest {
+    @Test
+    fun invalidPartNumbersCannotBeSavedAsSilentDefaults() {
+        val song = song(1L)
+        val state = Audiobook(
+            stableKey = "book",
+            title = "Book",
+            author = "Author",
+            artUri = null,
+            durationMs = song.durationMs,
+            parts = listOf(AudiobookPart(song, 1)),
+        ).toTagEditorUiState()
+        listOf("", "0", "10000", "999999999999").forEach { number ->
+            listOf(
+                state.parts.single().copy(trackNumber = number),
+                state.parts.single().copy(discNumber = number),
+            ).forEach { part ->
+                val edited = state.copy(parts = listOf(part)).recalculateFlags()
+                assertFalse(number, edited.canSave)
+                assertTrue(number, edited.validationErrors.isNotEmpty())
+            }
+        }
+    }
+
     @Test
     fun editorShowsOnePhysicalRowForRepeatedEmbeddedChapterParts() {
         val song = song(1L)

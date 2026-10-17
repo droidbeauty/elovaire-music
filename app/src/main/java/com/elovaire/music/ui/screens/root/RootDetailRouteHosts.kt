@@ -347,6 +347,7 @@ internal fun ArtistRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
     artistImageRepository: ArtistImageReader,
+    overlayState: RootOverlayStateHolder,
 ) {
     val appState = routeState.appState
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
@@ -375,7 +376,7 @@ internal fun ArtistRouteHost(
         artistSongs = artistSongs,
         artistAlbums = artistAlbums,
         artistBackdropState = artistBackdropState,
-        artistInfoReader = artistImageRepository,
+        onOpenArtistInfo = overlayState::openArtistInfo,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,
         currentSongId = routeState.appState.playback.currentSong?.id,

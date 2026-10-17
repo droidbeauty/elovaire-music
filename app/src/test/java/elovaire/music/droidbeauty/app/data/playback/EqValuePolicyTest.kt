@@ -40,6 +40,13 @@ class EqValuePolicyTest {
     }
 
     @Test
+    fun preamp_isSnappedToHalfDecibelStepsIncludingExactZero() {
+        assertEquals(-5.5f, EqValuePolicy.snapPreamp(-5.74f), 0f)
+        assertEquals(0f, EqValuePolicy.snapPreamp(0.24f), 0f)
+        assertEquals(0.5f, EqValuePolicy.snapPreamp(0.26f), 0f)
+    }
+
+    @Test
     fun signalAlteringEffects_detectsEveryEffectFamily() {
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(bands = listOf(0.1f))))
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(bass = 0.1f)))

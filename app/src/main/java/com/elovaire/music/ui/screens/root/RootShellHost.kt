@@ -64,6 +64,7 @@ internal fun BoxScope.RootOverlaySlot(
     playlistActions: RootPlaylistActions,
     permissionController: RootPermissionController,
     updateController: elovaire.music.droidbeauty.app.data.update.UpdateController,
+    artistInfoReader: elovaire.music.droidbeauty.app.data.artist.ArtistDiscographyReader,
     motionTransitions: MotionTransitions,
 ) {
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
@@ -89,6 +90,9 @@ internal fun BoxScope.RootOverlaySlot(
         onRequestAudioPermission = permissionController::requestAudioPermission,
         updateController = updateController,
         updateState = updateState,
+        artistInfoArtist = overlayState.artistInfoArtist,
+        artistInfoReader = artistInfoReader,
+        onDismissArtistInfo = overlayState::dismissArtistInfo,
         motionTransitions = motionTransitions,
     )
 }

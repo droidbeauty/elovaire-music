@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 import androidx.lifecycle.SavedStateHandle
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.tags.TagEditApplyResult
+import elovaire.music.droidbeauty.app.data.tags.TagEditFailure
+import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
 import elovaire.music.droidbeauty.app.testing.FakeAlbumTagEditor
 import elovaire.music.droidbeauty.app.testing.FakeLibraryReader
 import elovaire.music.droidbeauty.app.testing.FakeLibraryTagUpdateWriter
@@ -44,6 +46,10 @@ class AlbumTagEditorViewModelTest {
             firstViewModel.loadAlbum(1L)
             advanceUntilIdle()
             firstViewModel.onAlbumTitleChange("Edited album")
+            firstViewModel.onTrackTitleChange(song.id, "Edited | track\nżółć")
+            firstViewModel.onTrackArtistChange(song.id, "Edited artist")
+            firstViewModel.onTrackNumberChange(song.id, "7")
+            firstViewModel.onDiscNumberChange(song.id, "2")
             firstViewModel.requestSave()
             assertTrue(firstViewModel.uiState.value.platformAction != null)
 
@@ -57,6 +63,11 @@ class AlbumTagEditorViewModelTest {
             advanceUntilIdle()
 
             assertEquals("Edited album", recreatedViewModel.uiState.value.albumTitle)
+            val restoredTrack = recreatedViewModel.uiState.value.tracks.single()
+            assertEquals("Edited | track\nżółć", restoredTrack.title)
+            assertEquals("Edited artist", restoredTrack.artist)
+            assertEquals("7", restoredTrack.trackNumber)
+            assertEquals("2", restoredTrack.discNumber)
             assertTrue(recreatedViewModel.uiState.value.hasUnsavedChanges)
             assertNull(recreatedViewModel.uiState.value.platformAction)
         }
@@ -99,6 +110,37 @@ class AlbumTagEditorViewModelTest {
             assertEquals(listOf(song.id), updates.editedSongs.map { it.id })
             assertEquals(AlbumTagEditorSaveOutcome.Succeeded, viewModel.uiState.value.saveOutcome)
         }
+
+    @Test
+    fun partialSaveKeepsCollectionEditsAvailableForRetry() = runTest(mainDispatcherRule.scheduler) {
+        val first = testSong(1L)
+        val second = testSong(2L)
+        val library = FakeLibraryReader(LibraryContentState(
+            songs = listOf(first, second),
+            albums = listOf(testAlbum(songs = listOf(first, second))),
+        ))
+        val editor = FakeAlbumTagEditor()
+        val viewModel = AlbumTagEditorViewModel(library, FakeLibraryTagUpdateWriter(), editor)
+        viewModel.loadAlbum(1L)
+        advanceUntilIdle()
+        viewModel.onAlbumTitleChange("New album")
+        viewModel.requestSave()
+        val action = viewModel.uiState.value.platformAction as AlbumTagEditorPlatformAction.RequestWritePermission
+        editor.result = TagEditApplyResult(
+            editedSongIds = listOf(first.id),
+            editedUris = listOf(first.uri),
+            editedFilePaths = emptyList(),
+            editedSongs = listOf(first.copy(album = "New album")),
+            artworkChanged = false,
+            failures = listOf(TagEditFailure(second.id, second.fileName, "Temporary failure")),
+        )
+
+        viewModel.onWritePermissionNotRequired(action.operationId)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.canSave)
+        assertEquals(TagFieldEdit.Value("New album"), viewModel.uiState.value.toAlbumTagEditRequest()?.albumTitle)
+    }
 
     @Test
     fun deniedWritePermissionPreservesDraftAndCanRetry() = runTest(mainDispatcherRule.scheduler) {

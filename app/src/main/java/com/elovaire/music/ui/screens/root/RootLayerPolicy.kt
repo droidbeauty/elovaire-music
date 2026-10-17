@@ -11,4 +11,5 @@ internal object RootLayerZ {
     const val PlaylistCreate = 12f
     const val PlayerOverlay = 20f
     const val UpdateDialog = 21f
+    const val ArtistInfo = 22f
 }

@@ -194,6 +194,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -2391,7 +2392,7 @@ internal fun ArtistDetailScreen(
     artistSongs: List<Song>,
     artistAlbums: List<Album>,
     artistBackdropState: ArtistBackdropState,
-    artistInfoReader: ArtistImageReader,
+    onOpenArtistInfo: (String) -> Unit,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
     currentSongId: Long?,
@@ -2407,15 +2408,6 @@ internal fun ArtistDetailScreen(
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
     val language = LocalAppLanguage.current
     val artistInfoCopy = artistInfoCopy(language)
-    var showDiscography by remember(normalizedArtist) { mutableStateOf(false) }
-    var discographyResult by remember(normalizedArtist) {
-        mutableStateOf<ArtistDiscographyResult?>(null)
-    }
-    LaunchedEffect(showDiscography, normalizedArtist, artistInfoReader) {
-        if (!showDiscography) return@LaunchedEffect
-        discographyResult = null
-        discographyResult = artistInfoReader.discography(normalizedArtist)
-    }
     val topSongs = remember(artistSongs, songPlayCounts) {
         topArtistSongs(artistSongs, songPlayCounts)
     }
@@ -2509,36 +2501,38 @@ internal fun ArtistDetailScreen(
                 TopBarActionSpec(
                     iconResId = R.drawable.ic_lucide_info,
                     contentDescription = artistInfoCopy.buttonDescription,
-                    onClick = { showDiscography = true },
+                    onClick = { onOpenArtistInfo(normalizedArtist) },
                 ),
             ),
             modifier = Modifier.align(Alignment.TopCenter),
-        )
-        ArtistDiscographyPopup(
-            artistName = normalizedArtist,
-            result = discographyResult,
-            visible = showDiscography,
-            onDismiss = { showDiscography = false },
         )
     }
 }
 
 @Composable
-private fun ArtistDiscographyPopup(
+internal fun ArtistDiscographyPopup(
     artistName: String,
-    result: ArtistDiscographyResult?,
+    reader: elovaire.music.droidbeauty.app.data.artist.ArtistDiscographyReader,
     visible: Boolean,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = visible, onBack = onDismiss)
     val copy = artistInfoCopy(LocalAppLanguage.current)
+    val commonCopy = commonUiCopy(LocalAppLanguage.current)
     val transitions = rememberMotionTransitions()
     val listState = rememberLazyListState()
+    val uriHandler = LocalUriHandler.current
+    var result by remember(artistName) { mutableStateOf<ArtistDiscographyResult?>(null) }
+    var discographyExpanded by remember(artistName) { mutableStateOf(false) }
+    LaunchedEffect(visible, artistName, reader) {
+        if (!visible) return@LaunchedEffect
+        result = null
+        result = reader.discography(artistName)
+    }
     ElovaireAnimatedVisibility(
         visible = visible,
-        modifier = Modifier
-            .fillMaxSize()
-            .zIndex(20f),
+        modifier = modifier,
         enter = transitions.overlayFadeEnter(initialAlpha = 0.86f),
         exit = transitions.overlayFadeExit(targetAlpha = 0.94f),
         label = "artist_discography_overlay",
@@ -2588,7 +2582,7 @@ private fun ArtistDiscographyPopup(
                                 verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                             ) {
                                 Text(
-                                    text = copy.discography,
+                                    text = copy.buttonDescription,
                                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
@@ -2614,7 +2608,7 @@ private fun ArtistDiscographyPopup(
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_lucide_x),
-                                    contentDescription = "Close discography",
+                                    contentDescription = "Close artist information",
                                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                                     modifier = Modifier.size(16.dp),
                                 )
@@ -2627,7 +2621,6 @@ private fun ArtistDiscographyPopup(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
-                            contentAlignment = Alignment.Center,
                         ) {
                             when (val discography = result) {
                                 is ArtistDiscographyResult.Found -> {
@@ -2636,7 +2629,77 @@ private fun ArtistDiscographyPopup(
                                         modifier = Modifier.fillMaxSize(),
                                         verticalArrangement = Arrangement.spacedBy(0.dp),
                                     ) {
-                                        itemsIndexed(
+                                        if (discography.description != null) {
+                                            item(key = "artist_description") {
+                                                Text(
+                                                    text = discography.description,
+                                                    modifier = Modifier.padding(bottom = 18.dp),
+                                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                                                )
+                                            }
+                                        }
+                                        if (discography.genres.isNotEmpty()) {
+                                            item(key = "artist_genres") {
+                                                Column(
+                                                    modifier = Modifier.padding(bottom = 18.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                ) {
+                                                    Text(
+                                                        text = commonCopy.genres,
+                                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                                        color = readableSecondaryTextColor(),
+                                                    )
+                                                    Text(
+                                                        text = discography.genres.joinToString(" · "),
+                                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        item(key = "artist_discography_toggle") {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(ElovaireRadii.module))
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null,
+                                                        onClick = { discographyExpanded = !discographyExpanded },
+                                                    )
+                                                    .padding(vertical = 14.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Text(
+                                                    text = copy.discography,
+                                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                )
+                                                Icon(
+                                                    painter = painterResource(
+                                                        id = R.drawable.ic_lucide_chevron_down,
+                                                    ),
+                                                    contentDescription = null,
+                                                    tint = readableMutedIconColor(),
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .rotate(if (discographyExpanded) 180f else 0f),
+                                                )
+                                            }
+                                        }
+                                        if (discographyExpanded && discography.albums.isEmpty()) {
+                                            item(key = "artist_discography_unavailable") {
+                                                Text(
+                                                    text = copy.unavailable,
+                                                    modifier = Modifier.padding(vertical = 14.dp),
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                    color = readableSecondaryTextColor(),
+                                                )
+                                            }
+                                        }
+                                        if (discographyExpanded) itemsIndexed(
                                             items = discography.albums,
                                             key = { index, album -> "${album.title}_${album.firstReleaseDate}_$index" },
                                             contentType = { _, _ -> "artist_discography_album" },
@@ -2684,15 +2747,16 @@ private fun ArtistDiscographyPopup(
                                 }
 
                                 ArtistDiscographyResult.NotFound,
-                                ArtistDiscographyResult.Unavailable,
-                                -> Text(
+                                ArtistDiscographyResult.Unavailable -> Text(
                                     text = copy.unavailable,
+                                    modifier = Modifier.align(Alignment.Center),
                                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                                     color = readableSecondaryTextColor(),
                                     textAlign = TextAlign.Center,
                                 )
 
                                 null -> Column(
+                                    modifier = Modifier.align(Alignment.Center),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
@@ -2711,8 +2775,19 @@ private fun ArtistDiscographyPopup(
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "MusicBrainz",
-                            modifier = Modifier.fillMaxWidth(),
+                            text = when {
+                                (result as? ArtistDiscographyResult.Found)?.descriptionSourceUrl != null -> "Wikipedia · MusicBrainz"
+                                else -> "MusicBrainz"
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    enabled = (result as? ArtistDiscographyResult.Found)?.descriptionSourceUrl != null,
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) {
+                                    (result as? ArtistDiscographyResult.Found)?.descriptionSourceUrl?.let(uriHandler::openUri)
+                                },
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                             color = readableSecondaryTextColor(),
                             textAlign = TextAlign.Center,

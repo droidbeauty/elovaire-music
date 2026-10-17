@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
+import elovaire.music.droidbeauty.app.data.artist.ArtistDiscographyReader
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
@@ -37,6 +38,9 @@ internal fun BoxScope.RootOverlayHost(
     onRequestAudioPermission: () -> Unit,
     updateController: UpdateController,
     updateState: AppUpdateUiState,
+    artistInfoArtist: String?,
+    artistInfoReader: ArtistDiscographyReader,
+    onDismissArtistInfo: () -> Unit,
     motionTransitions: MotionTransitions,
 ) {
     var displayedUpdateRelease by remember { mutableStateOf<AppReleaseInfo?>(null) }
@@ -114,4 +118,13 @@ internal fun BoxScope.RootOverlayHost(
             onRequestPermission = onRequestAudioPermission,
         )
     }
+    ArtistDiscographyPopup(
+        artistName = artistInfoArtist.orEmpty(),
+        reader = artistInfoReader,
+        visible = artistInfoArtist != null,
+        onDismiss = onDismissArtistInfo,
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(RootLayerZ.ArtistInfo),
+    )
 }

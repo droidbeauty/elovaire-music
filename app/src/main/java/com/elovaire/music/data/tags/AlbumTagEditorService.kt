@@ -28,6 +28,8 @@ import elovaire.music.droidbeauty.app.data.mutation.VerifiedMediaFileMutationRes
 import elovaire.music.droidbeauty.app.data.mutation.VerifiedMediaFileMutationTransaction
 import elovaire.music.droidbeauty.app.platform.ContentIo
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
+import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
+import elovaire.music.droidbeauty.app.platform.mediaStoreWritePendingIntent
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -318,7 +320,7 @@ internal class AlbumTagEditorService(
                 val verificationFailures = verifyWrittenTags(
                     tempFile = workingFile,
                     expected = expected,
-                    expectArtwork = coverArtBytes != null,
+                    expectedArtwork = coverArtBytes,
                 )
                 check(verificationFailures.isEmpty()) { verificationFailures.joinToString() }
             },
@@ -327,7 +329,7 @@ internal class AlbumTagEditorService(
                 val verificationFailures = verifyWrittenTags(
                     tempFile = persistedFile,
                     expected = expected,
-                    expectArtwork = coverArtBytes != null,
+                    expectedArtwork = coverArtBytes,
                 )
                 check(verificationFailures.isEmpty()) { verificationFailures.joinToString() }
             },
@@ -401,13 +403,33 @@ internal class AlbumTagEditorService(
         }
         val phase = transaction.stage.toTagEditWritePhase()
         if (throwable is SecurityException) {
-            mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, phase.name) }
+            val permissionRequest = if (
+                !writeConsentGranted && MediaWriteTargetClassifier.classify(appContext, song.uri) is MediaWriteTarget.MediaStoreItem
+            ) {
+                mediaStoreWritePendingIntent(appContext, listOf(song.uri))
+            } else {
+                null
+            }
+            mutationId?.let {
+                mediaMutationJournal?.mark(
+                    it,
+                    if (permissionRequest != null) MediaMutationStatus.NeedsPermission else MediaMutationStatus.Failed,
+                    phase.name,
+                )
+            }
             return SingleTagEditResult(
+                permissionRequest = permissionRequest,
                 failure = TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
                     reason = phase.userMessage,
-                    cause = phase.cause,
+                    cause = if (permissionRequest != null) {
+                        TagEditFailureCause.PermissionRequired
+                    } else if (writeConsentGranted) {
+                        TagEditFailureCause.PermissionDeniedAfterGrant
+                    } else {
+                        phase.cause
+                    },
                 ),
             )
         }
@@ -609,7 +631,7 @@ internal class AlbumTagEditorService(
     private fun verifyWrittenTags(
         tempFile: File,
         expected: ExpectedTagValues,
-        expectArtwork: Boolean,
+        expectedArtwork: ByteArray?,
     ): List<String> {
         val tag = AudioTagIO.read(tempFile) ?: AudioFileIO.read(tempFile).tagOrCreateAndSetDefault
         val failures = mutableListOf<String>()
@@ -649,7 +671,7 @@ internal class AlbumTagEditorService(
         checkCleared(FieldKey.GENRE, "Genre", expected.shouldClearGenre)
         check(FieldKey.TRACK, expected.trackNumber, "Track")
         check(FieldKey.DISC_NO, expected.discNumber, "Disc")
-        if (expectArtwork && tag.firstArtwork?.binaryData?.isNotEmpty() != true) {
+        if (expectedArtwork != null && tag.firstArtwork?.binaryData?.contentEquals(expectedArtwork) != true) {
             failures += "Artwork was not embedded correctly"
         }
         return failures

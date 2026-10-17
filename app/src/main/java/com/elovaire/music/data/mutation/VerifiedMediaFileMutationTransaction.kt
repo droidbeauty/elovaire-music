@@ -86,8 +86,7 @@ internal class VerifiedMediaFileMutationTransaction(
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.TempVerified) }
 
             stage = MediaMutationStage.OriginalOverwrite
-            originalOverwriteStarted = true
-            mutationRunner.overwriteOriginal(song.uri, workingFile)
+            mutationRunner.overwriteOriginal(song.uri, workingFile) { originalOverwriteStarted = true }
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Committed) }
 
             stage = MediaMutationStage.PersistedVerification

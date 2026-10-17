@@ -186,7 +186,7 @@ internal class AlbumTagEditorViewModel(
 
     fun requestSave() {
         val currentState = _uiState.value
-        if (currentState.isSaving) return
+        if (!currentState.canSave) return
         val request = currentState.toAlbumTagEditRequest() ?: return
         val pending = writePermissionState.begin(request) ?: return
         _uiState.value = currentState.copy(
@@ -307,7 +307,9 @@ internal class AlbumTagEditorViewModel(
                 )
             }
             _uiState.value = _uiState.value.copy(
-                originalAlbum = result.editedSongs.takeIf { it.isNotEmpty() }?.let { editedSongs ->
+                originalAlbum = result.editedSongs.takeIf {
+                    it.isNotEmpty() && result.failures.isEmpty() && result.permissionRequest == null
+                }?.let { editedSongs ->
                     request.album.copy(
                         title = editedSongs.firstOrNull()?.album ?: request.album.title,
                         artist = editedSongs.firstOrNull()?.albumArtist ?: editedSongs.firstOrNull()?.artist ?: request.album.artist,
@@ -412,6 +414,16 @@ internal class AlbumTagEditorViewModel(
         savedStateHandle[KEY_GENRE] = state.genre
         savedStateHandle[KEY_YEAR_CLEARED] = state.yearClearedExplicitly
         savedStateHandle[KEY_ARTWORK_URI] = state.selectedArtworkUri?.toString()
+        val originals = state.originalAlbum.songs.associateBy { it.id }
+        savedStateHandle[KEY_TRACKS] = state.tracks.filterIndexed { index, track ->
+            val original = originals[track.songId] ?: return@filterIndexed false
+            track.title != original.title || track.artist != original.artist ||
+                track.trackNumber != (original.trackNumber.takeIf { it > 0 } ?: index + 1).toString() ||
+                track.discNumber != (original.discNumber.takeIf { it > 0 } ?: 1).toString()
+        }
+            .associateTo(hashMapOf()) { track ->
+                track.songId.toString() to arrayListOf(track.title, track.artist, track.trackNumber, track.discNumber)
+            }
     }
 
     private fun clearSavedDraft() {
@@ -422,6 +434,7 @@ internal class AlbumTagEditorViewModel(
         savedStateHandle.remove<String>(KEY_GENRE)
         savedStateHandle.remove<Boolean>(KEY_YEAR_CLEARED)
         savedStateHandle.remove<String>(KEY_ARTWORK_URI)
+        savedStateHandle.remove<HashMap<String, ArrayList<String>>>(KEY_TRACKS)
     }
 
     private fun restoreDraft(
@@ -429,7 +442,12 @@ internal class AlbumTagEditorViewModel(
         handle: SavedStateHandle,
     ): AlbumTagEditorUiState {
         if (handle.get<Long>(KEY_DRAFT_ALBUM_ID) != state.albumId) return state
+        val trackDrafts = handle.get<HashMap<String, ArrayList<String>>>(KEY_TRACKS).orEmpty()
         return state.copy(
+            tracks = state.tracks.map { track ->
+                val draft = trackDrafts[track.songId.toString()]?.takeIf { it.size == 4 } ?: return@map track
+                track.copy(title = draft[0], artist = draft[1], trackNumber = draft[2], discNumber = draft[3])
+            },
             albumTitle = handle.get<String>(KEY_ALBUM_TITLE) ?: state.albumTitle,
             albumArtist = handle.get<String>(KEY_ALBUM_ARTIST) ?: state.albumArtist,
             releaseYear = handle.get<String>(KEY_RELEASE_YEAR) ?: state.releaseYear,
@@ -451,5 +469,6 @@ internal class AlbumTagEditorViewModel(
         const val KEY_GENRE = "album_tag_editor.genre"
         const val KEY_YEAR_CLEARED = "album_tag_editor.year_cleared"
         const val KEY_ARTWORK_URI = "album_tag_editor.artwork_uri"
+        const val KEY_TRACKS = "album_tag_editor.tracks"
     }
 }

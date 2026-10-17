@@ -74,15 +74,16 @@ internal fun rememberRootUiRuntime(
     )
     var searchQueryActive by remember { mutableStateOf(false) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val overlayState = rememberRootOverlayStateHolder(routeObservation.route)
     val chromeVisibility = rootChromeVisibility(
         currentRoute = routeObservation.route,
         keyboardVisible = keyboardVisible,
         searchQueryActive = searchQueryActive,
         currentSongPresent = currentSongPresent,
         playerLayerState = playerLayerController.state,
+        artistInfoOverlayVisible = overlayState.artistInfoArtist != null,
     )
     val sharedTopBarController = remember { SharedTopBarController() }
-    val overlayState = rememberRootOverlayStateHolder(routeObservation.route)
     val openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit = { album, origin, source ->
         navigationState.openAlbum(album, origin, source)
     }

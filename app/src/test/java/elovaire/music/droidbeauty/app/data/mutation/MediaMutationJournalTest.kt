@@ -91,13 +91,19 @@ class MediaMutationJournalTest {
 
         journal.create(operation)
         journal.mark("permission-retry", MediaMutationStatus.PreflightPassed)
+        journal.mark("permission-retry", MediaMutationStatus.TempWritten)
+        journal.mark("permission-retry", MediaMutationStatus.TempVerified)
         journal.mark("permission-retry", MediaMutationStatus.NeedsPermission)
         journal.create(operation)
 
         assertEquals(MediaMutationStatus.NeedsPermission.name, stored.getValue("permission-retry").status)
         journal.mark("permission-retry", MediaMutationStatus.PermissionGranted)
         assertEquals(MediaMutationStatus.PermissionGranted.name, stored.getValue("permission-retry").status)
-        journal.mark("permission-retry", MediaMutationStatus.Failed)
+        listOf(
+            MediaMutationStatus.PreflightPassed, MediaMutationStatus.TempWritten, MediaMutationStatus.TempVerified,
+            MediaMutationStatus.Committed, MediaMutationStatus.PersistedVerified, MediaMutationStatus.Completed,
+        ).forEach { journal.mark("permission-retry", it) }
+        assertEquals(MediaMutationStatus.Completed.name, stored.getValue("permission-retry").status)
     }
 
     @Test

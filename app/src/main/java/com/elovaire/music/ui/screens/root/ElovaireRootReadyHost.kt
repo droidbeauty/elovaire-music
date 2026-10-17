@@ -73,6 +73,7 @@ internal fun ElovaireRootReadyHost(
                 motionTransitions = composition.motionTransitions,
                 routeState = actionRuntime.routeState,
                 routeActions = actionRuntime.routeActions,
+                overlayState = uiRuntime.overlayState,
                 padding = routePadding,
                 searchViewModel = composition.searchViewModel,
                 viewModelFactory = composition.viewModelFactory,
@@ -105,6 +106,7 @@ internal fun ElovaireRootReadyHost(
                 playlistActions = actionRuntime.playlistActions,
                 permissionController = composition.permissionController,
                 updateController = composition.updateController,
+                artistInfoReader = composition.artistImageRepository,
                 motionTransitions = composition.motionTransitions,
             )
         },
