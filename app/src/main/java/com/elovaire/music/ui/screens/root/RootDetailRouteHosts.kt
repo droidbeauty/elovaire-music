@@ -375,6 +375,7 @@ internal fun ArtistRouteHost(
         artistSongs = artistSongs,
         artistAlbums = artistAlbums,
         artistBackdropState = artistBackdropState,
+        artistInfoReader = artistImageRepository,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,
         currentSongId = routeState.appState.playback.currentSong?.id,

@@ -125,6 +125,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -246,6 +247,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
+import elovaire.music.droidbeauty.app.data.artist.ArtistDiscographyResult
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
@@ -300,12 +302,14 @@ import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.artistInfoCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -2387,6 +2391,7 @@ internal fun ArtistDetailScreen(
     artistSongs: List<Song>,
     artistAlbums: List<Album>,
     artistBackdropState: ArtistBackdropState,
+    artistInfoReader: ArtistImageReader,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
     currentSongId: Long?,
@@ -2400,6 +2405,17 @@ internal fun ArtistDetailScreen(
     onToggleFavorite: (Long) -> Unit,
 ) {
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
+    val language = LocalAppLanguage.current
+    val artistInfoCopy = artistInfoCopy(language)
+    var showDiscography by remember(normalizedArtist) { mutableStateOf(false) }
+    var discographyResult by remember(normalizedArtist) {
+        mutableStateOf<ArtistDiscographyResult?>(null)
+    }
+    LaunchedEffect(showDiscography, normalizedArtist, artistInfoReader) {
+        if (!showDiscography) return@LaunchedEffect
+        discographyResult = null
+        discographyResult = artistInfoReader.discography(normalizedArtist)
+    }
     val topSongs = remember(artistSongs, songPlayCounts) {
         topArtistSongs(artistSongs, songPlayCounts)
     }
@@ -2486,11 +2502,225 @@ internal fun ArtistDetailScreen(
         }
 
         DetailListTopBar(
-            title = commonUiCopy(LocalAppLanguage.current).artists,
+            title = commonUiCopy(language).artists,
             subtitle = null,
             onBack = onBack,
+            actions = listOf(
+                TopBarActionSpec(
+                    iconResId = R.drawable.ic_lucide_info,
+                    contentDescription = artistInfoCopy.buttonDescription,
+                    onClick = { showDiscography = true },
+                ),
+            ),
             modifier = Modifier.align(Alignment.TopCenter),
         )
+        ArtistDiscographyPopup(
+            artistName = normalizedArtist,
+            result = discographyResult,
+            visible = showDiscography,
+            onDismiss = { showDiscography = false },
+        )
+    }
+}
+
+@Composable
+private fun ArtistDiscographyPopup(
+    artistName: String,
+    result: ArtistDiscographyResult?,
+    visible: Boolean,
+    onDismiss: () -> Unit,
+) {
+    BackHandler(enabled = visible, onBack = onDismiss)
+    val copy = artistInfoCopy(LocalAppLanguage.current)
+    val transitions = rememberMotionTransitions()
+    val listState = rememberLazyListState()
+    ElovaireAnimatedVisibility(
+        visible = visible,
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(20f),
+        enter = transitions.overlayFadeEnter(initialAlpha = 0.86f),
+        exit = transitions.overlayFadeExit(targetAlpha = 0.94f),
+        label = "artist_discography_overlay",
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.46f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            )
+            PopupCardMotionHost(
+                surfaceId = "artist.discography",
+                visible = visible,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.72f),
+            ) {
+                DynamicBackdropSurface(
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(topStart = ElovaireRadii.card, topEnd = ElovaireRadii.card),
+                    overlayAlpha = 0.6f,
+                    borderColor = null,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                start = 20.dp,
+                                top = 18.dp,
+                                end = 16.dp,
+                                bottom = navigationBarInsetDp() + 20.dp,
+                            ),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+                            ) {
+                                Text(
+                                    text = copy.discography,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = artistName,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = readableSecondaryTextColor(),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = onDismiss,
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_x),
+                                    contentDescription = "Close discography",
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        DividerLine(modifier = Modifier.padding(horizontal = 0.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            when (val discography = result) {
+                                is ArtistDiscographyResult.Found -> {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                                    ) {
+                                        itemsIndexed(
+                                            items = discography.albums,
+                                            key = { index, album -> "${album.title}_${album.firstReleaseDate}_$index" },
+                                            contentType = { _, _ -> "artist_discography_album" },
+                                        ) { index, album ->
+                                            Column {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 14.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Text(
+                                                        text = album.title,
+                                                        modifier = Modifier.weight(1f),
+                                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                    )
+                                                    Column(
+                                                        horizontalAlignment = Alignment.End,
+                                                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                                                    ) {
+                                                        Text(
+                                                            text = copy.releaseDate,
+                                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                                            color = readableSecondaryTextColor(),
+                                                        )
+                                                        Text(
+                                                            text = album.firstReleaseDate ?: "—",
+                                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                        )
+                                                    }
+                                                }
+                                                if (index != discography.albums.lastIndex) DividerLine()
+                                            }
+                                        }
+                                    }
+                                    FastScrollbar(
+                                        state = listState,
+                                        topInset = 0.dp,
+                                        bottomInset = 0.dp,
+                                        trackGesturesEnabled = false,
+                                    )
+                                }
+
+                                ArtistDiscographyResult.NotFound,
+                                ArtistDiscographyResult.Unavailable,
+                                -> Text(
+                                    text = copy.unavailable,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = readableSecondaryTextColor(),
+                                    textAlign = TextAlign.Center,
+                                )
+
+                                null -> Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    Text(
+                                        text = copy.loading,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = readableSecondaryTextColor(),
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "MusicBrainz",
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = readableSecondaryTextColor(),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

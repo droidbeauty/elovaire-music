@@ -6,11 +6,11 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.9.3">
-        <item>New UI for playlist creation</item>
-        <item>Added support for spatial audio AAC playback</item>
-        <item>Added support for embedded chapters metadata in audiobooks</item>
-        <item>Added a popup info bar for interaction with Scan button in settings</item>
+    <release version="2.9.4">
+        <item>New feature - info about artist in the artist screen</item>
+        <item>UI refinements for now playing screen while listening to audiobooks</item>
+        <item>UI refinements in search screen</item>
+        <item>Stability and efficiency tweaks</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

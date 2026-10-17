@@ -723,6 +723,24 @@ private fun SearchScreen(
                 }
                     }
                 } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = topPadding + 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                        ) {
+                            searchBar()
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        ) {
                     LazyColumn(
                 state = listState,
                 overscrollEffect = null,
@@ -731,18 +749,11 @@ private fun SearchScreen(
                     .ensureSingleItemRubberBand(listState),
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = topPadding + 8.dp,
                     end = 20.dp,
                     bottom = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                item(
-                    key = "search_input",
-                    contentType = "search_input",
-                ) {
-                    searchBar()
-                }
                 when (browsingContentMode) {
                     SearchContentMode.AllSongs -> Unit
 
@@ -973,10 +984,12 @@ private fun SearchScreen(
                     }
                     FastScrollbar(
                         state = listState,
-                        topInset = topPadding + 88.dp,
+                        topInset = 0.dp,
                         bottomInset = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
                         trackGesturesEnabled = false,
                     )
+                }
+                    }
                 }
             }
         }

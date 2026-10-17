@@ -42,7 +42,7 @@ sealed interface ArtistBackdropState {
     }
 }
 
-internal interface ArtistImageReader {
+internal interface ArtistImageReader : ArtistDiscographyReader {
     fun imageState(artistName: String, localArtworkUri: Uri?): Flow<ArtistBackdropState>
 
     fun backdropState(
@@ -97,6 +97,12 @@ internal class ArtistImageRepository(
         readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
         resourceTracker = resourceTracker,
     )
+    private val artistDiscographyReader = CachedArtistDiscographyReader(
+        context = appContext,
+        transport = artworkTransport,
+        clock = clock,
+        ioDispatcher = ioDispatcher,
+    )
 
     init {
         scope.launch(ioDispatcher) {
@@ -138,6 +144,9 @@ internal class ArtistImageRepository(
         val localArtworkUri = selectLocalArtistArtwork(songs, albums)
         return imageState(artistName, localArtworkUri)
     }
+
+    override suspend fun discography(artistName: String): ArtistDiscographyResult =
+        artistDiscographyReader.discography(artistName)
 
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (pressure == MemoryPressure.Normal) return
