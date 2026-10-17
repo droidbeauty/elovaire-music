@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.zIndex
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
@@ -22,6 +23,7 @@ internal fun RootPlayerLayerHost(
     onReturnToCompactFinished: (Long) -> Unit,
     nowPlayingViewModel: NowPlayingViewModel,
     playbackManager: NowPlayingPlayback,
+    audiobookChapterReader: AudiobookChapterReader,
     songsById: Map<Long, Song>,
     audiobookSettings: AudiobookSettings,
     isCurrentSongFavorite: Boolean,
@@ -58,6 +60,8 @@ internal fun RootPlayerLayerHost(
             NowPlayingRouteHost(
                 viewModel = nowPlayingViewModel,
                 playbackManager = playbackManager,
+                audiobookChapterReader = audiobookChapterReader,
+                isPlayerVisible = visible,
                 enrichedSongsById = songsById,
                 audiobookSettings = audiobookSettings,
                 isFavorite = isCurrentSongFavorite,

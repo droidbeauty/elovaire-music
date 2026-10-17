@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -109,6 +110,7 @@ internal fun rememberChangelogReleases(): List<ChangelogRelease> {
 @Composable
 internal fun BoxScope.RootPlayerLayerSlot(
     playback: NowPlayingPlayback,
+    audiobookChapterReader: AudiobookChapterReader,
     chromeVisibility: RootChromeVisibility,
     playerLayerState: PlayerLayerState,
     playerLayerController: RootPlayerLayerController,
@@ -129,6 +131,7 @@ internal fun BoxScope.RootPlayerLayerSlot(
         onReturnToCompactFinished = playerLayerController::finishReturnToCompact,
         nowPlayingViewModel = nowPlayingViewModel,
         playbackManager = playback,
+        audiobookChapterReader = audiobookChapterReader,
         songsById = songsById,
         audiobookSettings = audiobookSettings,
         isCurrentSongFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,

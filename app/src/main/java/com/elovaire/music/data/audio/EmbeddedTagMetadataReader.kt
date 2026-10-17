@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.data.audio
 
 import android.content.Context
 import android.net.Uri
-import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationPolicy
@@ -57,7 +56,7 @@ internal class EmbeddedTagMetadataReader(context: Context) {
 
     private fun readFile(file: File): EmbeddedTagMetadata? {
         return runCatching {
-            val tag = AudioFileIO.read(file).tag ?: return@runCatching null
+            val tag = AudioTagIO.read(file) ?: return@runCatching null
             EmbeddedTagMetadata(
                 title = tag.text(FieldKey.TITLE),
                 artist = tag.text(FieldKey.ARTIST),

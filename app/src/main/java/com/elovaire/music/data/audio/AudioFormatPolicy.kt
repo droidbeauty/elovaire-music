@@ -184,7 +184,10 @@ internal object AudioFormatPolicy {
             extensions = setOf("m4a", "m4b", "mp4"),
             mimeTypes = setOf("audio/mp4", "audio/mp4a-latm", "video/mp4"),
             playbackMimeType = "audio/mp4",
-            allowedCodecMimeTypes = setOf("audio/mp4a-latm", "audio/aac", "audio/mpeg", "audio/opus", "audio/alac"),
+            allowedCodecMimeTypes = setOf(
+                "audio/mp4a-latm", "audio/aac", "audio/mpeg", "audio/opus", "audio/alac",
+                "audio/ac3", "audio/eac3", "audio/eac3-joc",
+            ),
             requiresContainerValidation = true,
             playbackSupport = PlaybackSupport.Supported,
             metadataReadSupport = MetadataReadSupport.Strong,
@@ -474,6 +477,9 @@ internal object AudioFormatPolicy {
         return when (container) {
             AudioContainerFormat.Mp3 -> "MP3"
             AudioContainerFormat.Mp4Audio -> when {
+                codecMimeType.equals("audio/eac3-joc", true) -> "E-AC-3 JOC"
+                codecMimeType.equals("audio/eac3", true) -> "E-AC-3"
+                codecMimeType.equals("audio/ac3", true) -> "AC-3"
                 codecMimeType.equals("audio/alac", true) && extension.equals("m4a", true) -> "M4A/ALAC"
                 codecMimeType.equals("audio/alac", true) && extension.equals("m4b", true) -> "M4B/ALAC"
                 codecMimeType.equals("audio/alac", true) -> "ALAC"
@@ -561,7 +567,10 @@ internal object AudioFormatPolicy {
     ): TagWriteSupport {
         val base = capabilityForFileName(fileName) ?: return TagWriteSupport.Unsupported
         if (base.tagWriteSupport != TagWriteSupport.Safe) return base.tagWriteSupport
-        if (detected == null || !detected.detectionSucceeded) return base.tagWriteSupport
+        if (detected == null) return base.tagWriteSupport
+        if (!detected.detectionSucceeded || !detected.hasAudioTrack || detected.hasVideoTrack || detected.isProtected) {
+            return TagWriteSupport.Unsupported
+        }
         return when (detected.container) {
             AudioContainerFormat.Mp3,
             AudioContainerFormat.Flac,
@@ -572,6 +581,9 @@ internal object AudioFormatPolicy {
                 "audio/aac",
                 "audio/alac",
                 "audio/mpeg",
+                "audio/ac3",
+                "audio/eac3",
+                "audio/eac3-joc",
                 -> TagWriteSupport.Safe
 
                 else -> TagWriteSupport.Partial

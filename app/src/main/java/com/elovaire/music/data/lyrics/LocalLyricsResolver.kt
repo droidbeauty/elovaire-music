@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.ContentResolver
 import android.content.Context
+import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
 import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.readBytesBounded
@@ -15,7 +16,6 @@ import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 
 internal class LocalLyricsResolver(
@@ -46,8 +46,7 @@ internal class LocalLyricsResolver(
         val tempFile = File.createTempFile("lyrics-${song.id}-", ".$extension", appContext.cacheDir)
         return try {
             if (!copyAudioToTemporaryFile(song, tempFile)) return null
-            val rawLyrics = AudioFileIO.read(tempFile)
-                .tag
+            val rawLyrics = AudioTagIO.read(tempFile)
                 ?.getFirst(FieldKey.LYRICS)
                 .orEmpty()
                 .canonicalEmbeddedLyricsText()

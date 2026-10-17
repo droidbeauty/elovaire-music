@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -10,6 +11,7 @@ import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.TagTextField
+import org.jaudiotagger.tag.Tag
 import org.jaudiotagger.tag.flac.FlacTag
 import org.jaudiotagger.tag.datatype.DataTypes
 import org.jaudiotagger.tag.id3.AbstractID3v2Frame
@@ -40,18 +42,24 @@ internal fun classifyLyricsTagKind(text: String): EmbeddedLyricsTagKind =
 
 internal object EmbeddedLyricsMetadata {
     fun write(file: File, request: EmbeddedLyricsWriteRequest) {
+        if (AudioTagIO.isMp4(file)) {
+            AudioTagIO.edit(file) { tag -> writeTextLyrics(tag, request) }
+            return
+        }
         val audioFile = AudioFileIO.read(file)
         when (val tag = writableTag(audioFile)) {
             is AbstractID3v2Tag -> writeId3(tag, request)
             is FlacTag -> writeFlac(tag, request)
-            else -> {
-                tag.deleteField(FieldKey.LYRICS)
-                if (request.canonicalLyrics.isNotBlank()) {
-                    tag.setField(tag.createField(FieldKey.LYRICS, request.canonicalLyrics))
-                }
-            }
+            else -> writeTextLyrics(tag, request)
         }
         audioFile.commit()
+    }
+
+    private fun writeTextLyrics(tag: Tag, request: EmbeddedLyricsWriteRequest) {
+        tag.deleteField(FieldKey.LYRICS)
+        if (request.canonicalLyrics.isNotBlank()) {
+            tag.setField(tag.createField(FieldKey.LYRICS, request.canonicalLyrics))
+        }
     }
 
     /**
@@ -139,7 +147,7 @@ internal data class EmbeddedLyricsFields(
 
 internal object AudioFileLyricsInspection {
     fun inspect(file: File): EmbeddedLyricsFields {
-        return when (val tag = AudioFileIO.read(file).tag) {
+        return when (val tag = AudioTagIO.read(file)) {
             is AbstractID3v2Tag -> inspectId3(tag)
             is FlacTag -> inspectFlac(tag)
             null -> EmbeddedLyricsFields()

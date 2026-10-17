@@ -111,6 +111,7 @@ internal fun ElovaireRootReadyHost(
         playerLayerHost = {
             RootPlayerLayerSlot(
                 playback = composition.playback,
+                audiobookChapterReader = composition.audiobookChapterReader,
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playerLayerState = playerLayerController.state,
                 playerLayerController = playerLayerController,

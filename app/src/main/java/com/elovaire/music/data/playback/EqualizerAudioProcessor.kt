@@ -662,8 +662,14 @@ internal class EqualizerAudioProcessor(
     }
 
     private fun updateTargets() {
-        val settingsSnapshot = currentSettings
-        if (settingsSnapshot === appliedSettings) return
+        val requestedSettings = currentSettings
+        if (requestedSettings === appliedSettings) return
+        // Stereo scene effects must not alter the front pair of an authored surround mix.
+        val settingsSnapshot = if (channelCount > 2) {
+            requestedSettings.copy(spaciousness = 0f, reverbDurationMs = 0)
+        } else {
+            requestedSettings
+        }
         manualPreampDb = settingsSnapshot.preampDb.coerceIn(safeConfig.minPreampDb, safeConfig.maxPreampDb)
         settingsHaveSignalAlteringEffects = EqValuePolicy.hasSignalAlteringEffects(settingsSnapshot)
         val flat = EqualizerDspModel.isFlat(settingsSnapshot)
@@ -738,7 +744,7 @@ internal class EqualizerAudioProcessor(
             config = safeConfig,
         )
         coefficientUpdatePending = true
-        appliedSettings = settingsSnapshot
+        appliedSettings = requestedSettings
     }
 
     private fun canBypassProcessing(): Boolean {

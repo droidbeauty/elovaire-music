@@ -13,6 +13,8 @@ import androidx.media3.extractor.ExtractorOutput
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.PositionHolder
 import androidx.media3.extractor.metadata.Chapter
+import androidx.media3.extractor.metadata.id3.ChapterFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.backend.RecordingBackendEventSink
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
@@ -36,13 +38,22 @@ class Media3AudiobookChapterReaderTest {
                     Metadata(
                         Chapter.Builder()
                             .setStartTimeMs(0L)
-                            .setEndTimeMs(100L)
+                            .setEndTimeMs(C.TIME_UNSET)
                             .setTitle(Label(null, "Intro"))
+                            .build(),
+                        Chapter.Builder()
+                            .setStartTimeMs(50L)
+                            .setEndTimeMs(100L)
+                            .setHidden(true)
                             .build(),
                         Chapter.Builder()
                             .setStartTimeMs(100L)
                             .setEndTimeMs(C.TIME_UNSET)
-                            .setHidden(true)
+                            .build(),
+                        Chapter.Builder()
+                            .setStartTimeMs(200L)
+                            .setEndTimeMs(500L)
+                            .setTitle(Label(null, "Final"))
                             .build(),
                     ),
                 )
@@ -51,9 +62,51 @@ class Media3AudiobookChapterReaderTest {
 
         val chapters = output.chapters(500L)
 
-        assertEquals(1, chapters.size)
-        assertEquals("Intro", chapters.single().title)
-        assertEquals(100L, chapters.single().endMs)
+        assertEquals(3, chapters.size)
+        assertEquals("Intro", chapters[0].title)
+        assertEquals(100L, chapters[0].endMs)
+        assertEquals(200L, chapters[1].endMs)
+        assertEquals("Final", chapters[2].title)
+        assertEquals(500L, chapters[2].endMs)
+    }
+
+    @Test
+    fun id3AudibleChaptersAreReadWithTheirTitlesAndBoundaries() {
+        val output = ChapterExtractorOutput()
+        val track = output.track(0, C.TRACK_TYPE_AUDIO) as ChapterTrackOutput
+        track.format(
+            Format.Builder()
+                .setSampleMimeType("audio/mp4")
+                .setMetadata(
+                    Metadata(
+                        ChapterFrame(
+                            "chapter-1",
+                            0,
+                            100,
+                            C.INDEX_UNSET.toLong(),
+                            C.INDEX_UNSET.toLong(),
+                            arrayOf(TextInformationFrame("TIT2", null, listOf("Opening"))),
+                        ),
+                        ChapterFrame(
+                            "chapter-2",
+                            100,
+                            500,
+                            C.INDEX_UNSET.toLong(),
+                            C.INDEX_UNSET.toLong(),
+                            emptyArray(),
+                        ),
+                    ),
+                )
+                .build(),
+        )
+
+        val chapters = output.chapters(500L)
+
+        assertEquals(2, chapters.size)
+        assertEquals("Opening", chapters[0].title)
+        assertEquals(100L, chapters[0].endMs)
+        assertEquals("Chapter 2", chapters[1].title)
+        assertEquals(500L, chapters[1].endMs)
     }
 
     @Test
@@ -107,6 +160,21 @@ class Media3AudiobookChapterReaderTest {
         assertTrue(reader.chapters(song()).isEmpty())
         assertTrue(source.openCount >= 2)
         assertTrue(source.closeCount >= 2)
+    }
+
+    @Test
+    fun extractorInternalSeekPreservesChapterParsingState() = runBlocking {
+        val extractor = ChapterAfterInternalSeekExtractor()
+        val reader = Media3AudiobookChapterReader(
+            dataSourceFactory = factory { FailingDataSource() },
+            extractorsFactory = ExtractorsFactory { arrayOf(extractor) },
+            backendEventSink = RecordingBackendEventSink(),
+        )
+
+        val chapters = reader.chapters(song())
+
+        assertEquals("Chapter", chapters.single().title)
+        assertEquals(listOf(0L), extractor.seekPositions)
     }
 
     @Test
@@ -235,5 +303,47 @@ class Media3AudiobookChapterReaderTest {
         override fun release() {
             releaseFailure?.let { throw it }
         }
+    }
+
+    private class ChapterAfterInternalSeekExtractor : Extractor {
+        private lateinit var output: ExtractorOutput
+        private var requestedData = false
+        val seekPositions = mutableListOf<Long>()
+
+        override fun sniff(input: ExtractorInput) = true
+
+        override fun init(output: ExtractorOutput) {
+            this.output = output
+        }
+
+        override fun read(input: ExtractorInput, seekPosition: PositionHolder): Int {
+            if (!requestedData) {
+                requestedData = true
+                seekPosition.position = 64L
+                return Extractor.RESULT_SEEK
+            }
+            val track = output.track(0, C.TRACK_TYPE_AUDIO) as ChapterTrackOutput
+            track.format(
+                Format.Builder()
+                    .setSampleMimeType("audio/mp4")
+                    .setMetadata(
+                        Metadata(
+                            Chapter.Builder()
+                                .setStartTimeMs(0L)
+                                .setEndTimeMs(1_000L)
+                                .setTitle(Label(null, "Chapter"))
+                                .build(),
+                        ),
+                    )
+                    .build(),
+            )
+            return Extractor.RESULT_END_OF_INPUT
+        }
+
+        override fun seek(position: Long, timeUs: Long) {
+            seekPositions += position
+        }
+
+        override fun release() = Unit
     }
 }

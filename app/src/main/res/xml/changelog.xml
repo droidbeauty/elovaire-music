@@ -8,6 +8,8 @@
     -->
     <release version="2.9.3">
         <item>New UI for playlist creation</item>
+        <item>Added support for spatial audio AAC playback</item>
+        <item>Added support for embedded chapters metadata in audiobooks</item>
         <item>Added a popup info bar for interaction with Scan button in settings</item>
         <item>Bug fixes</item>
     </release>

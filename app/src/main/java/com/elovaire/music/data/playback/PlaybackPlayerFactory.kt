@@ -67,6 +67,7 @@ internal class PlaybackPlayerFactory(
 
     private fun createFallbackPlayer(): ExoPlayer {
         val fallbackPlayer = ExoPlayer.Builder(context)
+            .setRenderersFactory(DefaultRenderersFactory(context).setEnableDecoderFallback(true))
             .setMediaSourceFactory(
                 DefaultMediaSourceFactory(context, extractorsFactory)
                     .setDataSourceFactory(dataSourceFactory),

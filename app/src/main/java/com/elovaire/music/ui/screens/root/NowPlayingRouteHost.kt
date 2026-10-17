@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -30,6 +31,8 @@ import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
 internal fun NowPlayingRouteHost(
     viewModel: NowPlayingViewModel,
     playbackManager: NowPlayingPlayback,
+    audiobookChapterReader: AudiobookChapterReader,
+    isPlayerVisible: Boolean,
     enrichedSongsById: Map<Long, Song>,
     audiobookSettings: AudiobookSettings,
     isFavorite: Boolean,
@@ -103,6 +106,8 @@ internal fun NowPlayingRouteHost(
     ForceDarkColorScheme {
         NowPlayingScreen(
             playbackManager = playbackManager,
+            audiobookChapterReader = audiobookChapterReader,
+            isPlayerVisible = isPlayerVisible,
             playerUiState = playerUiState,
             enrichedSongsById = enrichedSongsById,
             audiobookSettings = audiobookSettings,

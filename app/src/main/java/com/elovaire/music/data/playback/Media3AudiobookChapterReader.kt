@@ -90,6 +90,7 @@ internal class Media3AudiobookChapterReader(
             input.resetPeekPosition()
             val output = ChapterExtractorOutput()
             selectedExtractor.init(output)
+            selectedExtractor.seek(0L, 0L)
             val positionHolder = PositionHolder()
             var probeIterations = 0
             while (!output.audioFormatCaptured && probeIterations++ < MAX_PROBE_ITERATIONS) {
@@ -103,7 +104,6 @@ internal class Media3AudiobookChapterReader(
                         dataSource = dataSourceFactory.createDataSource()
                         dataSource.open(DataSpec(song.uri, position, C.LENGTH_UNSET.toLong()))
                         input = DefaultExtractorInput(dataSource, position, totalLength)
-                        selectedExtractor.seek(position, 0L)
                     }
                     else -> break
                 }
@@ -193,27 +193,45 @@ internal class ChapterExtractorOutput : ExtractorOutput {
     override fun seekMap(seekMap: SeekMap) = Unit
 
     fun chapters(durationMs: Long): List<AudiobookChapter> {
-        return trackOutputs
+        val candidates = trackOutputs
             .asSequence()
             .filter { it.isAudio }
             .flatMap { it.format?.metadata?.getEntriesOfType(Chapter::class.java).orEmpty().asSequence() }
             .filterNot(Chapter::isHidden)
-            .mapIndexedNotNull { index, chapter ->
+            .mapNotNull { chapter ->
                 val startMs = chapter.startTimeMs.takeUnless { it == C.TIME_UNSET }?.coerceAtLeast(0L)
-                    ?: return@mapIndexedNotNull null
-                val endMs = chapter.endTimeMs.takeUnless { it == C.TIME_UNSET }
-                    ?.coerceAtLeast(startMs)
-                    ?: durationMs.coerceAtLeast(startMs)
-                if (endMs <= startMs) return@mapIndexedNotNull null
-                AudiobookChapter(
-                    title = chapter.title?.value?.trim().orEmpty().ifBlank { "Chapter ${index + 1}" },
+                    ?: return@mapNotNull null
+                ChapterCandidate(
+                    title = chapter.title?.value?.trim().orEmpty(),
                     startMs = startMs,
-                    endMs = endMs,
+                    endMs = chapter.endTimeMs.takeUnless { it == C.TIME_UNSET }
+                        ?.takeIf { it > startMs }
                 )
             }
-            .distinctBy { it.startMs to it.endMs }
+            .sortedBy(ChapterCandidate::startMs)
+            .distinctBy(ChapterCandidate::startMs)
             .toList()
+        return candidates.mapIndexedNotNull { index, chapter ->
+            val nextStartMs = candidates.getOrNull(index + 1)?.startMs
+            val knownEndMs = nextStartMs ?: durationMs.takeIf { it > chapter.startMs }
+            val endMs = chapter.endMs
+                ?.let { declaredEndMs -> knownEndMs?.let { min(declaredEndMs, it) } ?: declaredEndMs }
+                ?: knownEndMs
+                ?: return@mapIndexedNotNull null
+            if (endMs <= chapter.startMs) return@mapIndexedNotNull null
+            AudiobookChapter(
+                title = chapter.title.ifBlank { "Chapter ${index + 1}" },
+                startMs = chapter.startMs,
+                endMs = endMs,
+            )
+        }
     }
+
+    private data class ChapterCandidate(
+        val title: String,
+        val startMs: Long,
+        val endMs: Long?,
+    )
 }
 
 @UnstableApi

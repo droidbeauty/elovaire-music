@@ -11,6 +11,7 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
 import elovaire.music.droidbeauty.app.data.audio.EmbeddedDescriptionMetadata
 import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
@@ -506,9 +507,7 @@ internal class AlbumTagEditorService(
         track: EffectiveTrackEdit,
         coverArtBytes: ByteArray?,
         coverArtMimeType: String?,
-    ) {
-        val audioFile = AudioFileIO.read(tempFile)
-        val tag = audioFile.tagOrCreateAndSetDefault
+    ) = AudioTagIO.edit(tempFile) { tag ->
         applyTextEdit(tag, FieldKey.ALBUM, request.collectionTitle)
         applyTextEdit(tag, FieldKey.ALBUM_ARTIST, request.collectionArtist)
         applyDescriptionEdit(tag, request.collectionDescription, originalSong.description)
@@ -549,7 +548,6 @@ internal class AlbumTagEditorService(
                 })
             }
         }
-        audioFile.commit()
     }
 
     private fun applyTextEdit(
@@ -613,8 +611,7 @@ internal class AlbumTagEditorService(
         expected: ExpectedTagValues,
         expectArtwork: Boolean,
     ): List<String> {
-        val audioFile = AudioFileIO.read(tempFile)
-        val tag = audioFile.tagOrCreateAndSetDefault
+        val tag = AudioTagIO.read(tempFile) ?: AudioFileIO.read(tempFile).tagOrCreateAndSetDefault
         val failures = mutableListOf<String>()
 
         fun check(field: FieldKey, expectedValue: String?, label: String) {

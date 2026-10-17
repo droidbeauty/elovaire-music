@@ -209,6 +209,32 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun surroundMp4PlaybackUsesDeviceDecodersAndKeepsTaggingIndependent() {
+        listOf("audio/mp4a-latm", "audio/ac3", "audio/eac3", "audio/eac3-joc").forEach { codec ->
+            listOf(6, 7, 8).forEach { channels ->
+                val format = detected(AudioContainerFormat.Mp4Audio, codec).copy(channelCount = channels)
+                assertEquals(PlaybackSupport.Supported, AudioFormatPolicy.playbackSupport(format))
+                assertEquals(PlaybackSupport.Unsupported, AudioFormatPolicy.playbackSupport(format.copy(decoderAvailable = false)))
+                assertEquals(TagWriteSupport.Safe, AudioFormatPolicy.tagWriteSupport(format, "surround.m4a"))
+                assertEquals(TagWriteSupport.Safe, AudioFormatPolicy.tagWriteSupport(format.copy(decoderAvailable = false), "surround.m4a"))
+            }
+        }
+    }
+
+    @Test
+    fun tagWritingRejectsProtectedVideoAndUnverifiedMp4Files() {
+        val format = detected(AudioContainerFormat.Mp4Audio, "audio/eac3-joc")
+        listOf(
+            format.copy(isProtected = true),
+            format.copy(hasVideoTrack = true),
+            format.copy(hasAudioTrack = false),
+            format.copy(detectionSucceeded = false),
+        ).forEach { unsafe ->
+            assertEquals(TagWriteSupport.Unsupported, AudioFormatPolicy.tagWriteSupport(unsafe, "surround.m4a"))
+        }
+    }
+
+    @Test
     fun writeSupport_rejectsUnsafeContainers() {
         assertEquals(
             TagWriteSupport.Unsupported,

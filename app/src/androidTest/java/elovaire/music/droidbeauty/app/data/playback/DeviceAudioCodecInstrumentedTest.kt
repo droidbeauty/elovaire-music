@@ -16,12 +16,17 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.test.platform.app.InstrumentationRegistry
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
+import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import org.junit.After
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -63,15 +68,45 @@ class DeviceAudioCodecInstrumentedTest {
         }
     }
 
+    @Test
+    fun multichannelAacPreservesChannelsThroughAudioOutput() {
+        listOf(6, 7, 8).forEach { channels ->
+            val uri = insertFixture("aac-${channels}ch.m4a", "audio/mp4")
+            listOf(false, true).forEach { effects ->
+                assertAudioOutputStarts("AAC $channels channels effects=$effects", uri, channels, effects)
+            }
+        }
+    }
+
+    @Test
+    fun dolbyMp4PlaybackRequiresACompatibleDeviceDecoder() {
+        listOf("ac3", "eac3").forEach { codec ->
+            val name = "$codec-6ch.m4a"
+            val uri = insertFixture(name, "audio/mp4")
+            val format = AudioFormatDetector(context).detect(uri, name, "audio/mp4")
+            assertTrue("$codec could not be inspected", format.detectionSucceeded)
+            assertEquals(6, format.channelCount)
+            if (format.decoderAvailable == true) {
+                assertEquals(PlaybackSupport.Supported, AudioFormatPolicy.playbackSupport(format))
+                assertAudioOutputStarts(codec, uri, 6)
+            } else {
+                assertEquals(PlaybackSupport.Unsupported, AudioFormatPolicy.playbackSupport(format))
+            }
+        }
+    }
+
     private fun assertAudioOutputStarts(
         mimeType: String,
         uri: Uri,
+        expectedChannels: Int? = null,
+        enableSignalProcessing: Boolean = false,
     ) {
         val outputStarted = CountDownLatch(1)
         val playbackFailure = AtomicReference<PlaybackException?>()
+        val outputChannels = AtomicReference<Int?>()
         var player: ExoPlayer? = null
         instrumentation.runOnMainSync {
-            player = playerFactory().create(enableSignalProcessing = false).apply {
+            player = playerFactory().create(enableSignalProcessing).apply {
                 volume = 0f
                 addListener(
                     object : Player.Listener {
@@ -83,6 +118,13 @@ class DeviceAudioCodecInstrumentedTest {
                 )
                 addAnalyticsListener(
                     object : AnalyticsListener {
+                        override fun onAudioTrackInitialized(
+                            eventTime: AnalyticsListener.EventTime,
+                            audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
+                        ) {
+                            outputChannels.set(Integer.bitCount(audioTrackConfig.channelConfig))
+                        }
+
                         override fun onAudioPositionAdvancing(
                             eventTime: AnalyticsListener.EventTime,
                             playoutStartSystemTimeMs: Long,
@@ -99,6 +141,7 @@ class DeviceAudioCodecInstrumentedTest {
         try {
             assertTrue("$mimeType did not reach audio output", outputStarted.await(20, TimeUnit.SECONDS))
             assertNull("$mimeType failed to decode", playbackFailure.get())
+            expectedChannels?.let { assertEquals("$mimeType lost channels", it, outputChannels.get()) }
         } finally {
             instrumentation.runOnMainSync { player?.release() }
         }
@@ -113,7 +156,11 @@ class DeviceAudioCodecInstrumentedTest {
                 .setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                 .build(),
-            audioProcessorsProvider = { emptyArray() },
+            audioProcessorsProvider = {
+                arrayOf(EqualizerAudioProcessor().apply {
+                    updateSettings(EqSettings(spaciousness = 0.8f, reverbDurationMs = 500))
+                })
+            },
             preferredOutputDevice = { null },
         )
     }

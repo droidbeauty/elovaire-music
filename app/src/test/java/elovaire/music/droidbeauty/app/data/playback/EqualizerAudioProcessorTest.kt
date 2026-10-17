@@ -34,6 +34,33 @@ class EqualizerAudioProcessorTest {
     }
 
     @Test
+    fun surroundChannelsBypassStereoSceneEffectsAndRestoreThemForStereo() {
+        val processor = EqualizerAudioProcessor()
+        processor.updateSettings(EqSettings(spaciousness = 0.8f, reverbDurationMs = 500))
+        listOf(6, 7, 8).forEach { channels ->
+            processor.configure(AudioProcessor.AudioFormat(48_000, channels, C.ENCODING_PCM_16BIT))
+            processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            val input = ByteBuffer.allocateDirect(channels * 2 * 64).order(ByteOrder.nativeOrder())
+            repeat(64) { repeat(channels) { channel -> input.putShort((1000 * (channel + 1)).toShort()) } }
+            input.flip()
+            val expected = ByteArray(input.remaining()).also { input.duplicate().get(it) }
+
+            processor.queueInput(input)
+            val output = processor.getOutput()
+            val actual = ByteArray(output.remaining()).also(output::get)
+
+            assertArrayEquals("$channels channels must retain their samples and order", expected, actual)
+            assertTrue(processor.debugSnapshot().dspBypassed)
+        }
+
+        processor.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        processor.queueInput(pcmBuffer())
+        assertTrue(!processor.debugSnapshot().dspBypassed)
+        processor.reset()
+    }
+
+    @Test
     fun queueInput_processesOnlyActiveEqBands() {
         val processor = EqualizerAudioProcessor()
         processor.updateSettings(

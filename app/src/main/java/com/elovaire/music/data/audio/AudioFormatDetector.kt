@@ -6,6 +6,10 @@ import android.media.AudioFormat
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import androidx.annotation.OptIn
+import androidx.media3.common.Format
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import elovaire.music.droidbeauty.app.data.library.MediaFailureDomain
 import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
 import elovaire.music.droidbeauty.app.data.library.MediaFailureKey
@@ -134,7 +138,7 @@ internal class AudioFormatDetector(
                 durationMs = audioFormat?.longOrNull(MediaFormat.KEY_DURATION)
                     ?.takeIf { it > 0L }
                     ?.div(1_000L),
-                codecProfile = audioFormat?.integerOrNull(MediaFormat.KEY_PROFILE),
+                codecProfile = audioFormat?.codecProfile(),
                 pcmEncoding = pcmEncoding,
                 isProtected = extractor.drmInitData != null,
                 evidence = DetectionEvidence.Extractor,
@@ -208,16 +212,27 @@ internal class AudioFormatDetector(
     }
 
     @Synchronized
+    @OptIn(UnstableApi::class)
     private fun hasDecoder(format: MediaFormat, mimeType: String): Boolean {
         val key = DeviceCodecProbeKey(
             mimeType = mimeType.lowercase(Locale.ROOT),
             sampleRate = format.integerOrNull(MediaFormat.KEY_SAMPLE_RATE),
             channelCount = format.integerOrNull(MediaFormat.KEY_CHANNEL_COUNT),
-            profile = format.integerOrNull(MediaFormat.KEY_PROFILE),
+            profile = format.codecProfile(),
         )
         return decoderAvailabilityCache.getOrPut(key) {
             runCatching {
-                MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(format) != null
+                val codecs = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+                val alternativeMimeType = if (mimeType.equals("audio/eac3-joc", ignoreCase = true)) {
+                    MediaCodecUtil.getAlternativeCodecMimeType(Format.Builder().setSampleMimeType(mimeType).build())
+                } else {
+                    null
+                }
+                codecs.findDecoderForFormat(format) != null ||
+                    (alternativeMimeType != null &&
+                        codecs.findDecoderForFormat(MediaFormat(format).apply {
+                            setString(MediaFormat.KEY_MIME, alternativeMimeType)
+                        }) != null)
             }.getOrDefault(false)
         }
     }
@@ -225,6 +240,9 @@ internal class AudioFormatDetector(
     private fun MediaFormat.integerOrNull(key: String): Int? {
         return runCatching { if (containsKey(key)) getInteger(key) else null }.getOrNull()
     }
+
+    private fun MediaFormat.codecProfile(): Int? =
+        integerOrNull(MediaFormat.KEY_PROFILE) ?: integerOrNull(MediaFormat.KEY_AAC_PROFILE)
 
     private fun MediaFormat.longOrNull(key: String): Long? {
         return runCatching { if (containsKey(key)) getLong(key) else null }.getOrNull()

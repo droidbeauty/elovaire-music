@@ -243,6 +243,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
@@ -260,6 +261,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudiobookChapter
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
@@ -361,6 +363,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 internal fun NowPlayingScreen(
     playbackManager: NowPlayingPlayback,
+    audiobookChapterReader: AudiobookChapterReader,
+    isPlayerVisible: Boolean,
     playerUiState: PlayerUiState,
     enrichedSongsById: Map<Long, Song>,
     audiobookSettings: AudiobookSettings,
@@ -392,6 +396,21 @@ internal fun NowPlayingScreen(
     modifier: Modifier = Modifier,
 ) {
     val liveCurrentSong = playerUiState.currentSong
+    val currentSongChapters by produceState(
+        initialValue = emptyList<AudiobookChapter>(),
+        key1 = audiobookChapterReader,
+        key2 = liveCurrentSong?.let { Triple(it.uri, it.durationMs, it.dateModifiedSeconds) },
+        key3 = isPlayerVisible,
+    ) {
+        val audiobook = liveCurrentSong?.takeIf {
+            isPlayerVisible && it.mediaKind == AudioMediaKind.Audiobook
+        }
+        value = if (audiobook != null) {
+            audiobookChapterReader.chapters(audiobook)
+        } else {
+            emptyList()
+        }
+    }
     val motionTransitions = rememberMotionTransitions()
     val motionSpecs = rememberMotionSpecs()
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
@@ -1052,6 +1071,7 @@ internal fun NowPlayingScreen(
                                 NowPlayingProgressSummary(
                                     playbackManager = playbackManager,
                                     currentSongId = currentSong.id,
+                                    chapters = currentSongChapters,
                                     freezeUpdates = transitionInFlight,
                                     format = displaySong?.audioFormat ?: currentSong.audioFormat,
                                     quality = displaySong?.audioQuality ?: currentSong.audioQuality,
@@ -1216,6 +1236,7 @@ internal fun NowPlayingScreen(
                             NowPlayingProgressSummary(
                                 playbackManager = playbackManager,
                                 currentSongId = currentSong.id,
+                                chapters = currentSongChapters,
                                 freezeUpdates = transitionInFlight,
                                 format = displaySong?.audioFormat ?: currentSong.audioFormat,
                                 quality = displaySong?.audioQuality ?: currentSong.audioQuality,
@@ -1655,6 +1676,7 @@ private fun rememberRenderedPlaybackProgress(
 private fun NowPlayingProgressSummary(
     playbackManager: NowPlayingPlayback,
     currentSongId: Long,
+    chapters: List<AudiobookChapter>,
     freezeUpdates: Boolean,
     format: String,
     quality: String?,
@@ -1674,12 +1696,22 @@ private fun NowPlayingProgressSummary(
             0f
         }
     }
+    val chapterMarkersMs = remember(chapters, playbackProgress.durationMs) {
+        chapters.asSequence()
+            .map(AudiobookChapter::startMs)
+            .filter { positionMs -> positionMs > 0L && positionMs < playbackProgress.durationMs }
+            .distinct()
+            .sorted()
+            .toList()
+    }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         PlaybackProgressBar(
             progress = progress,
+            chapterMarkersMs = chapterMarkersMs,
+            durationMs = playbackProgress.durationMs,
             isInteracting = playbackProgress.isUserScrubbing,
             contentColor = contentColor,
             onScrubStarted = playbackManager::beginScrub,
@@ -4872,6 +4904,8 @@ private fun PlayerSecondaryActionButton(
 @Composable
 private fun PlaybackProgressBar(
     progress: Float,
+    chapterMarkersMs: List<Long>,
+    durationMs: Long,
     isInteracting: Boolean,
     contentColor: Color,
     onScrubStarted: () -> Unit,
@@ -4893,6 +4927,9 @@ private fun PlaybackProgressBar(
         ) {
             val density = LocalDensity.current
             val maxWidthPx = with(density) { maxWidth.toPx() }
+            val chapterMarkerHaloWidthPx = with(density) { 4.dp.toPx() }
+            val chapterMarkerWidthPx = with(density) { 1.5.dp.toPx() }
+            val chapterMarkerHeightPx = with(density) { 10.dp.toPx() }
             val clampedProgress = progress.coerceIn(0f, 1f)
 
             Canvas(
@@ -4936,6 +4973,28 @@ private fun PlaybackProgressBar(
                     size = Size(size.width * clampedProgress, barHeight),
                     cornerRadius = cornerRadius,
                 )
+                if (durationMs > 0L) {
+                    chapterMarkersMs.forEach { chapterStartMs ->
+                        val markerX = size.width *
+                            (chapterStartMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                        val markerStart = Offset(markerX, (size.height - chapterMarkerHeightPx) / 2f)
+                        val markerEnd = Offset(markerX, (size.height + chapterMarkerHeightPx) / 2f)
+                        drawLine(
+                            color = Color.Black.copy(alpha = 0.55f),
+                            start = markerStart,
+                            end = markerEnd,
+                            strokeWidth = chapterMarkerHaloWidthPx,
+                            cap = StrokeCap.Round,
+                        )
+                        drawLine(
+                            color = contentColor,
+                            start = markerStart,
+                            end = markerEnd,
+                            strokeWidth = chapterMarkerWidthPx,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
             }
         }
     }
