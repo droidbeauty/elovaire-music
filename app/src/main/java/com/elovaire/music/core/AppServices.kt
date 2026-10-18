@@ -227,6 +227,7 @@ internal class AppServices(
         onAudiobookPlaybackSpeedChanged = preferenceStore::setAudiobookPlaybackSpeed,
         audioProcessorsProvider = playbackEffectsController::audioProcessors,
         hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,
+        upscalerSettingsProvider = { playbackEffectsController.upscalerSettings },
         initialRecentSongIds = userDataStore.recentSongIds.value,
         initialRecentAlbumIds = userDataStore.recentAlbumIds.value,
         initialLastPlayedCollectionKind = userDataStore.lastPlayedCollectionKind.value,

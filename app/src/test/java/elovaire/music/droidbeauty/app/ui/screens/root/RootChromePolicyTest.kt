@@ -10,6 +10,15 @@ import org.junit.Test
 
 class RootChromePolicyTest {
     @Test
+    fun upscalerIsRegisteredAsASettingsDetailScreen() {
+        assertTrue(UPSCALER_ROUTE in RootRouteRegistry.registeredPatterns)
+        assertEquals(1, ElovaireNavigationTransitions.depthOf(UPSCALER_ROUTE))
+        assertEquals("upscaler", rootPerformanceRouteLabel(UPSCALER_ROUTE))
+        val visibility = rootChromeVisibility(UPSCALER_ROUTE, false, false, true, PlayerLayerState.Compact)
+        assertFalse(visibility.showGlobalNowPlaying)
+    }
+
+    @Test
     fun flatOverlaySkipsRuntimeHazeWhileNormalSurfacesKeepIt() {
         assertFalse(shouldApplyDynamicBackdropHaze(31, flatOverlay = true, hazeStateAvailable = true))
         assertTrue(shouldApplyDynamicBackdropHaze(31, flatOverlay = false, hazeStateAvailable = true))

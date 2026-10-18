@@ -117,6 +117,7 @@ private class FakeAppearanceSettingsWriter : AppearanceSettingsWriter {
 }
 
 private class FakeAppearanceSettingsStore : AppearanceSettingsStore {
+    override val upscalerSettings = MutableStateFlow(elovaire.music.droidbeauty.app.domain.model.UpscalerSettings())
     override val eqSettings = MutableStateFlow(EqSettings())
     override val themeMode = MutableStateFlow(ThemeMode.System)
     override val textSizePreset = MutableStateFlow(TextSizePreset.Default)
@@ -151,6 +152,7 @@ private class FakeLibrarySettingsWriter : LibrarySettingsWriter {
 private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
     var treble: Float? = null
 
+    override fun setUpscalerSettings(settings: elovaire.music.droidbeauty.app.domain.model.UpscalerSettings) = Unit
     override fun setPlaybackVolume(value: Float) = Unit
     override fun setAudiobookPlaybackSpeed(value: Float) = Unit
     override fun setCrossfadeEnabled(enabled: Boolean) = Unit

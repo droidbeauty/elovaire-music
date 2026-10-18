@@ -30,6 +30,7 @@ internal const val SMART_PLAYLIST_EDITOR_ROUTE = "smart_playlist_editor"
 internal const val SEARCH_ROUTE = "search"
 internal const val PLAYER_ROUTE = "player"
 internal const val EQUALIZER_ROUTE = "equalizer"
+internal const val UPSCALER_ROUTE = "upscaler"
 internal const val CROSSFADE_ROUTE = "crossfade"
 internal const val AUDIOBOOK_SETTINGS_ROUTE = "audiobook_settings"
 internal const val SETTINGS_ROUTE = "settings"
@@ -73,6 +74,7 @@ internal object RootRouteRegistry {
     const val GENRE = "$GENRE_ROUTE/{genre}"
     const val ARTIST = "$ARTIST_ROUTE/{artistName}"
     const val EQUALIZER = EQUALIZER_ROUTE
+    const val UPSCALER = UPSCALER_ROUTE
     const val CROSSFADE = CROSSFADE_ROUTE
     const val AUDIOBOOK_SETTINGS = AUDIOBOOK_SETTINGS_ROUTE
     const val SETTINGS = SETTINGS_ROUTE
@@ -104,6 +106,7 @@ internal object RootRouteRegistry {
         ARTIST,
         EQUALIZER,
         CROSSFADE,
+        UPSCALER,
         AUDIOBOOK_SETTINGS,
         SETTINGS,
         MANAGE_PLAYLISTS,
@@ -309,6 +312,7 @@ internal object ElovaireNavigationTransitions {
             SMART_PLAYLIST_SETTINGS_ROUTE,
             EQUALIZER_ROUTE,
             CROSSFADE_ROUTE,
+            UPSCALER_ROUTE,
             CHANGELOG_ROUTE,
             ABOUT_ROUTE,
             PRIVACY_POLICY_ROUTE,

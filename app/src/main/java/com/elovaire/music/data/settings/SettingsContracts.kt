@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
+import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -17,6 +18,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.StateFlow
 
 internal interface AppearanceSettingsStore {
+    val upscalerSettings: StateFlow<UpscalerSettings>
     val eqSettings: StateFlow<EqSettings>
     val themeMode: StateFlow<ThemeMode>
     val textSizePreset: StateFlow<TextSizePreset>
@@ -65,6 +67,7 @@ internal data class RevisionedUserDataSnapshot(
 )
 
 internal interface PlaybackIntegrationSettings {
+    val upscalerSettings: StateFlow<UpscalerSettings>
     val eqSettings: StateFlow<EqSettings>
     val audiobookPlaybackSpeed: StateFlow<Float>
     val crossfadeEnabled: StateFlow<Boolean>
@@ -109,6 +112,7 @@ internal interface LibrarySettingsWriter {
 }
 
 internal interface PlaybackSettingsWriter {
+    fun setUpscalerSettings(settings: UpscalerSettings)
     fun setPlaybackVolume(value: Float)
     fun setAudiobookPlaybackSpeed(value: Float)
     fun setCrossfadeEnabled(enabled: Boolean)

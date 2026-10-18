@@ -8,8 +8,9 @@
     -->
     <release version="2.9.4">
         <item>New feature - info about artist in the artist screen</item>
+        <item>New feature - upscaler with dedicated UI in settings</item>
         <item>UI refinements for now playing screen while listening to audiobooks</item>
-        <item>UI refinements in search screen</item>
+        <item>UI refinements in search and album tag editing screen</item>
         <item>Stability and efficiency tweaks</item>
         <item>Bug fixes</item>
     </release>

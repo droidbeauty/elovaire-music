@@ -124,6 +124,15 @@ internal class PlaybackIntegrationCoordinator(
                 }
         }
         scope.launch {
+            preferences.upscalerSettings
+                .debounce(120L)
+                .distinctUntilChanged()
+                .collect { settings ->
+                    effects.applyUpscalerSettings(settings)
+                    playback.reevaluateAudioOutputPath()
+                }
+        }
+        scope.launch {
             preferences.crossfadeEnabled
                 .collect(playback::setCrossfadeEnabled)
         }

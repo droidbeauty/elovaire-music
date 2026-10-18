@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.Composable
@@ -135,6 +136,10 @@ internal class RootRouteActions(
 
     fun openCrossfade() {
         navigationState.navigateTo(CROSSFADE_ROUTE)
+    }
+
+    fun openUpscaler() {
+        navigationState.navigateTo(UPSCALER_ROUTE)
     }
 
     fun openAudiobookSettings() {
@@ -296,6 +301,10 @@ internal class SettingsRouteActions(
 
     fun setOnlineLyricsEnabled(enabled: Boolean) {
         settingsDependencies.playbackSettings.setOnlineLyricsEnabled(enabled)
+    }
+
+    fun setUpscalerSettings(value: UpscalerSettings) {
+        settingsDependencies.playbackSettings.setUpscalerSettings(value)
     }
 
     fun setCrossfadeDurationMs(value: Long) {

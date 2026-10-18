@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticsRuntime
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
+import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.normalizeEqPresetName
@@ -153,6 +154,9 @@ class PreferenceStore internal constructor(
 
     private val _crossfadeSilenceThresholdDb = MutableStateFlow(loadCrossfadeSilenceThresholdDb())
     override val crossfadeSilenceThresholdDb: StateFlow<Float> = _crossfadeSilenceThresholdDb.asStateFlow()
+
+    private val _upscalerSettings = MutableStateFlow(loadUpscalerSettings())
+    override val upscalerSettings: StateFlow<UpscalerSettings> = _upscalerSettings.asStateFlow()
 
     private val _audiobookSettings = MutableStateFlow(loadAudiobookSettings())
     override val audiobookSettings: StateFlow<AudiobookSettings> = _audiobookSettings.asStateFlow()
@@ -387,6 +391,22 @@ class PreferenceStore internal constructor(
         pendingCrossfadeSilenceThresholdDb = thresholdDb
         checkpointBootSettings(KEY_CROSSFADE_SILENCE_THRESHOLD_DB to thresholdDb)
         scheduleCrossfadePersistence()
+    }
+
+    override fun setUpscalerSettings(settings: UpscalerSettings) {
+        val value = settings.sanitized()
+        updateStateAndPreference(
+            _upscalerSettings, value,
+            KEY_UPSCALER_ENABLED to value.enabled,
+            KEY_UPSCALER_MULTIPLIER to value.multiplier,
+            KEY_UPSCALER_HIGH_PRECISION to value.highPrecision,
+            KEY_UPSCALER_HEADROOM_DB to value.headroomDb,
+        ) {
+            putBoolean(KEY_UPSCALER_ENABLED, value.enabled)
+            putInt(KEY_UPSCALER_MULTIPLIER, value.multiplier)
+            putBoolean(KEY_UPSCALER_HIGH_PRECISION, value.highPrecision)
+            putInt(KEY_UPSCALER_HEADROOM_DB, value.headroomDb)
+        }
     }
 
     override fun setAudiobookRewindSeconds(value: Int) {
@@ -684,6 +704,7 @@ class PreferenceStore internal constructor(
         _crossfadeEnabled.value = loadCrossfadeEnabled()
         _crossfadeDurationMs.value = loadCrossfadeDurationMs()
         _crossfadeSilenceThresholdDb.value = loadCrossfadeSilenceThresholdDb()
+        _upscalerSettings.value = loadUpscalerSettings()
         _audiobookSettings.value = loadAudiobookSettings()
         _smartPlaylistEnabledTypes.value = loadSmartPlaylistEnabledTypes()
         _smartPlaylistMaxSongs.value = loadSmartPlaylistMaxSongs()
@@ -736,6 +757,10 @@ class PreferenceStore internal constructor(
             this[KEY_CROSSFADE_ENABLED] = _crossfadeEnabled.value
             this[KEY_CROSSFADE_DURATION_MS] = _crossfadeDurationMs.value
             this[KEY_CROSSFADE_SILENCE_THRESHOLD_DB] = _crossfadeSilenceThresholdDb.value
+            this[KEY_UPSCALER_ENABLED] = _upscalerSettings.value.enabled
+            this[KEY_UPSCALER_MULTIPLIER] = _upscalerSettings.value.multiplier
+            this[KEY_UPSCALER_HIGH_PRECISION] = _upscalerSettings.value.highPrecision
+            this[KEY_UPSCALER_HEADROOM_DB] = _upscalerSettings.value.headroomDb
             this[KEY_AUDIOBOOK_REWIND_SECONDS] = _audiobookSettings.value.rewindSeconds
             this[KEY_AUDIOBOOK_FORWARD_SECONDS] = _audiobookSettings.value.forwardSeconds
             this[KEY_AUDIOBOOK_RESUME_PLAYBACK] = _audiobookSettings.value.resumePlayback
@@ -1024,6 +1049,13 @@ class PreferenceStore internal constructor(
         )
     }
 
+    private fun loadUpscalerSettings() = UpscalerSettings(
+        enabled = preferences.getBoolean(KEY_UPSCALER_ENABLED, false),
+        multiplier = preferences.getInt(KEY_UPSCALER_MULTIPLIER, 2),
+        highPrecision = preferences.getBoolean(KEY_UPSCALER_HIGH_PRECISION, false),
+        headroomDb = preferences.getInt(KEY_UPSCALER_HEADROOM_DB, 3),
+    ).sanitized()
+
     private fun loadAudiobookSettings(): AudiobookSettings {
         return AudiobookSettings(
             rewindSeconds = preferences.getInt(KEY_AUDIOBOOK_REWIND_SECONDS, 15).sanitizeAudiobookSeekSeconds(),
@@ -1161,6 +1193,10 @@ class PreferenceStore internal constructor(
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_AUDIOBOOK_PLAYBACK_SPEED = "audiobook_playback_speed"
+        const val KEY_UPSCALER_ENABLED = "upscaler_enabled"
+        const val KEY_UPSCALER_MULTIPLIER = "upscaler_multiplier"
+        const val KEY_UPSCALER_HIGH_PRECISION = "upscaler_high_precision"
+        const val KEY_UPSCALER_HEADROOM_DB = "upscaler_headroom_db"
         const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         const val KEY_CROSSFADE_DURATION_MS = "crossfade_duration_ms"
         const val KEY_CROSSFADE_SILENCE_THRESHOLD_DB = "crossfade_silence_threshold_db"

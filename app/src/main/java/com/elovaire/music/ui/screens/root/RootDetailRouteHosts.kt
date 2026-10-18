@@ -448,6 +448,7 @@ internal fun SettingsRouteHost(
     val eqSettings by settings.eqSettings.collectAsStateWithLifecycle()
     val volumeNormalizationEnabled by settings.volumeNormalizationEnabled.collectAsStateWithLifecycle()
     val onlineLyricsEnabled by settings.onlineLyricsEnabled.collectAsStateWithLifecycle()
+    val upscalerSettings by settings.upscalerSettings.collectAsStateWithLifecycle()
     val crossfadeDurationMs by settings.crossfadeDurationMs.collectAsStateWithLifecycle()
     val crossfadeSilenceThresholdDb by settings.crossfadeSilenceThresholdDb.collectAsStateWithLifecycle()
     SettingsScreen(
@@ -473,6 +474,8 @@ internal fun SettingsRouteHost(
         onOnlineLyricsChanged = routeActions.settings::setOnlineLyricsEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
         onOpenCrossfade = routeActions::openCrossfade,
+        onOpenUpscaler = routeActions::openUpscaler,
+        upscalerSettings = upscalerSettings,
         onOpenAudiobookSettings = routeActions::openAudiobookSettings,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
         onOpenManagePlaylists = routeActions::openManagePlaylists,
@@ -517,6 +520,12 @@ internal fun CrossfadeRouteHost(
         onDurationChanged = routeActions.settings::setCrossfadeDurationMs,
         onSilenceThresholdChanged = routeActions.settings::setCrossfadeSilenceThresholdDb,
     )
+}
+
+@Composable
+internal fun UpscalerRouteHost(routeActions: RootRouteActions, padding: RootRoutePadding) {
+    val settings by routeActions.settings.appearanceSettings.upscalerSettings.collectAsStateWithLifecycle()
+    UpscalerScreen(settings, padding.detailBottom, routeActions::navigateUp, routeActions.settings::setUpscalerSettings)
 }
 
 @Composable

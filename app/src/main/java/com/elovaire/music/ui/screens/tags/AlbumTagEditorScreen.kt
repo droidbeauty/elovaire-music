@@ -2,83 +2,92 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.artwork.decodeArtworkBytes
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmission
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
-import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
-import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
-import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
+import elovaire.music.droidbeauty.app.ui.screens.DetailListTopBar
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
+import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
+import elovaire.music.droidbeauty.app.ui.screens.ensureSingleItemRubberBand
+import elovaire.music.droidbeauty.app.ui.screens.formatDuration
+import elovaire.music.droidbeauty.app.ui.screens.sharedTopBarOccupiedHeight
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
-import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -98,269 +107,508 @@ internal fun AlbumTagEditorScreen(
     onDiscNumberChange: (Long, String) -> Unit,
 ) {
     val album = state.originalAlbum
-    if (state.isLoading && album == null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        return
-    }
-    if (album == null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = tagEditorCopy(appLanguage).albumNotFound,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        return
-    }
-
     val copy = remember(appLanguage) { tagEditorCopy(appLanguage) }
-    val motionSpecs = rememberMotionSpecs()
+    val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val contentTop = sharedTopBarOccupiedHeight() + ElovaireSpacing.sectionVerticalGap
+    var expandedTrackId by rememberSaveable(state.albumId) { mutableStateOf<Long?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .semantics { testTagsAsResourceId = true }
             .background(MaterialTheme.colorScheme.background),
     ) {
-        val listState = rememberLazyListState()
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = editorTopBarHeight() + 16.dp,
-                end = 18.dp,
-                bottom = 28.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding(),
         ) {
-            item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(ElovaireRadii.module),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.42f),
-                    ) {
-                        Column(
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    state.isLoading && album == null -> CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center).size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    album == null -> Text(
+                        text = copy.albumNotFound,
+                        modifier = Modifier.align(Alignment.Center),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            overscrollEffect = null,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                                .fillMaxSize()
+                                .testTag("album_tag_editor_list")
+                                .ensureSingleItemRubberBand(listState),
+                            contentPadding = PaddingValues(
+                                start = ElovaireSpacing.screenHorizontalPadding,
+                                top = contentTop,
+                                end = ElovaireSpacing.screenHorizontalPadding,
+                                bottom = ElovaireSpacing.sectionVerticalGap,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                EditableArtworkCard(
-                                    artworkUri = state.selectedArtworkUri,
-                                    artworkBytes = state.selectedArtworkBytes,
-                                    fallbackArtworkUri = album.artUri,
-                                    title = state.albumTitle,
-                                    onClick = onPickCoverArt,
-                                )
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                            item(key = "artwork", contentType = "artwork") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(ElovaireSpacing.sectionVerticalGap),
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Text(
-                                        text = copy.albumSection,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Text(
-                                        text = copy.changeCoverHint,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f),
-                                    )
-                                    AccentPillButton(
-                                        label = copy.changeCover,
-                                        iconResId = R.drawable.ic_lucide_disc_album,
+                                    EditableArtworkCard(
+                                        artworkUri = state.selectedArtworkUri,
+                                        artworkBytes = state.selectedArtworkBytes,
+                                        fallbackArtworkUri = album.artUri,
+                                        title = copy.changeCoverHint,
+                                        enabled = !state.isSaving,
                                         onClick = onPickCoverArt,
+                                    )
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+                                    ) {
+                                        Text(
+                                            text = state.albumTitle.ifBlank { album.title },
+                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        Text(
+                                            text = state.albumArtist.ifBlank { album.artist },
+                                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        Text(
+                                            text = "${localizedCountLabel(state.tracks.size, "song", appLanguage)} · ${formatDuration(album.durationMs)}",
+                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                        )
+                                        CoverArtButton(
+                                            label = copy.changeCover,
+                                            enabled = !state.isSaving,
+                                            onClick = onPickCoverArt,
+                                        )
+                                    }
+                                }
+                            }
+                            if (state.saveFailures.isNotEmpty()) {
+                                item(key = "feedback", contentType = "feedback") {
+                                    ModuleCard {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            state.saveFailures.forEach { failure ->
+                                                Text(
+                                                    text = "${failure.fileName}: ${failure.reason}",
+                                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            item(key = "album_fields", contentType = "album_fields") {
+                                ModuleCard {
+                                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        TagEditorSectionTitle(copy.albumSection, R.drawable.ic_lucide_disc_album)
+                                        TagEditorTextField(
+                                            value = state.albumTitle,
+                                            onValueChange = onAlbumTitleChange,
+                                            label = copy.albumTitle,
+                                            enabled = !state.isSaving,
+                                            isError = state.albumTitle.isBlank(),
+                                        )
+                                        TagEditorTextField(
+                                            value = state.albumArtist,
+                                            onValueChange = onAlbumArtistChange,
+                                            label = copy.albumArtist,
+                                            enabled = !state.isSaving,
+                                            isError = state.albumArtist.isBlank(),
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            TagEditorTextField(
+                                                value = state.releaseYear,
+                                                onValueChange = onReleaseYearChange,
+                                                label = copy.releaseYear,
+                                                modifier = Modifier.weight(1f),
+                                                enabled = !state.isSaving,
+                                                keyboardType = KeyboardType.Number,
+                                                isError = state.releaseYear.isNotBlank() && state.releaseYear.toIntOrNull() !in 1..9999,
+                                            )
+                                            TagEditorTextField(
+                                                value = state.genre,
+                                                onValueChange = onGenreChange,
+                                                label = copy.genre,
+                                                modifier = Modifier.weight(1f),
+                                                enabled = !state.isSaving,
+                                                imeAction = ImeAction.Done,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            item(key = "track_header", contentType = "section_title") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    TagEditorSectionTitle(copy.songSection, R.drawable.ic_lucide_list_music)
+                                    Text(
+                                        text = state.tracks.size.toString(),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     )
                                 }
                             }
-
-                            OutlinedTextField(
-                                value = state.albumTitle,
-                                onValueChange = onAlbumTitleChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(copy.albumTitle) },
-                                singleLine = true,
-                            )
-                            OutlinedTextField(
-                                value = state.albumArtist,
-                                onValueChange = onAlbumArtistChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(copy.albumArtist) },
-                                singleLine = true,
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                OutlinedTextField(
-                                    value = state.releaseYear,
-                                    onValueChange = onReleaseYearChange,
-                                    modifier = Modifier.weight(1f),
-                                    label = { Text(copy.releaseYear) },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                )
-                                OutlinedTextField(
-                                    value = state.genre,
-                                    onValueChange = onGenreChange,
-                                    modifier = Modifier.weight(1f),
-                                    label = { Text(copy.genre) },
-                                    singleLine = true,
+                            itemsIndexed(
+                                items = state.tracks,
+                                key = { _, track -> "track_${track.songId}" },
+                                contentType = { _, _ -> "track_editor" },
+                            ) { index, track ->
+                                EditableTrackCard(
+                                    index = index,
+                                    track = track,
+                                    copy = copy,
+                                    expanded = expandedTrackId == track.songId,
+                                    enabled = !state.isSaving,
+                                    onToggle = {
+                                        focusManager.clearFocus()
+                                        keyboard?.hide()
+                                        expandedTrackId = track.songId.takeUnless { it == expandedTrackId }
+                                    },
+                                    onTitleChange = { onTrackTitleChange(track.songId, it) },
+                                    onArtistChange = { onTrackArtistChange(track.songId, it) },
+                                    onTrackNumberChange = { onTrackNumberChange(track.songId, it) },
+                                    onDiscNumberChange = { onDiscNumberChange(track.songId, it) },
                                 )
                             }
                         }
+                        FastScrollbar(
+                            state = listState,
+                            topInset = contentTop,
+                            bottomInset = ElovaireSpacing.sectionVerticalGap,
+                        )
                     }
-
                 }
             }
-
-            item {
-                Text(
-                    text = copy.songSection,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 2.dp),
+            if (album != null) {
+                AlbumTagEditorSaveAction(
+                    label = rootUiCopy(appLanguage).save,
+                    state = state,
+                    onSave = {
+                        if (state.canSave && !state.isSaving) {
+                            focusManager.clearFocus()
+                            keyboard?.hide()
+                            onSave()
+                        }
+                    },
                 )
             }
+        }
+        DetailListTopBar(
+            title = copy.editorTitle,
+            subtitle = album?.title,
+            onBack = onBack,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
 
-            itemsIndexed(state.tracks, key = { _, track -> track.songId }) { index, track ->
-                Surface(
-                    shape = RoundedCornerShape(ElovaireRadii.card),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.34f),
+@Composable
+private fun TagEditorSectionTitle(title: String, iconResId: Int) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(iconResId),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun EditableTrackCard(
+    index: Int,
+    track: EditableTrackTagState,
+    copy: AlbumTagEditorCopy,
+    expanded: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+    onTitleChange: (String) -> Unit,
+    onArtistChange: (String) -> Unit,
+    onTrackNumberChange: (String) -> Unit,
+    onDiscNumberChange: (String) -> Unit,
+) {
+    val motionSpecs = rememberMotionSpecs()
+    val interactionSource = rememberElovaireInteractionSource()
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = motionSpecs.tween(MotionDuration.Fast),
+        label = "track_editor_chevron",
+    )
+    val hasError = track.title.isBlank() || track.artist.isBlank() ||
+        track.trackNumber.toIntOrNull() !in 1..9999 || track.discNumber.toIntOrNull() !in 1..9999
+
+    ModuleCard(contentPadding = PaddingValues(0.dp)) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("album_tag_editor_track_${track.songId}")
+                    .clickable(
+                        enabled = enabled,
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClickLabel = "${copy.editorTitle}: ${copy.track} ${index + 1}",
+                        onClick = onToggle,
+                    )
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (hasError) MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            ) {
-                                Text(
-                                    text = "${index + 1}",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontSize = elovaireScaledSp(12f),
-                                        fontWeight = FontWeight.SemiBold,
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                )
-                            }
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                            ) {
-                                Text(
-                                    text = track.fileName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                                )
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = track.title,
-                            onValueChange = { value -> onTrackTitleChange(track.songId, value) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(copy.songTitle) },
-                            singleLine = true,
+                    Text(
+                        text = track.trackNumber.ifBlank { (index + 1).toString() },
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (hasError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+                ) {
+                    Text(
+                        text = track.title.ifBlank { track.originalTitle },
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = track.artist.ifBlank { track.originalArtist },
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_chevron_down),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.size(18.dp).rotate(chevronRotation),
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(
+                    expandFrom = Alignment.Top,
+                    animationSpec = motionSpecs.tween(MotionDuration.Standard),
+                ) +
+                    fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Fast)),
+                exit = shrinkVertically(
+                    shrinkTowards = Alignment.Top,
+                    animationSpec = motionSpecs.tween(MotionDuration.Standard),
+                ) +
+                    fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Fast)),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 18.dp, end = 18.dp, bottom = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    Text(
+                        text = track.fileName,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    TagEditorTextField(
+                        value = track.title,
+                        onValueChange = onTitleChange,
+                        label = copy.songTitle,
+                        enabled = enabled,
+                        isError = track.title.isBlank(),
+                    )
+                    TagEditorTextField(
+                        value = track.artist,
+                        onValueChange = onArtistChange,
+                        label = copy.songArtist,
+                        enabled = enabled,
+                        isError = track.artist.isBlank(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TagEditorTextField(
+                            value = track.trackNumber,
+                            onValueChange = onTrackNumberChange,
+                            label = copy.trackNumber,
+                            modifier = Modifier.weight(1f),
+                            enabled = enabled,
+                            keyboardType = KeyboardType.Number,
+                            isError = track.trackNumber.toIntOrNull() !in 1..9999,
                         )
-                        OutlinedTextField(
-                            value = track.artist,
-                            onValueChange = { value -> onTrackArtistChange(track.songId, value) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(copy.songArtist) },
-                            singleLine = true,
+                        TagEditorTextField(
+                            value = track.discNumber,
+                            onValueChange = onDiscNumberChange,
+                            label = copy.discNumber,
+                            modifier = Modifier.weight(1f),
+                            enabled = enabled,
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done,
+                            isError = track.discNumber.toIntOrNull() !in 1..9999,
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            OutlinedTextField(
-                                value = track.trackNumber,
-                                onValueChange = { value -> onTrackNumberChange(track.songId, value) },
-                                modifier = Modifier.weight(1f),
-                                label = { Text(copy.trackNumber) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            )
-                            OutlinedTextField(
-                                value = track.discNumber,
-                                onValueChange = { value -> onDiscNumberChange(track.songId, value) },
-                                modifier = Modifier.weight(1f),
-                                label = { Text(copy.discNumber) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            )
-                        }
                     }
                 }
             }
+        }
+    }
+}
 
-            item {
-                AnimatedVisibility(
-                    visible = !state.statusMessage.isNullOrBlank(),
-                    enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Fast, easing = MotionEasing.FadeIn)),
-                    exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Fast, easing = MotionEasing.FadeOut)),
+@Composable
+private fun TagEditorTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isError: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Next,
+) {
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            )
+        },
+        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+        shape = RoundedCornerShape(ElovaireRadii.input),
+        singleLine = true,
+        isError = isError,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
+            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            cursorColor = MaterialTheme.colorScheme.primary,
+        ),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardActions = KeyboardActions(
+            onNext = { focusManager.moveFocus(FocusDirection.Next) },
+            onDone = { focusManager.clearFocus() },
+        ),
+    )
+}
+
+@Composable
+private fun AlbumTagEditorSaveAction(
+    label: String,
+    state: AlbumTagEditorUiState,
+    onSave: () -> Unit,
+) {
+    val interactionSource = rememberElovaireInteractionSource()
+    val enabled = state.canSave && !state.isSaving
+    val emphasized = enabled || state.isSaving
+    Column {
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = ElovaireSpacing.screenHorizontalPadding)
+                .padding(top = 12.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            (state.validationErrors.firstOrNull() ?: state.statusMessage?.takeIf(String::isNotBlank))?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("album_tag_editor_save")
+                    .heightIn(min = 52.dp)
+                    .elovaireActionBump(
+                        enabled = enabled,
+                        interactionSource = interactionSource,
+                        label = "album_tag_editor_save",
+                    ),
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (emphasized) 1f else 0.12f),
+                contentColor = if (emphasized) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                onClick = onSave,
+                enabled = enabled,
+                interactionSource = interactionSource,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (state.isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_check),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                     Text(
-                        text = state.statusMessage.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontSize = elovaireScaledSp(15f),
+                            fontWeight = FontWeight.SemiBold,
+                        ),
                     )
                 }
             }
         }
-        FastScrollbar(
-            state = listState,
-            topInset = editorTopBarHeight() + 16.dp,
-            bottomInset = 28.dp,
-        )
-
-        AlbumTagEditorTopBar(
-            title = copy.editorTitle,
-            subtitle = album.title,
-            onBack = onBack,
-            onSave = onSave,
-            saving = state.isSaving,
-            saveEnabled = state.canSave,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
     }
 }
 
@@ -370,43 +618,89 @@ private fun EditableArtworkCard(
     artworkBytes: ByteArray?,
     fallbackArtworkUri: Uri?,
     title: String,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val previewBitmap = rememberPreviewBitmap(artworkUri, artworkBytes)
-    Surface(
+    val motionSpecs = rememberMotionSpecs()
+    val interactionSource = rememberElovaireInteractionSource()
+    Box(
         modifier = Modifier
-            .size(126.dp)
+            .size(104.dp)
+            .elovaireActionBump(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                label = "album_tag_editor_artwork",
+            )
+            .clip(RoundedCornerShape(ElovaireRadii.artwork))
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                enabled = enabled,
+                role = Role.Button,
+                interactionSource = interactionSource,
                 indication = null,
+                onClickLabel = title,
                 onClick = onClick,
             ),
-        shape = RoundedCornerShape(ElovaireRadii.module),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.24f),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            when {
-                previewBitmap != null -> {
-                    Image(
-                        bitmap = previewBitmap,
-                        contentDescription = title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-                else -> {
-                    ArtworkImage(
-                        uri = fallbackArtworkUri,
-                        title = title,
-                        modifier = Modifier.fillMaxSize(),
-                        cornerRadius = ElovaireRadii.module,
-                    )
-                }
+        Crossfade(
+            targetState = previewBitmap,
+            animationSpec = motionSpecs.tween(MotionDuration.Standard),
+            label = "tag_editor_artwork_preview",
+        ) { bitmap ->
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                ArtworkImage(
+                    uri = fallbackArtworkUri,
+                    title = title,
+                    modifier = Modifier.fillMaxSize(),
+                    cornerRadius = ElovaireRadii.artwork,
+                )
             }
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)),
+        }
+    }
+}
+
+@Composable
+private fun CoverArtButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = rememberElovaireInteractionSource()
+    Surface(
+        modifier = Modifier
+            .padding(top = 5.dp)
+            .elovaireActionBump(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                label = "album_tag_editor_cover_button",
+            ),
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interactionSource,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_pencil_line),
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             )
         }
     }
@@ -417,7 +711,7 @@ private fun rememberPreviewBitmap(
     selectedUri: Uri?,
     artworkBytes: ByteArray?,
 ): ImageBitmap? {
-    var bitmap by remember(selectedUri, artworkBytes) { mutableStateOf<ImageBitmap?>(null) }
+    var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     val context = LocalContext.current
     val resourceTracker = LocalBackendResourceTracker.current
     LaunchedEffect(selectedUri, artworkBytes) {
@@ -436,166 +730,6 @@ private fun rememberPreviewBitmap(
     }
     return bitmap
 }
-
-@Composable
-private fun AlbumTagEditorTopBar(
-    title: String,
-    subtitle: String,
-    onBack: () -> Unit,
-    onSave: () -> Unit,
-    saving: Boolean,
-    saveEnabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = if (darkTheme) MaterialTheme.colorScheme.surface.copy(alpha = 0.86f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            EditorTopBarIconButton(
-                iconResId = R.drawable.ic_lucide_chevron_left,
-                contentDescription = "Back",
-                onClick = onBack,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            EditorTopBarIconButton(
-                iconResId = R.drawable.ic_lucide_check,
-                contentDescription = "Save",
-                onClick = onSave,
-                enabled = !saving && saveEnabled,
-                loading = saving,
-            )
-        }
-    }
-}
-
-@Composable
-private fun EditorTopBarIconButton(
-    iconResId: Int,
-    contentDescription: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    loading: Boolean = false,
-) {
-    val interactionSource = rememberElovaireInteractionSource()
-    val motionSpecs = rememberMotionSpecs()
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .elovairePressScale(
-                enabled = enabled && !loading,
-                pressedScale = 0.88f,
-                animationSpec = motionSpecs.chromeRelease(),
-                interactionSource = interactionSource,
-                label = "editorTopBarActionScale",
-            )
-            .clickable(
-                enabled = enabled && !loading,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        } else {
-            Icon(
-                painter = painterResource(id = iconResId),
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(19.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun AccentPillButton(
-    label: String,
-    iconResId: Int,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    loading: Boolean = false,
-) {
-    val interactionSource = rememberElovaireInteractionSource()
-    Surface(
-        modifier = Modifier.elovaireActionBump(
-            enabled = enabled && !loading,
-            interactionSource = interactionSource,
-            label = "tagEditorPillBump",
-        ),
-        shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = RoseAccent.copy(alpha = if (enabled) 1f else 0.55f),
-        onClick = onClick,
-        enabled = enabled && !loading,
-        interactionSource = interactionSource,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            } else {
-                Icon(
-                    painter = painterResource(id = iconResId),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = elovaireScaledSp(15f),
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        }
-    }
-}
-
-@Composable
-private fun editorTopBarHeight() = ElovaireSpacing.topBarContentHeight + 28.dp
 
 private const val TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX = 256
 

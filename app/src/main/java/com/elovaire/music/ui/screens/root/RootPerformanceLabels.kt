@@ -23,6 +23,7 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
         PRIVACY_POLICY_ROUTE -> "privacy_policy"
         EQUALIZER_ROUTE -> "equalizer"
         CROSSFADE_ROUTE -> "crossfade"
+        UPSCALER_ROUTE -> "upscaler"
         AUDIOBOOK_SETTINGS_ROUTE -> "audiobook_settings"
         SMART_PLAYLIST_SETTINGS_ROUTE -> "smart_playlist_settings"
         PLAYER_ROUTE -> "now_playing"

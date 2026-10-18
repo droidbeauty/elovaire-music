@@ -175,6 +175,9 @@ internal fun RootRouteGraph(
         composable(RootRouteRegistry.CROSSFADE) {
             CrossfadeRouteHost(routeActions, padding)
         }
+        composable(RootRouteRegistry.UPSCALER) {
+            UpscalerRouteHost(routeActions, padding)
+        }
         composable(RootRouteRegistry.AUDIOBOOK_SETTINGS) {
             AudiobookSettingsRouteHost(routeActions, padding)
         }

@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -187,6 +188,8 @@ internal class PlaybackManager internal constructor(
     private val onAudiobookPlaybackSpeedChanged: (Float) -> Unit = {},
     audioProcessorsProvider: () -> Array<AudioProcessor> = { emptyArray() },
     hasSignalAlteringEffects: () -> Boolean = { false },
+    private val upscalerSettingsProvider: () -> UpscalerSettings =
+        { UpscalerSettings() },
     initialRecentSongIds: List<Long> = emptyList(),
     initialRecentAlbumIds: List<Long> = emptyList(),
     initialLastPlayedCollectionKind: PlaybackCollectionKind? = null,
@@ -205,6 +208,7 @@ internal class PlaybackManager internal constructor(
     private val appContext = context.applicationContext
     private val audioProcessorsProvider = audioProcessorsProvider
     private val hasSignalAlteringEffects = hasSignalAlteringEffects
+    private var appliedUpscalerSettings = upscalerSettingsProvider()
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
     private var audiobookPlaybackSpeed = audiobookPlaybackSpeedPreferences.value.coerceIn(0.5f, 2.5f)
     @Volatile
@@ -248,12 +252,18 @@ internal class PlaybackManager internal constructor(
         scope = scope,
         clock = clock,
     )
+    private val audioSinkRecoveryGuard = AudioSinkRecoveryGuard()
     private val playerFactory = PlaybackPlayerFactory(
         context = appContext,
         dataSourceFactory = dataSourceFactory,
         extractorsFactory = extractorsFactory,
         playbackAudioAttributes = playbackAudioAttributes,
-        audioProcessorsProvider = audioProcessorsProvider,
+        audioProcessorsProvider = {
+            val processors = audioProcessorsProvider()
+            if (audioSinkRecoveryGuard.isSoftwareFallbackActive(currentAudioRouteSnapshot.generation)) {
+                processors.filterNot { it is UpscalerAudioProcessor }.toTypedArray()
+            } else processors
+        },
         preferredOutputDevice = bitPerfectUsbManager::preferredOutputDevice,
         offloadPolicyProvider = ::currentOffloadPolicy,
     )
@@ -386,7 +396,6 @@ internal class PlaybackManager internal constructor(
     private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
-    private val audioSinkRecoveryGuard = AudioSinkRecoveryGuard()
     private val playbackProgressController = PlaybackProgressController()
     private var progressMediaItemOccurrence = 0L
     private val progressDemandController = PlaybackProgressDemandController()
@@ -778,7 +787,7 @@ internal class PlaybackManager internal constructor(
 
     override fun reevaluateAudioOutputPath() {
         if (released.get()) return
-        if (!hasActiveQueue()) return
+        if (!hasActiveQueue() && !shouldReconfigureUpscaler()) return
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         refreshUsbAudioOutputState()
         scheduleAudioPathReevaluation("effects-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
@@ -1526,9 +1535,21 @@ internal class PlaybackManager internal constructor(
         }
     }
 
+    private fun effectiveUpscalerSettings(): UpscalerSettings {
+        val requested = upscalerSettingsProvider()
+        return if (audioSinkRecoveryGuard.isSoftwareFallbackActive(currentAudioRouteSnapshot.generation)) {
+            requested.copy(enabled = false)
+        } else requested
+    }
+
+    private fun shouldReconfigureUpscaler(): Boolean {
+        val requested = effectiveUpscalerSettings()
+        return (requested.enabled || appliedUpscalerSettings.enabled) && requested != appliedUpscalerSettings
+    }
+
     private fun maybeRebuildPlayerForAudioPath(reason: String) {
         if (runtimeTransition !is PlaybackRuntimeTransition.Idle) return
-        if (_state.value.queue.isEmpty() && player.mediaItemCount == 0) {
+        if (_state.value.queue.isEmpty() && player.mediaItemCount == 0 && !shouldReconfigureUpscaler()) {
             lastAppliedAudioPathDecisionKey = null
             player.volume = targetPlayerOutputGain()
             return
@@ -1549,6 +1570,10 @@ internal class PlaybackManager internal constructor(
                 ?.let { PreferredAudioDeviceKey(it.id, it.type) },
             outputCapabilitySignature = outputCapabilities.routeSignature,
         )
+        if (shouldReconfigureUpscaler()) {
+            switchPlayerAudioPath(false, "upscaler-settings", nextDecisionKey.copy(useDirectPlayback = false))
+            return
+        }
         if (nextDecisionKey == lastAppliedAudioPathDecisionKey) {
             player.volume = targetPlayerOutputGain()
             return
@@ -1610,6 +1635,7 @@ internal class PlaybackManager internal constructor(
                 player.volume = targetPlayerOutputGain()
                 return
             }
+            appliedUpscalerSettings = effectiveUpscalerSettings()
             isDirectPlaybackActive = useDirectPlayback
             lastAppliedPreferredDeviceKey = null
             lastAppliedAudioPathDecisionKey = decisionKey
@@ -2387,7 +2413,7 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun hasActiveSignalAlteringEffects(): Boolean {
-        return crossfadeEnabled || effectiveDspState(baseGain = 1f).altersSignal
+        return crossfadeEnabled || upscalerSettingsProvider().enabled || effectiveDspState(baseGain = 1f).altersSignal
     }
 
     private fun effectiveDspState(

@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
 
@@ -125,6 +126,7 @@ internal fun SettingsScreen(
     onlineLyricsEnabled: Boolean,
     crossfadeDurationMs: Long,
     crossfadeSilenceThresholdDb: Float,
+    upscalerSettings: UpscalerSettings,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit,
@@ -134,6 +136,7 @@ internal fun SettingsScreen(
     onOnlineLyricsChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenCrossfade: () -> Unit,
+    onOpenUpscaler: () -> Unit,
     onOpenAudiobookSettings: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
     onOpenManagePlaylists: () -> Unit,
@@ -147,6 +150,7 @@ internal fun SettingsScreen(
     val listState = rememberElovaireLazyListState("settings_screen")
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val styleCopy = remember(appLanguage) { nowPlayingBarStyleCopy(appLanguage) }
+    val upscalerCopy = elovaire.music.droidbeauty.app.ui.i18n.upscalerCopy(appLanguage)
     val audiobookCopy = remember(appLanguage) { audiobookSettingsCopy(appLanguage) }
     val smartPlaylistCopy = remember(appLanguage) { smartPlaylistSettingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
@@ -325,6 +329,13 @@ internal fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SettingNavigationRow(
+                            title = upscalerCopy.title,
+                            subtitle = if (upscalerSettings.enabled) "${upscalerSettings.multiplier}× · ${upscalerCopy.subtitle}" else upscalerCopy.off,
+                            onClick = onOpenUpscaler,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
