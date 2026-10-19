@@ -188,6 +188,11 @@ data class EqCustomPreset(
         name = name,
         settings = settings,
     )
+
+    companion object {
+        internal const val MAX_COUNT = 24
+        internal const val MAX_NAME_LENGTH = 40
+    }
 }
 
 internal fun normalizeEqPresetName(value: String): String = value.trim()

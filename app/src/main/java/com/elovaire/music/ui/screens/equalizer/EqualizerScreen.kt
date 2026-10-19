@@ -7,18 +7,19 @@ import elovaire.music.droidbeauty.app.ui.screens.common.readableCardSurfaceColor
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -28,18 +29,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,10 +78,20 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -87,8 +102,8 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
-import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
+import elovaire.music.droidbeauty.app.domain.model.normalizeEqPresetName
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -97,6 +112,9 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
+import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.equalizerCopy
+import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -139,7 +157,7 @@ internal fun EqualizerScreen(
     onDeleteCustomPreset: (String) -> Unit,
     onReset: () -> Unit,
 ) {
-    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
+    val listState = rememberLazyListState()
     val graphScrollState = rememberScrollState()
     val reverbScrollState = rememberScrollState()
     val language = LocalAppLanguage.current
@@ -149,30 +167,36 @@ internal fun EqualizerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background)
+            .semantics { testTagsAsResourceId = true },
     ) {
-        Column(
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(
-                    start = 18.dp,
-                    top = topBarOccupiedHeight() + 8.dp,
-                    end = 18.dp,
-                    bottom = 20.dp,
-                ),
+                .testTag("eq_content")
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = ElovaireSpacing.screenHorizontalPadding,
+                top = sharedTopBarOccupiedHeight() + 20.dp,
+                end = ElovaireSpacing.screenHorizontalPadding,
+                bottom = navigationBarInsetDp() + 20.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EQ_DB_SCALE_GAP),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    EqDbScale(
-                        modifier = Modifier
-                            .width(EQ_DB_SCALE_WIDTH)
-                            .height(EQ_BAND_PANEL_HEIGHT),
-                    )
+            item(key = "bands", contentType = "bands") {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(EQ_DB_SCALE_GAP),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        EqDbScale(
+                            modifier = Modifier
+                                .width(EQ_DB_SCALE_WIDTH)
+                                .height(EQ_BAND_PANEL_HEIGHT),
+                        )
                         Column(
                             modifier = Modifier
                                 .horizontalGestureSafe()
@@ -180,221 +204,223 @@ internal fun EqualizerScreen(
                                 .ensureHorizontalRubberBand(graphScrollState),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                        EqResponseGraph(
+                            EqResponseGraph(
+                                settings = settings,
+                                onBandChanged = onBandChanged,
+                                modifier = Modifier
+                                    .testTag("eq_band_graph")
+                                    .width(graphContentWidth)
+                                    .height(EQ_BAND_PANEL_HEIGHT),
+                            )
+                            EqBandFrequencyLabels(
+                                contentWidth = graphContentWidth,
+                                settings = settings,
+                                onBandChanged = onBandChanged,
+                            )
+                        }
+                    }
+                    EqHorizontalScrollbar(
+                        scrollState = graphScrollState,
+                        contentWidth = graphContentWidth,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .padding(vertical = 10.dp),
+                    ) {
+                        EqMiniResponseGraph(
                             settings = settings,
-                            onBandChanged = onBandChanged,
-                            modifier = Modifier
-                                .width(graphContentWidth)
-                                .height(EQ_BAND_PANEL_HEIGHT),
+                            modifier = Modifier.fillMaxSize(),
                         )
-                        EqBandFrequencyLabels(
-                            contentWidth = graphContentWidth,
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    EqPresetMenu(
+                        currentSettings = settings,
+                        selectedPresetName = selectedPresetName,
+                        customPresets = customPresets,
+                        equalizerEnabled = equalizerEnabled,
+                        onApplyPreset = onApplyPreset,
+                        onSaveCustomPreset = onSaveCustomPreset,
+                        onDeleteCustomPreset = onDeleteCustomPreset,
+                        onReset = onReset,
+                    )
+                }
+            }
+            item(key = "preamp", contentType = "slider") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_volume_2),
+                            contentDescription = null,
+                            tint = readableMutedIconColor(),
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Text(
+                            text = "Preamp",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = formatPreampDb(settings.preampDb),
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
+                        )
+                    }
+                    ThinContinuousSlider(
+                        value = settings.preampDb,
+                        onValueChange = { onPreampChanged(EqValuePolicy.snapPreamp(it, magnetizeCenter = true)) },
+                        valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
+                        centerValue = 0f,
+                        stepSize = EqValuePolicy.GAIN_STEP_DB,
+                        modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = "Preamp" },
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        listOf("−6 dB", "0 dB", "+6 dB").forEach { label ->
+                            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                color = readableSecondaryTextColor())
+                        }
+                    }
+                }
+            }
+            item(key = "tone", contentType = "effects") {
+                ModuleCard {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        SettingsCategoryText(
+                            title = uiPhrase(language, UiPhrase.ToneShaping),
+                            iconResId = R.drawable.ic_lucide_audio_waveform,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            EqToneKnob(
+                                title = uiPhrase(language, UiPhrase.Bass),
+                                value = settings.bass.coerceIn(0f, 1f),
+                                valueRange = 0f..1f,
+                                accentColor = Color(0xFF2FE08D),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onBassChanged,
+                            )
+                            EqToneKnob(
+                                title = uiPhrase(language, UiPhrase.Midrange),
+                                value = settings.midrange.coerceIn(-1f, 1f),
+                                valueRange = -1f..1f,
+                                accentColor = Color(0xFF39C2FF),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onMidrangeChanged,
+                            )
+                            EqToneKnob(
+                                title = uiPhrase(language, UiPhrase.Treble),
+                                value = settings.treble.coerceIn(-1f, 1f),
+                                valueRange = -1f..1f,
+                                accentColor = Color(0xFFFFB056),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onTrebleChanged,
+                            )
+                        }
+                    }
+                }
+            }
+            item(key = "spaciousness", contentType = "effects") {
+                ModuleCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        SettingsCategoryText(
+                            title = copy.spaciousness,
+                            iconResId = R.drawable.ic_lucide_wind,
+                        )
+                        SpaciousnessModeMenu(
+                            currentMode = settings.spaciousnessMode,
+                            spaciousnessAmount = settings.spaciousness,
+                            onModeSelected = onSpaciousnessModeChanged,
+                            onReset = { onSpaciousnessModeChanged(SpaciousnessMode.Off) },
+                        )
+                        EqMacroSliderRow(
+                            title = uiPhrase(language, UiPhrase.EffectStrength),
+                            value = settings.spaciousness.coerceIn(0f, 1f),
+                            valueText = "${(settings.spaciousness.coerceIn(0f, 1f) * 100f).roundToInt()}%",
+                            onValueChange = onSpaciousnessChanged,
+                            valueRange = 0f..1f,
+                            enabled = settings.spaciousnessMode != SpaciousnessMode.Off,
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(0.dp))
-                EqHorizontalScrollbar(
-                    scrollState = graphScrollState,
-                    contentWidth = graphContentWidth,
-                )
-                Spacer(modifier = Modifier.height(0.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .padding(vertical = 10.dp),
-                ) {
-                    EqMiniResponseGraph(
-                        settings = settings,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                EqPresetMenu(
-                    currentSettings = settings,
-                    selectedPresetName = selectedPresetName,
-                    customPresets = customPresets,
-                    equalizerEnabled = equalizerEnabled,
-                    onApplyPreset = onApplyPreset,
-                    onSaveCustomPreset = onSaveCustomPreset,
-                    onDeleteCustomPreset = onDeleteCustomPreset,
-                    onReset = onReset,
-                )
             }
-            Spacer(modifier = Modifier.height(18.dp))
-            LazyColumn(
-                state = listState,
-                overscrollEffect = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .ensureSingleItemRubberBand(listState),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                item {
+            item(key = "reverb", contentType = "effects") {
+                ModuleCard {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 2.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_volume_2),
-                                contentDescription = null,
-                                tint = readableMutedIconColor(),
-                                modifier = Modifier.size(15.dp),
+                            Text(
+                                text = uiPhrase(language, UiPhrase.Reverb),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "Preamp",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = formatPreampDb(settings.preampDb),
+                                text = if (settings.reverbDurationMs <= 0) uiPhrase(language, UiPhrase.Off) else "${settings.reverbDurationMs} ms",
                                 style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
                             )
                         }
-                        ThinContinuousSlider(
-                            value = settings.preampDb,
-                            onValueChange = onPreampChanged,
-                            valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
-                            centerValue = 0f,
-                            stepSize = EqValuePolicy.GAIN_STEP_DB,
-                        )
-                    }
-                }
-                item {
-                    ModuleCard {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalGestureSafe()
+                                .horizontalScroll(reverbScrollState, overscrollEffect = null)
+                                .ensureHorizontalRubberBand(reverbScrollState),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            SettingsCategoryText(
-                                title = uiPhrase(language, UiPhrase.ToneShaping),
-                                iconResId = R.drawable.ic_lucide_audio_waveform,
+                            EqPresetPill(
+                                label = uiPhrase(language, UiPhrase.Reset),
+                                selected = false,
+                                emphasized = true,
+                                useSubtleIdleBackground = true,
+                                onClick = onResetReverb,
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            ) {
-                                EqToneKnob(
-                                    title = uiPhrase(language, UiPhrase.Bass),
-                                    value = settings.bass.coerceIn(0f, 1f),
-                                    valueRange = 0f..1f,
-                                    accentColor = Color(0xFF2FE08D),
-                                    modifier = Modifier.weight(1f),
-                                    onValueChange = onBassChanged,
-                                )
-                                EqToneKnob(
-                                    title = uiPhrase(language, UiPhrase.Midrange),
-                                    value = settings.midrange.coerceIn(-1f, 1f),
-                                    valueRange = -1f..1f,
-                                    accentColor = Color(0xFF39C2FF),
-                                    modifier = Modifier.weight(1f),
-                                    onValueChange = onMidrangeChanged,
-                                )
-                                EqToneKnob(
-                                    title = uiPhrase(language, UiPhrase.Treble),
-                                    value = settings.treble.coerceIn(-1f, 1f),
-                                    valueRange = -1f..1f,
-                                    accentColor = Color(0xFFFFB056),
-                                    modifier = Modifier.weight(1f),
-                                    onValueChange = onTrebleChanged,
+                            ReverbProfile.entries.forEach { profile ->
+                                EqPresetPill(
+                                    label = when (profile) {
+                                        ReverbProfile.Dry -> uiPhrase(language, UiPhrase.Dry)
+                                        ReverbProfile.Wet -> uiPhrase(language, UiPhrase.Wet)
+                                    },
+                                    selected = settings.reverbDurationMs > 0 && settings.reverbProfile == profile,
+                                    useSubtleIdleBackground = true,
+                                    onClick = { onReverbProfileChanged(profile) },
                                 )
                             }
                         }
-                    }
-                }
-                item {
-                    ModuleCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                            SettingsCategoryText(
-                                title = copy.spaciousness,
-                                iconResId = R.drawable.ic_lucide_wind,
-                            )
-                            SpaciousnessModeMenu(
-                                currentMode = settings.spaciousnessMode,
-                                spaciousnessAmount = settings.spaciousness,
-                                onModeSelected = onSpaciousnessModeChanged,
-                                onReset = { onSpaciousnessModeChanged(SpaciousnessMode.Off) },
-                            )
-                            EqMacroSliderRow(
-                                title = uiPhrase(language, UiPhrase.EffectStrength),
-                                value = settings.spaciousness.coerceIn(0f, 1f),
-                                valueText = "${(settings.spaciousness.coerceIn(0f, 1f) * 100f).roundToInt()}%",
-                                onValueChange = onSpaciousnessChanged,
-                                valueRange = 0f..1f,
-                            )
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = uiPhrase(language, UiPhrase.Reverb),
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = elovaireScaledSp(16f),
-                                        ),
-                                    )
-                                    Text(
-                                        text = if (settings.reverbDurationMs <= 0) uiPhrase(language, UiPhrase.Off) else "${settings.reverbDurationMs} ms",
-                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalGestureSafe()
-                                        .horizontalScroll(reverbScrollState, overscrollEffect = null)
-                                        .ensureHorizontalRubberBand(reverbScrollState),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    EqPresetPill(
-                                        label = uiPhrase(language, UiPhrase.Reset),
-                                        selected = false,
-                                        emphasized = true,
-                                        useSubtleIdleBackground = true,
-                                        onClick = onResetReverb,
-                                    )
-                                    ReverbProfile.entries.forEach { profile ->
-                                        EqPresetPill(
-                                            label = when (profile) {
-                                                ReverbProfile.Dry -> uiPhrase(language, UiPhrase.Dry)
-                                                ReverbProfile.Wet -> uiPhrase(language, UiPhrase.Wet)
-                                            },
-                                            selected = settings.reverbDurationMs > 0 && settings.reverbProfile == profile,
-                                            useSubtleIdleBackground = true,
-                                            onClick = { onReverbProfileChanged(profile) },
-                                        )
-                                    }
-                                }
-                                ReverbStepSlider(
-                                    valueMs = settings.reverbDurationMs,
-                                    onValueChange = onReverbDurationChanged,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
+                        ReverbStepSlider(
+                            valueMs = settings.reverbDurationMs,
+                            onValueChange = onReverbDurationChanged,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
         }
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 390.dp,
+            topInset = sharedTopBarOccupiedHeight() + 20.dp,
             bottomInset = navigationBarInsetDp() + 20.dp,
         )
         PinnedBackTopBar(
@@ -411,136 +437,15 @@ private fun ReverbStepSlider(
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val motionSpecs = rememberMotionSpecs()
-    val steps = remember { (0..500 step 50).toList() }
-    val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val selectedIndex = ((valueMs.coerceIn(0, 500) + 24) / 50).coerceIn(0, steps.lastIndex)
-    val selectedValue = selectedIndex * 50
-    val maxIndex = (steps.size - 1).coerceAtLeast(1)
-    val knobSize = 20.dp
-    val dotColor = MaterialTheme.colorScheme.onSurface
-    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText
-    } else {
-        Color.White
-    }
-    val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText.copy(alpha = 0.18f)
-    } else {
-        Color.White.copy(alpha = 0.2f)
-    }
-    var isDragging by remember { mutableStateOf(false) }
-    var dragCenterPx by remember { mutableFloatStateOf(0f) }
-
-    BoxWithConstraints(
-        modifier = modifier
-            .height(36.dp)
-            .horizontalGestureSafe(),
-    ) {
-        val density = LocalDensity.current
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        val knobSizePx = with(density) { knobSize.toPx() }
-        val trackStartPx = knobSizePx / 2f
-        val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
-        val selectedCenterPx = trackStartPx + (trackWidthPx * (selectedIndex.toFloat() / maxIndex.toFloat()))
-        LaunchedEffect(selectedCenterPx, maxWidthPx) {
-            if (!isDragging) {
-                dragCenterPx = selectedCenterPx
-            }
-        }
-        val knobOffset by animateDpAsState(
-            targetValue = with(density) {
-                ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
-            },
-            animationSpec = if (isDragging) {
-                snap()
-            } else {
-                motionSpecs.spring(
-                    dampingRatio = 0.82f,
-                    stiffness = 480f,
-                )
-            },
-            label = "reverb_step_knob_offset",
-        )
-        val updateFromPosition: (Float) -> Unit = { xPosition ->
-            val clampedX = xPosition.coerceIn(trackStartPx, trackStartPx + trackWidthPx)
-            dragCenterPx = clampedX
-            val position = ((clampedX - trackStartPx) / trackWidthPx * maxIndex).coerceIn(0f, maxIndex.toFloat())
-            val lowerIndex = position.toInt()
-            val targetIndex = (lowerIndex + (position - lowerIndex).let { fraction ->
-                if (fraction > 0.5f) 1 else 0
-            }).coerceIn(0, maxIndex)
-            val targetValue = steps[targetIndex]
-            if (targetValue != selectedValue) {
-                currentOnValueChange(targetValue)
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(maxWidthPx) {
-                    detectTapGestures { offset ->
-                        if (maxWidthPx > 0f) {
-                            updateFromPosition(offset.x)
-                        }
-                    }
-                }
-                .pointerInput(maxWidthPx, steps.size) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            if (maxWidthPx > 0f) {
-                                updateFromPosition(offset.x)
-                            }
-                        },
-                        onHorizontalDrag = { change, _ ->
-                            if (maxWidthPx > 0f) {
-                                change.consume()
-                                updateFromPosition(change.position.x)
-                            }
-                        },
-                        onDragEnd = { isDragging = false },
-                        onDragCancel = { isDragging = false },
-                    )
-                },
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = with(density) { trackStartPx.toDp() })
-                    .width(with(density) { trackWidthPx.toDp() })
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(lineColor),
-            )
-
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val selectedDotRadius = 3.5.dp.toPx()
-                val defaultDotRadius = 2.5.dp.toPx()
-                val centerY = size.height / 2f
-                    steps.forEachIndexed { index, _ ->
-                        val fraction = if (maxIndex == 0) 0f else index.toFloat() / maxIndex.toFloat()
-                        drawCircle(
-                            color = dotColor,
-                            radius = if (index == selectedIndex) selectedDotRadius else defaultDotRadius,
-                            center = Offset(trackStartPx + (trackWidthPx * fraction), centerY),
-                        )
-                    }
-                }
-
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
-                    .size(knobSize)
-                    .clip(CircleShape)
-                    .background(knobColor)
-                    .align(Alignment.CenterStart),
-            )
-        }
-    }
+    val label = uiPhrase(LocalAppLanguage.current, UiPhrase.Reverb)
+    ThinContinuousSlider(
+        value = valueMs.toFloat(),
+        onValueChange = { onValueChange(it.roundToInt()) },
+        valueRange = 0f..500f,
+        stepSize = 50f,
+        modifier = modifier.testTag("eq_reverb").semantics { contentDescription = label },
+    )
 }
-
 @Composable
 private fun DigitalSoundKnob(
     title: String,
@@ -820,6 +725,14 @@ internal fun EqToneKnob(
         Box(
             modifier = Modifier
                 .size(110.dp)
+                .semantics {
+                    contentDescription = title
+                    progressBarRangeInfo = ProgressBarRangeInfo(clampedValue, safeRange)
+                    setProgress { requested ->
+                        currentOnValueChange(requested.coerceIn(safeRange))
+                        true
+                    }
+                }
                 .horizontalGestureSafe()
                 .pointerInput(title, safeRange.start, safeRange.endInclusive) {
                     detectTapGestures { offset ->
@@ -953,7 +866,7 @@ internal fun EqToneKnob(
                     fontSize = elovaireScaledSp(16f),
                     fontWeight = FontWeight.SemiBold,
                 ),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.96f),
+                color = Color.White.copy(alpha = 0.96f),
             )
         }
         Text(
@@ -1062,6 +975,7 @@ private fun EqMacroSliderRow(
     valueText: String,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
+    enabled: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -1074,6 +988,7 @@ private fun EqMacroSliderRow(
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = elovaireScaledSp(16f),
                 ),
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = valueText,
@@ -1085,6 +1000,8 @@ private fun EqMacroSliderRow(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = title },
         )
     }
 }
@@ -1116,76 +1033,114 @@ private fun EqPresetMenu(
     onReset: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val copy = equalizerCopy(language)
     val presets = remember { eqPresetDefinitions() }
-    val horizontalScrollState = rememberScrollState()
+    val builtInScroll = rememberScrollState()
+    val customScroll = rememberScrollState()
     var showSaveDialog by rememberSaveable { mutableStateOf(false) }
-    val activePresetName = remember(currentSettings, selectedPresetName, equalizerEnabled, presets, customPresets) {
-        if (!equalizerEnabled) return@remember null
-        selectedPresetName?.takeIf { selectedName ->
-            presets.any { preset -> preset.name == selectedName } ||
-                customPresets.any { preset -> preset.name == selectedName }
-        } ?: customPresets.firstOrNull { preset ->
-            EqValuePolicy.sanitize(preset.settings) == EqValuePolicy.sanitize(currentSettings)
-        }?.name ?: currentSettings.matchingEqPresetName(presets)
-    }
+    var pendingDeleteName by rememberSaveable { mutableStateOf<String?>(null) }
+    val sanitized = remember(currentSettings) { EqValuePolicy.sanitize(currentSettings) }
+    val activeCustom = customPresets.firstOrNull {
+        it.name == selectedPresetName && EqValuePolicy.sanitize(it.settings) == sanitized
+    } ?: customPresets.firstOrNull { EqValuePolicy.sanitize(it.settings) == sanitized }
+    val activeBuiltIn = if (activeCustom == null && equalizerEnabled) currentSettings.matchingEqPresetName(presets) else null
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = copy.presets,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            EqPresetPill(
+                label = copy.savePreset,
+                selected = false,
+                emphasized = true,
+                modifier = Modifier.testTag("eq_save_preset"),
+                onClick = { showSaveDialog = true },
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth()
                 .horizontalGestureSafe()
-                .horizontalScroll(horizontalScrollState, overscrollEffect = null)
-                .ensureHorizontalRubberBand(horizontalScrollState),
+                .horizontalScroll(builtInScroll, overscrollEffect = null)
+                .ensureHorizontalRubberBand(builtInScroll),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             EqPresetPill(
                 label = uiPhrase(language, UiPhrase.Reset),
-                selected = activePresetName == null && EqValuePolicy.hasSignalAlteringEffects(currentSettings),
-                emphasized = true,
+                selected = !equalizerEnabled,
                 onClick = onReset,
             )
             presets.forEach { preset ->
                 EqPresetPill(
                     label = preset.name,
-                    selected = preset.name == activePresetName,
-                    onClick = {
-                        onApplyPreset(
-                            preset.name,
-                            currentSettings.copy(
-                                bands = preset.settings.bands,
-                            ),
+                    selected = preset.name == activeBuiltIn,
+                    onClick = { onApplyPreset(preset.name, currentSettings.copy(bands = preset.settings.bands)) },
+                )
+            }
+        }
+        if (customPresets.isNotEmpty()) {
+            Text("${copy.customPresets} · ${customPresets.size}/${EqCustomPreset.MAX_COUNT}", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = readableSecondaryTextColor())
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .horizontalGestureSafe()
+                    .horizontalScroll(customScroll, overscrollEffect = null)
+                    .ensureHorizontalRubberBand(customScroll),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                customPresets.forEach { preset ->
+                    androidx.compose.runtime.key(preset.id) {
+                        EqCustomPresetPill(
+                            preset = preset,
+                            selected = preset.id == activeCustom?.id,
+                            onApply = { onApplyPreset(preset.name, preset.settings) },
+                            onDelete = { pendingDeleteName = preset.name },
                         )
+                    }
+                }
+            }
+        }
+    }
+    if (showSaveDialog) {
+        SaveEqPresetDialog(
+            initialName = activeCustom?.name.orEmpty(),
+            customPresets = customPresets,
+            onDismiss = { showSaveDialog = false },
+            onSave = onSaveCustomPreset,
+        )
+    }
+    pendingDeleteName?.let { name ->
+        var confirmed by remember(name) { mutableStateOf(false) }
+        EqPresetDialog(
+            title = uiPhrase(language, UiPhrase.Delete),
+            onDismiss = { pendingDeleteName = null },
+        ) { close ->
+            Text(name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                EqPresetPill(
+                    label = uiPhrase(language, UiPhrase.Delete),
+                    selected = false,
+                    emphasized = true,
+                    modifier = Modifier.testTag("eq_confirm_delete"),
+                    enabled = !confirmed,
+                    onClick = {
+                        if (!confirmed) {
+                            confirmed = true
+                            onDeleteCustomPreset(name)
+                            close()
+                        }
                     },
                 )
             }
-            customPresets.forEach { preset ->
-                EqCustomPresetPill(
-                    preset = preset,
-                    selected = preset.name == activePresetName,
-                    onApply = { onApplyPreset(preset.name, preset.settings) },
-                    onDelete = { onDeleteCustomPreset(preset.name) },
-                )
-            }
-            EqPresetPill(
-                label = "Save preset",
-                selected = false,
-                emphasized = true,
-                onClick = { showSaveDialog = true },
-            )
         }
-    }
-
-    if (showSaveDialog) {
-        SaveEqPresetDialog(
-            onDismiss = { showSaveDialog = false },
-            onSave = { name ->
-                onSaveCustomPreset(name)
-                showSaveDialog = false
-            },
-        )
     }
 }
 
@@ -1196,59 +1151,78 @@ private fun EqCustomPresetPill(
     onApply: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-    }
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
-    }
+    val interactionSource = rememberElovaireInteractionSource()
+    val background by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else readableCardSurfaceColor(),
+        animationSpec = rememberMotionSpecs().tween(MotionDuration.Fast),
+        label = "eq_custom_selection",
+    )
+    val foreground = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Surface(
-        modifier = Modifier.elovairePillActionMotion(
-            interactionSource = interactionSource,
-            pressedScale = 0.96f,
-            label = "${preset.name}_eq_custom_preset_scale",
-        ),
-        shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = backgroundColor,
+        modifier = Modifier.elovairePillActionMotion(interactionSource = interactionSource,
+            pressedScale = 0.96f, label = "eq_custom_preset"),
+        shape = CircleShape,
+        color = background,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = preset.name,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onApply,
-                    )
-                    .padding(start = 14.dp, top = 9.dp, bottom = 9.dp),
+                modifier = Modifier.widthIn(max = 200.dp).clip(CircleShape)
+                    .clickable(interactionSource = interactionSource, indication = null, onClick = onApply)
+                    .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                color = contentColor,
+                color = foreground,
             )
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDelete,
-                    ),
-                contentAlignment = Alignment.Center,
+            HeaderIconButton(
+                iconResId = R.drawable.ic_lucide_x,
+                contentDescription = uiPhrase(LocalAppLanguage.current, UiPhrase.Delete) + " " + preset.name,
+                showBackground = false,
+                tint = foreground,
+                onClick = onDelete,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EqPresetDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.(() -> Unit) -> Unit,
+) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    Dialog(
+        onDismissRequest = { visible = false },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        PopupCardMotionHost(
+            visible = visible,
+            surfaceId = "eq.preset",
+            modifier = Modifier.fillMaxWidth().padding(20.dp).widthIn(max = 480.dp),
+            onExitFinished = onDismiss,
+        ) {
+            Surface(
+                shape = RoundedCornerShape(ElovaireRadii.card),
+                color = readableCardSurfaceColor(),
+                contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_x),
-                    contentDescription = "Delete ${preset.name}",
-                    tint = contentColor.copy(alpha = 0.78f),
-                    modifier = Modifier.size(14.dp),
-                )
+                Column(
+                    modifier = Modifier.padding(20.dp).semantics { testTagsAsResourceId = true },
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                        HeaderIconButton(
+                            iconResId = R.drawable.ic_lucide_x,
+                            contentDescription = uiPhrase(LocalAppLanguage.current, UiPhrase.Cancel),
+                            onClick = { visible = false },
+                        )
+                    }
+                    content { visible = false }
+                }
             }
         }
     }
@@ -1256,60 +1230,55 @@ private fun EqCustomPresetPill(
 
 @Composable
 private fun SaveEqPresetDialog(
+    initialName: String,
+    customPresets: List<EqCustomPreset>,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit,
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            shape = RoundedCornerShape(ElovaireRadii.card),
-            color = MaterialTheme.colorScheme.surface,
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = "Save preset",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
-                )
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(40) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Preset name") },
-                    singleLine = true,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    EqPresetPill(
-                        label = "Cancel",
-                        selected = false,
-                        useSubtleIdleBackground = true,
-                        onClick = onDismiss,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    EqPresetPill(
-                        label = "Save",
-                        selected = false,
-                        emphasized = true,
-                        onClick = { if (name.isNotBlank()) onSave(name) },
-                    )
-                }
+    val language = LocalAppLanguage.current
+    val copy = equalizerCopy(language)
+    var name by rememberSaveable { mutableStateOf(initialName) }
+    var submitted by remember { mutableStateOf(false) }
+    val normalized = normalizeEqPresetName(name)
+    val replacing = customPresets.any { it.name.equals(normalized, ignoreCase = true) }
+    val hasSpace = replacing || customPresets.size < EqCustomPreset.MAX_COUNT
+    EqPresetDialog(title = copy.savePreset, onDismiss = onDismiss) { close ->
+        val save = {
+            if (normalized.isNotBlank() && hasSpace && !submitted) {
+                submitted = true
+                onSave(normalized)
+                close()
             }
+        }
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it.take(EqCustomPreset.MAX_NAME_LENGTH) },
+            modifier = Modifier.fillMaxWidth().testTag("eq_preset_name"),
+            label = { Text(copy.presetName) },
+            shape = RoundedCornerShape(ElovaireRadii.input),
+            singleLine = true,
+            enabled = !submitted,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() }),
+            supportingText = {
+                when {
+                    replacing -> Text(copy.replaceWarning)
+                    !hasSpace -> Text("${copy.customPresets}: ${customPresets.size}/${EqCustomPreset.MAX_COUNT}")
+                }
+            },
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            EqPresetPill(
+                label = if (replacing) copy.replace else rootUiCopy(language).save,
+                selected = false,
+                emphasized = true,
+                enabled = normalized.isNotBlank() && hasSpace && !submitted,
+                modifier = Modifier.testTag("eq_confirm_save"),
+                onClick = { save() },
+            )
         }
     }
 }
-
 private fun eqPresetDefinitions(): List<EqPresetDefinition> =
     listOf(
         eqPreset("Electronic", 0.40f, 0.58f, 0.42f, 0.26f, 0.10f, 0.08f, 0.16f, 0.24f),
@@ -1392,9 +1361,11 @@ private fun EqPresetPill(
     selected: Boolean,
     emphasized: Boolean = false,
     useSubtleIdleBackground: Boolean = false,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val backgroundColor = if (emphasized) {
+    val targetBackgroundColor = if (emphasized) {
         MaterialTheme.colorScheme.primary
     } else if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -1403,6 +1374,11 @@ private fun EqPresetPill(
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     }
+    val backgroundColor by animateColorAsState(
+        targetValue = targetBackgroundColor,
+        animationSpec = rememberMotionSpecs().tween(MotionDuration.Fast),
+        label = "eq_preset_selection",
+    )
     val contentColor = if (emphasized) {
         MaterialTheme.colorScheme.onPrimary
     } else if (selected) {
@@ -1412,24 +1388,27 @@ private fun EqPresetPill(
     }
     val interactionSource = remember { MutableInteractionSource() }
     Surface(
-        modifier = Modifier.elovairePillActionMotion(
+        modifier = modifier.elovairePillActionMotion(
             interactionSource = interactionSource,
             pressedScale = 0.96f,
             label = "${label}_eq_preset_scale",
         ),
         shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = backgroundColor,
+        color = backgroundColor.copy(alpha = if (enabled) backgroundColor.alpha else 0.3f),
     ) {
         Text(
             text = label,
             modifier = Modifier
+                .heightIn(min = 48.dp)
+                .wrapContentHeight(Alignment.CenterVertically)
                 .clip(RoundedCornerShape(ElovaireRadii.pill))
                 .clickable(
+                    enabled = enabled,
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 14.dp, vertical = 9.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             color = contentColor,
         )
@@ -1487,9 +1466,10 @@ private fun EqResponseGraph(
                 }
             }
             .pointerInput(bandFractions) {
-                detectDragGestures(
+                var activeBandIndex = 0
+                detectVerticalDragGestures(
                     onDragStart = { offset ->
-                        if (size.width == 0 || size.height == 0) return@detectDragGestures
+                        if (size.width == 0 || size.height == 0) return@detectVerticalDragGestures
                         isDragging.value = true
                         val horizontalPadding = with(density) { EQ_GRAPH_EDGE_PADDING.toPx() }
                         val graphWidth = (size.width.toFloat() - horizontalPadding * 2f).coerceAtLeast(1f)
@@ -1497,6 +1477,7 @@ private fun EqResponseGraph(
                             fraction = ((offset.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                             bandFractions = bandFractions,
                         )
+                        activeBandIndex = bandIndex
                         currentOnBandChanged(
                             bandIndex,
                             eqGraphYToNormalized(
@@ -1506,17 +1487,11 @@ private fun EqResponseGraph(
                             ),
                         )
                     },
-                    onDrag = { change, _ ->
+                    onVerticalDrag = { change, _ ->
                         change.consume()
-                        if (size.width == 0 || size.height == 0) return@detectDragGestures
-                        val horizontalPadding = with(density) { EQ_GRAPH_EDGE_PADDING.toPx() }
-                        val graphWidth = (size.width.toFloat() - horizontalPadding * 2f).coerceAtLeast(1f)
-                        val index = nearestEqBandIndex(
-                            fraction = ((change.position.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
-                            bandFractions = bandFractions,
-                        )
+                        if (size.width == 0 || size.height == 0) return@detectVerticalDragGestures
                         currentOnBandChanged(
-                            index,
+                            activeBandIndex,
                             eqGraphYToNormalized(
                                 y = change.position.y,
                                 height = size.height.toFloat(),
@@ -1748,6 +1723,8 @@ private fun EqDbScale(
 @Composable
 private fun EqBandFrequencyLabels(
     contentWidth: Dp,
+    settings: EqSettings,
+    onBandChanged: (Int, Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val labels = remember {
@@ -1757,24 +1734,40 @@ private fun EqBandFrequencyLabels(
     BoxWithConstraints(
         modifier = modifier
             .width(contentWidth)
-            .height(EQ_BAND_LABEL_HEIGHT),
+            .height(40.dp),
     ) {
         val labelWidth = 36.dp
         val graphWidth = maxWidth - (EQ_GRAPH_EDGE_PADDING * 2)
         labels.forEachIndexed { index, label ->
             val fraction = bandFractions.getOrElse(index) { 0f }
-            Box(
+            val gainDb = EqValuePolicy.normalizedToDb(settings.bands.getOrElse(index) { 0f })
+            Column(
                 modifier = Modifier
                     .width(labelWidth)
                     .align(Alignment.CenterStart)
-                    .offset(x = EQ_GRAPH_EDGE_PADDING + graphWidth * fraction - (labelWidth / 2)),
-                contentAlignment = Alignment.Center,
+                    .offset(x = EQ_GRAPH_EDGE_PADDING + graphWidth * fraction - (labelWidth / 2))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "$label Hz"
+                        progressBarRangeInfo = ProgressBarRangeInfo(gainDb, -8f..8f, 31)
+                        setProgress { requested ->
+                            onBandChanged(index, EqValuePolicy.dbToNormalized(requested))
+                            true
+                        }
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f)),
                     color = readableSecondaryTextColor().copy(alpha = 0.88f),
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+                Text(
+                    text = formatEqDbLabel(gainDb),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f), fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (gainDb == 0f) 0.45f else 0.9f),
                     maxLines = 1,
                 )
             }
@@ -1927,154 +1920,94 @@ internal fun ThinContinuousSlider(
     lineThickness: Dp = 2.dp,
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val motionSpecs = rememberMotionSpecs()
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
-    val fraction = ((coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start))
-        .coerceIn(0f, 1f)
-    val centerFraction = centerValue?.let {
-        ((it.coerceIn(valueRange.start, valueRange.endInclusive) - valueRange.start) /
-            (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
-    }
-    val activeStartFraction = centerFraction?.let { minOf(it, fraction) } ?: 0f
-    val activeEndFraction = centerFraction?.let { maxOf(it, fraction) } ?: fraction
-    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText
-    } else {
-        Color.White
-    }
-    val inactiveLineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText.copy(alpha = 0.18f)
-    } else {
-        Color.White.copy(alpha = 0.2f)
-    }
-    var isDragging by remember { mutableStateOf(false) }
-
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(32.dp)
-            .horizontalGestureSafe(),
-    ) {
-        val density = LocalDensity.current
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        val knobSizePx = with(density) { knobSize.toPx() }
-        val trackStartPx = knobSizePx / 2f
-        val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
-        val trackStart = with(density) { trackStartPx.toDp() }
-        val trackWidth = with(density) { trackWidthPx.toDp() }
-        val animatedActiveStart by animateDpAsState(
-            targetValue = trackWidth * activeStartFraction,
-            animationSpec = if (isDragging) snap() else motionSpecs.tween(durationMillis = 70),
-            label = "eq_macro_slider_fill_start",
-        )
-        val animatedActiveWidth by animateDpAsState(
-            targetValue = trackWidth * (activeEndFraction - activeStartFraction),
-            animationSpec = if (isDragging) snap() else motionSpecs.tween(durationMillis = 70),
-            label = "eq_macro_slider_fill",
-        )
-        val animatedKnobOffset by animateDpAsState(
-            targetValue = with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() },
-            animationSpec = if (isDragging) snap() else motionSpecs.tween(durationMillis = 70),
-            label = "eq_macro_slider_knob",
-        )
-        val activeStart = if (isDragging) trackWidth * activeStartFraction else animatedActiveStart
-        val activeWidth = if (isDragging) {
-            trackWidth * (activeEndFraction - activeStartFraction)
-        } else {
-            animatedActiveWidth
-        }
-        val knobOffset = if (isDragging) {
-            with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() }
-        } else {
-            animatedKnobOffset
-        }
-
-        val updateFromX: (Float) -> Unit = { xPosition ->
-            if (maxWidthPx > 0f) {
-                val normalized = ((xPosition - trackStartPx) / trackWidthPx).coerceIn(0f, 1f)
-                val rangedValue = valueRange.start + ((valueRange.endInclusive - valueRange.start) * normalized)
-                val safeStep = stepSize?.takeIf { it.isFinite() && it > 0f }
-                val adjustedValue = safeStep?.let { (rangedValue / it).roundToInt() * it } ?: rangedValue
-                currentOnValueChange(adjustedValue.coerceIn(valueRange.start, valueRange.endInclusive))
+    val safeValue = value.takeIf(Float::isFinite)?.coerceIn(valueRange) ?: valueRange.start
+    val step = stepSize?.takeIf { it.isFinite() && it > 0f }
+    val stepCount = step?.let { ((valueRange.endInclusive - valueRange.start) / it).roundToInt() }
+        ?.coerceIn(1, 100) ?: 0
+    val range = valueRange.endInclusive - valueRange.start
+    val knobColor = MaterialTheme.colorScheme.onSurface
+    val centerFraction = centerValue?.let { ((it - valueRange.start) / range).coerceIn(0f, 1f) } ?: 0f
+    var dragging by remember { mutableStateOf(false) }
+    val fraction by animateFloatAsState(
+        targetValue = (safeValue - valueRange.start) / range,
+        animationSpec = if (dragging) snap() else motionSpecs.tween(80),
+        label = "eq_slider_position",
+    )
+    Canvas(
+        modifier = modifier.fillMaxWidth().height(48.dp).horizontalGestureSafe()
+            .semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(safeValue, valueRange, (stepCount - 1).coerceAtLeast(0))
+                if (enabled) {
+                    setProgress { requested ->
+                        currentOnValueChange(requested.coerceIn(valueRange))
+                        true
+                    }
+                } else {
+                    disabled()
+                }
             }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(maxWidthPx, valueRange.start, valueRange.endInclusive) {
-                    detectTapGestures { offset ->
-                        isDragging = false
-                        updateFromX(offset.x)
+            .pointerInput(valueRange, step, centerValue, knobSize, enabled) {
+                if (!enabled) return@pointerInput
+                val inset = knobSize.toPx() / 2f
+                val width = (size.width - inset * 2f).coerceAtLeast(1f)
+                fun update(x: Float) {
+                    val raw = valueRange.start + ((x - inset) / width).coerceIn(0f, 1f) * range
+                    // Centered controls apply their magnetic value policy in the callback.
+                    val next = if (step != null && centerValue == null) {
+                        valueRange.start + ((raw - valueRange.start) / step).roundToInt() * step
+                    } else raw
+                    currentOnValueChange(next.coerceIn(valueRange))
+                }
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                    if (drag != null) {
+                        dragging = true
+                        try {
+                            update(drag.position.x)
+                            val completed = horizontalDrag(drag.id) { change ->
+                                change.consume()
+                                update(change.position.x)
+                            }
+                            if (completed) {
+                                currentEvent.changes.firstOrNull { it.changedToUpIgnoreConsumed() }
+                                    ?.let { update(it.position.x) }
+                            }
+                        } finally {
+                            dragging = false
+                        }
+                    } else {
+                        val up = currentEvent.changes.firstOrNull { it.id == down.id }
+                        if (up != null && up.changedToUpIgnoreConsumed() && !up.isConsumed) {
+                            up.consume()
+                            update(up.position.x)
+                        }
                     }
                 }
-                .pointerInput(maxWidthPx, valueRange.start, valueRange.endInclusive) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            updateFromX(offset.x)
-                        },
-                        onHorizontalDrag = { change, _ ->
-                            change.consume()
-                            updateFromX(change.position.x)
-                        },
-                        onDragEnd = { isDragging = false },
-                        onDragCancel = { isDragging = false },
-                    )
-                },
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = trackStart)
-                    .width(trackWidth)
-                    .height(lineThickness)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(inactiveLineColor),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = trackStart + activeStart)
-                    .width(activeWidth)
-                    .height(lineThickness)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(knobColor),
-            )
-            val stepCount = stepSize
-                ?.takeIf { it.isFinite() && it > 0f }
-                ?.let { ((valueRange.endInclusive - valueRange.start) / it).roundToInt() }
-            if (stepCount != null && stepCount > 0) {
-                repeat(stepCount + 1) { index ->
-                    val stepFraction = index.toFloat() / stepCount
-                    val isOnActiveTrack = stepFraction in activeStartFraction..activeEndFraction
-                    Box(
-                        modifier = Modifier
-                            .offset(x = trackStart + trackWidth * stepFraction - 1.dp)
-                            .size(2.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isOnActiveTrack) MaterialTheme.colorScheme.background.copy(alpha = 0.68f)
-                                else knobColor.copy(alpha = 0.46f),
-                            )
-                            .align(Alignment.CenterStart),
-                    )
-                }
+            },
+    ) {
+        val inset = knobSize.toPx() / 2f
+        val width = (size.width - inset * 2f).coerceAtLeast(1f)
+        val y = size.height / 2f
+        val x = inset + width * fraction
+        val alpha = if (enabled) 1f else 0.38f
+        drawLine(knobColor.copy(alpha = 0.2f * alpha), Offset(inset, y), Offset(inset + width, y),
+            strokeWidth = lineThickness.toPx(), cap = StrokeCap.Round)
+        drawLine(knobColor.copy(alpha = alpha), Offset(inset + width * centerFraction, y), Offset(x, y),
+            strokeWidth = lineThickness.toPx(), cap = StrokeCap.Round)
+        if (stepCount > 0) repeat(stepCount + 1) { index ->
+            val stepX = inset + width * index / stepCount
+            if (abs(stepX - x) > inset) {
+                drawCircle(knobColor.copy(alpha = 0.48f * alpha), 2.dp.toPx(), Offset(stepX, y))
             }
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
-                    .size(knobSize)
-                    .clip(CircleShape)
-                    .background(knobColor)
-                    .align(Alignment.CenterStart),
-            )
         }
+        drawCircle(knobColor.copy(alpha = alpha), inset, Offset(x, y))
     }
 }
-
 private fun eqBandFractions(): List<Float> {
     val count = EqualizerDspModel.BAND_COUNT
     if (count <= 1) return emptyList()
@@ -2092,11 +2025,7 @@ private fun eqLevelFraction(
 }
 
 private fun formatEqDbLabel(levelDb: Float): String {
-    return when {
-        levelDb > 0f -> "+${levelDb.roundToInt()}"
-        levelDb < 0f -> levelDb.roundToInt().toString()
-        else -> "0"
-    }
+    return formatPreampDb(levelDb).removeSuffix(" dB")
 }
 
 private fun nearestEqBandIndex(

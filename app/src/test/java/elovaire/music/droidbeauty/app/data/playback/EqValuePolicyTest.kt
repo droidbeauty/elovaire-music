@@ -47,6 +47,18 @@ class EqValuePolicyTest {
     }
 
     @Test
+    fun magneticPreamp_hasSymmetricCenterWithoutTrappingAdjacentSteps() {
+        for (value in listOf(-0.35f, -0.3f, 0f, 0.3f, 0.35f)) {
+            assertEquals(0f, EqValuePolicy.snapPreamp(value, magnetizeCenter = true), 0f)
+        }
+        assertEquals(-0.5f, EqValuePolicy.snapPreamp(-0.36f, magnetizeCenter = true), 0f)
+        assertEquals(0.5f, EqValuePolicy.snapPreamp(0.36f, magnetizeCenter = true), 0f)
+        assertEquals(6f, EqValuePolicy.snapPreamp(99f, magnetizeCenter = true), 0f)
+        assertEquals(-6f, EqValuePolicy.snapPreamp(-99f, magnetizeCenter = true), 0f)
+        assertEquals(0f, EqValuePolicy.snapPreamp(Float.NaN, magnetizeCenter = true), 0f)
+    }
+
+    @Test
     fun signalAlteringEffects_detectsEveryEffectFamily() {
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(bands = listOf(0.1f))))
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(bass = 0.1f)))

@@ -322,7 +322,7 @@ class PreferenceStore internal constructor(
     }
 
     override fun saveEqCustomPreset(name: String, settings: EqSettings) {
-        val normalizedName = normalizeEqPresetName(name).take(MAX_EQ_PRESET_NAME_LENGTH)
+        val normalizedName = normalizeEqPresetName(name).take(EqCustomPreset.MAX_NAME_LENGTH)
         if (normalizedName.isBlank()) return
         val preset = EqCustomPreset(
             id = stableEqPresetId(normalizedName),
@@ -332,7 +332,7 @@ class PreferenceStore internal constructor(
         val next = _eqCustomPresets.value
             .filterNot { it.name.equals(normalizedName, ignoreCase = true) }
             .plus(preset)
-            .takeLast(MAX_EQ_CUSTOM_PRESETS)
+            .takeLast(EqCustomPreset.MAX_COUNT)
         persistEqCustomPresets(next)
     }
 
@@ -595,7 +595,7 @@ class PreferenceStore internal constructor(
     private fun persistEqCustomPresets(presets: List<EqCustomPreset>) {
         val normalized = presets
             .mapNotNull { preset ->
-                val name = normalizeEqPresetName(preset.name).take(MAX_EQ_PRESET_NAME_LENGTH)
+                val name = normalizeEqPresetName(preset.name).take(EqCustomPreset.MAX_NAME_LENGTH)
                 name.takeIf { it.isNotBlank() }?.let {
                     EqCustomPreset(
                         id = preset.id.ifBlank { stableEqPresetId(it) },
@@ -604,7 +604,7 @@ class PreferenceStore internal constructor(
                     )
                 }
             }
-            .takeLast(MAX_EQ_CUSTOM_PRESETS)
+            .takeLast(EqCustomPreset.MAX_COUNT)
         val serialized = serializeEqCustomPresets(normalized)
         _eqCustomPresets.value = normalized
         checkpointBootSettings(KEY_EQ_CUSTOM_PRESETS to serialized)
@@ -857,7 +857,7 @@ class PreferenceStore internal constructor(
         return buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
-                val name = normalizeEqPresetName(item.optString("name")).take(MAX_EQ_PRESET_NAME_LENGTH)
+                val name = normalizeEqPresetName(item.optString("name")).take(EqCustomPreset.MAX_NAME_LENGTH)
                 if (name.isBlank()) continue
                 val id = item.optString("id").trim().takeIf(String::isNotBlank) ?: stableEqPresetId(name)
                 val settings = item.optJSONObject("settings") ?: continue
@@ -890,7 +890,7 @@ class PreferenceStore internal constructor(
                     ),
                 )
             }
-        }.distinctBy { it.name.lowercase(java.util.Locale.ROOT) }.takeLast(MAX_EQ_CUSTOM_PRESETS)
+        }.distinctBy { it.name.lowercase(java.util.Locale.ROOT) }.takeLast(EqCustomPreset.MAX_COUNT)
     }
 
     private fun serializeEqCustomPresets(presets: List<EqCustomPreset>): String {
@@ -1234,8 +1234,6 @@ class PreferenceStore internal constructor(
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
-        const val MAX_EQ_CUSTOM_PRESETS = 24
-        const val MAX_EQ_PRESET_NAME_LENGTH = 40
         const val EQ_PRESET_CODEC_VERSION = 2
         const val TAG = "PreferenceStore"
     }

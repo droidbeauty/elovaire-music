@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.domain.model.EqCustomPreset
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
+import elovaire.music.droidbeauty.app.domain.model.normalizeEqPresetName
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,7 +99,7 @@ internal class EqualizerViewModel(
     fun updateBand(index: Int, normalizedValue: Float) {
         if (index !in _uiState.value.bands.indices) return
         val gainDb = EqValuePolicy.normalizedToDb(EqValuePolicy.clampBandNormalized(normalizedValue))
-        updateState(presetName = "Custom") { state ->
+        updateState { state ->
             state.copy(
                 bands = state.bands.mapIndexed { bandIndex, band ->
                     if (bandIndex == index) band.copy(gainDb = gainDb) else band
@@ -146,16 +147,18 @@ internal class EqualizerViewModel(
     }
 
     fun saveCustomPreset(name: String) {
-        val normalizedName = name.trim()
+        val normalizedName = normalizeEqPresetName(name).take(EqCustomPreset.MAX_NAME_LENGTH)
         if (normalizedName.isBlank()) return
+        val presets = customPresets.value
+        if (presets.size >= EqCustomPreset.MAX_COUNT && presets.none { it.name.equals(normalizedName, ignoreCase = true) }) return
         preferenceStore.saveEqCustomPreset(normalizedName, _uiState.value.toEqSettings())
-        updateState(presetName = normalizedName) { it }
+        _uiState.value = _uiState.value.copy(presetName = normalizedName)
     }
 
     fun deleteCustomPreset(name: String) {
         preferenceStore.deleteEqCustomPreset(name)
-        if (_uiState.value.presetName == name) {
-            _uiState.value = _uiState.value.copy(presetName = "Custom")
+        if (_uiState.value.presetName.equals(normalizeEqPresetName(name), ignoreCase = true)) {
+            _uiState.value = _uiState.value.copy(presetName = null)
         }
     }
 
@@ -164,10 +167,12 @@ internal class EqualizerViewModel(
     }
 
     private fun updateState(
-        presetName: String? = _uiState.value.presetName,
         transform: (EqualizerUiState) -> EqualizerUiState,
     ) {
-        publish(transform(_uiState.value).copy(presetName = presetName, isDirty = true))
+        val current = _uiState.value
+        val next = transform(current)
+        if (next.toEqSettings() == current.toEqSettings()) return
+        publish(next.copy(presetName = null, isDirty = true))
     }
 
     private fun publish(state: EqualizerUiState) {
