@@ -36,8 +36,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -283,6 +281,7 @@ internal fun EqualizerScreen(
                         valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
                         centerValue = 0f,
                         stepSize = EqValuePolicy.GAIN_STEP_DB,
+                        stepDotAlpha = 1f,
                         modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = "Preamp" },
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -1152,6 +1151,7 @@ private fun EqCustomPresetPill(
     onDelete: () -> Unit,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
+    val deleteInteractionSource = rememberElovaireInteractionSource()
     val background by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary else readableCardSurfaceColor(),
         animationSpec = rememberMotionSpecs().tween(MotionDuration.Fast),
@@ -1169,19 +1169,26 @@ private fun EqCustomPresetPill(
                 text = preset.name,
                 modifier = Modifier.widthIn(max = 200.dp).clip(CircleShape)
                     .clickable(interactionSource = interactionSource, indication = null, onClick = onApply)
-                    .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
+                    .padding(start = 14.dp, top = 9.dp, bottom = 9.dp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = foreground,
             )
-            HeaderIconButton(
-                iconResId = R.drawable.ic_lucide_x,
-                contentDescription = uiPhrase(LocalAppLanguage.current, UiPhrase.Delete) + " " + preset.name,
-                showBackground = false,
-                tint = foreground,
-                onClick = onDelete,
-            )
+            Box(
+                modifier = Modifier.size(32.dp)
+                    .elovaireActionBump(interactionSource = deleteInteractionSource, label = "eq_delete_preset")
+                    .clip(CircleShape)
+                    .clickable(interactionSource = deleteInteractionSource, indication = null, onClick = onDelete),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_x),
+                    contentDescription = uiPhrase(LocalAppLanguage.current, UiPhrase.Delete) + " " + preset.name,
+                    tint = foreground,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
         }
     }
 }
@@ -1399,8 +1406,6 @@ private fun EqPresetPill(
         Text(
             text = label,
             modifier = Modifier
-                .heightIn(min = 48.dp)
-                .wrapContentHeight(Alignment.CenterVertically)
                 .clip(RoundedCornerShape(ElovaireRadii.pill))
                 .clickable(
                     enabled = enabled,
@@ -1408,7 +1413,7 @@ private fun EqPresetPill(
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 9.dp),
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             color = contentColor,
         )
@@ -1917,6 +1922,7 @@ internal fun ThinContinuousSlider(
     valueRange: ClosedFloatingPointRange<Float>,
     centerValue: Float? = null,
     stepSize: Float? = null,
+    stepDotAlpha: Float = 0.48f,
     lineThickness: Dp = 2.dp,
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
@@ -2002,7 +2008,7 @@ internal fun ThinContinuousSlider(
         if (stepCount > 0) repeat(stepCount + 1) { index ->
             val stepX = inset + width * index / stepCount
             if (abs(stepX - x) > inset) {
-                drawCircle(knobColor.copy(alpha = 0.48f * alpha), 2.dp.toPx(), Offset(stepX, y))
+                drawCircle(knobColor.copy(alpha = stepDotAlpha * alpha), 2.dp.toPx(), Offset(stepX, y))
             }
         }
         drawCircle(knobColor.copy(alpha = alpha), inset, Offset(x, y))

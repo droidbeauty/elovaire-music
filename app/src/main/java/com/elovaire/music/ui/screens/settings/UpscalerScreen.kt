@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,8 +32,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
+import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.upscalerCopy
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import kotlin.math.roundToInt
@@ -59,29 +63,30 @@ internal fun UpscalerScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item {
+            item(key = "upscaler", contentType = "settings") {
                 ModuleCard {
-                    UpscalerToggleRow(
-                        title = copy.enabled,
-                        subtitle = copy.subtitle,
-                        checked = value.enabled,
-                        onChanged = { onSettingsChanged(value.copy(enabled = it)) },
-                    )
-                }
-            }
-            item {
-                ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(copy.multiplier, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                        UpscalerSlider(
-                            selected = factors.indexOf(value.multiplier),
-                            stepCount = factors.size,
-                            title = copy.multiplier,
-                            stateLabel = "${value.multiplier}×",
-                            onChanged = { onSettingsChanged(value.copy(multiplier = factors[it])) },
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        UpscalerToggleRow(
+                            title = copy.enabled,
+                            subtitle = copy.subtitle,
+                            checked = value.enabled,
+                            onChanged = { onSettingsChanged(value.copy(enabled = it)) },
                         )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            factors.forEach { Text("${it}×", style = MaterialTheme.typography.labelLarge) }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(copy.multiplier, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface)
+                            UpscalerSlider(
+                                selected = factors.indexOf(value.multiplier),
+                                stepCount = factors.size,
+                                title = copy.multiplier,
+                                stateLabel = "${value.multiplier}×",
+                                onChanged = { onSettingsChanged(value.copy(multiplier = factors[it])) },
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                factors.forEach { Text("${it}×", style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface) }
+                            }
                         }
                     }
                 }
@@ -100,7 +105,7 @@ internal fun UpscalerScreen(
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("${copy.headroom} · ${value.headroomDb} dB", style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold)
+                            fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         Text(copy.headroomSubtitle, style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         UpscalerSlider(
@@ -118,7 +123,17 @@ internal fun UpscalerScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        PinnedBackTopBar(title = copy.title, onBack = onBack, modifier = Modifier.align(Alignment.TopCenter))
+        PinnedBackTopBar(
+            title = copy.title,
+            onBack = onBack,
+            modifier = Modifier.align(Alignment.TopCenter),
+            actions = listOf(TopBarActionSpec(
+                iconResId = R.drawable.ic_lucide_rotate_ccw,
+                contentDescription = uiPhrase(LocalAppLanguage.current, UiPhrase.Reset),
+                enabled = value != UpscalerSettings(),
+                onClick = { onSettingsChanged(UpscalerSettings()) },
+            )),
+        )
         FastScrollbar(state = listState, topInset = topBarOccupiedHeight() + 8.dp,
             bottomInset = bottomPadding + buttonNavigationScrollBoost())
     }
