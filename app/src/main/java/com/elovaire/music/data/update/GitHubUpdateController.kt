@@ -666,7 +666,7 @@ private object GitHubReleaseClient {
             headers = mapOf(
                 "Accept" to accept,
                 "User-Agent" to "Elovaire/${BuildConfig.VERSION_NAME}",
-                "X-GitHub-Api-Version" to "2022-11-28",
+                "X-GitHub-Api-Version" to "2026-03-10",
             ),
             maxBytes = maxBytes,
             urlPolicy = ::isTrustedUpdateUrl,
@@ -698,7 +698,7 @@ private suspend fun <T> withTrustedConnection(
                 instanceFollowRedirects = false
                 setRequestProperty("Accept", accept)
                 setRequestProperty("User-Agent", "Elovaire/${elovaire.music.droidbeauty.app.BuildConfig.VERSION_NAME}")
-                setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+                setRequestProperty("X-GitHub-Api-Version", "2026-03-10")
             }
             try {
                 connection.connect()

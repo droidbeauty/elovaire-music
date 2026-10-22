@@ -1,6 +1,6 @@
 [versions]
 agp = "9.4.1"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 activityCompose = "1.13.0"
 androidxCore = "1.19.1"
 composeFoundation = "1.12.1"
@@ -10,27 +10,56 @@ media3 = "1.11.1"
 metricsPerformance = "1.0.0"
 navigation = "2.10.2"
 profileInstaller = "1.4.1"
-palette = "1.0.0"
-haze = "1.7.3"
+palette = "1.1.0"
+haze = "2.0.1"
 jaudiotagger = "3.0.1"
 junit = "4.13.2"
 androidxTestJunit = "1.3.0"
+espresso = "3.7.0"
 androidxTestRunner = "1.7.0"
 androidxTestOrchestrator = "1.6.1"
 androidxBenchmark = "1.5.0"
 androidxTestUiautomator = "2.4.0"
-detekt = "2.0.0-alpha.5"
-dependencyAnalysis = "3.19.1"
+detekt = "2.0.0-alpha.6"
+dependencyAnalysis = "3.19.2"
 leakcanary = "2.14"
 room = "2.8.5"
-datastore = "1.2.1"
+datastore = "1.3.0"
 work = "2.12.0"
 ksp = "2.3.12"
-tracing = "2.0.3"
+tracing = "2.0.5"
 coroutines = "1.11.0"
-serializationCore = "1.11.0"
+serializationCore = "1.12.0"
 smbj = "0.15.0"
 glance = "1.2.0"
+bouncycastle = "1.86"
+
+annotations = "26.1.0"
+androidxAnnotation = "1.11.0"
+androidxAnnotationExperimental = "1.6.0"
+collection = "1.7.0"
+jspecify = "1.0.1"
+concurrent = "1.3.0"
+startup = "1.2.0"
+versionedparcelable = "1.2.1"
+composeMultiplatform = "1.12.2"
+savedstateMultiplatform = "1.4.0"
+navigationevent = "1.2.0"
+autofill = "1.3.0"
+graphicsPath = "1.1.0"
+emoji = "1.7.0"
+customview = "1.2.0"
+poolingcontainer = "1.1.0"
+window = "1.5.1"
+exif = "1.4.2"
+guava = "33.7.2-android"
+failureaccess = "1.0.3"
+recyclerview = "1.4.0"
+mediaCompat = "1.8.0"
+sqlite = "2.7.1"
+okio = "3.18.2"
+atomicfu = "0.33.0"
+slf4j = "2.0.20"
 
 [libraries]
 androidx-core = { group = "androidx.core", name = "core", version.ref = "androidxCore" }
@@ -64,8 +93,11 @@ androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidge
 androidx-glance-testing = { group = "androidx.glance", name = "glance-testing", version.ref = "glance" }
 androidx-glance-appwidget-testing = { group = "androidx.glance", name = "glance-appwidget-testing", version.ref = "glance" }
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
+haze-blur = { group = "dev.chrisbanes.haze", name = "haze-blur", version.ref = "haze" }
+bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestJunit" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-test-orchestrator = { group = "androidx.test", name = "orchestrator", version.ref = "androidxTestOrchestrator" }
@@ -73,10 +105,75 @@ androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchm
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "androidxTestUiautomator" }
 androidx-tracing = { group = "androidx.tracing", name = "tracing", version.ref = "tracing" }
 kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "serializationCore" }
-kotlinx-serialization-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core-jvm", version.ref = "serializationCore" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
 smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
+
+jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
+androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "androidxAnnotation" }
+androidx-annotation-experimental = { group = "androidx.annotation", name = "annotation-experimental", version.ref = "androidxAnnotationExperimental" }
+androidx-collection = { group = "androidx.collection", name = "collection", version.ref = "collection" }
+jspecify = { group = "org.jspecify", name = "jspecify", version.ref = "jspecify" }
+androidx-concurrent-futures = { group = "androidx.concurrent", name = "concurrent-futures", version.ref = "concurrent" }
+androidx-startup = { group = "androidx.startup", name = "startup-runtime", version.ref = "startup" }
+androidx-versionedparcelable = { group = "androidx.versionedparcelable", name = "versionedparcelable", version.ref = "versionedparcelable" }
+compose-multiplatform-ui = { group = "org.jetbrains.compose.ui", name = "ui", version.ref = "composeMultiplatform" }
+compose-multiplatform-animation = { group = "org.jetbrains.compose.animation", name = "animation-core", version.ref = "composeMultiplatform" }
+savedstate-multiplatform = { group = "org.jetbrains.androidx.savedstate", name = "savedstate", version.ref = "savedstateMultiplatform" }
+androidx-navigationevent = { group = "androidx.navigationevent", name = "navigationevent", version.ref = "navigationevent" }
+androidx-navigationevent-compose = { group = "androidx.navigationevent", name = "navigationevent-compose", version.ref = "navigationevent" }
+androidx-autofill = { group = "androidx.autofill", name = "autofill", version.ref = "autofill" }
+androidx-graphics-path = { group = "androidx.graphics", name = "graphics-path", version.ref = "graphicsPath" }
+androidx-emoji = { group = "androidx.emoji2", name = "emoji2", version.ref = "emoji" }
+androidx-customview = { group = "androidx.customview", name = "customview", version.ref = "customview" }
+androidx-poolingcontainer = { group = "androidx.customview", name = "customview-poolingcontainer", version.ref = "poolingcontainer" }
+androidx-window = { group = "androidx.window", name = "window", version.ref = "window" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exif" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+guava-failureaccess = { group = "com.google.guava", name = "failureaccess", version.ref = "failureaccess" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+androidx-media-compat = { group = "androidx.media", name = "media", version.ref = "mediaCompat" }
+androidx-sqlite = { group = "androidx.sqlite", name = "sqlite", version.ref = "sqlite" }
+androidx-sqlite-framework = { group = "androidx.sqlite", name = "sqlite-framework", version.ref = "sqlite" }
+okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
+atomicfu = { group = "org.jetbrains.kotlinx", name = "atomicfu", version.ref = "atomicfu" }
+slf4j = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
+androidx-compose-material-ripple = { group = "androidx.compose.material", name = "material-ripple", version.ref = "composeFoundation" }
+
+[bundles]
+runtime-upgrades = [
+    "jetbrains-annotations",
+    "androidx-annotation",
+    "androidx-annotation-experimental",
+    "androidx-collection",
+    "jspecify",
+    "androidx-concurrent-futures",
+    "androidx-startup",
+    "androidx-versionedparcelable",
+    "compose-multiplatform-ui",
+    "compose-multiplatform-animation",
+    "savedstate-multiplatform",
+    "androidx-navigationevent",
+    "androidx-navigationevent-compose",
+    "androidx-autofill",
+    "androidx-graphics-path",
+    "androidx-emoji",
+    "androidx-customview",
+    "androidx-poolingcontainer",
+    "androidx-window",
+    "androidx-exifinterface",
+    "guava",
+    "guava-failureaccess",
+    "androidx-recyclerview",
+    "androidx-media-compat",
+    "androidx-sqlite",
+    "androidx-sqlite-framework",
+    "okio",
+    "atomicfu",
+    "slf4j",
+    "androidx-compose-material-ripple",
+]
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,11 +1,24 @@
 package elovaire.music.droidbeauty.app.data.network
 
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.net.URL
 
 class BoundedHttpTransportTest {
+    @Test
+    fun defaultPolicyRejectsEmbeddedCredentialsAndInvalidAuthorities() {
+        assertTrue(isHttpsUrl(URL("https://example.test/resource")))
+        assertTrue(isHttpsUrl(URL("https://example.test:8443/resource")))
+        assertFalse(isHttpsUrl(URL("http://example.test/resource")))
+        assertFalse(isHttpsUrl(URL("https://user:password@example.test/resource")))
+        assertFalse(isHttpsUrl(URL("https:/resource")))
+        assertFalse(isHttpsUrl(URL("https://example.test:0/resource")))
+        assertFalse(isHttpsUrl(URL("https://example.test:65536/resource")))
+    }
+
     @Test
     fun rejectsUnboundedTransportConfiguration() {
         assertThrows(IllegalArgumentException::class.java) {

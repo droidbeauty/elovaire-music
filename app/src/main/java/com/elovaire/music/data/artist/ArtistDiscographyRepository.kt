@@ -62,7 +62,7 @@ internal class CachedArtistDiscographyReader(
         val expiresAtMs: Long,
     )
 
-    private val cacheDirectory = context?.cacheDir?.resolve(CACHE_DIRECTORY)
+    private val cacheDirectory by lazy { context?.cacheDir?.resolve(CACHE_DIRECTORY) }
     private val cacheLock = Any()
     private val memoryCache = mutableMapOf<String, CacheEntry>()
     private val requestMutex = Mutex()

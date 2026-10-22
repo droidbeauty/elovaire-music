@@ -331,7 +331,11 @@ private data class GetResponse<T>(
     val finalUrl: URL,
 )
 
-private fun isHttpsUrl(url: URL): Boolean = url.protocol.equals("https", ignoreCase = true)
+internal fun isHttpsUrl(url: URL): Boolean =
+    url.protocol.equals("https", ignoreCase = true) &&
+        url.host.isNotBlank() &&
+        url.userInfo == null &&
+        (url.port == -1 || url.port in 1..65535)
 
 internal fun headersForHttpRedirect(
     headers: Map<String, String>,

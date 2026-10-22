@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +43,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.LocalHazeBlurStyle
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.ui.components.ArtworkPaletteShadow
 import elovaire.music.droidbeauty.app.ui.screens.DynamicBackdropSurface
@@ -278,7 +281,7 @@ private fun BackdropBlurFixture(
     lightTheme: Boolean,
 ) {
     MaterialTheme(colorScheme = if (lightTheme) lightColorScheme() else darkColorScheme()) {
-        val hazeState = rememberHazeState(blurEnabled = blurEnabled)
+        val hazeState = rememberHazeState()
         val backdropColor = if (lightTheme) Color(0xFFF4F4F4) else Color(0xFF080808)
         val sourceTextColor = if (lightTheme) Color(0xFF111111) else Color.White
         Box(
@@ -310,24 +313,28 @@ private fun BackdropBlurFixture(
                     (0..20).forEach { index -> BackdropFixtureRow(index, image, lightTheme, sourceTextColor) }
                 }
             }
-            DynamicBackdropSurface(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(190.dp),
-                overlayAlpha = 0.34f,
-                hazeState = hazeState,
+            CompositionLocalProvider(
+                LocalHazeBlurStyle provides HazeBlurStyle { blurEnabled(blurEnabled) },
             ) {
-                Text(
-                    text = "FOREGROUND LABEL",
+                DynamicBackdropSurface(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp)
-                        .testTag("glass_label"),
-                    color = sourceTextColor,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(190.dp),
+                    overlayAlpha = 0.34f,
+                    hazeState = hazeState,
+                ) {
+                    Text(
+                        text = "FOREGROUND LABEL",
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 24.dp)
+                            .testTag("glass_label"),
+                        color = sourceTextColor,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
     }
@@ -389,7 +396,7 @@ private fun BackdropBoundaryFixture(
     image: androidx.compose.ui.graphics.ImageBitmap,
 ) {
     MaterialTheme(colorScheme = darkColorScheme()) {
-        val hazeState = rememberHazeState(blurEnabled = blurEnabled)
+        val hazeState = rememberHazeState()
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -404,24 +411,28 @@ private fun BackdropBoundaryFixture(
                 Box(Modifier.fillMaxSize().background(Color(0xFF121212)))
                 BoundaryQueue(image)
             }
-            DynamicBackdropSurface(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(160.dp),
-                overlayAlpha = 0.34f,
-                hazeState = hazeState,
+            CompositionLocalProvider(
+                LocalHazeBlurStyle provides HazeBlurStyle { blurEnabled(blurEnabled) },
             ) {
-                Text(
-                    text = "FOREGROUND LABEL",
+                DynamicBackdropSurface(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp)
-                        .testTag("boundary_glass_label"),
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    overlayAlpha = 0.34f,
+                    hazeState = hazeState,
+                ) {
+                    Text(
+                        text = "FOREGROUND LABEL",
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 24.dp)
+                            .testTag("boundary_glass_label"),
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
     }

@@ -266,6 +266,7 @@ val buildStructureCheck = tasks.register("buildStructureCheck") {
 
 tasks.register("dependencyIntegrityCheck") {
     group = "verification"
+    mustRunAfter(tasks.named("wrapper"))
     dependsOn(buildStructureCheck)
     val verificationMetadata = layout.projectDirectory.file("gradle/verification-metadata.xml")
     val versionCatalog = layout.projectDirectory.file("gradle/libs.versions.toml")

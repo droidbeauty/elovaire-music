@@ -228,8 +228,11 @@ import androidx.navigation.compose.rememberNavController
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
@@ -2208,16 +2211,20 @@ internal fun BoxScope.QueueEdgeHaze(
             .fillMaxWidth()
             .height(edgeHeight)
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .hazeEffect(hazeState) {
-                progressive = softEdgeBlurProgressive(edgeMask)
-                blurRadius = 34.dp
-                backgroundColor = surface.copy(alpha = 0.18f)
-                tints = listOf(
-                    HazeTint(surface.copy(alpha = 0.08f)),
-                    HazeTint(tint.copy(alpha = 0.035f)),
-                )
-                noiseFactor = 0.006f
-            }
+            .hazeBlur(
+                input = HazeInput.Sources(hazeState),
+                style = HazeBlurStyle {
+                    progressive(softEdgeBlurProgressive(edgeMask))
+                    blurRadius(34.dp)
+                    backgroundColor(surface.copy(alpha = 0.18f))
+                    colorEffects(listOf(
+                        HazeColorEffect.tint(surface.copy(alpha = 0.08f)),
+                        HazeColorEffect.tint(tint.copy(alpha = 0.035f)),
+                    ))
+                    noiseFactor(0.006f)
+                },
+                performanceMode = HazePerformanceMode.Quality,
+            )
             .drawWithContent {
                 drawContent()
                 drawRect(
@@ -4123,16 +4130,20 @@ private fun LyricsOverlay(
                                 onClick = {},
                             )
                             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                            .hazeEffect(lyricsHazeState) {
-                                progressive = softEdgeBlurProgressive(edgeMask)
-                                blurRadius = 34.dp
-                                backgroundColor = surface.copy(alpha = 0.42f)
-                                tints = listOf(
-                                    HazeTint(surface.copy(alpha = 0.12f)),
-                                    HazeTint(tintColor.copy(alpha = 0.025f)),
-                                )
-                                noiseFactor = 0.012f
-                            }
+                            .hazeBlur(
+                                input = HazeInput.Sources(lyricsHazeState),
+                                style = HazeBlurStyle {
+                                    progressive(softEdgeBlurProgressive(edgeMask))
+                                    blurRadius(34.dp)
+                                    backgroundColor(surface.copy(alpha = 0.42f))
+                                    colorEffects(listOf(
+                                        HazeColorEffect.tint(surface.copy(alpha = 0.12f)),
+                                        HazeColorEffect.tint(tintColor.copy(alpha = 0.025f)),
+                                    ))
+                                    noiseFactor(0.012f)
+                                },
+                                performanceMode = HazePerformanceMode.Quality,
+                            )
                             .drawWithContent {
                                 drawContent()
                                 drawRect(
@@ -4321,15 +4332,19 @@ private fun LyricsOverlay(
                                 .clip(RoundedCornerShape(ElovaireRadii.pill))
                                 .then(
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        Modifier.hazeEffect(lyricsHazeState) {
-                                            blurRadius = 34.dp
-                                            backgroundColor = surface.copy(alpha = 0.18f)
-                                            tints = listOf(
-                                                HazeTint(surface.copy(alpha = 0.08f)),
-                                                HazeTint(contentColor.copy(alpha = 0.02f)),
-                                            )
-                                            noiseFactor = 0.012f
-                                        }
+                                        Modifier.hazeBlur(
+                                            input = HazeInput.Sources(lyricsHazeState),
+                                            style = HazeBlurStyle {
+                                                blurRadius(34.dp)
+                                                backgroundColor(surface.copy(alpha = 0.18f))
+                                                colorEffects(listOf(
+                                                    HazeColorEffect.tint(surface.copy(alpha = 0.08f)),
+                                                    HazeColorEffect.tint(contentColor.copy(alpha = 0.02f)),
+                                                ))
+                                                noiseFactor(0.012f)
+                                            },
+                                            performanceMode = HazePerformanceMode.Quality,
+                                        )
                                     } else {
                                         Modifier
                                     },

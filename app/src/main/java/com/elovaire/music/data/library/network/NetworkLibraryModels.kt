@@ -57,7 +57,9 @@ internal data class NetworkCredentials(
     val username: String,
     val password: String,
     val domain: String? = null,
-)
+) {
+    override fun toString(): String = "NetworkCredentials(<redacted>)"
+}
 
 internal data class NetworkFileEntry(
     val path: String,

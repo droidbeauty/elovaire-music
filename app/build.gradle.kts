@@ -151,16 +151,6 @@ android {
     }
 }
 
-configurations.matching { configuration ->
-    configuration.name.endsWith("AndroidTestRuntimeClasspath")
-}.configureEach {
-    // Room 2.8.5 migration serializers require the 1.8 serializer ABI; Navigation otherwise pins 1.7.3.
-    resolutionStrategy.force(
-        libs.kotlinx.serialization.core,
-        libs.kotlinx.serialization.core.jvm,
-    )
-}
-
 androidComponents {
     onVariants(selector().all()) { variant ->
         val buildLabel = variant.buildType ?: variant.name
@@ -209,6 +199,7 @@ if (providers.gradleProperty("app.r8Diagnostics").map(String::toBoolean).getOrEl
 }
 
 kotlin {
+    jvmToolchain(AppBuildConfig.Java.toolchainVersion)
     compilerOptions {
         jvmTarget = JvmTarget.fromTarget(AppBuildConfig.Java.kotlinJvmTarget)
     }
@@ -239,7 +230,7 @@ detekt {
 }
 
 val detektJavaLauncher = javaToolchains.launcherFor {
-    languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.version))
+    languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.toolchainVersion))
 }
 
 tasks.withType<Detekt>().configureEach {
@@ -278,8 +269,20 @@ dependencies {
     implementation(libs.androidx.glance)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.haze)
+    implementation(libs.haze.blur)
     implementation(libs.jaudiotagger)
     implementation(libs.smbj)
+    implementation(libs.kotlinx.coroutines.android)
+    constraints {
+        androidTestImplementation(libs.androidx.test.espresso.core)
+        libs.bundles.runtime.upgrades.get().forEach { implementation(it) }
+        implementation(libs.kotlinx.serialization.core) {
+            because("Align Navigation and Room serializers on the current stable runtime ABI.")
+        }
+        implementation(libs.bouncycastle) {
+            because("Keep the SMB cryptography provider on its current stable security release.")
+        }
+    }
     ksp(libs.androidx.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)

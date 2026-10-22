@@ -34,8 +34,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import kotlinx.coroutines.FlowPreview
@@ -213,21 +216,25 @@ internal fun DynamicBackdropSurface(
     Box(
         modifier = modifier.clip(shape),
     ) {
-        if (shouldApplyDynamicBackdropHaze(
+        if (effectiveHazeState != null && shouldApplyDynamicBackdropHaze(
                 sdkInt = Build.VERSION.SDK_INT,
                 flatOverlay = flatOverlay,
-                hazeStateAvailable = effectiveHazeState != null,
+                hazeStateAvailable = true,
             )
         ) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .hazeEffect(effectiveHazeState) {
-                        blurRadius = 30.dp
-                        backgroundColor = overlayColor.copy(alpha = overlayAlpha)
-                        tints = listOf(HazeTint(overlayColor.copy(alpha = overlayAlpha)))
-                        noiseFactor = 0.015f
-                    },
+                    .hazeBlur(
+                        input = HazeInput.Sources(effectiveHazeState),
+                        style = HazeBlurStyle {
+                            blurRadius(30.dp)
+                            backgroundColor(overlayColor.copy(alpha = overlayAlpha))
+                            colorEffects(listOf(HazeColorEffect.tint(overlayColor.copy(alpha = overlayAlpha))))
+                            noiseFactor(0.015f)
+                        },
+                        performanceMode = HazePerformanceMode.Quality,
+                    ),
             )
         }
         Box(

@@ -6,6 +6,7 @@ object AppBuildConfig {
     }
 
     object Java {
+        const val toolchainVersion = 27
         const val version = 17
         const val kotlinJvmTarget = "17"
     }

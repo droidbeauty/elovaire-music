@@ -7,6 +7,13 @@ import org.junit.Test
 
 class NetworkCredentialEnvelopeTest {
     @Test
+    fun credentialDiagnosticsNeverIncludeSecrets() {
+        val credentials = NetworkCredentials("private-user", "private-password", "private-domain")
+
+        assertEquals("NetworkCredentials(<redacted>)", credentials.toString())
+    }
+
+    @Test
     fun currentEnvelope_roundTripsExactCiphertext() {
         val iv = ByteArray(12) { it.toByte() }
         val ciphertext = ByteArray(32) { (it + 1).toByte() }
