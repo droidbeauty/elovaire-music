@@ -18,7 +18,7 @@ internal interface PersistenceMaintenanceDao {
     @RawQuery
     suspend fun quickCheck(query: SupportSQLiteQuery): List<String>
 
-    @Query("DELETE FROM media_mutations WHERE status IN ('Completed', 'Cancelled', 'Failed') AND updatedAtMs < :cutoffMs")
+    @Query("DELETE FROM media_mutations WHERE recoveryBackupPath IS NULL AND status IN ('Completed', 'Cancelled', 'Failed') AND updatedAtMs < :cutoffMs")
     suspend fun deleteTerminalMutationsBefore(cutoffMs: Long): Int
 
     @Query("SELECT COUNT(*) FROM media_mutations WHERE status = 'NeedsRepair'")

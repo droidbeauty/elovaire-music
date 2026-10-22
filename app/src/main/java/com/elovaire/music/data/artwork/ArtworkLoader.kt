@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -424,7 +423,13 @@ internal object ArtworkBitmapCache {
             }
         }
     }
-    private val inFlight = mutableMapOf<String, CompletableFuture<Bitmap?>>()
+    private class PendingArtworkLoad {
+        val future = CompletableFuture<Bitmap?>()
+        @Volatile
+        var invalidated = false
+    }
+
+    private val inFlight = mutableMapOf<String, PendingArtworkLoad>()
     private val retrieverAdmission = MediaMetadataRetrieverAdmission()
     private val _completedDecodes = MutableStateFlow(0L)
     val completedDecodes = _completedDecodes.asStateFlow()
@@ -488,17 +493,16 @@ internal object ArtworkBitmapCache {
         onAdmissionRejected: () -> Unit = {},
         decode: () -> Bitmap?,
     ): Bitmap? {
-        var ownerFuture: CompletableFuture<Bitmap?>? = null
-        while (ownerFuture == null) {
-            val waitFor: CompletableFuture<Bitmap?>?
+        while (true) {
+            var ownedLoad: PendingArtworkLoad? = null
+            val waitFor: PendingArtworkLoad?
             synchronized(this) {
                 cache.get(key)?.let { return it }
                 val existing = inFlight[key]
                 if (existing != null) {
                     waitFor = existing
                 } else if (inFlight.size < MAX_IN_FLIGHT) {
-                    ownerFuture = CompletableFuture()
-                    inFlight[key] = ownerFuture
+                    ownedLoad = PendingArtworkLoad().also { inFlight[key] = it }
                     waitFor = null
                 } else {
                     // Synchronous callers do not park behind unrelated work. Suspending
@@ -507,54 +511,32 @@ internal object ArtworkBitmapCache {
                     return null
                 }
             }
-            if (ownerFuture == null) {
+            if (ownedLoad == null) {
                 val completed = waitFor ?: continue
                 try {
-                    completed.get()
+                    val loaded = completed.future.get()
+                    if (!completed.invalidated) return loaded
                 } catch (_: InterruptedException) {
                     Thread.currentThread().interrupt()
                     return null
                 } catch (_: ExecutionException) {
                     // The owner completed with a failure; retry the requested key below.
                 }
-                synchronized(this) {
-                    cache.get(key)?.let { return it }
-                    if (inFlight[key] === completed) return null
-                }
-            }
-        }
-
-        val pending = requireNotNull(ownerFuture)
-        val outcome = runCatching {
-            decode()?.also { put(key, it) }
-        }
-        return try {
-            outcome.fold(
-                onSuccess = { loaded ->
-                    pending.complete(loaded)
-                    loaded
-                },
-                onFailure = { failure ->
-                    pending.completeExceptionally(failure)
-                    throw failure
-                },
-            )
-        } finally {
-            synchronized(this) {
-                if (inFlight[key] === pending) {
-                    inFlight.remove(key)
-                    _completedDecodes.value += 1L
-                }
+            } else {
+                val pending = requireNotNull(ownedLoad)
+                val loaded = decodeAndComplete(key, pending, decode)
+                if (!pending.invalidated) return loaded
             }
         }
     }
 
     suspend fun getOrLoadAwaiting(key: String, decode: () -> Bitmap?): Bitmap? {
         while (true) {
+            currentCoroutineContext().ensureActive()
             val completedRevision = _completedDecodes.value
             var cached: Bitmap? = null
-            var sharedLoad: CompletableFuture<Bitmap?>? = null
-            var ownedLoad: CompletableFuture<Bitmap?>? = null
+            var sharedLoad: PendingArtworkLoad? = null
+            var ownedLoad: PendingArtworkLoad? = null
             var waitForAdmission = false
             synchronized(this) {
                 cached = cache.get(key)
@@ -563,7 +545,7 @@ internal object ArtworkBitmapCache {
                     if (existing != null) {
                         sharedLoad = existing
                     } else if (inFlight.size < MAX_IN_FLIGHT) {
-                        CompletableFuture<Bitmap?>().also { pending ->
+                        PendingArtworkLoad().also { pending ->
                             inFlight[key] = pending
                             ownedLoad = pending
                         }
@@ -574,12 +556,8 @@ internal object ArtworkBitmapCache {
             }
             cached?.let { return it }
             sharedLoad?.let { pending ->
-                val result = awaitArtworkLoad(pending)
-                if (result.isSuccess) return result.getOrNull()
-                if (result.exceptionOrNull() is CancellationException) {
-                    currentCoroutineContext().ensureActive()
-                }
-                _completedDecodes.first { it != completedRevision }
+                val result = awaitArtworkLoad(pending.future)
+                if (result.isSuccess && !pending.invalidated) return result.getOrNull()
                 continue
             }
             if (waitForAdmission) {
@@ -588,34 +566,37 @@ internal object ArtworkBitmapCache {
             }
 
             val pending = requireNotNull(ownedLoad)
-            val outcome = runCatching(decode)
-            return try {
-                outcome.fold(
-                    onSuccess = { loaded ->
-                        loaded?.let { put(key, it) }
-                        pending.complete(loaded)
-                        loaded
-                    },
-                    onFailure = { failure ->
-                        pending.completeExceptionally(failure)
-                        throw failure
-                    },
-                )
-            } finally {
-                synchronized(this) {
-                    if (inFlight[key] === pending) {
-                        inFlight.remove(key)
-                        _completedDecodes.value += 1L
-                    }
-                }
+            val loaded = decodeAndComplete(key, pending, decode)
+            if (!pending.invalidated) return loaded
+        }
+    }
+
+    private fun decodeAndComplete(key: String, pending: PendingArtworkLoad, decode: () -> Bitmap?): Bitmap? {
+        val outcome = runCatching {
+            val loaded = decode()
+            synchronized(this) {
+                if (pending.invalidated) null else loaded?.also { put(key, it) }
             }
         }
+        // Keep invalidated work admitted until its decoder finishes, and release its slot
+        // before waking waiters so they can request the updated cover without spinning.
+        synchronized(this) {
+            inFlight.remove(key)
+            _completedDecodes.value += 1L
+        }
+        outcome.fold(pending.future::complete, pending.future::completeExceptionally)
+        return outcome.getOrThrow()
     }
 
     @Synchronized
     fun removeAllMatchingUris(uris: Collection<String>) {
         if (uris.isEmpty()) return
         val invalidatedUris = uris.toHashSet()
+        inFlight.forEach { (key, pending) ->
+            if (key in invalidatedUris || artworkCacheKeyUri(key) in invalidatedUris) {
+                pending.invalidated = true
+            }
+        }
         cache.snapshot().keys.forEach { key ->
             if (key in invalidatedUris || artworkCacheKeyUri(key) in invalidatedUris) {
                 cache.remove(key)
@@ -655,11 +636,14 @@ internal fun artworkCacheKeyUri(key: String): String? {
 
 internal fun invalidateArtworkBitmapCache(uris: Collection<String>) {
     ArtworkBitmapCache.removeAllMatchingUris(uris)
+    ArtworkGradientCache.removeMatching(uris.toSet())
 }
 
 /** Presentation-independent artwork cache for colors derived from the same media artwork. */
 internal object ArtworkGradientCache {
     private const val MAX_GRADIENTS = 160
+    private val _invalidationRevision = MutableStateFlow(0L)
+    val invalidationRevision = _invalidationRevision.asStateFlow()
     private val gradients = object : LinkedHashMap<String, List<Int>>(MAX_GRADIENTS, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Int>>?): Boolean {
             return size > MAX_GRADIENTS
@@ -675,7 +659,12 @@ internal object ArtworkGradientCache {
     fun gradient(key: String): List<Int>? = gradients[key]
 
     @Synchronized
-    fun putGradient(key: String, gradient: List<Int>) {
+    fun putGradient(
+        key: String,
+        gradient: List<Int>,
+        expectedInvalidationRevision: Long = _invalidationRevision.value,
+    ) {
+        if (expectedInvalidationRevision != _invalidationRevision.value) return
         gradients[key] = gradient
     }
 
@@ -683,7 +672,12 @@ internal object ArtworkGradientCache {
     fun accent(key: String): Int? = accents[key]
 
     @Synchronized
-    fun putAccent(key: String, color: Int) {
+    fun putAccent(
+        key: String,
+        color: Int,
+        expectedInvalidationRevision: Long = _invalidationRevision.value,
+    ) {
+        if (expectedInvalidationRevision != _invalidationRevision.value) return
         accents[key] = color
     }
 
@@ -692,6 +686,7 @@ internal object ArtworkGradientCache {
         if (uriKeys.isEmpty()) return
         gradients.keys.removeAll { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
         accents.keys.removeAll { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
+        _invalidationRevision.value += 1L
     }
 
     @Synchronized
@@ -709,5 +704,4 @@ internal fun invalidateArtworkCaches(uris: Collection<Uri?>) {
         .toSet()
     if (keys.isEmpty()) return
     invalidateArtworkBitmapCache(keys)
-    ArtworkGradientCache.removeMatching(keys)
 }

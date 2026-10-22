@@ -14,6 +14,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -31,6 +32,147 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ArtworkBitmapCacheInstrumentedTest {
+    @Test
+    fun synchronousWaitersShareMissingArtworkWithoutRepeatingTheDecode() {
+        val executor = Executors.newFixedThreadPool(8)
+        try {
+            repeat(10) { iteration ->
+                val key = "missing-shared-${System.nanoTime()}-$iteration"
+                val started = CountDownLatch(1)
+                val release = CountDownLatch(1)
+                val waitersStarted = CountDownLatch(7)
+                val decodes = AtomicInteger()
+                val owner = executor.submit<Bitmap?> {
+                    ArtworkBitmapCache.getOrLoad(key) {
+                        decodes.incrementAndGet()
+                        started.countDown()
+                        assertTrue(release.await(5, TimeUnit.SECONDS))
+                        null
+                    }
+                }
+                try {
+                    assertTrue(started.await(5, TimeUnit.SECONDS))
+                    val waiterThreads = arrayOfNulls<Thread>(7)
+                    val waiters = List(7) { index ->
+                        executor.submit<Bitmap?> {
+                            waiterThreads[index] = Thread.currentThread()
+                            waitersStarted.countDown()
+                            ArtworkBitmapCache.getOrLoad(key) {
+                                decodes.incrementAndGet()
+                                null
+                            }
+                        }
+                    }
+                    assertTrue(waitersStarted.await(5, TimeUnit.SECONDS))
+                    // Wait for each worker to join the shared load before releasing its owner.
+                    val deadline = android.os.SystemClock.uptimeMillis() + 5_000L
+                    while (waiterThreads.any { it?.state != Thread.State.WAITING } &&
+                        android.os.SystemClock.uptimeMillis() < deadline
+                    ) {
+                        android.os.SystemClock.sleep(1L)
+                    }
+                    assertTrue(waiterThreads.all { it?.state == Thread.State.WAITING })
+                    release.countDown()
+                    assertNull(owner.get(5, TimeUnit.SECONDS))
+                    waiters.forEach { assertNull(it.get(5, TimeUnit.SECONDS)) }
+                    assertEquals("Repeated decode in burst $iteration", 1, decodes.get())
+                } finally {
+                    release.countDown()
+                }
+            }
+        } finally {
+            executor.shutdownNow()
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS))
+        }
+    }
+
+    @Test
+    fun invalidatingInFlightSynchronousDecodeLoadsTheUpdatedCover() = assertInFlightInvalidation(false)
+
+    @Test
+    fun invalidatingInFlightSuspendingDecodeLoadsTheUpdatedCover() = assertInFlightInvalidation(true)
+
+    private fun assertInFlightInvalidation(suspending: Boolean) {
+        val uri = Uri.parse("content://artwork/invalidation-${System.nanoTime()}")
+        val key = requireNotNull(artworkRequestKey(uri, 512, ArtworkPurpose.UiLarge))
+        val oldCover = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+        val newCover = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val decodes = AtomicInteger()
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val decode = {
+                if (decodes.incrementAndGet() == 1) {
+                    started.countDown()
+                    assertTrue(release.await(5, TimeUnit.SECONDS))
+                    oldCover
+                } else {
+                    newCover
+                }
+            }
+            val loaded = executor.submit<Bitmap?> {
+                if (suspending) runBlocking { ArtworkBitmapCache.getOrLoadAwaiting(key.cacheKey, decode) }
+                else ArtworkBitmapCache.getOrLoad(key.cacheKey, decode = decode)
+            }
+            assertTrue(started.await(5, TimeUnit.SECONDS))
+            invalidateArtworkBitmapCache(listOf(uri.toString()))
+            release.countDown()
+
+            assertSame(newCover, loaded.get(5, TimeUnit.SECONDS))
+            assertSame(newCover, ArtworkBitmapCache[key.cacheKey])
+            assertEquals(2, decodes.get())
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS))
+            invalidateArtworkBitmapCache(listOf(uri.toString()))
+            oldCover.recycle()
+            newCover.recycle()
+        }
+    }
+
+    @Test
+    fun libraryArtworkInvalidationAlsoClearsDerivedColors() {
+        val uri = "content://artwork/colors-${System.nanoTime()}"
+        val gradientKey = "$uri|512|argb8888-thumbnail|gradient"
+        val accentKey = "$uri|512|argb8888-thumbnail|accent"
+        try {
+            ArtworkGradientCache.putGradient(gradientKey, listOf(0xff112233.toInt()))
+            ArtworkGradientCache.putAccent(accentKey, 0xff112233.toInt())
+
+            invalidateArtworkBitmapCache(listOf(uri))
+
+            assertNull(ArtworkGradientCache.gradient(gradientKey))
+            assertNull(ArtworkGradientCache.accent(accentKey))
+        } finally {
+            ArtworkGradientCache.removeMatching(setOf(uri))
+        }
+    }
+
+    @Test
+    fun invalidatedColorWorkCannotRestoreOutdatedGradientsOrAccents() {
+        val uri = "content://artwork/color-race-${System.nanoTime()}"
+        val key = "$uri|512|argb8888-thumbnail"
+        val previousRevision = ArtworkGradientCache.invalidationRevision.value
+        try {
+            invalidateArtworkBitmapCache(listOf(uri))
+            ArtworkGradientCache.putGradient("$key|gradient", listOf(1), previousRevision)
+            ArtworkGradientCache.putAccent("$key|accent", 1, previousRevision)
+
+            assertNull(ArtworkGradientCache.gradient("$key|gradient"))
+            assertNull(ArtworkGradientCache.accent("$key|accent"))
+
+            val currentRevision = ArtworkGradientCache.invalidationRevision.value
+            ArtworkGradientCache.putGradient("$key|gradient", listOf(2), currentRevision)
+            ArtworkGradientCache.putAccent("$key|accent", 2, currentRevision)
+            assertEquals(listOf(2), ArtworkGradientCache.gradient("$key|gradient"))
+            assertEquals(2, ArtworkGradientCache.accent("$key|accent"))
+        } finally {
+            invalidateArtworkBitmapCache(listOf(uri))
+        }
+    }
+
     @Test
     fun coalescedWaiterDoesNotBlockDispatcherOrCancelDecodeOwner() = runBlocking {
         val key = "coalesced-${System.nanoTime()}"
@@ -168,6 +310,7 @@ class ArtworkBitmapCacheInstrumentedTest {
                 }
             }
             assertTrue(started.await(10, TimeUnit.SECONDS))
+            ArtworkBitmapCache.removeAllMatchingUris(List(8) { "admission-$it" })
             val uri = Uri.fromFile(File(context.cacheDir, "missing-admission-${System.nanoTime()}.mp3"))
             assertNull(loadArtworkBitmap(context, uri, 512, resourceTracker = diagnostics.resources))
             assertEquals(0, diagnostics.captureJourneyDelta(baseline).traceSections.count { it == "artwork_decode" })

@@ -53,22 +53,30 @@ internal class VerifiedMediaFileMutationTransaction(
         var rollbackFailed = false
         var originalOverwriteStarted = false
         var rollbackAttempted = false
+        var originalSafe = true
 
-        fun rollbackIfNeeded() {
+        suspend fun rollbackIfNeeded() {
             val backup = backupFile ?: return
-            if (!originalOverwriteStarted || rollbackAttempted) return
+            if (originalSafe || rollbackAttempted) return
             rollbackAttempted = true
             rollbackFailed = runMediaMutationRollback(
                 onAbort = { rollbackFailed = true },
             ) {
-                faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
-                mutationRunner.overwriteOriginal(song.uri, backup)
-                mutationRunner.verifyOriginalBytes(song.uri, backup)
+                // Opening a provider in a truncating mode can change it before the
+                // write callback runs. Verify that boundary before discarding recovery bytes.
+                if (originalOverwriteStarted || !mutationRunner.originalMatchesBackup(song.uri, backup)) {
+                    effectiveMutationId?.let { mediaMutationJournal?.prepareRollback(it) }
+                    faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
+                    mutationRunner.overwriteOriginal(song.uri, backup)
+                    mutationRunner.verifyOriginalBytes(song.uri, backup)
+                }
             }
+            if (!rollbackFailed) originalSafe = true
         }
 
         return try {
             faultInjector.checkpoint(MediaMutationTransactionPhase.AfterJournal)
+            mediaMutationJournal?.recoverTarget(song.uri, effectiveMutationId)
             mutationRunner.preflight(song)
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PreflightPassed) }
             backupFile = mutationRunner.copySongToTemp(song, "backup")
@@ -84,8 +92,10 @@ internal class VerifiedMediaFileMutationTransaction(
             verifyWorkingCopy(workingFile)
             faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingVerified)
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.TempVerified) }
+            effectiveMutationId?.let { mediaMutationJournal?.retainBackup(it, backupFile) }
 
             stage = MediaMutationStage.OriginalOverwrite
+            originalSafe = false
             mutationRunner.overwriteOriginal(song.uri, workingFile) { originalOverwriteStarted = true }
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Committed) }
 
@@ -94,6 +104,7 @@ internal class VerifiedMediaFileMutationTransaction(
             verifyPersistedCopy(persistedFile)
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PersistedVerified) }
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Completed) }
+            originalSafe = true
             VerifiedMediaFileMutationResult.Success(value, effectiveMutationId)
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
@@ -119,10 +130,18 @@ internal class VerifiedMediaFileMutationTransaction(
             }
             VerifiedMediaFileMutationResult.Failure(failure, effectiveMutationId, stage, rollbackFailed)
         } finally {
-            checkpointCleanup()
-            if (!rollbackFailed) runCatching { backupFile?.delete() }
-            runCatching { workingFile?.delete() }
-            runCatching { persistedFile?.delete() }
+            try {
+                if (originalSafe && !rollbackFailed) {
+                    withContext(NonCancellable) {
+                        effectiveMutationId?.let { mediaMutationJournal?.clearBackup(it) }
+                    }
+                    backupFile?.delete()
+                }
+            } finally {
+                workingFile?.delete()
+                persistedFile?.delete()
+                checkpointCleanup()
+            }
         }
     }
 

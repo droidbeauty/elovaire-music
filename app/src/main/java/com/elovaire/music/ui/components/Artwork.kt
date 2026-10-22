@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import android.net.Uri
 import androidx.palette.graphics.Palette
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
@@ -201,6 +202,7 @@ fun rememberArtworkBitmap(
 ): State<ImageBitmap?> {
     val context = LocalContext.current
     val resourceTracker = LocalBackendResourceTracker.current
+    val invalidationRevision = ArtworkGradientCache.invalidationRevision.collectAsStateWithLifecycle().value
     val normalizedSize = normalizeArtworkRequestSize(size)
     val requestKey = artworkRequestKey(
         uri = uri,
@@ -211,13 +213,18 @@ fun rememberArtworkBitmap(
     val fallbackImage = requestKey?.let {
         ArtworkBitmapCache.bestForUri(it.uri, it.targetPx, it.purpose)?.asImageBitmap()
     }
-    return produceState<ImageBitmap?>(initialValue = cachedImage ?: fallbackImage, uri, normalizedSize, resourceTracker) {
+    return produceState<ImageBitmap?>(
+        initialValue = cachedImage ?: fallbackImage,
+        key1 = requestKey,
+        key2 = resourceTracker,
+        key3 = invalidationRevision,
+    ) {
         val cached = requestKey?.let { ArtworkBitmapCache[it.cacheKey] }
         if (cached != null) {
             value = cached.asImageBitmap()
             return@produceState
         }
-        value = value ?: fallbackImage
+        value = fallbackImage
         val loaded = withContext(Dispatchers.IO) {
             requestKey?.let { loadArtworkBitmapAwaitingAdmission(context, it, resourceTracker) }?.also { bitmap ->
                 bitmap.prepareToDraw()
@@ -231,24 +238,27 @@ fun rememberArtworkBitmap(
 fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     val context = LocalContext.current
     val resourceTracker = LocalBackendResourceTracker.current
+    val invalidationRevision = ArtworkGradientCache.invalidationRevision.collectAsStateWithLifecycle().value
     val fallbackColor = MaterialTheme.colorScheme.primary
     val foundation = MaterialTheme.colorScheme.background
-    val cacheKey = rememberGradientCacheKey(uri, 512)
+    val cacheKey = rememberGradientCacheKey(uri, 512, fallbackColor, foundation)
     return produceState(
         initialValue = ArtworkGradientCache.gradient(cacheKey)?.toComposeColors()
             ?: defaultArtworkGradient(fallbackColor, foundation),
-        key1 = uri,
+        key1 = cacheKey,
         key2 = resourceTracker,
+        key3 = invalidationRevision,
     ) {
         val cached = ArtworkGradientCache.gradient(cacheKey)
         if (cached != null) {
             value = cached.toComposeColors()
             return@produceState
         }
+        value = defaultArtworkGradient(fallbackColor, foundation)
         value = withContext(Dispatchers.IO) {
             val bitmap = loadArtworkBitmapAwaitingAdmission(context, uri, 512, resourceTracker = resourceTracker)
             (bitmap?.let { paletteFromBitmap(it, foundation) } ?: defaultArtworkGradient(fallbackColor, foundation)).also { gradient ->
-                ArtworkGradientCache.putGradient(cacheKey, gradient.map { it.toArgb() })
+                ArtworkGradientCache.putGradient(cacheKey, gradient.map { it.toArgb() }, invalidationRevision)
             }
         }
     }
@@ -261,14 +271,15 @@ fun rememberArtworkPaletteAccent(
 ): State<Color?> {
     val context = LocalContext.current
     val resourceTracker = LocalBackendResourceTracker.current
+    val invalidationRevision = ArtworkGradientCache.invalidationRevision.collectAsStateWithLifecycle().value
     val normalizedSize = normalizeArtworkRequestSize(size)
     val cacheKey = rememberPaletteAccentCacheKey(uri, normalizedSize)
     val cachedAccent = cacheKey?.let { ArtworkGradientCache.accent(it) }
     return produceState<Color?>(
         initialValue = cachedAccent?.let(::Color),
-        key1 = uri,
-        key2 = normalizedSize,
-        key3 = resourceTracker,
+        key1 = cacheKey,
+        key2 = resourceTracker,
+        key3 = invalidationRevision,
     ) {
         val cached = cacheKey?.let { ArtworkGradientCache.accent(it) }
         if (cached != null) {
@@ -291,7 +302,7 @@ fun rememberArtworkPaletteAccent(
         }
         value = accent
         if (cacheKey != null && accent != null) {
-            ArtworkGradientCache.putAccent(cacheKey, accent.toArgb())
+            ArtworkGradientCache.putAccent(cacheKey, accent.toArgb(), invalidationRevision)
         }
     }
 }
@@ -313,12 +324,15 @@ private fun List<Int>.toComposeColors(): List<Color> = map(::Color)
 private fun rememberGradientCacheKey(
     uri: Uri?,
     size: Int,
+    fallbackColor: Color,
+    foundation: Color,
 ): String {
-    return artworkRequestKey(
+    val requestKey = artworkRequestKey(
         uri = uri,
         targetPx = size,
         purpose = ArtworkPurpose.UiLarge,
-    )?.let { "${it.cacheKey}|gradient" }.orEmpty()
+    )?.cacheKey.orEmpty()
+    return "$requestKey|gradient|${fallbackColor.toArgb()}|${foundation.toArgb()}"
 }
 
 private fun rememberPaletteAccentCacheKey(

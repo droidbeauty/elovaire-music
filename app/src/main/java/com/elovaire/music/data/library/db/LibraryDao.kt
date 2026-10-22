@@ -11,14 +11,14 @@ import androidx.room.Upsert
 internal interface MediaMutationDao {
     @Query(
         "SELECT * FROM media_mutations " +
-            "WHERE status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair') " +
+            "WHERE recoveryBackupPath IS NOT NULL OR status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair') " +
             "ORDER BY updatedAtMs ASC, mutationId ASC LIMIT :limit",
     )
     suspend fun recoverableMutations(limit: Int): List<LibraryMutationEntity>
 
     @Query(
         "SELECT COUNT(*) FROM media_mutations " +
-            "WHERE status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair')",
+            "WHERE recoveryBackupPath IS NOT NULL OR status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair')",
     )
     suspend fun recoverableMutationCount(): Int
 
@@ -30,6 +30,9 @@ internal interface MediaMutationDao {
 
     @Query("SELECT * FROM media_mutations WHERE mutationId = :mutationId")
     suspend fun mutation(mutationId: String): LibraryMutationEntity?
+
+    @Query("SELECT mutationId FROM media_mutations WHERE uri = :uri AND recoveryBackupPath IS NOT NULL LIMIT 1")
+    suspend fun mutationAwaitingFileRecovery(uri: String): String?
 
     @Upsert
     suspend fun upsertMutation(mutation: LibraryMutationEntity)

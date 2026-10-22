@@ -24,6 +24,7 @@ internal data class LibraryMutationEntity(
     val updatedAtMs: Long,
     val attemptCount: Int,
     val error: String?,
+    val recoveryBackupPath: String? = null,
 )
 
 @Entity(

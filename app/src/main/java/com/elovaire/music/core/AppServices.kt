@@ -37,6 +37,7 @@ import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRuntime
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
@@ -105,6 +106,7 @@ internal class AppServices(
         dao = database.mediaMutationDao(),
         backendEventSink = backendEventSink,
         resourceTracker = backendDiagnostics.resources,
+        recoveryRunner = MediaFileMutationRunner(applicationContext),
     )
     private val mediaMutationRuntime = MediaMutationRuntime()
     internal val userDataStore = RoomUserDataStore(

@@ -14,6 +14,7 @@ import elovaire.music.droidbeauty.app.ElovaireApp
 import elovaire.music.droidbeauty.app.core.backend.classifyBackendFailure
 import elovaire.music.droidbeauty.app.core.backend.shouldRetry
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
@@ -32,6 +33,7 @@ class PersistenceMaintenanceWorker(
                 dao = database.mediaMutationDao(),
                 backendEventSink = diagnostics,
                 resourceTracker = diagnostics.resources,
+                recoveryRunner = MediaFileMutationRunner(applicationContext),
             )
             mutationJournal = journal
             val maintenance = PersistenceMaintenance(

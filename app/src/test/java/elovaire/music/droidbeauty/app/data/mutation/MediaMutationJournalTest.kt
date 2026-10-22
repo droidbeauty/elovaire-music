@@ -125,6 +125,7 @@ class MediaMutationJournalTest {
             failed = true
         }
         assertTrue(failed)
+        journal.close()
     }
 
     @Test
@@ -151,6 +152,7 @@ class MediaMutationJournalTest {
                     journal.create(original.copy(uri = android.net.TestUri("file:///music/b.mp3")))
                 }
             }
+            journal.close()
         }
     }
 
@@ -197,7 +199,7 @@ class MediaMutationJournalTest {
     }
 
     @Test
-    fun startupRecoveryDoesNotDependOnAnotherJournalInstance() = runBlocking {
+    fun maintenanceRecoveryDoesNotCancelAnotherOwnersLiveMutation() = runBlocking {
         val stored = mutableMapOf<String, LibraryMutationEntity>()
         val dao = libraryDao(stored)
         val foregroundJournal = MediaMutationJournal(dao, FixedClock, { "active" }, NoOpBackendEventSink)
@@ -206,8 +208,11 @@ class MediaMutationJournalTest {
         foregroundJournal.create(MediaMutationOperation(type = MediaMutationType.TagEdit))
         val result = recoveryJournal.recoverIncomplete()
 
-        assertEquals(MediaMutationStatus.Cancelled.name, stored.getValue("active").status)
-        assertEquals(1, (result as MediaMutationRecoveryResult.Success).recoveredCount)
+        assertEquals(MediaMutationStatus.Created.name, stored.getValue("active").status)
+        assertEquals(0, (result as MediaMutationRecoveryResult.Success).recoveredCount)
+        assertEquals(1, result.remainingCount)
+        foregroundJournal.close()
+        recoveryJournal.close()
     }
 
     @Test
@@ -265,10 +270,14 @@ class MediaMutationJournalTest {
         listOf("first", "second", "third").forEach { id ->
             journal.create(MediaMutationOperation(mutationId = id, type = MediaMutationType.TagEdit))
         }
+        journal.close()
+        val recoveryJournal = MediaMutationJournal(
+            libraryDao(stored), FixedClock, { "recovery-batch" }, NoOpBackendEventSink,
+        )
 
-        val firstBatch = journal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
-        val secondBatch = journal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
-        val lastBatch = journal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
+        val firstBatch = recoveryJournal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
+        val secondBatch = recoveryJournal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
+        val lastBatch = recoveryJournal.recoverIncomplete(maxRecords = 1) as MediaMutationRecoveryResult.Success
 
         assertEquals(1, firstBatch.recoveredCount)
         assertEquals(2, firstBatch.remainingCount)
@@ -286,6 +295,9 @@ class MediaMutationJournalTest {
         ) { _, method, arguments ->
             when (method.name) {
                 "mutation" -> stored[arguments?.get(0) as String]
+                "mutationAwaitingFileRecovery" -> stored.values.firstOrNull {
+                    it.uri == arguments?.get(0) && it.recoveryBackupPath != null
+                }?.mutationId
                 "upsertMutation" -> {
                     val entity = arguments?.get(0) as LibraryMutationEntity
                     stored[entity.mutationId] = entity
@@ -295,7 +307,7 @@ class MediaMutationJournalTest {
                     recoverableMutationBatchFailure?.let { throw it }
                     val limit = arguments?.get(0) as Int
                     val recoverable = stored.values
-                        .filter { it.status !in setOf("Completed", "Cancelled", "Failed", "NeedsRepair") }
+                        .filter { it.recoveryBackupPath != null || it.status !in setOf("Completed", "Cancelled", "Failed", "NeedsRepair") }
                         .sortedWith(compareBy(LibraryMutationEntity::updatedAtMs, LibraryMutationEntity::mutationId))
                     RecoverableMutationBatch(recoverable.size, recoverable.take(limit))
                 }

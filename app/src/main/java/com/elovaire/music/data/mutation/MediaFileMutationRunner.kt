@@ -4,6 +4,8 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.os.StatFs
+import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
+import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
@@ -19,7 +21,7 @@ import java.security.MessageDigest
 
 internal class MediaFileMutationRunner(
     context: Context,
-    private val tempDirectoryName: String,
+    private val tempDirectoryName: String = RECOVERY_DIRECTORY,
     private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
 ) {
     private val appContext = context.applicationContext
@@ -92,10 +94,31 @@ internal class MediaFileMutationRunner(
         song: Song,
         purpose: String,
     ): File {
-        val directory = File(appContext.filesDir, tempDirectoryName)
+        val directory = File(appContext.filesDir, if (purpose == "backup") RECOVERY_DIRECTORY else tempDirectoryName)
         check(directory.isDirectory || directory.mkdirs()) { "Unable to create the metadata edit directory." }
         val extension = mediaMutationTemporaryExtension(song.fileName)
         return File.createTempFile("${song.id}-$purpose-", ".$extension", directory)
+    }
+
+    fun recoverBackup(mutation: LibraryMutationEntity): File {
+        val backup = File(checkNotNull(mutation.recoveryBackupPath)).canonicalFile
+        check(backup.parentFile == File(appContext.filesDir, RECOVERY_DIRECTORY).canonicalFile) {
+            "The media recovery backup is outside the recovery directory."
+        }
+        if (mutation.status !in setOf(
+                MediaMutationStatus.PersistedVerified.name,
+                MediaMutationStatus.Published.name,
+                MediaMutationStatus.Completed.name,
+            )
+        ) {
+            check(backup.isFile && backup.length() > 0L) { "The media recovery backup is unavailable." }
+            val uri = Uri.parse(checkNotNull(mutation.uri))
+            if (!originalMatchesBackup(uri, backup)) {
+                overwriteOriginal(uri, backup)
+                verifyOriginalBytes(uri, backup)
+            }
+        }
+        return backup
     }
 
     fun copyFileDurably(source: File, destination: File): Long {
@@ -169,10 +192,14 @@ internal class MediaFileMutationRunner(
         expected: File,
     ) {
         faultInjector.checkpoint(MediaMutationTransactionPhase.PersistedVerification)
+        check(originalMatchesBackup(uri, expected)) { "The restored song does not match the backup." }
+    }
+
+    fun originalMatchesBackup(uri: Uri, expected: File): Boolean {
         val actualDigest = contentResolver.openInputStream(uri)?.use(::sha256)
             ?: error("Unable to verify the restored song.")
         val expectedDigest = expected.inputStream().use(::sha256)
-        check(actualDigest.contentEquals(expectedDigest)) { "The restored song does not match the backup." }
+        return actualDigest.contentEquals(expectedDigest)
     }
 
     private fun sha256(input: InputStream): ByteArray {
@@ -189,6 +216,7 @@ internal class MediaFileMutationRunner(
     private companion object {
         const val COMPARE_BUFFER_SIZE = 64 * 1024
         const val COPY_BUFFER_SIZE = 64 * 1024
+        const val RECOVERY_DIRECTORY = "media-mutation-backups"
     }
 }
 

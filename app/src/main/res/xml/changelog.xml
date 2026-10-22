@@ -8,6 +8,7 @@
     -->
     <release version="2.9.5">
         <item>UI refinements for equalizer</item>
+        <item>All APIs, plugins and libraries in the app updated to the latest stable version</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

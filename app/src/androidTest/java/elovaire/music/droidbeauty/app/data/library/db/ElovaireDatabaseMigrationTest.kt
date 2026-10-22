@@ -95,6 +95,7 @@ class ElovaireDatabaseMigrationTest {
             ElovaireDatabase.MIGRATION_7_8,
             ElovaireDatabase.MIGRATION_8_9,
             ElovaireDatabase.MIGRATION_9_10,
+            ElovaireDatabase.MIGRATION_10_11,
         ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(
@@ -111,6 +112,26 @@ class ElovaireDatabaseMigrationTest {
             }
         } finally {
             roomDatabase.close()
+        }
+    }
+
+    @Test
+    fun migrateTenToElevenPreservesMutationRecordsWithoutInventingBackups() {
+        val name = "migration-test-v10-media-recovery"
+        helper.createDatabase(name, 10).use { database ->
+            database.execSQL(
+                "INSERT INTO media_mutations VALUES " +
+                    "('pending', 'TagEdit', 'TempVerified', 42, NULL, 'content://media/external/audio/media/42', " +
+                    "'song.mp3', 100, 200, 0, NULL)",
+            )
+        }
+        helper.runMigrationsAndValidate(name, 11, true, ElovaireDatabase.MIGRATION_10_11).use { database ->
+            database.query("SELECT status, songId, recoveryBackupPath FROM media_mutations WHERE mutationId = 'pending'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("TempVerified", cursor.getString(0))
+                assertEquals(42L, cursor.getLong(1))
+                assertTrue(cursor.isNull(2))
+            }
         }
     }
 

@@ -26,6 +26,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 
@@ -85,8 +86,8 @@ internal class MediaMutationJournal(
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val recoveryRunner: MediaFileMutationRunner? = null,
 ) : Closeable {
-    private val transitionMutex = Mutex()
     private val closed = AtomicBoolean(false)
     private val activeMutationIds = ConcurrentHashMap.newKeySet<String>()
 
@@ -106,6 +107,7 @@ internal class MediaMutationJournal(
             check(status != null) { "Mutation $mutationId has an unknown persisted status." }
             if (!status.isTerminal()) {
                 activeMutationIds += mutationId
+                activeOwners[mutationId] = this
                 updateActiveMutationResource()
             }
             return@withLock mutationId
@@ -126,6 +128,7 @@ internal class MediaMutationJournal(
             ),
         )
         activeMutationIds += mutationId
+        activeOwners[mutationId] = this
         updateActiveMutationResource()
         backendEventSink.emitLazy {
             BackendEvent.MediaMutationStarted(
@@ -144,6 +147,44 @@ internal class MediaMutationJournal(
         status: MediaMutationStatus,
         error: String? = null,
     ): Unit = transitionMutex.withLock { markLocked(mutationId, status, error) }
+
+    suspend fun retainBackup(mutationId: String, backup: File): Unit = transitionMutex.withLock {
+        val current = checkNotNull(dao.mutation(mutationId))
+        check(current.status == MediaMutationStatus.TempVerified.name && current.recoveryBackupPath == null) {
+            "The media mutation is not ready to replace the original."
+        }
+        check(current.uri != null && dao.mutationAwaitingFileRecovery(current.uri) == null) {
+            "The song has an unfinished file replacement that must be recovered first."
+        }
+        dao.upsertMutation(current.copy(recoveryBackupPath = backup.absolutePath))
+    }
+
+    suspend fun recoverTarget(uri: Uri, mutationId: String?): Unit = transitionMutex.withLock {
+        val pendingId = dao.mutationAwaitingFileRecovery(uri.toString()) ?: return@withLock
+        val pending = checkNotNull(dao.mutation(pendingId))
+        val resumingPermission = pendingId == mutationId && pending.status == MediaMutationStatus.PermissionGranted.name
+        check(!activeOwners.containsKey(pendingId) || pending.status == MediaMutationStatus.NeedsPermission.name || resumingPermission) {
+            "The song is already being edited."
+        }
+        recoverBackupLocked(pending, resumingPermission)
+    }
+
+    suspend fun clearBackup(mutationId: String): Unit = transitionMutex.withLock {
+        val current = dao.mutation(mutationId) ?: return@withLock
+        if (current.recoveryBackupPath != null) {
+            dao.upsertMutation(current.copy(recoveryBackupPath = null))
+        }
+    }
+
+    suspend fun prepareRollback(mutationId: String): Unit = transitionMutex.withLock {
+        val current = checkNotNull(dao.mutation(mutationId))
+        check(current.recoveryBackupPath != null) { "The media rollback has no durable backup." }
+        // A rollback can itself be interrupted. Persist an unverified state before it
+        // touches the original, even if verification of the replacement had succeeded.
+        dao.upsertMutation(current.copy(status = MediaMutationStatus.TempVerified.name))
+        activeMutationIds += mutationId
+        activeOwners[mutationId] = this
+    }
 
     private suspend fun markLocked(
         mutationId: String,
@@ -165,9 +206,13 @@ internal class MediaMutationJournal(
                 error = error,
             ),
         )
-        if (!status.isTerminal()) activeMutationIds += mutationId
+        if (!status.isTerminal()) {
+            activeMutationIds += mutationId
+            activeOwners[mutationId] = this
+        }
         if (status.isTerminal()) {
             activeMutationIds -= mutationId
+            activeOwners.remove(mutationId, this)
             updateActiveMutationResource()
         }
     }
@@ -183,6 +228,12 @@ internal class MediaMutationJournal(
                 val batch = dao.recoverableMutationBatch(maxRecords)
                 batch.mutations.forEach { mutation ->
                     currentCoroutineContext().ensureActive()
+                    if (activeOwners.containsKey(mutation.mutationId)) return@forEach
+                    if (mutation.recoveryBackupPath != null) {
+                        recoverBackupLocked(mutation)
+                        recoveredCount += 1
+                        return@forEach
+                    }
                     val current = mutation.status.toMediaMutationStatusOrNull()
                     if (current == null) {
                         dao.upsertMutation(
@@ -233,14 +284,44 @@ internal class MediaMutationJournal(
         return MediaMutationRecoveryResult.Success(recoveredCount, remainingCount)
     }
 
+    private suspend fun recoverBackupLocked(mutation: LibraryMutationEntity, resumingPermission: Boolean = false) {
+        val backup = checkNotNull(recoveryRunner) { "Media file recovery is unavailable." }.recoverBackup(mutation)
+        val verified = mutation.status in setOf(
+            MediaMutationStatus.PersistedVerified.name,
+            MediaMutationStatus.Published.name,
+            MediaMutationStatus.Completed.name,
+        )
+        dao.upsertMutation(
+            mutation.copy(
+                status = when {
+                    resumingPermission -> MediaMutationStatus.PermissionGranted.name
+                    verified -> MediaMutationStatus.Completed.name
+                    else -> MediaMutationStatus.Cancelled.name
+                },
+                recoveryBackupPath = null,
+                updatedAtMs = clock.wallTimeMs(),
+                error = null,
+            ),
+        )
+        backup.delete()
+    }
+
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        activeMutationIds.forEach { activeOwners.remove(it, this) }
         activeMutationIds.clear()
         updateActiveMutationResource()
     }
 
     private fun updateActiveMutationResource() {
         resourceTracker.set(BackendResourceKind.ActiveMutation, activeMutationIds.size)
+    }
+
+    private companion object {
+        // Maintenance opens its own Room handle. Serialize journal transitions and leave
+        // live edits alone; only a departed owner's records are eligible for recovery.
+        val transitionMutex = Mutex()
+        val activeOwners = ConcurrentHashMap<String, MediaMutationJournal>()
     }
 }
 
