@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.MutedSectionHeader
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
@@ -58,7 +60,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -155,6 +156,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import elovaire.music.droidbeauty.app.ui.motion.ElovaireCrossfade
+import elovaire.music.droidbeauty.app.ui.motion.elovaireContentChangeMotion
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -746,9 +749,8 @@ private fun LastPlayedAlbumModule(
         Box(
             modifier = modifier
                 .onGloballyPositioned { bounds = it.boundsInWindow() }
-                .clickable(
+                .elovaireClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
                     onClick = {
                         sharedTransitionController?.select(album.id, sharedSourceToken)
                         onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx))
@@ -900,9 +902,8 @@ private fun LastPlayedPlaylistModule(
         Box(
             modifier = modifier
                 .clip(RoundedCornerShape(ElovaireRadii.module))
-                .clickable(
+                .elovaireClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
                     onClick = onOpen,
                 )
                 .background(baseTint)
@@ -1158,7 +1159,8 @@ private fun AlbumCollectionContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(selectionHazeState, zIndex = -1f),
+                .hazeSource(selectionHazeState, zIndex = -1f)
+                .elovaireContentChangeMotion(layoutMode),
         ) {
         when (layoutMode) {
             AlbumLayoutMode.Grid -> {
@@ -1668,6 +1670,12 @@ private fun AlbumSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (AlbumSortMode) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
+    val chevronRotation = animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = motionSpecs.mediaRelease(),
+        label = "album_sort_chevron",
+    )
     val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Box {
@@ -1702,7 +1710,7 @@ private fun AlbumSortControl(
                         contentDescription = null,
                         modifier = Modifier
                             .size(16.dp)
-                            .rotate(if (expanded) 180f else 0f),
+                            .graphicsLayer { rotationZ = chevronRotation.value },
                     )
                 }
             }
@@ -1720,9 +1728,8 @@ private fun AlbumSortControl(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(
+                                .elovaireClickable(
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
                                     onClick = { onSelect(mode) },
                                 )
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1893,7 +1900,7 @@ private fun LibraryHubRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 12.5.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -2133,6 +2140,12 @@ private fun SongSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (SongSortMode) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
+    val chevronRotation = animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = motionSpecs.mediaRelease(),
+        label = "song_sort_chevron",
+    )
     val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Box {
@@ -2167,7 +2180,7 @@ private fun SongSortControl(
                         contentDescription = null,
                         modifier = Modifier
                             .size(16.dp)
-                            .rotate(if (expanded) 180f else 0f),
+                            .graphicsLayer { rotationZ = chevronRotation.value },
                     )
                 }
             }
@@ -2185,9 +2198,8 @@ private fun SongSortControl(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(
+                                .elovaireClickable(
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
                                     onClick = { onSelect(mode) },
                                 )
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -2528,6 +2540,12 @@ internal fun ArtistDiscographyPopup(
     val uriHandler = LocalUriHandler.current
     var result by remember(artistName) { mutableStateOf<ArtistDiscographyResult?>(null) }
     var discographyExpanded by remember(artistName) { mutableStateOf(false) }
+    val motionSpecs = rememberMotionSpecs()
+    val chevronRotation = animateFloatAsState(
+        targetValue = if (discographyExpanded) 180f else 0f,
+        animationSpec = motionSpecs.mediaRelease(),
+        label = "artist_discography_chevron",
+    )
     LaunchedEffect(visible, artistName, reader) {
         if (!visible) return@LaunchedEffect
         result = null
@@ -2602,11 +2620,7 @@ internal fun ArtistDiscographyPopup(
                                     .size(32.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = onDismiss,
-                                    ),
+                                    .elovaireClickable(onClick = onDismiss),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -2666,9 +2680,8 @@ internal fun ArtistDiscographyPopup(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clip(RoundedCornerShape(ElovaireRadii.module))
-                                                    .clickable(
+                                                    .elovaireClickable(
                                                         interactionSource = remember { MutableInteractionSource() },
-                                                        indication = null,
                                                         onClick = { discographyExpanded = !discographyExpanded },
                                                     )
                                                     .padding(vertical = 14.dp),
@@ -2688,7 +2701,7 @@ internal fun ArtistDiscographyPopup(
                                                     tint = readableMutedIconColor(),
                                                     modifier = Modifier
                                                         .size(18.dp)
-                                                        .rotate(if (discographyExpanded) 180f else 0f),
+                                                        .graphicsLayer { rotationZ = chevronRotation.value },
                                                 )
                                             }
                                         }
@@ -2707,7 +2720,11 @@ internal fun ArtistDiscographyPopup(
                                             key = { index, album -> "${album.title}_${album.firstReleaseDate}_$index" },
                                             contentType = { _, _ -> "artist_discography_album" },
                                         ) { index, album ->
-                                            Column {
+                                            Column(modifier = Modifier.animateItem(
+                                                fadeInSpec = motionSpecs.fadeIn(),
+                                                placementSpec = motionSpecs.listPlacement(),
+                                                fadeOutSpec = motionSpecs.fadeOut(),
+                                            )) {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -2784,10 +2801,9 @@ internal fun ArtistDiscographyPopup(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(
+                                .elovaireClickable(
                                     enabled = (result as? ArtistDiscographyResult.Found)?.descriptionSourceUrl != null,
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
                                 ) {
                                     (result as? ArtistDiscographyResult.Found)?.descriptionSourceUrl?.let(uriHandler::openUri)
                                 },
@@ -3351,7 +3367,7 @@ private fun SongGridCard(
     onToggleFavorite: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.elovaireClickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ArtworkImage(
@@ -3402,7 +3418,7 @@ private fun ArtistGridCard(
 ) {
     val language = LocalAppLanguage.current
     Column(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.elovaireClickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ArtworkImage(
@@ -3444,7 +3460,7 @@ internal fun ArtistRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -3517,7 +3533,7 @@ private fun GenreRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -3691,7 +3707,7 @@ private fun SearchSongRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .elovaireClickable(onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -3764,7 +3780,7 @@ internal fun HomeRecentSongRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .elovaireClickable(onClick = onClick)
                 .padding(horizontal = 2.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -3886,11 +3902,12 @@ internal fun SelectionIndicatorIcon(
     modifier: Modifier = Modifier,
 ) {
     val tint = MaterialTheme.colorScheme.onSurface
-    Box(
+    ElovaireCrossfade(
+        targetState = selected,
         modifier = modifier.size(20.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
+        label = "selection_indicator",
+    ) { checked ->
+        if (checked) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -3940,9 +3957,8 @@ private fun AlbumGridCard(
     Column(
         modifier = modifier
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onClick = {
                     if (enableSharedTransition) {
                         sharedTransitionController?.select(album.id, sharedSourceToken)
@@ -4031,9 +4047,8 @@ internal fun CompactAlbumRow(
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onClick = {
                     sharedTransitionController?.takeIf { !selectionMode }?.select(album.id, sharedSourceToken)
                     onOpen(bounds.toExpandOrigin(screenSizePx.width.toFloat(), screenSizePx.height.toFloat()))

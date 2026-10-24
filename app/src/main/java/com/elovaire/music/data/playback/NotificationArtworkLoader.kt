@@ -14,7 +14,7 @@ import elovaire.music.droidbeauty.app.data.artwork.ArtworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.encodeArtworkForMediaSession
-import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmission
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,7 +81,7 @@ internal class NotificationArtworkLoader(
         pendingCallbacks[cacheKey] = mutableListOf(request)
         pendingLoads[cacheKey] = scope.launch(Dispatchers.IO) {
             try {
-                val bitmap = loadBitmap(context, sources, resourceTracker)
+                val bitmap = loadNotificationArtworkBitmap(context, sources, resourceTracker)
                 val mediaSessionArtwork = bitmap?.let(::encodeArtworkForMediaSession)
                 if (BuildConfig.DEBUG && bitmap != null) {
                     Log.d(
@@ -178,13 +178,13 @@ internal fun notificationArtworkLoadKey(uri: Uri): ArtworkRequestKey {
     )
 }
 
-private fun loadBitmap(
+internal suspend fun loadNotificationArtworkBitmap(
     context: Context,
     sources: List<Uri>,
     resourceTracker: BackendResourceTracker,
 ): Bitmap? {
     return sources.firstNotNullOfOrNull { source ->
-        loadArtworkBitmap(context, notificationArtworkLoadKey(source), resourceTracker)
+        loadArtworkBitmapAwaitingAdmission(context, notificationArtworkLoadKey(source), resourceTracker)
     }
 }
 

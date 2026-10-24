@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens.tags
 
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -372,10 +373,9 @@ private fun EditableTrackCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("album_tag_editor_track_${track.songId}")
-                    .clickable(
+                    .elovaireClickable(
                         enabled = enabled,
                         interactionSource = interactionSource,
-                        indication = null,
                         onClickLabel = "${copy.editorTitle}: ${copy.track} ${index + 1}",
                         onClick = onToggle,
                     )

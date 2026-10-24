@@ -43,6 +43,9 @@ internal data class LibraryRefreshRequest(
         val reuseLocalState = reuseLocalState && other.reuseLocalState && !force
         val safProviderRetryAttempt = maxOf(safProviderRetryAttempt, other.safProviderRetryAttempt)
         val priority = maxOf(priority, other.priority)
+        val requiresFullMediaStoreScan =
+            (mediaStoreGenerationFloor == null && mediaStoreGenerationFloors.isEmpty()) ||
+                (other.mediaStoreGenerationFloor == null && other.mediaStoreGenerationFloors.isEmpty())
         val mixedGenerationFloors =
             (mediaStoreGenerationFloor != null && mediaStoreGenerationFloors.isNotEmpty()) ||
                 (other.mediaStoreGenerationFloor != null && other.mediaStoreGenerationFloors.isNotEmpty()) ||
@@ -55,6 +58,7 @@ internal data class LibraryRefreshRequest(
         }
         val mergedGenerationFloor = if (
             force ||
+                requiresFullMediaStoreScan ||
                 mixedGenerationFloors ||
                 mergedPaths.isNotEmpty() ||
                 mergedSafTreeIds != null ||
@@ -67,6 +71,7 @@ internal data class LibraryRefreshRequest(
             }
         val mergedGenerationFloors = if (
             force ||
+                requiresFullMediaStoreScan ||
                 mixedGenerationFloors ||
                 mergedPaths.isNotEmpty() ||
                 mergedSafTreeIds != null ||

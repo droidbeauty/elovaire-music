@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 
 import androidx.activity.compose.BackHandler
@@ -13,8 +15,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -595,6 +595,11 @@ internal fun PlaylistSongRow(
     var reorderDragAccumulator by remember(song.id, editMode) { mutableFloatStateOf(0f) }
     var handleDragActive by remember(song.id, editMode) { mutableStateOf(false) }
     val visualDragOffsetY = reorderDragAccumulator.coerceIn(-20f, 20f)
+    val trailingWidth by animateDpAsState(
+        targetValue = if (editMode) 36.dp else if (showOverflowMenu) 96.dp else 64.dp,
+        animationSpec = motionSpecs.contentSize(),
+        label = "playlist_row_trailing_width",
+    )
     val handleTint by animateColorAsState(
         targetValue = if (handleDragActive) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.94f)
@@ -647,9 +652,8 @@ internal fun PlaylistSongRow(
     val rowInteractionModifier = if (editMode) {
         Modifier
     } else {
-        Modifier.combinedClickable(
+        Modifier.elovaireCombinedClickable(
             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-            indication = null,
             onClick = onClick,
             onLongClick = onLongPress,
         )
@@ -789,7 +793,7 @@ internal fun PlaylistSongRow(
                 )
             }
             Row(
-                modifier = Modifier.width(if (editMode) 36.dp else if (showOverflowMenu) 96.dp else 64.dp),
+                modifier = Modifier.width(trailingWidth),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -841,9 +845,8 @@ internal fun PlaylistSongRow(
                     Box(
                         modifier = Modifier
                             .size(24.dp)
-                            .clickable(
+                            .elovaireClickable(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                indication = null,
                                 onClick = onToggleMarkedForRemoval,
                             ),
                         contentAlignment = Alignment.Center,

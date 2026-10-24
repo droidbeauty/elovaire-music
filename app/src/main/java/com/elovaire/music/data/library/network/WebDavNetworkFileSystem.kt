@@ -637,6 +637,22 @@ private class LimitedInputStream(
     input: InputStream,
     private var remaining: Long,
 ) : FilterInputStream(input) {
+    private var markedRemaining = remaining
+
+    override fun available(): Int = minOf(super.available().toLong(), remaining).toInt()
+
+    @Synchronized
+    override fun mark(readlimit: Int) {
+        super.mark(readlimit)
+        markedRemaining = remaining
+    }
+
+    @Synchronized
+    override fun reset() {
+        super.reset()
+        remaining = markedRemaining
+    }
+
     override fun read(): Int {
         if (remaining == 0L) return -1
         val value = super.read()

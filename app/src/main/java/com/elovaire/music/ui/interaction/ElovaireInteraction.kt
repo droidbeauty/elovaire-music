@@ -4,6 +4,8 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -14,6 +16,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
 import elovaire.music.droidbeauty.app.ui.motion.MotionScale
 import elovaire.music.droidbeauty.app.ui.motion.elovairePressScaleMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
@@ -51,6 +54,54 @@ data class ElovaireInteractionSpecs(
 
 object ElovaireInteraction {
     val specs = ElovaireInteractionSpecs()
+}
+
+@Composable
+fun Modifier.elovaireClickable(
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    onClickLabel: String? = null,
+    role: Role? = null,
+    onClick: () -> Unit,
+): Modifier {
+    val source = interactionSource ?: rememberElovaireInteractionSource()
+    return elovairePressScale(
+        enabled = enabled,
+        pressedScale = MotionScale.SelectionPressed,
+        interactionSource = source,
+    ).clickable(
+        enabled = enabled,
+        interactionSource = source,
+        indication = null,
+        onClickLabel = onClickLabel,
+        role = role,
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun Modifier.elovaireCombinedClickable(
+    interactionSource: MutableInteractionSource? = null,
+    enabled: Boolean = true,
+    onClickLabel: String? = null,
+    role: Role? = null,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+): Modifier {
+    val source = interactionSource ?: rememberElovaireInteractionSource()
+    return elovairePressScale(
+        enabled = enabled,
+        pressedScale = MotionScale.SelectionPressed,
+        interactionSource = source,
+    ).combinedClickable(
+        enabled = enabled,
+        interactionSource = source,
+        indication = null,
+        onClickLabel = onClickLabel,
+        role = role,
+        onLongClick = onLongClick,
+        onClick = onClick,
+    )
 }
 
 internal fun pillActionTargetScale(
@@ -103,11 +154,7 @@ fun Modifier.elovairePillActionMotion(
             pressedScale = pressedScale,
             confirmationScale = confirmationScale,
         ),
-        animationSpec = when {
-            pressed -> motionSpecs.pressDown()
-            confirmation -> motionSpecs.mediaRelease()
-            else -> motionSpecs.mediaRelease()
-        },
+        animationSpec = if (pressed) motionSpecs.pressDown() else motionSpecs.mediaRelease(),
         label = label,
     )
     graphicsLayer {

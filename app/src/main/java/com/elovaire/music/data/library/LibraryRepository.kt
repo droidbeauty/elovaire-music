@@ -704,7 +704,13 @@ internal class LibraryRepository internal constructor(
                 },
             )
         }
-        result.copy(mediaStoreSyncStateAtStart = mediaStoreSyncStateAtStart)
+        result.copy(
+            mediaStoreSyncStateAtStart = if (result.mediaStoreReconciled) {
+                mediaStoreSyncStateAtStart
+            } else {
+                lastSuccessfulMediaStoreSyncState
+            },
+        )
     }
 
     private fun enqueueFollowUpRequests(

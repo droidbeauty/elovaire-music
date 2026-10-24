@@ -66,8 +66,13 @@ internal class LibrarySnapshotPublisher(
                 ?: songPositionsById[edited.id]?.takeUnless { edited.id in ambiguousSongIds }
             if (position != null) replacementsByPosition[position] = edited
         }
+        replacementsByPosition.entries.removeAll { (position, song) -> current.songs[position] == song }
         val replacementPositions = replacementsByPosition.keys.sorted()
-        if (replacementPositions.isEmpty()) return LibrarySongPatchResult(current, LibraryChangeSet.Empty)
+        if (replacementPositions.isEmpty()) {
+            val next = current.copy(removingSongIds = removingSongIds, removingAlbumIds = removingAlbumIds)
+            if (publishResult) publishState(next)
+            return LibrarySongPatchResult(next, LibraryChangeSet.Empty)
+        }
         val updatedSongs = current.songs.toMutableList()
         replacementPositions.forEach { position ->
             updatedSongs[position] = replacementsByPosition.getValue(position)

@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 
 import android.Manifest
@@ -52,7 +53,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -1124,9 +1124,8 @@ internal fun NowPlayingScreen(
                                 if (showQueueSheet) {
                                     Modifier
                                 } else {
-                                    Modifier.clickable(
+                                    Modifier.elovaireClickable(
                                         interactionSource = metadataClickInteractionSource,
-                                        indication = null,
                                         onClick = {
                                             currentSong.takeIf { it.albumId != 0L }?.albumId?.let { albumId ->
                                                 dismissNowPlaying {
@@ -2361,11 +2360,7 @@ internal fun SleepTimerDialog(
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onDismiss,
-                                ),
+                                .elovaireClickable(onClick = onDismiss),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -2466,7 +2461,7 @@ internal fun SleepTimerDialog(
                             .size(46.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                            .clickable { onOptionSelected(SleepTimerOption.Off) },
+                            .elovaireClickable { onOptionSelected(SleepTimerOption.Off) },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -2696,9 +2691,8 @@ private fun QueueSongRow(
                 .background(
                     if (active) tint.copy(alpha = 0.1f) else Color.Transparent,
                 )
-                .clickable(
+                .elovaireClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
                     onClick = onClick,
                 )
                 .padding(horizontal = 6.dp, vertical = 6.dp),

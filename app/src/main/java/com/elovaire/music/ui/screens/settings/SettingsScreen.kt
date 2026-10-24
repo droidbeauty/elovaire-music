@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
@@ -55,6 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.rotate
@@ -672,11 +675,7 @@ private fun LanguageSelectionDialog(
                                         .size(32.dp)
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null,
-                                            onClick = onDismiss,
-                                        ),
+                                        .elovaireClickable(onClick = onDismiss),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
@@ -782,9 +781,8 @@ private fun LanguagePickerOptionRow(
             .padding(end = 16.dp)
             .clip(RoundedCornerShape(ElovaireRadii.tile))
             .background(highlightColor)
-            .clickable(
+            .elovaireClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onClick = onClick,
             )
             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -1225,20 +1223,20 @@ private fun SettingsToggle(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
-    val knobColor = if (checked) {
+    val knobColor by animateColorAsState(targetValue = if (checked) {
         Color.White
     } else if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
         Color.White
-    }
+    }, animationSpec = motionSpecs.tween(MotionDuration.Standard), label = "settings_toggle_thumb_color")
     val trackColor by animateColorAsState(
         targetValue = if (checked) {
             ToggleEnabledGreen
         } else {
             MaterialTheme.colorScheme.onSurface.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 0.16f else 0.2f)
         },
-        animationSpec = motionSpecs.tween(60),
+        animationSpec = motionSpecs.tween(MotionDuration.Standard),
         label = "settings_toggle_track",
     )
     val thumbOffset by animateDpAsState(
@@ -1247,7 +1245,9 @@ private fun SettingsToggle(
         label = "settings_toggle_thumb_offset",
     )
     Surface(
-        onClick = { onCheckedChange(!checked) },
+        modifier = Modifier
+            .elovaireClickable(role = androidx.compose.ui.semantics.Role.Switch) { onCheckedChange(!checked) }
+            .semantics { toggleableState = androidx.compose.ui.state.ToggleableState(checked) },
         shape = RoundedCornerShape(percent = 50),
         color = trackColor,
         contentColor = knobColor,
@@ -1319,6 +1319,12 @@ internal fun ThemeModeSegmentedPicker(
         ) {
             options.forEach { option ->
                 val selected = option == selectedMode
+                val contentTint by animateColorAsState(
+                    targetValue = if (selected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
+                    animationSpec = motionSpecs.tween(MotionDuration.Standard),
+                    label = "theme_picker_content_tint",
+                )
                 val iconResId = when (option) {
                     ThemeMode.Light -> R.drawable.ic_lucide_sun
                     ThemeMode.Dark -> R.drawable.ic_lucide_moon
@@ -1329,9 +1335,8 @@ internal fun ThemeModeSegmentedPicker(
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(percent = 50))
-                        .clickable(
+                        .elovaireClickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
                             onClick = { onModeSelected(option) },
                         ),
                     contentAlignment = Alignment.Center,
@@ -1343,11 +1348,7 @@ internal fun ThemeModeSegmentedPicker(
                         Icon(
                             painter = painterResource(id = iconResId),
                             contentDescription = null,
-                            tint = if (selected) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
-                            },
+                            tint = contentTint,
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
@@ -1357,11 +1358,7 @@ internal fun ThemeModeSegmentedPicker(
                                 ThemeMode.System -> common.system
                             },
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
-                            },
+                            color = contentTint,
                         )
                     }
                 }

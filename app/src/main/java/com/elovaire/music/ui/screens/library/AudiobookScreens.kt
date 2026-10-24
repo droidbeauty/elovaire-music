@@ -1,9 +1,10 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import elovaire.music.droidbeauty.app.ui.motion.elovaireContentChangeMotion
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -154,7 +156,7 @@ private fun AudiobookMiniCard(
     Column(
         modifier = Modifier
             .width(124.dp)
-            .clickable(onClick = onClick),
+            .elovaireClickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         ArtworkImage(
@@ -334,7 +336,7 @@ private fun AudiobookCollectionContent(
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val gridState = rememberElovaireLazyGridState("audiobooks_screen_grid")
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().elovaireContentChangeMotion(layoutMode)) {
         when (layoutMode) {
         AlbumLayoutMode.Compact -> {
             LazyColumn(
@@ -566,9 +568,8 @@ private fun AudiobookCollectionRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onClick = onClick,
                 onLongClick = onLongPress,
             )
@@ -638,9 +639,8 @@ private fun AudiobookGridCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onClick = onClick,
                 onLongClick = onLongPress,
             ),
@@ -1087,11 +1087,7 @@ private fun AudiobookDescriptionDialog(
                                     .size(32.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = onDismiss,
-                                    ),
+                                    .elovaireClickable(onClick = onDismiss),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -1143,7 +1139,7 @@ private fun AudiobookPartRow(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(ElovaireRadii.card))
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,

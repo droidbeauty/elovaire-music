@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+
 data class PlaybackProgressState(
     val positionMs: Long = 0L,
     val displayPositionMs: Long = 0L,
@@ -17,7 +19,10 @@ internal data class ScrubCommitResult(
     val seekPositionMs: Long? = null,
 )
 
-internal class PlaybackProgressController {
+internal class PlaybackProgressController(
+    private val elapsedRealtimeMs: () -> Long = AndroidAppClock::elapsedTimeMs,
+) {
+    private data class PendingSeek(val positionMs: Long, val requestedAtElapsedMs: Long)
     private var currentMediaId: Long? = null
     private var currentMediaItemOccurrence: Long = 0L
     private var generation: Long = 0L
@@ -28,7 +33,7 @@ internal class PlaybackProgressController {
     private var isUserScrubbing: Boolean = false
     private var scrubPreviewPositionMs: Long? = null
     private var scrubMediaId: Long? = null
-    private var pendingSeekPositionMs: Long? = null
+    private var pendingSeek: PendingSeek? = null
 
     fun onPlayerSnapshot(
         mediaId: Long?,
@@ -43,25 +48,27 @@ internal class PlaybackProgressController {
             currentMediaId = mediaId
             currentMediaItemOccurrence = mediaItemOccurrence
             clearScrubState()
-            pendingSeekPositionMs = null
+            pendingSeek = null
         }
         this.positionMs = clampPosition(positionMs, durationMs)
         this.durationMs = durationMs.coerceAtLeast(0L)
         this.bufferedPositionMs = clampPosition(bufferedPositionMs, durationMs)
         this.isPlaying = isPlaying
-        pendingSeekPositionMs?.let { pendingPositionMs ->
+        pendingSeek?.let { pending ->
             val expectedPositionMs = if (this.durationMs > 0L) {
-                pendingPositionMs.coerceIn(0L, this.durationMs)
+                pending.positionMs.coerceIn(0L, this.durationMs)
             } else {
-                pendingPositionMs
+                pending.positionMs
             }
             val delta = if (expectedPositionMs >= this.positionMs) {
                 expectedPositionMs - this.positionMs
             } else {
                 this.positionMs - expectedPositionMs
             }
-            if (delta <= SEEK_SETTLE_TOLERANCE_MS) {
-                pendingSeekPositionMs = null
+            if (delta <= SEEK_SETTLE_TOLERANCE_MS ||
+                elapsedRealtimeMs() - pending.requestedAtElapsedMs >= SEEK_SETTLE_TIMEOUT_MS
+            ) {
+                pendingSeek = null
             }
         }
         return snapshot()
@@ -78,7 +85,7 @@ internal class PlaybackProgressController {
         bufferedPositionMs = 0L
         isPlaying = false
         clearScrubState()
-        pendingSeekPositionMs = null
+        pendingSeek = null
         return snapshot()
     }
 
@@ -107,7 +114,7 @@ internal class PlaybackProgressController {
         isUserScrubbing = false
         scrubPreviewPositionMs = null
         scrubMediaId = null
-        pendingSeekPositionMs = clamped
+        pendingSeek = PendingSeek(clamped, elapsedRealtimeMs())
         return ScrubCommitResult(
             state = snapshot(),
             seekPositionMs = clamped,
@@ -119,7 +126,7 @@ internal class PlaybackProgressController {
         return snapshot()
     }
 
-    fun needsActivePolling(): Boolean = pendingSeekPositionMs != null
+    fun needsActivePolling(): Boolean = pendingSeek != null
 
     private fun clearScrubState() {
         isUserScrubbing = false
@@ -144,7 +151,7 @@ internal class PlaybackProgressController {
     private fun effectiveDisplayPositionMs(): Long {
         return clampPosition(
             scrubPreviewPositionMs
-                ?: pendingSeekPositionMs
+                ?: pendingSeek?.positionMs
                 ?: positionMs,
             durationMs,
         )
@@ -165,5 +172,6 @@ internal class PlaybackProgressController {
 
     private companion object {
         const val SEEK_SETTLE_TOLERANCE_MS = 250L
+        const val SEEK_SETTLE_TIMEOUT_MS = 5_000L
     }
 }

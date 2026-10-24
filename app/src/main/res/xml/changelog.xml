@@ -6,9 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.9.5">
-        <item>UI refinements for equalizer</item>
-        <item>All APIs, plugins and libraries in the app updated to the latest stable version</item>
+    <release version="2.9.6">
+        <item>Performance and stability improvements</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

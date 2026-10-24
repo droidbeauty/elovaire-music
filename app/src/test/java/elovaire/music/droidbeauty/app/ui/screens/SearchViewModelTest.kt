@@ -25,6 +25,35 @@ class SearchViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
+    fun discoverySuggestionsReturnAfterQueriesAreClearedToWhitespace() = runTest(mainDispatcherRule.scheduler) {
+        val song = testSong(title = "Northern Lights")
+        val album = testAlbum(songs = listOf(song))
+        val settings = FakeSearchSettingsStore()
+        val viewModel = SearchViewModel(
+            libraryRepository = FakeLibraryReader(initialContent = LibraryContentState(
+                songs = listOf(song), albums = listOf(album), contentRevision = "revision-1",
+            )),
+            playbackHistory = settings,
+            searchHistory = settings,
+            playbackReader = FakePlaybackReader(),
+            defaultDispatcher = mainDispatcherRule.dispatcher,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(album), viewModel.uiState.value.suggestedAlbums)
+
+        for (query in listOf("Northern", "Lights")) {
+            viewModel.onQueryChange(query)
+            advanceTimeBy(200L)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.suggestedAlbums.isEmpty())
+        }
+        viewModel.onQueryChange(" \t\n")
+        advanceUntilIdle()
+        assertEquals(listOf(album), viewModel.uiState.value.suggestedAlbums)
+    }
+
+    @Test
     fun queryStateAndResultsSurviveViewModelRecreation() =
         runTest(mainDispatcherRule.scheduler) {
             val song = testSong(title = "Northern Lights")

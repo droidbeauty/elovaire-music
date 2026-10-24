@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 
@@ -989,7 +990,7 @@ internal fun PlaylistPickerRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(ElovaireRadii.tile))
             .background(highlightColor)
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 4.dp),
     ) {
         Row(

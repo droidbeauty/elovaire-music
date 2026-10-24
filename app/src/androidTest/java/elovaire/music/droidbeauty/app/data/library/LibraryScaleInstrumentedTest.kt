@@ -6,6 +6,12 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.settings.PreferenceCollectionCodec
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistEngine
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSort
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSortField
+import elovaire.music.droidbeauty.app.data.smartplaylists.SortDirection
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchSortMode
 import elovaire.music.droidbeauty.app.domain.search.SearchIndex
@@ -29,6 +35,46 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LibraryScaleInstrumentedTest {
+    @Test
+    fun limitedSmartPlaylistsMatchFullSortAtScale() {
+        val songs = List(50_000) { song(it.toLong() + 1) }.shuffled(kotlin.random.Random(17))
+        for (field in listOf(SmartPlaylistSortField.Title, SmartPlaylistSortField.DateAdded, SmartPlaylistSortField.Random)) {
+            val definition = SmartPlaylist(
+                id = 42L,
+                name = "Scale",
+                sort = SmartPlaylistSort(field, SortDirection.Descending),
+                createdAtMs = 1L,
+                updatedAtMs = 1L,
+            )
+            val limited = definition.copy(limit = 25)
+            val baseline = { SmartPlaylistEngine.resolve(definition, songs, emptySet(), emptyMap()).songs.take(25) }
+            val candidate = { SmartPlaylistEngine.resolve(limited, songs, emptySet(), emptyMap()).songs }
+            repeat(2) { assertEquals(baseline(), candidate()) }
+            measurePair("smart_playlist_$field", songs.size, baseline, candidate)
+        }
+    }
+
+    @Test
+    fun playCountDecodingAvoidsRetainingSplitFieldsAtScale() {
+        val counts = (1..50_000).joinToString(",") { "$it:${it % 37}" }
+        val baseline = {
+            val entries = counts.split(",", limit = 100_001)
+            val decoded = LinkedHashMap<Long, Int>(entries.size)
+            entries.forEach { entry ->
+                val parts = entry.split(":", limit = 3)
+                if (parts.size == 2) {
+                    val id = parts[0].toLongOrNull()?.takeIf(::isValidMediaId)
+                    val count = parts[1].toIntOrNull()?.coerceAtLeast(0)
+                    if (id != null && count != null) decoded[id] = count
+                }
+            }
+            decoded
+        }
+        val candidate = { PreferenceCollectionCodec.deserializePlayCounts(counts) }
+        repeat(2) { assertEquals(baseline(), candidate()) }
+        measurePair("play_count_decode", 50_000, baseline, candidate)
+    }
+
     @Test
     fun boundedSearchPreviewMatchesFullRankingAtScale() {
         for (size in listOf(1_000, 10_000, 50_000)) {

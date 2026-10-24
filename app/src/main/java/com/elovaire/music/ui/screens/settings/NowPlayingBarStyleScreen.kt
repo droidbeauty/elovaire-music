@@ -1,8 +1,13 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.getValue
+import elovaire.music.droidbeauty.app.ui.motion.InlineActionMotionHost
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -108,19 +113,20 @@ private fun StyleOptionCard(
     onClick: () -> Unit,
 ) {
     val selected = style == selectedStyle
+    val motionSpecs = rememberMotionSpecs()
     val shape = RoundedCornerShape(ElovaireRadii.module)
-    val borderColor = if (selected) {
+    val borderColor by animateColorAsState(targetValue = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-    }
+    }, animationSpec = motionSpecs.tween(MotionDuration.Standard), label = "bar_style_border")
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, borderColor, shape)
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(18.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -155,7 +161,7 @@ private fun StyleOptionCard(
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (selected) {
+                    InlineActionMotionHost(visible = selected, surfaceId = "bar_style_selection") {
                         Box(
                             modifier = Modifier
                                 .size(10.dp)

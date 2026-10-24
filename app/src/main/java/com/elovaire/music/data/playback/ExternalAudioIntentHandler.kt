@@ -327,38 +327,47 @@ internal object ExternalAudioPrivateCopy {
     ) {
         context.contentResolver.openInputStream(sourceUri)?.use { input ->
             FileOutputStream(temporary).use { output ->
-                val buffer = ByteArray(COPY_BUFFER_SIZE)
-                var total = 0L
-                var nextStorageCheck = 0L
-                while (true) {
-                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                    var read = input.read(buffer)
-                    if (read == 0) {
-                        val singleByte = input.read()
-                        if (singleByte < 0) break
-                        buffer[0] = singleByte.toByte()
-                        read = 1
-                    }
-                    if (read < 0) break
-                    if (total > MAX_COPY_BYTES - read) {
-                        throw IOException("External audio source exceeds the private copy limit.")
-                    }
-                    total += read
-                    if (total >= nextStorageCheck &&
-                        !hasExternalAudioCopySpace(StatFs(directory.path).availableBytes, read)
-                    ) {
-                        throw IOException("Insufficient private storage for external audio.")
-                    }
-                    output.write(buffer, 0, read)
-                    nextStorageCheck = total + (1L * 1024L * 1024L)
-                }
+                copyAudioStream(input, output, declaredSize) { StatFs(directory.path).availableBytes }
                 output.fd.sync()
-                if (total == 0L) throw IOException("External audio source is empty.")
-                if (declaredSize != null && total != declaredSize) {
-                    throw IOException("External audio source changed while it was copied.")
-                }
             }
         } ?: throw IOException("External audio source could not be opened.")
+    }
+
+    internal suspend fun copyAudioStream(
+        input: java.io.InputStream,
+        output: java.io.OutputStream,
+        declaredSize: Long?,
+        availableBytes: () -> Long,
+    ) {
+        val buffer = ByteArray(COPY_BUFFER_SIZE)
+        var total = 0L
+        var nextStorageCheck = 0L
+        while (true) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            var read = input.read(buffer)
+            if (read == 0) {
+                val singleByte = input.read()
+                if (singleByte < 0) break
+                buffer[0] = singleByte.toByte()
+                read = 1
+            }
+            if (read < 0) break
+            if (total > MAX_COPY_BYTES - read) {
+                throw IOException("External audio source exceeds the private copy limit.")
+            }
+            total += read
+            if (total >= nextStorageCheck) {
+                if (!hasExternalAudioCopySpace(availableBytes(), read)) {
+                    throw IOException("Insufficient private storage for external audio.")
+                }
+                nextStorageCheck = total + (1L * 1024L * 1024L)
+            }
+            output.write(buffer, 0, read)
+        }
+        if (total == 0L) throw IOException("External audio source is empty.")
+        if (declaredSize != null && total != declaredSize) {
+            throw IOException("External audio source changed while it was copied.")
+        }
     }
 
     private fun commitTemporary(temporary: File, target: File) {

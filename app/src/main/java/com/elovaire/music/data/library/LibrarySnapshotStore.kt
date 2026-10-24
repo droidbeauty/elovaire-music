@@ -316,8 +316,9 @@ internal fun librarySnapshotContentRevision(
 
 internal fun librarySongsContentRevision(songs: List<Song>): String {
     val digest = MessageDigest.getInstance("SHA-256")
-    songs.sortedBy(MediaIdentityResolver::stableKey)
-        .forEach { song -> digest.appendLibrarySongRevision(song) }
+    songs.map { song -> song to MediaIdentityResolver.stableKey(song) }
+        .sortedBy { it.second }
+        .forEach { (song, _) -> digest.appendLibrarySongRevision(song) }
     return digest.digest().toHexString()
 }
 

@@ -74,13 +74,16 @@ internal object AudiobookCatalog {
     fun stableId(book: Audiobook): String {
         return MessageDigest.getInstance("SHA-256")
             .digest(book.stableKey.toByteArray(StandardCharsets.UTF_8))
-            .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+            .toHexString()
     }
 
     private fun buildBook(parts: List<Song>): Audiobook? {
-        val ordered = parts.sortedWith(PART_COMPARATOR).distinctBy(MediaIdentityResolver::stableKey)
+        val orderedParts = parts.map { song ->
+            PartSortKey(song, song.fileName.lowercase(Locale.ROOT), MediaIdentityResolver.stableKey(song))
+        }.sortedWith(PART_COMPARATOR).distinctBy(PartSortKey::stableKey)
+        val ordered = orderedParts.map(PartSortKey::song)
         val first = ordered.firstOrNull() ?: return null
-        val stableKey = stableBookKey(ordered)
+        val stableKey = stableBookKey(orderedParts.minOf(PartSortKey::stableKey))
         val author = ordered
             .asSequence()
             .mapNotNull { it.albumArtist?.trim()?.takeIf(String::isNotBlank) ?: it.artist.trim().takeIf(String::isNotBlank) }
@@ -97,11 +100,10 @@ internal object AudiobookCatalog {
         )
     }
 
-    private fun stableBookKey(parts: List<Song>): String {
-        val anchor = parts.minOf(MediaIdentityResolver::stableKey)
-        return MessageDigest.getInstance("SHA-256")
+    private fun stableBookKey(anchor: String): String {
+        return "book:" + MessageDigest.getInstance("SHA-256")
             .digest(anchor.toByteArray(StandardCharsets.UTF_8))
-            .joinToString(prefix = "book:", separator = "") { byte -> "%02x".format(Locale.ROOT, byte) }
+            .toHexString()
     }
 
     private fun bookTitle(song: Song): String {
@@ -117,12 +119,14 @@ internal object AudiobookCatalog {
             ?: song.fileName.substringBeforeLast('.').ifBlank { "Audiobook" }
     }
 
-    private val PART_COMPARATOR = compareBy<Song>(
-        { it.discNumber.coerceAtLeast(1) },
-        { it.trackNumber.coerceAtLeast(0) },
-        { it.fileName.lowercase(Locale.ROOT) },
-        { it.id },
-        { MediaIdentityResolver.stableKey(it) },
+    private data class PartSortKey(val song: Song, val fileName: String, val stableKey: String)
+
+    private val PART_COMPARATOR = compareBy<PartSortKey>(
+        { it.song.discNumber.coerceAtLeast(1) },
+        { it.song.trackNumber.coerceAtLeast(0) },
+        { it.fileName },
+        { it.song.id },
+        { it.stableKey },
     )
 
     private val AUDIOBOOK_COMPARATOR = compareBy<Audiobook>(

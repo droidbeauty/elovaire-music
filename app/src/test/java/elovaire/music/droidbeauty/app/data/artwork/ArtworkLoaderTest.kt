@@ -92,6 +92,25 @@ class ArtworkLoaderTest {
     }
 
     @Test
+    fun paletteInvalidationPreservesUriBoundariesAndHandlesPipes() {
+        ArtworkGradientCache.clear()
+        val keys = listOf("content://artwork/1|UI", "content://artwork/10|UI", "content://artwork/part|two|UI")
+        keys.forEach { key ->
+            ArtworkGradientCache.putGradient(key, listOf(1, 2))
+            ArtworkGradientCache.putAccent("$key|accent", 3)
+        }
+
+        ArtworkGradientCache.removeMatching(setOf("content://artwork/1", "content://artwork/part|two"))
+
+        for (key in keys) {
+            val survives = key == keys[1]
+            assertEquals(if (survives) listOf(1, 2) else null, ArtworkGradientCache.gradient(key))
+            assertEquals(if (survives) 3 else null, ArtworkGradientCache.accent("$key|accent"))
+        }
+        ArtworkGradientCache.clear()
+    }
+
+    @Test
     fun awaitingSharedDecodeDoesNotBlockItsDispatcher() = runBlocking {
         val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         val future = CompletableFuture<String>()

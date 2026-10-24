@@ -19,8 +19,8 @@ object MotionDuration {
     const val Player = 540
     const val PlayerFade = 260
     const val Component = 240
-    const val TopBarActionExit = 44
-    const val TopBarActionEnter = 64
+    const val TopBarActionExit = 120
+    const val TopBarActionEnter = 180
     const val ChromeResize = 220
     const val Emphasized = 460
     const val TopLevelEnter = 320
@@ -49,7 +49,7 @@ object MotionEasing {
 object MotionScale {
     const val ChromePressed = 0.965f
     const val CompactPressed = 0.975f
-    const val MediaPressed = 0.94f
+    const val MediaPressed = 0.975f
     const val PrimaryPressed = 0.965f
     const val SelectionPressed = 0.975f
     const val TogglePressed = 0.965f

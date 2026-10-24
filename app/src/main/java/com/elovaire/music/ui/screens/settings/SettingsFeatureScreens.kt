@@ -1,7 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -184,7 +184,7 @@ private fun AudiobookStepButton(
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.9f else 0.35f),
             )
-            .clickable(enabled = enabled, onClick = onClick),
+            .elovaireClickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(

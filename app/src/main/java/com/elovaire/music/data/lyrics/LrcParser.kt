@@ -46,14 +46,15 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
         }
 
         val matches = LRC_TIME_REGEX.findAll(rawLine)
-        val text = sanitizeLyricLine(rawLine.replace(LRC_TIME_REGEX, "").trim()).orEmpty()
+        val rawText = rawLine.replace(LRC_TIME_REGEX, "").trim()
+        val text = sanitizeLyricLine(rawText).orEmpty()
 
         if (matches.firstOrNull() == null) {
             if (text.isNotBlank()) plain += text
             return@forEach
         }
 
-        if (text.isBlank()) return@forEach
+        if (text.isBlank() && rawText.isNotBlank()) return@forEach
 
         matches.forEach { match ->
             match.toTimeMs(offsetMs)?.let { startTimeMs ->
@@ -62,7 +63,7 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
         }
     }
 
-    if (timed.isEmpty()) {
+    if (timed.none { it.text.isNotBlank() }) {
         val plainLines = plain
             .mapIndexed { index, text -> LyricsLine(text = text, startTimeMs = null, index = index) }
         return plainLines.takeIf { it.isNotEmpty() }?.let { lines ->
@@ -88,11 +89,15 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
         }
         nextDistinctStarts[index] = currentGroupNext
     }
-    val indexed = sorted.mapIndexed { index, line ->
-        line.copy(
-            index = index,
-            endTimeMs = nextDistinctStarts[index]?.let { it - 1L },
-        )
+    val indexed = buildList {
+        sorted.forEachIndexed { index, line ->
+            if (line.text.isNotBlank()) {
+                add(line.copy(
+                    index = size,
+                    endTimeMs = nextDistinctStarts[index]?.let { it - 1L },
+                ))
+            }
+        }
     }
 
     return LyricsPayload(

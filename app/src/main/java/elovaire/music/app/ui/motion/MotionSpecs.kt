@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween as composeTween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 
 @Stable
 class MotionSpecs internal constructor(
@@ -102,7 +103,7 @@ class MotionSpecs internal constructor(
     )
 
     fun listRevealDelay(index: Int): Int {
-        return runtime.delay((index.coerceAtLeast(0) * 12).coerceAtMost(72))
+        return runtime.delay(index.coerceIn(0, 6) * 12)
     }
 
     fun <T> pressDown(): FiniteAnimationSpec<T> = tween(
@@ -112,12 +113,12 @@ class MotionSpecs internal constructor(
 
     fun <T> chromeRelease(): FiniteAnimationSpec<T> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = 620f,
+        stiffness = 520f,
     )
 
     fun <T> mediaRelease(): FiniteAnimationSpec<T> = spring(
-        dampingRatio = 0.78f,
-        stiffness = 620f,
+        dampingRatio = 0.86f,
+        stiffness = 480f,
     )
 }
 
@@ -132,8 +133,11 @@ private data class SpringKey(
     val stiffness: Float,
 )
 
+internal val LocalMotionSpecs = staticCompositionLocalOf<MotionSpecs?> { null }
+
 @Composable
 fun rememberMotionSpecs(): MotionSpecs {
+    LocalMotionSpecs.current?.let { return it }
     val runtime = LocalMotionRuntime.current
     return remember(runtime) { MotionSpecs(runtime) }
 }

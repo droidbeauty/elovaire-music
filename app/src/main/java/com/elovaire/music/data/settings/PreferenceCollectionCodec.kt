@@ -87,20 +87,24 @@ internal object PreferenceCollectionCodec {
 
     fun deserializePlayCounts(value: String): Map<Long, Int> {
         if (value.length > MAX_PLAY_COUNT_SERIALIZED_CHARS) return emptyMap()
-        val entries = value.split(",", limit = MAX_PLAY_COUNT_ENTRIES + 1)
-        if (entries.size > MAX_PLAY_COUNT_ENTRIES) return emptyMap()
-        val decoded = LinkedHashMap<Long, Int>(entries.size)
-        var duplicateId = false
-        entries.forEach { entry ->
-            val parts = entry.split(":", limit = 3)
-            if (parts.size != 2) return@forEach
-            val id = parts.getOrNull(0)?.toLongOrNull()?.takeIf(::isValidMediaId)
-                ?: return@forEach
-            val count = parts.getOrNull(1)?.toIntOrNull()?.coerceAtLeast(0)
-                ?: return@forEach
-            if (decoded.put(id, count) != null) duplicateId = true
+        val entryCount = value.count { it == ',' } + 1
+        if (entryCount > MAX_PLAY_COUNT_ENTRIES) return emptyMap()
+        val decoded = LinkedHashMap<Long, Int>(entryCount)
+        var start = 0
+        while (start <= value.length) {
+            val comma = value.indexOf(',', start)
+            val end = if (comma < 0) value.length else comma
+            var separator = start
+            while (separator < end && value[separator] != ':') separator++
+            if (separator < end) {
+                val id = value.substring(start, separator).toLongOrNull()?.takeIf(::isValidMediaId)
+                val count = value.substring(separator + 1, end).toIntOrNull()?.coerceAtLeast(0)
+                if (id != null && count != null && decoded.put(id, count) != null) return emptyMap()
+            }
+            if (comma < 0) break
+            start = comma + 1
         }
-        return if (duplicateId) emptyMap() else decoded
+        return decoded
     }
 
     private fun encodeField(value: String): String {

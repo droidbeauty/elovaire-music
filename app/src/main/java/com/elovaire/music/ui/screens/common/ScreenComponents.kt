@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens.common
 
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -49,8 +50,6 @@ import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -534,7 +533,7 @@ internal fun MutedSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
+            .elovaireClickable(
                 enabled = onClick != null,
                 onClick = { onClick?.invoke() },
             ),

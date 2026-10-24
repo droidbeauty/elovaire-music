@@ -51,7 +51,7 @@ fun Modifier.elovaireListReveal(
     enabled: Boolean = true,
 ): Modifier {
     val previouslyRevealed = remember(itemKey, registry) { registry.isRevealed(itemKey) }
-    if (!enabled || previouslyRevealed || index > MaxAnimatedRevealIndex) return this
+    if (!enabled || previouslyRevealed || index > MaxAnimatedRevealIndex || LocalMotionRuntime.current.reduceMotion) return this
     val specs = rememberMotionSpecs()
     val density = LocalDensity.current
     var started by remember(itemKey) { mutableStateOf(false) }

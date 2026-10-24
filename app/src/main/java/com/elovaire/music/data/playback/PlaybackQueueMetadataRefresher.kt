@@ -24,9 +24,15 @@ internal class PlaybackQueueMetadataRefresher {
         ) return null
         var refreshedQueue: ArrayList<Song>? = null
         queue.forEachIndexed { index, queuedSong ->
-            val librarySong = librarySongsById[queuedSong.id]
-                ?.takeIf { MediaIdentityResolver.stableKey(it) == MediaIdentityResolver.stableKey(queuedSong) }
-                ?: librarySongsByIdentity[MediaIdentityResolver.stableKey(queuedSong)]
+            val songById = librarySongsById[queuedSong.id]
+            if (songById === queuedSong) {
+                refreshedQueue?.add(queuedSong)
+                return@forEachIndexed
+            }
+            val identity = MediaIdentityResolver.stableKey(queuedSong)
+            val librarySong = songById
+                ?.takeIf { MediaIdentityResolver.stableKey(it) == identity }
+                ?: librarySongsByIdentity[identity]
                 ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
                     ?.let(librarySongsByPath::get)
             if (librarySong != null && librarySong != queuedSong) {

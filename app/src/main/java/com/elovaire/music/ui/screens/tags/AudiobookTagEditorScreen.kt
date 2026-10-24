@@ -1,7 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens.tags
 
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -152,7 +152,7 @@ private fun AudiobookBookMetadataSection(
                     placeholderIconResId = R.drawable.ic_lucide_book_headphones,
                     modifier = Modifier
                         .size(112.dp)
-                        .clickable(onClick = onPickCoverArt),
+                        .elovaireClickable(onClick = onPickCoverArt),
                     requestedSizePx = 256,
                 )
                 Column(

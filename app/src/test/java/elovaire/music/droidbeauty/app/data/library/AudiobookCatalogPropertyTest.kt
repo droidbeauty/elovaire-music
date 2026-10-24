@@ -9,6 +9,21 @@ import org.junit.Test
 
 class AudiobookCatalogPropertyTest {
     @Test
+    fun stableBookKeysAndIdsKeepTheirExistingSha256Encoding() {
+        val songs = listOf(
+            song(2L, "Book", "Author", "/books/book/part-2.m4b", 2),
+            song(1L, "Book", "Author", "/books/book/part-1.m4b", 1),
+        )
+        fun digest(value: String): String = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(java.util.Locale.ROOT, it) }
+        val book = AudiobookCatalog.build(songs).single()
+        val anchor = songs.minOf(MediaIdentityResolver::stableKey)
+
+        assertEquals("book:${digest(anchor)}", book.stableKey)
+        assertEquals(digest(book.stableKey), AudiobookCatalog.stableId(book))
+    }
+    @Test
     fun groupingSeparatesSourcesAuthorsAndDuplicatePhysicalIds() {
         val firstBook = listOf(
             song(2L, "First", "Author", "/books/first/part-2.m4b", 2),

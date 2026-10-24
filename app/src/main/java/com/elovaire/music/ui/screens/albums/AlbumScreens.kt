@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableCardSurfaceColor
@@ -54,7 +56,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -632,9 +633,8 @@ internal fun AlbumScreen(
                             ),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.76f),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.clickable(
+                            modifier = Modifier.elovaireClickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
                                 onClick = { onArtistSelected(album.artist.ifBlank { "Unknown Artist" }) },
                             ),
                         )
@@ -1026,9 +1026,8 @@ private fun AlbumSongRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(
+                .elovaireCombinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
                     onClick = onClick,
                     onLongClick = onLongPress,
                 )
@@ -1402,9 +1401,8 @@ internal fun AddSongsToPlaylistOverlay(
                                     .size(28.dp)
                                     .clip(CircleShape)
                                     .background(searchBarContentColor.copy(alpha = 0.1f))
-                                    .clickable(
+                                    .elovaireClickable(
                                         interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
                                         onClick = { query = "" },
                                     ),
                                 contentAlignment = Alignment.Center,
@@ -1684,9 +1682,8 @@ private fun SelectableSongRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
+            .elovaireClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onClick = onClick,
             ),
     ) {
@@ -1792,9 +1789,8 @@ private fun SelectableAlbumPickerRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(
+                .elovaireClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
                     onClick = onOpen,
                 )
                 .padding(vertical = 12.dp),

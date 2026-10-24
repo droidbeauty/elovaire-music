@@ -70,4 +70,15 @@ class PreferenceCollectionCodecTest {
     fun playCountDuplicateIdsAreRejectedInsteadOfBeingMapOrderDependent() {
         assertTrue(PreferenceCollectionCodec.deserializePlayCounts("1:2,1:3").isEmpty())
     }
+
+    @Test
+    fun playCountsKeepEntryLimitAndMalformedFieldSemantics() {
+        val atLimit = (1..100_000).joinToString(",") { "$it:1" }
+        assertEquals(100_000, PreferenceCollectionCodec.deserializePlayCounts(atLimit).size)
+        assertTrue(PreferenceCollectionCodec.deserializePlayCounts("$atLimit,").isEmpty())
+        assertEquals(
+            mapOf(4L to 2, -5L to 0),
+            PreferenceCollectionCodec.deserializePlayCounts(",1:2:3,:4,2:,3:2147483648,4:2,-5:-1,"),
+        )
+    }
 }

@@ -3,8 +3,6 @@ package elovaire.music.droidbeauty.app.ui.motion
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.fadeIn
@@ -104,8 +102,7 @@ class MotionTransitions internal constructor(
     }
 
     /**
-     * The single motion language for card-backed popups: the card grows from its bottom edge
-     * while fading in, then contracts towards that same edge while fading out.
+     * Card-backed popups float from their bottom edge without remeasuring their content.
      *
      * Keep this transition on the card itself. Any dimming layer belongs to the parent overlay
      * and should only fade, so the popup never inherits a second geometry animation.
@@ -117,12 +114,16 @@ class MotionTransitions internal constructor(
                 durationMillis = MotionDuration.Emphasized,
                 easing = MotionEasing.RefinedDecelerate,
             ),
-        ) + expandVertically(
-            expandFrom = Alignment.Bottom,
+        ) + scaleIn(
+            initialScale = 0.975f,
+            transformOrigin = TransformOrigin(0.5f, 1f),
             animationSpec = specs.tween(
                 durationMillis = MotionDuration.Emphasized,
                 easing = MotionEasing.RefinedDecelerate,
             ),
+        ) + slideInVertically(
+            initialOffsetY = { (it / 24).coerceAtMost(32) },
+            animationSpec = specs.refinedEnter(MotionDuration.Emphasized),
         )
     }
 
@@ -130,15 +131,19 @@ class MotionTransitions internal constructor(
         fadeOut(
             targetAlpha = 0f,
             animationSpec = specs.tween(
-                durationMillis = MotionDuration.Fast,
+                durationMillis = MotionDuration.Standard,
                 easing = MotionEasing.RefinedAccelerate,
             ),
-        ) + shrinkVertically(
-            shrinkTowards = Alignment.Bottom,
+        ) + scaleOut(
+            targetScale = 0.985f,
+            transformOrigin = TransformOrigin(0.5f, 1f),
             animationSpec = specs.tween(
-                durationMillis = MotionDuration.Fast,
+                durationMillis = MotionDuration.Standard,
                 easing = MotionEasing.RefinedAccelerate,
             ),
+        ) + slideOutVertically(
+            targetOffsetY = { (it / 32).coerceAtMost(24) },
+            animationSpec = specs.refinedExit(MotionDuration.Standard),
         )
     }
 
@@ -446,10 +451,10 @@ class MotionTransitions internal constructor(
                 initialAlpha = 0f,
             ) + scaleIn(
                 animationSpec = specs.spring(
-                    dampingRatio = 0.78f,
-                    stiffness = 900f,
+                    dampingRatio = 0.9f,
+                    stiffness = 600f,
                 ),
-                initialScale = 0.84f,
+                initialScale = 0.94f,
                 transformOrigin = TransformOrigin.Center,
             )) togetherWith (fadeOut(
                 animationSpec = specs.tween(
@@ -462,7 +467,7 @@ class MotionTransitions internal constructor(
                     durationMillis = MotionDuration.TopBarActionExit,
                     easing = MotionEasing.RefinedAccelerate,
                 ),
-                targetScale = 0.92f,
+                targetScale = 0.97f,
                 transformOrigin = TransformOrigin.Center,
             ))
         }

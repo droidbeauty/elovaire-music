@@ -762,12 +762,8 @@ internal class ElovaireMediaTree(
         private val songsByGenre by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             songs.groupBy { it.genre.ifBlank { UNKNOWN_GENRE }.lowercase(Locale.ROOT) }
         }
-        private val songsByArtistForContext by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songsByArtist.mapValues { (_, songs) -> sortedSongsForContext(songs) }
-        }
-        private val songsByGenreForContext by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            songsByGenre.mapValues { (_, songs) -> sortedSongsForContext(songs) }
-        }
+        private val songsByArtistForContext = hashMapOf<String, List<Song>>()
+        private val songsByGenreForContext = hashMapOf<String, List<Song>>()
         private val artistSearchRows by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             artistNames.map { name -> NamedSongs(name = name, songs = songsForArtist(name)) }
         }
@@ -831,10 +827,16 @@ internal class ElovaireMediaTree(
         }
         fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase(Locale.ROOT)].orEmpty()
         fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase(Locale.ROOT)].orEmpty()
-        fun songsForArtistInContext(name: String): List<Song> =
-            songsByArtistForContext[name.lowercase(Locale.ROOT)].orEmpty()
-        fun songsForGenreInContext(name: String): List<Song> =
-            songsByGenreForContext[name.lowercase(Locale.ROOT)].orEmpty()
+        fun songsForArtistInContext(name: String): List<Song> = synchronized(songsByArtistForContext) {
+            val key = name.lowercase(Locale.ROOT)
+            val songs = songsByArtist[key] ?: return emptyList()
+            songsByArtistForContext.getOrPut(key) { sortedSongsForContext(songs) }
+        }
+        fun songsForGenreInContext(name: String): List<Song> = synchronized(songsByGenreForContext) {
+            val key = name.lowercase(Locale.ROOT)
+            val songs = songsByGenre[key] ?: return emptyList()
+            songsByGenreForContext.getOrPut(key) { sortedSongsForContext(songs) }
+        }
         fun hasUsefulGenres(): Boolean = usefulGenres
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlistsById[playlistId] ?: return emptyList()

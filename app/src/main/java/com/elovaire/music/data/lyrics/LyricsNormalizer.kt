@@ -18,10 +18,9 @@ internal fun Song.toLyricsIdentity(): LyricsIdentity {
         normalizedAlbum,
     ).joinToString("::")
 
-    val metadataSignature = "$normalizedArtist::$normalizedTitle::$durationBucketSeconds"
     val sourceRevision = MediaIdentityResolver.revision(this)
     val cacheKeys = listOf(
-        "source::${MediaIdentityResolver.stableKey(this)}::${sourceRevision.stableKey}::$metadataSignature",
+        "source::${MediaIdentityResolver.stableKey(this)}::${sourceRevision.stableKey}::$normalizedLookupKey",
     )
 
     return LyricsIdentity(

@@ -88,5 +88,10 @@ fun MotionRuntimeProvider(
     runtime: MotionRuntime = rememberMotionRuntime(),
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalMotionRuntime provides runtime, content = content)
+    val specs = remember(runtime) { MotionSpecs(runtime) }
+    CompositionLocalProvider(
+        LocalMotionRuntime provides runtime,
+        LocalMotionSpecs provides specs,
+        content = content,
+    )
 }

@@ -7,8 +7,31 @@ import org.junit.Test
 
 class PlaybackProgressControllerTest {
     @Test
+    fun replacingAPendingSeekStartsANewSettlementDeadline() {
+        var nowMs = 0L
+        val controller = PlaybackProgressController { nowMs }
+        fun snapshot() = controller.onPlayerSnapshot(
+            mediaId = 1L, positionMs = 0L, durationMs = 60_000L,
+            bufferedPositionMs = 0L, isPlaying = false,
+        )
+        snapshot()
+        controller.beginScrub()
+        controller.finishScrub(45_000L)
+        nowMs = 4_000L
+        controller.beginScrub()
+        controller.finishScrub(20_000L)
+
+        nowMs = 5_000L
+        assertEquals(20_000L, snapshot().displayPositionMs)
+        assertTrue(controller.needsActivePolling())
+        nowMs = 9_000L
+        assertEquals(0L, snapshot().displayPositionMs)
+        assertFalse(controller.needsActivePolling())
+    }
+
+    @Test
     fun pendingSeekSurvivesUnknownSnapshotAndSettlesAtClampedDuration() {
-        val controller = PlaybackProgressController()
+        val controller = PlaybackProgressController { 0L }
         controller.onPlayerSnapshot(
             mediaId = 1L,
             positionMs = 0L,
@@ -43,7 +66,7 @@ class PlaybackProgressControllerTest {
 
     @Test
     fun largeSeekDifferenceDoesNotOverflowAndKeepPendingSeekActive() {
-        val controller = PlaybackProgressController()
+        val controller = PlaybackProgressController { 0L }
         controller.onPlayerSnapshot(
             mediaId = 1L,
             positionMs = Long.MAX_VALUE,
@@ -67,7 +90,7 @@ class PlaybackProgressControllerTest {
 
     @Test
     fun repeatedQueueOccurrenceClearsPendingSeekForSameSongId() {
-        val controller = PlaybackProgressController()
+        val controller = PlaybackProgressController { 0L }
         controller.onPlayerSnapshot(
             mediaId = 1L,
             mediaItemOccurrence = 1L,

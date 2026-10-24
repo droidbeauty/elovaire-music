@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 
 import androidx.activity.compose.BackHandler
@@ -11,7 +13,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -578,11 +579,7 @@ private fun LibrarySourceChooserSheet(
                                 .size(34.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onDismiss,
-                                ),
+                                .elovaireClickable(onClick = onDismiss),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -964,9 +961,8 @@ private fun LibraryFolderListRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(ElovaireRadii.card))
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
@@ -1069,9 +1065,8 @@ internal fun SettingNavigationRow(
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
-            .clickable(
+            .elovaireClickable(
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onClick,
             )
             .then(

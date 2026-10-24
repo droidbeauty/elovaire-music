@@ -188,6 +188,7 @@ internal class LibraryScanCoordinator(
                 isComplete = isComplete,
                 incompleteMessage = incompleteMessage,
                 retryableSafTreeIds = retryableSafTreeIds,
+                mediaStoreReconciled = !canReuseLocalState && !canReuseMediaStoreState,
             )
         }
 
@@ -231,6 +232,7 @@ internal class LibraryScanCoordinator(
             isComplete = isComplete,
             incompleteMessage = incompleteMessage,
             retryableSafTreeIds = retryableSafTreeIds,
+            mediaStoreReconciled = !canReuseLocalState && !canReuseMediaStoreState,
         )
     }
 
@@ -404,6 +406,7 @@ internal data class CoordinatedLibraryScan(
     val incompleteMessage: String? = null,
     val retryableSafTreeIds: Set<String> = emptySet(),
     val mediaStoreSyncStateAtStart: LibraryMediaStoreSyncState? = null,
+    val mediaStoreReconciled: Boolean = true,
 )
 
 internal fun shouldReusePublishedMediaStoreState(

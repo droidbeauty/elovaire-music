@@ -12,6 +12,22 @@ import org.junit.Test
 
 class AudiobookProgressPolicyTest {
     @Test
+    fun normalizedDurationsStayAlignedWhenIdsAreInvalidOrDurationsMissing() {
+        val context = AudiobookPlaybackContext(
+            "book", listOf(0L, 2L, -1L, 2L, 3L), 100L,
+            listOf(50L, -5L, 20L, 80L, 100L),
+        )
+        assertEquals(listOf(2L, 3L), context.normalizedSongIds)
+        assertEquals(listOf(0L, 100L), context.normalizedSongDurationsMs)
+        assertEquals(0L, context.elapsedBefore(1))
+        assertEquals(100L, context.durationAt(1))
+
+        val missing = context.copy(orderedSongDurationsMs = listOf(1L))
+        assertEquals(emptyList<Long>(), missing.normalizedSongDurationsMs)
+        assertEquals(null, missing.durationAt(0))
+        assertEquals(null, missing.elapsedBefore(0))
+    }
+    @Test
     fun shortBookIsNotCompleteBeforeMostOfItsDurationHasPlayed() {
         assertFalse(isAudiobookComplete(5_000L, 0L))
         assertTrue(isAudiobookComplete(5_000L, 4_500L))

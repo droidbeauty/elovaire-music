@@ -8,11 +8,11 @@ import java.util.Locale
 
 internal object NetworkPathPolicy {
     fun normalizeRelativePath(path: String): String {
-        val parts = path.trim().replace('\\', '/').split('/')
+        val parts = path.replace('\\', '/').split('/')
         val normalized = ArrayDeque<String>()
         parts.forEach { part ->
             when {
-                part.isBlank() || part == "." -> Unit
+                part.isEmpty() || part == "." -> Unit
                 part == ".." -> if (normalized.isNotEmpty()) normalized.removeLast()
                 else -> normalized.addLast(part)
             }
@@ -22,8 +22,8 @@ internal object NetworkPathPolicy {
 
     fun join(base: String, child: String): String {
         return when {
-            base.isBlank() -> normalizeRelativePath(child)
-            child.isBlank() -> normalizeRelativePath(base)
+            base.isEmpty() -> normalizeRelativePath(child)
+            child.isEmpty() -> normalizeRelativePath(base)
             else -> normalizeRelativePath("$base/$child")
         }
     }

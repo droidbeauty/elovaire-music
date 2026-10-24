@@ -12,6 +12,27 @@ import org.junit.Test
 
 class MediaTreeSnapshotCacheTest {
     @Test
+    fun contextGroupsKeepAlbumOrderAndReuseOnlyRequestedRows() {
+        val songs = listOf(
+            testSong(1L).copy(albumArtist = "Artist", album = "Z", genre = "Rock", trackNumber = 1),
+            testSong(2L).copy(albumArtist = "ARTIST", album = "A", genre = "rock", trackNumber = 2),
+            testSong(3L).copy(albumArtist = "Artist", album = "A", genre = "Rock", trackNumber = 1),
+            testSong(4L).copy(albumArtist = "Other", album = "A", genre = "Jazz"),
+        )
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true, songs, emptyList(), emptyList(), emptyList(), emptyList(), null, null,
+        )
+        val artist = snapshot.songsForArtistInContext("artist")
+        val genre = snapshot.songsForGenreInContext("rock")
+
+        assertEquals(listOf(3L, 2L, 1L), artist.map(Song::id))
+        assertEquals(artist, genre)
+        assertSame(artist, snapshot.songsForArtistInContext("ARTIST"))
+        assertSame(genre, snapshot.songsForGenreInContext("Rock"))
+        assertEquals(emptyList<Song>(), snapshot.songsForArtistInContext("missing"))
+        assertEquals(listOf(4L), snapshot.songsForGenreInContext("Jazz").map(Song::id))
+    }
+    @Test
     fun unchangedStateFlowValuesReuseDerivedSnapshot() {
         val songs = emptyList<Song>()
         val albums = emptyList<Album>()

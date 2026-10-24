@@ -684,8 +684,16 @@ internal object ArtworkGradientCache {
     @Synchronized
     fun removeMatching(uriKeys: Set<String>) {
         if (uriKeys.isEmpty()) return
-        gradients.keys.removeAll { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
-        accents.keys.removeAll { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
+        fun matchesUri(key: String): Boolean {
+            var separator = key.indexOf('|')
+            while (separator >= 0) {
+                if (key.substring(0, separator) in uriKeys) return true
+                separator = key.indexOf('|', separator + 1)
+            }
+            return false
+        }
+        gradients.keys.removeAll(::matchesUri)
+        accents.keys.removeAll(::matchesUri)
         _invalidationRevision.value += 1L
     }
 

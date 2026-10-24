@@ -84,6 +84,21 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun queueRefreshRetainsSharedSongsAfterTheFirstChangedEntry() {
+        val before = song(1L)
+        val after = before.copy(title = "Edited")
+        val unchanged = song(2L)
+        val refresher = PlaybackQueueMetadataRefresher()
+        refresher.onQueueReplaced(listOf(before, unchanged))
+
+        assertEquals(
+            listOf(after, unchanged),
+            refresher.refreshQueueIfNeeded(listOf(before, unchanged), mapOf(1L to after, 2L to unchanged)),
+        )
+        assertEquals(null, refresher.refreshQueueIfNeeded(listOf(after, unchanged), mapOf(1L to after, 2L to unchanged)))
+    }
+
+    @Test
     fun incrementalRefreshDoesNotRebindAReusedIdToAnotherSource() {
         val before = song(1L).copy(
             libraryPath = "/music/old.mp3",

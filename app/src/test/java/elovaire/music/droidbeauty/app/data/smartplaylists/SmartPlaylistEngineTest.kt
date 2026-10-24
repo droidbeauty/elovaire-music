@@ -10,6 +10,41 @@ class SmartPlaylistEngineTest {
     private val engine = SmartPlaylistEngine
 
     @Test
+    fun limitedResultsMatchFullStableSortForEveryFieldAndDirection() {
+        val songs = List(120) { index ->
+            song((index % 17 + 1).toLong(), "Title ${index % 5}", "Genre ${index % 3}").copy(
+                artist = "Artist ${index % 4}",
+                album = "Album ${index % 7}",
+                durationMs = (index % 6).toLong(),
+                dateAddedSeconds = (index % 8).toLong(),
+                fileName = "source-$index.mp3",
+            )
+        }
+        for (field in SmartPlaylistSortField.entries) {
+            for (direction in SortDirection.entries) {
+                val definition = SmartPlaylist(
+                    id = 42L,
+                    name = "Stable limit",
+                    sort = SmartPlaylistSort(field, direction),
+                    createdAtMs = 1L,
+                    updatedAtMs = 1L,
+                )
+                for (source in listOf(songs, songs.reversed())) {
+                    val full = engine.resolve(definition, source, emptySet(), emptyMap())
+                    for (limit in listOf(-1, 0, 1, 7, 119, 120, Int.MAX_VALUE)) {
+                        val limited = definition.copy(limit = limit)
+                        val expected = if (limit > 0) full.songs.take(limit) else full.songs
+                        val actual = engine.resolve(limited, source, emptySet(), emptyMap())
+                        assertEquals("$field $direction $limit", expected, actual.songs)
+                        assertEquals(source.size, actual.totalMatchedBeforeLimit)
+                        assertEquals(actual, engine.resolveAll(listOf(limited), source, emptySet(), emptyMap()).single())
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun resolve_matchesAllRulesAndSortsBeforeLimit() {
         val playlist = SmartPlaylist(
             id = 1L,

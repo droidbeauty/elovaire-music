@@ -4,6 +4,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import java.util.Locale
+import java.util.PriorityQueue
 
 internal data class SmartPlaylistResult(
     val playlist: SmartPlaylist,
@@ -31,10 +32,9 @@ internal object SmartPlaylistEngine {
             .filter { it.matches(preparedDefinition, context) }
             .toList()
         val sorted = sort(definition, matched, context)
-        val limited = definition.limit?.takeIf { it > 0 }?.let(sorted::take) ?: sorted
         return SmartPlaylistResult(
             playlist = definition,
-            songs = limited.map(NormalizedSong::song),
+            songs = sorted.map(NormalizedSong::song),
             totalMatchedBeforeLimit = matched.size,
         )
     }
@@ -63,13 +63,9 @@ internal object SmartPlaylistEngine {
         return preparedDefinitions.map { preparedDefinition ->
             val matched = normalizedSongs.filter { it.matches(preparedDefinition, context) }
             val sorted = sort(preparedDefinition.source, matched, context)
-            val limited = preparedDefinition.source.limit
-                ?.takeIf { it > 0 }
-                ?.let(sorted::take)
-                ?: sorted
             SmartPlaylistResult(
                 playlist = preparedDefinition.source,
-                songs = limited.map(NormalizedSong::song),
+                songs = sorted.map(NormalizedSong::song),
                 totalMatchedBeforeLimit = matched.size,
             )
         }
@@ -128,9 +124,6 @@ internal object SmartPlaylistEngine {
         songs: List<NormalizedSong>,
         context: ResolutionContext,
     ): List<NormalizedSong> {
-        if (definition.sort.field == SmartPlaylistSortField.Random) {
-            return songs.sortedBy { stableRandomKey(definition.id, it.song.id) }
-        }
         val comparator = when (definition.sort.field) {
             SmartPlaylistSortField.Title -> compareBy<NormalizedSong> { it.normalizedTitle }
             SmartPlaylistSortField.Artist -> compareBy { it.normalizedArtist }
@@ -139,13 +132,30 @@ internal object SmartPlaylistEngine {
             SmartPlaylistSortField.Duration -> compareBy { it.song.durationMs }
             SmartPlaylistSortField.DateAdded -> compareBy { it.song.dateAddedSeconds }
             SmartPlaylistSortField.PlayCount -> compareBy { context.playCounts[it.song.id] ?: 0 }
-            SmartPlaylistSortField.Random -> compareBy { it.song.id }
-        }.thenBy { it.normalizedTitle }.thenBy { it.song.id }
-        return if (definition.sort.direction == SortDirection.Descending) {
-            songs.sortedWith(comparator.reversed())
-        } else {
-            songs.sortedWith(comparator)
+            SmartPlaylistSortField.Random -> compareBy { stableRandomKey(definition.id, it.song.id) }
         }
+        val ordered = if (definition.sort.field == SmartPlaylistSortField.Random) {
+            comparator
+        } else {
+            val withTies = comparator.thenBy { it.normalizedTitle }.thenBy { it.song.id }
+            if (definition.sort.direction == SortDirection.Descending) withTies.reversed() else withTies
+        }
+        val limit = definition.limit?.takeIf { it > 0 && it < songs.size }
+            ?: return songs.sortedWith(ordered)
+        val stableOrder = Comparator<IndexedValue<NormalizedSong>> { left, right ->
+            ordered.compare(left.value, right.value).takeIf { it != 0 }
+                ?: left.index.compareTo(right.index)
+        }
+        val best = PriorityQueue(limit, stableOrder.reversed())
+        songs.forEachIndexed { index, song ->
+            if (best.size < limit) {
+                best += IndexedValue(index, song)
+            } else if (ordered.compare(song, requireNotNull(best.peek()).value) < 0) {
+                best.poll()
+                best += IndexedValue(index, song)
+            }
+        }
+        return best.sortedWith(stableOrder).map { it.value }
     }
 }
 

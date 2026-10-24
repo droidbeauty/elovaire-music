@@ -28,13 +28,14 @@ internal fun decideLibrarySync(
     if (cached.volumes.size != current.volumes.size) return LibrarySyncDecision.FullScan
 
     val cachedByVolume = cached.volumes.associateBy { it.volumeName }
+    var generationAdvanced = false
     current.volumes.forEach { currentVolume ->
         val cachedVolume = cachedByVolume[currentVolume.volumeName] ?: return LibrarySyncDecision.FullScan
         if (cachedVolume.version != currentVolume.version) return LibrarySyncDecision.FullScan
         if (currentVolume.generation < cachedVolume.generation) return LibrarySyncDecision.FullScan
-        if (currentVolume.generation > cachedVolume.generation) return LibrarySyncDecision.IncrementalScan
+        if (currentVolume.generation > cachedVolume.generation) generationAdvanced = true
     }
-    return LibrarySyncDecision.ReuseCached
+    return if (generationAdvanced) LibrarySyncDecision.IncrementalScan else LibrarySyncDecision.ReuseCached
 }
 
 internal fun decideLibrarySyncAtStartup(

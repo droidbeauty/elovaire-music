@@ -1,12 +1,15 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import elovaire.music.droidbeauty.app.ui.motion.InlineActionMotionHost
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -312,9 +315,8 @@ private fun SmartPlaylistListRow(
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null,
                 onClick = { onClick(bounds.toExpandOrigin(screenSizePx.width.toFloat(), screenSizePx.height.toFloat())) },
                 onLongClick = {},
             )
@@ -375,9 +377,8 @@ internal fun PlaylistGridTile(
     Column(
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .combinedClickable(
+            .elovaireCombinedClickable(
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null,
                 onClick = { onClick(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
                 onLongClick = onLongPress,
             ),
@@ -422,25 +423,30 @@ internal fun PlaylistSelectionIndicator(
     modifier: Modifier = Modifier,
 ) {
     val tint = MaterialTheme.colorScheme.onSurface
+    val motionSpecs = rememberMotionSpecs()
+    val background by animateColorAsState(
+        targetValue = if (selected) tint.copy(alpha = 0.3f) else Color.Transparent,
+        animationSpec = motionSpecs.tween(MotionDuration.Standard),
+        label = "playlist_selection_background",
+    )
+    val border by animateColorAsState(
+        targetValue = tint.copy(alpha = if (selected) 0f else 0.64f),
+        animationSpec = motionSpecs.tween(MotionDuration.Standard),
+        label = "playlist_selection_border",
+    )
     Box(
         modifier = modifier
             .size(26.dp)
             .clip(CircleShape)
-            .background(
-                if (selected) {
-                    tint.copy(alpha = 0.3f)
-                } else {
-                    Color.Transparent
-                },
-            )
+            .background(background)
             .border(
                 width = 1.dp,
-                color = tint.copy(alpha = if (selected) 0f else 0.64f),
+                color = border,
                 shape = CircleShape,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (selected) {
+        InlineActionMotionHost(visible = selected, surfaceId = "playlist_selection_check") {
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_check),
                 contentDescription = null,

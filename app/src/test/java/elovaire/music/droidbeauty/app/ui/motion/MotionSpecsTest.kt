@@ -8,6 +8,14 @@ import org.junit.Test
 
 class MotionSpecsTest {
     @Test
+    fun listRevealDelayIsBoundedWithoutIntegerOverflow() {
+        val specs = MotionSpecs(MotionRuntime(durationScale = 1f))
+        assertEquals(0, specs.listRevealDelay(Int.MIN_VALUE))
+        assertEquals(36, specs.listRevealDelay(3))
+        assertEquals(72, specs.listRevealDelay(Int.MAX_VALUE))
+        assertEquals(0, MotionSpecs(MotionRuntime(0f)).listRevealDelay(Int.MAX_VALUE))
+    }
+    @Test
     fun commonSpecs_areReusedWithinRuntimeHolder() {
         val specs = MotionSpecs(MotionRuntime(durationScale = 1f))
 

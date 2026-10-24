@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
@@ -54,8 +55,6 @@ import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -572,10 +571,9 @@ private fun SearchScreen(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clickable(
+                        .elovaireClickable(
                             enabled = trimmedQuery.isNotBlank(),
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
                             onClick = onClearQuery,
                         ),
                     contentAlignment = Alignment.Center,
@@ -1003,7 +1001,7 @@ private fun SearchQuickPick(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(ElovaireRadii.module))
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -1114,7 +1112,7 @@ private fun SearchAudiobooksResults(
                     Column(
                         modifier = Modifier
                             .width(124.dp)
-                            .clickable { onBookSelected(book) },
+                            .elovaireClickable { onBookSelected(book) },
                         verticalArrangement = Arrangement.spacedBy(7.dp),
                     ) {
                         ArtworkImage(
@@ -1299,9 +1297,8 @@ private fun SearchSongsResultsHeader(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable(
+                                        .elovaireClickable(
                                             interactionSource = remember { MutableInteractionSource() },
-                                            indication = null,
                                             onClick = { onSelect(mode) },
                                         )
                                         .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1367,7 +1364,7 @@ private fun SearchPlaylistListRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1445,7 +1442,7 @@ private fun SearchHistoryListRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(
             if (entry.kind == SearchHistoryKind.Artist) 14.dp else 12.dp,

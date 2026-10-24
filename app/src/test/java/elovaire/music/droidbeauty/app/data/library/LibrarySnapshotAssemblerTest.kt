@@ -8,6 +8,29 @@ import org.junit.Test
 
 class LibrarySnapshotAssemblerTest {
     @Test
+    fun unchangedMetadataPatchPreservesContentAndStillPublishesRemovalMarkers() {
+        val original = song(1L, "content://media/external/audio/media/1")
+        val snapshot = LibrarySnapshotAssembler.assemble(listOf(original))
+        val current = LibraryContentState(snapshot.songs, snapshot.albums, contentRevision = snapshot.contentRevision)
+        var published: LibraryContentState? = null
+        val publisher = LibrarySnapshotPublisher({ published = it }, { current })
+
+        val unchanged = publisher.patchSongs(listOf(original.copy()), emptySet(), emptySet())
+        assertSame(current.songs, unchanged.state.songs)
+        assertSame(current.albums, unchanged.state.albums)
+        assertEquals(current.contentRevision, unchanged.state.contentRevision)
+        assertEquals(LibraryChangeSet.Empty, unchanged.changeSet)
+        assertEquals(null, published)
+
+        val marked = publisher.patchSongs(listOf(original), setOf(original.id), emptySet())
+        assertEquals(setOf(original.id), published?.removingSongIds)
+        assertSame(current.songs, marked.state.songs)
+
+        published = null
+        publisher.patchSongs(listOf(original), setOf(original.id), emptySet(), publishResult = false)
+        assertEquals(null, published)
+    }
+    @Test
     fun assemble_removesDuplicateBeforeBuildingAlbumAggregates() {
         val mediaStoreSong = song(1L, "content://media/external/audio/media/1")
         val safDuplicate = song(-1L, "content://documents/document/track")

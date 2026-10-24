@@ -16,21 +16,19 @@ data class AudiobookPlaybackContext(
     init {
         val uniqueSongIds = ArrayList<Long>(orderedSongIds.size)
         val seenSongIds = HashSet<Long>(orderedSongIds.size)
-        val durationBySongId = if (orderedSongDurationsMs.size == orderedSongIds.size) {
-            HashMap<Long, Long>(orderedSongIds.size)
+        val uniqueSongDurations = if (orderedSongDurationsMs.size == orderedSongIds.size) {
+            ArrayList<Long>(orderedSongIds.size)
         } else {
             null
         }
         orderedSongIds.forEachIndexed { index, songId ->
             if (songId > 0L && seenSongIds.add(songId)) {
                 uniqueSongIds += songId
-                durationBySongId?.set(songId, orderedSongDurationsMs[index].orZero())
+                uniqueSongDurations?.add(orderedSongDurationsMs[index].orZero())
             }
         }
         normalizedSongIds = uniqueSongIds
-        normalizedSongDurationsMs = durationBySongId?.let { durations ->
-            uniqueSongIds.map { songId -> durations[songId].orZero() }
-        } ?: emptyList()
+        normalizedSongDurationsMs = uniqueSongDurations ?: emptyList()
     }
     private val normalizedPrefixDurationsMs: LongArray by lazy(LazyThreadSafetyMode.NONE) {
         LongArray(normalizedSongDurationsMs.size).also { prefixDurations ->

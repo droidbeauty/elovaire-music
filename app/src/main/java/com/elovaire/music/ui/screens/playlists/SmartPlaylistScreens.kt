@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 
 import androidx.activity.compose.BackHandler
@@ -571,7 +572,7 @@ private fun SmartEditorChoiceRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(ElovaireRadii.tile))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
-            .clickable(onClick = onClick)
+            .elovaireClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -338,13 +338,14 @@ private fun tokenMatchFeatures(
     val albumArtistAcronymStartsWith = acronymStartsWith(normalizedAlbumArtist, token)
     val albumAcronymStartsWith = acronymStartsWith(normalizedAlbum, token)
     val compositeContains = normalizedComposite.contains(token)
-    val fuzzyCompositeMatch = token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token)
-    val fuzzyTitleMatch = token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)
     val hasAcronymMatch = titleAcronymStartsWith ||
         artistAcronymStartsWith ||
         albumArtistAcronymStartsWith ||
         albumAcronymStartsWith
-    if (!compositeContains && !hasAcronymMatch && !fuzzyCompositeMatch) return 0
+    if (!compositeContains && !hasAcronymMatch &&
+        !(token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
+    ) return 0
+    val fuzzyTitleMatch = token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)
 
     var features = TOKEN_MATCHED
     if (titleStartsWith) features = features or TOKEN_TITLE_START

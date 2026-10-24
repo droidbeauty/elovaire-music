@@ -50,12 +50,9 @@ internal object LibrarySnapshotAssembler {
         if (collidingOriginalIds.isEmpty()) return songs
 
         val albumGroups = songs.map(::albumGroupKey)
-        val groups = linkedMapOf<AlbumGroupKey, MutableList<Song>>()
-        songs.forEachIndexed { index, song ->
-            groups.getOrPut(albumGroups[index], ::mutableListOf).add(song)
-        }
-        val collidingGroups = groups.keys
+        val collidingGroups = albumGroups.asSequence()
             .filter { it.originalId in collidingOriginalIds }
+            .distinct()
             .groupBy(AlbumGroupKey::originalId)
             .values
 

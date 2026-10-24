@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -148,7 +148,7 @@ private fun UpscalerToggleRow(
 ) {
     SettingToggleRow(
         title, subtitle, checked, onChanged,
-        Modifier.fillMaxWidth().clickable { onChanged(!checked) }.clearAndSetSemantics {
+        Modifier.fillMaxWidth().elovaireClickable { onChanged(!checked) }.clearAndSetSemantics {
             contentDescription = "$title. $subtitle"
             role = Role.Switch
             toggleableState = ToggleableState(checked)

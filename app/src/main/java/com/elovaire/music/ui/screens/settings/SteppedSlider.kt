@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -67,6 +69,11 @@ internal fun SteppedSlider(
     }
     var isDragging by remember { mutableStateOf(false) }
     var dragCenterPx by remember { mutableFloatStateOf(0f) }
+    val knobScale = animateFloatAsState(
+        targetValue = if (isDragging) 1.12f else 1f,
+        animationSpec = motionSpecs.mediaRelease(),
+        label = "stepped_slider_knob_scale",
+    )
 
     BoxWithConstraints(
         modifier = modifier
@@ -164,6 +171,10 @@ internal fun SteppedSlider(
                 modifier = Modifier
                     .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
                     .size(knobSize)
+                    .graphicsLayer {
+                        scaleX = knobScale.value
+                        scaleY = knobScale.value
+                    }
                     .background(knobColor, CircleShape)
                     .align(Alignment.CenterStart),
             )

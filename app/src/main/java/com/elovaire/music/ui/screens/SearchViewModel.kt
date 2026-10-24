@@ -180,7 +180,6 @@ internal class SearchViewModel(
                     indexRevision = index.revision,
                 ),
                 rawQuery = config.query,
-                query = NormalizedSearchQuery.from(config.query),
                 sortMode = config.sortMode.toSearchSortMode(),
                 index = index,
                 includeAllSongs = config.showAllSongs,
@@ -201,7 +200,7 @@ internal class SearchViewModel(
                             if (request.includeAllSongs) "search_query_full" else "search_query_preview",
                         ) {
                             buildSearchResults(
-                                query = request.query,
+                                query = NormalizedSearchQuery.from(request.rawQuery),
                                 sortMode = request.sortMode,
                                 index = request.index,
                                 includeAllSongs = request.includeAllSongs,
@@ -234,9 +233,9 @@ internal class SearchViewModel(
         searchIndex,
         playbackHistory.albumPlayCounts,
         playbackReader.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
-        searchUiConfig.map { it.query }.distinctUntilChanged(),
-    ) { index, albumPlayCounts, recentAlbumIds, query ->
-        if (query.trim().isNotBlank()) {
+        searchUiConfig.map { it.query.isNotBlank() }.distinctUntilChanged(),
+    ) { index, albumPlayCounts, recentAlbumIds, hasQuery ->
+        if (hasQuery) {
             emptyList()
         } else {
             buildSuggestedAlbums(
@@ -386,7 +385,6 @@ internal class SearchViewModel(
         class SearchRequest(
             val key: SearchResultKey,
             val rawQuery: String,
-            val query: NormalizedSearchQuery,
             val sortMode: SearchSortMode,
             val index: SearchIndex,
             val includeAllSongs: Boolean,
