@@ -8,6 +8,7 @@
     -->
     <release version="2.9.6">
         <item>Performance and stability improvements</item>
+        <item>Improved per interaction animation quality and efficiency</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

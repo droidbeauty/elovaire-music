@@ -268,7 +268,8 @@ internal fun AudiobooksScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(selectionHazeState, zIndex = -1f),
+                .hazeSource(selectionHazeState, zIndex = -1f)
+                .background(MaterialTheme.colorScheme.background),
         ) {
             AudiobookCollectionContent(
                 books = books,

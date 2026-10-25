@@ -10,10 +10,14 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /** Small, bounded transport for app-owned HTTPS GETs. Callers retain response semantics. */
@@ -23,6 +27,9 @@ internal class BoundedHttpTransport(
     private val maxRedirects: Int = DEFAULT_MAX_REDIRECTS,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val openConnection: (URL) -> HttpURLConnection = { url ->
+        (url.openConnection() as? HttpURLConnection) ?: error("Unsupported HTTP connection")
+    },
 ) {
     init {
         require(connectTimeoutMs > 0) { "connectTimeoutMs must be positive" }
@@ -35,14 +42,22 @@ internal class BoundedHttpTransport(
         headers: Map<String, String> = emptyMap(),
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
-    ): BoundedHttpResponse {
-        val httpResource = resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest)
-        return try {
-            withContext(ioDispatcher) {
-                getBlocking(rawUrl, headers, maxBytes, urlPolicy, cancellationContext = currentCoroutineContext())
+    ): BoundedHttpResponse = suspendCancellableCoroutine { continuation ->
+        val activeConnection = AtomicReference<HttpURLConnection?>()
+        continuation.invokeOnCancellation {
+            activeConnection.getAndSet(null)?.let { connection ->
+                // disconnect can wait on platform socket locks; keep it off the cancelling UI thread.
+                ioDispatcher.dispatch(EmptyCoroutineContext) { connection.disconnect() }
             }
-        } finally {
-            httpResource.close()
+        }
+        // A cancelled blocking socket must not hold up flatMapLatest's next lyrics request.
+        ioDispatcher.asExecutor().execute {
+            continuation.resumeWith(runCatching {
+                continuation.context.ensureActive()
+                resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest).use {
+                    getBlocking(rawUrl, headers, maxBytes, urlPolicy, continuation.context, activeConnection)
+                }
+            })
         }
     }
 
@@ -95,9 +110,10 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean,
         cancellationContext: kotlin.coroutines.CoroutineContext?,
+        activeConnection: AtomicReference<HttpURLConnection?>? = null,
     ): BoundedHttpResponse {
         return withTrafficStatsTag {
-            getBlockingTagged(rawUrl, headers, maxBytes, urlPolicy, cancellationContext)
+            getBlockingTagged(rawUrl, headers, maxBytes, urlPolicy, cancellationContext, activeConnection)
         }
     }
 
@@ -107,6 +123,7 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean,
         cancellationContext: kotlin.coroutines.CoroutineContext?,
+        activeConnection: AtomicReference<HttpURLConnection?>?,
     ): BoundedHttpResponse {
         val response = executeGet(
             rawUrl = rawUrl,
@@ -114,6 +131,7 @@ internal class BoundedHttpTransport(
             maxBytes = maxBytes,
             urlPolicy = urlPolicy,
             cancellationContext = cancellationContext,
+            activeConnection = activeConnection,
             readBody = { input -> input.readBounded(maxBytes, cancellationContext) },
             emptyBody = { ByteArray(0) },
         )
@@ -161,6 +179,7 @@ internal class BoundedHttpTransport(
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean,
         cancellationContext: kotlin.coroutines.CoroutineContext?,
+        activeConnection: AtomicReference<HttpURLConnection?>? = null,
         readBody: (java.io.InputStream) -> T,
         emptyBody: () -> T,
     ): GetResponse<T> {
@@ -169,9 +188,10 @@ internal class BoundedHttpTransport(
         var requestHeaders = headers
         repeat(maxRedirects + 1) { redirectAttempt ->
             require(urlPolicy(currentUrl)) { "HTTP request URL is not allowed" }
-            val connection = (currentUrl.openConnection() as? HttpURLConnection)
-                ?: error("Unsupported HTTP connection")
+            val connection = openConnection(currentUrl)
+            activeConnection?.set(connection)
             try {
+                cancellationContext?.ensureActive()
                 connection.requestMethod = "GET"
                 connection.connectTimeout = connectTimeoutMs
                 connection.readTimeout = readTimeoutMs
@@ -200,6 +220,7 @@ internal class BoundedHttpTransport(
                     finalUrl = currentUrl,
                 )
             } finally {
+                activeConnection?.compareAndSet(connection, null)
                 connection.disconnect()
             }
         }

@@ -106,7 +106,8 @@ internal fun RecentlyAddedAlbumsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .hazeSource(searchBarHazeState, zIndex = -1f),
+                    .hazeSource(searchBarHazeState, zIndex = -1f)
+                    .background(MaterialTheme.colorScheme.background),
             ) {
                 LazyColumn(
                     state = listState,

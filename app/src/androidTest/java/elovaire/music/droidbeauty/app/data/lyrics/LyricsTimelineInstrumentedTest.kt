@@ -15,6 +15,24 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class LyricsTimelineInstrumentedTest {
     @Test
+    fun missingLocalMediaDoesNotTerminateLyricsLoading() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val resolver = LocalLyricsResolver(context)
+        for (uri in listOf(
+            Uri.fromFile(context.cacheDir.resolve("missing-lyrics-${System.nanoTime()}.mp3")),
+            Uri.parse("content://missing-lyrics-provider/song"),
+        )) {
+            val song = Song(
+                id = 902L, title = "Unavailable local song", isExplicit = false, artist = "Artist", album = "Album",
+                releaseYear = null, genre = "", audioFormat = "MP3", audioQuality = null,
+                fileName = "missing.mp3", albumId = 1L, durationMs = 180_000L, trackNumber = 1,
+                discNumber = 1, dateAddedSeconds = 1L, uri = uri, artUri = null,
+            )
+            assertNull(resolver.resolve(song))
+        }
+    }
+
+    @Test
     fun blankTimedCuesEndThePreviousLineDuringInstrumentalBreaks() {
         val payload = requireNotNull(parseLrcOrPlain("[00:01]First\n[00:02][Chorus]\n[00:05]\n[00:20]Next\n[00:25]"))
         assertEquals(listOf("First", "Next"), payload.lines.map(LyricsLine::text))

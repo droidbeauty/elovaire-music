@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -39,6 +41,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import dev.chrisbanes.haze.ExperimentalHazeApi
@@ -48,9 +51,13 @@ import dev.chrisbanes.haze.blur.LocalHazeBlurStyle
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.ui.components.ArtworkPaletteShadow
 import elovaire.music.droidbeauty.app.ui.screens.DynamicBackdropSurface
+import elovaire.music.droidbeauty.app.ui.screens.LyricsControlButton
+import elovaire.music.droidbeauty.app.ui.screens.LyricsSkipControl
+import elovaire.music.droidbeauty.app.ui.screens.QueueEdgeHaze
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
 import kotlin.math.roundToInt
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -241,6 +248,109 @@ class BackdropBlurRenderingTest {
         )
     }
 
+    @Test
+    @SdkSuppress(minSdkVersion = 31)
+    fun lyricsControlsBlurTheCompleteBackdropAndKeepBothSkipTargetsActive() {
+        val blurEnabled = mutableStateOf(false)
+        var playClicks = 0
+        var previousClicks = 0
+        var nextClicks = 0
+        composeRule.setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                val state = rememberHazeState()
+                Box(Modifier.fillMaxSize().testTag("lyrics_controls_fixture")) {
+                    Box(Modifier.fillMaxSize().hazeSource(state, zIndex = -1f)
+                        .background(Color(0xFF172332)))
+                    Column(Modifier.fillMaxSize().hazeSource(state, zIndex = 2f)) {
+                        repeat(20) {
+                            Text("BACKGROUND WWW MMM 0123456789".repeat(3), color = Color.White,
+                                fontSize = 18.sp, lineHeight = 18.sp, maxLines = 1,
+                                modifier = Modifier.height(18.dp))
+                        }
+                    }
+                    CompositionLocalProvider(LocalHazeBlurStyle provides HazeBlurStyle { blurEnabled(blurEnabled.value) }) {
+                        Row(Modifier.align(Alignment.TopCenter).offset(y = 80.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            LyricsControlButton(
+                                modifier = Modifier.size(44.dp).testTag("lyrics_glass_play"),
+                                shape = CircleShape, lyricsHazeState = state, contentColor = Color.White,
+                                onClick = { playClicks++ }, label = "lyrics_test_play",
+                            ) {
+                                Text("P", color = Color.White, fontSize = 12.sp)
+                            }
+                            Box(Modifier.testTag("lyrics_glass_skip")) {
+                                LyricsSkipControl(state, Color.White, { previousClicks++ }, { nextClicks++ })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val fixture = composeRule.onNodeWithTag("lyrics_controls_fixture")
+        val sharp = fixture.captureToImage().toPixelMap()
+        val scale = composeRule.activity.resources.displayMetrics.density
+        val sampleBounds = listOf("lyrics_glass_play", "lyrics_glass_skip").map { tag ->
+            val bounds = composeRule.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+            androidx.compose.ui.geometry.Rect(
+                bounds.left + 14f * scale, bounds.top + 32f * scale,
+                bounds.right - 14f * scale, bounds.bottom - 6f * scale,
+            )
+        }
+        composeRule.runOnIdle { blurEnabled.value = true }
+        composeRule.waitForIdle()
+        val blurred = fixture.captureToImage().toPixelMap()
+        sampleBounds.forEachIndexed { index, bounds ->
+            val before = edgeEnergy(sharp, bounds)
+            val after = edgeEnergy(blurred, bounds)
+            assertTrue("lyrics control $index has no source text to test", before > 0)
+            assertTrue("lyrics control $index leaves text sharp: $before -> $after", after < before * 0.65)
+        }
+        composeRule.onNodeWithTag("lyrics_glass_play").performClick()
+        composeRule.onNode(androidx.compose.ui.test.hasContentDescription("Previous")).performClick()
+        composeRule.onNode(androidx.compose.ui.test.hasContentDescription("Next")).performClick()
+        composeRule.runOnIdle {
+            assertEquals(1, playClicks)
+            assertEquals(1, previousClicks)
+            assertEquals(1, nextClicks)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 31)
+    fun queueSoftEdgeBlursAcrossTheWidthInsteadOfSmearingOnlyVertically() {
+        val showEdge = mutableStateOf(false)
+        composeRule.setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                val state = rememberHazeState()
+                Box(Modifier.fillMaxSize().testTag("queue_edge_fixture")) {
+                    Canvas(Modifier.fillMaxSize().hazeSource(state, zIndex = -1f)) {
+                        val stripeWidth = 3.dp.toPx()
+                        repeat((size.width / stripeWidth).toInt() + 1) { index ->
+                            drawRect(if (index % 2 == 0) Color.White else Color.Black,
+                                topLeft = androidx.compose.ui.geometry.Offset(index * stripeWidth, 0f),
+                                size = androidx.compose.ui.geometry.Size(stripeWidth, size.height))
+                        }
+                    }
+                    QueueEdgeHaze(visible = showEdge.value, alignment = Alignment.BottomCenter, hazeState = state,
+                        startIntensity = 0f, endIntensity = 1f, edgeHeight = 30.dp)
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val fixture = composeRule.onNodeWithTag("queue_edge_fixture")
+        val sharp = fixture.captureToImage().toPixelMap()
+        val scale = composeRule.activity.resources.displayMetrics.density
+        val sample = androidx.compose.ui.geometry.Rect(30f * scale, sharp.height - 6f * scale,
+            sharp.width - 30f * scale, sharp.height - scale)
+        composeRule.runOnIdle { showEdge.value = true }
+        composeRule.waitForIdle()
+        val blurred = fixture.captureToImage().toPixelMap()
+        val before = edgeEnergy(sharp, sample)
+        val after = edgeEnergy(blurred, sample)
+        assertTrue("queue edge leaves vertical text strokes sharp: $before -> $after", after < before * 0.35)
+    }
+
     private fun checkerboardImage() = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888).apply {
         for (y in 0 until height) {
             for (x in 0 until width) {
@@ -295,22 +405,24 @@ private fun BackdropBlurFixture(
                     modifier = Modifier
                         .fillMaxSize()
                         .hazeSource(hazeState, zIndex = -1f)
+                        .background(backdropColor)
                         .testTag("blur_list"),
                 ) {
                     items((0..20).toList(), key = { it }) { index ->
                         Box(modifier = Modifier.animateItem()) {
-                            BackdropFixtureRow(index, image, lightTheme, sourceTextColor)
+                            BackdropFixtureRow(index, image, sourceTextColor)
                         }
                     }
                 }
             } else {
                 Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clipToBounds()
-                .hazeSource(hazeState, zIndex = -1f),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clipToBounds()
+                        .hazeSource(hazeState, zIndex = -1f)
+                        .background(backdropColor),
                 ) {
-                    (0..20).forEach { index -> BackdropFixtureRow(index, image, lightTheme, sourceTextColor) }
+                    (0..20).forEach { index -> BackdropFixtureRow(index, image, sourceTextColor) }
                 }
             }
             CompositionLocalProvider(
@@ -321,7 +433,7 @@ private fun BackdropBlurFixture(
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(190.dp),
-                    overlayAlpha = 0.34f,
+                    overlayAlpha = 0f,
                     hazeState = hazeState,
                 ) {
                     Text(
@@ -344,20 +456,12 @@ private fun BackdropBlurFixture(
 private fun BackdropFixtureRow(
     index: Int,
     image: androidx.compose.ui.graphics.ImageBitmap,
-    lightTheme: Boolean,
     sourceTextColor: Color,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
-            .background(
-                when {
-                    lightTheme -> if (index % 2 == 0) Color.White else Color(0xFFE4E4E4)
-                    index % 2 == 0 -> Color(0xFF121212)
-                    else -> Color(0xFF282828)
-                },
-            )
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(18.dp),

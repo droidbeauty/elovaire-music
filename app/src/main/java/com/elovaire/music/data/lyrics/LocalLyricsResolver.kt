@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
@@ -25,7 +26,16 @@ internal class LocalLyricsResolver(
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 
     suspend fun resolve(song: Song): LocalLyricsMatch? {
-        return readEmbeddedLyrics(song) ?: readSidecarLyrics(song)
+        val embedded = try {
+            readEmbeddedLyrics(song)
+        } catch (_: IOException) {
+            null
+        } catch (_: SecurityException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        return embedded ?: readSidecarLyrics(song)
     }
 
     private suspend fun readEmbeddedLyrics(song: Song): LocalLyricsMatch? {

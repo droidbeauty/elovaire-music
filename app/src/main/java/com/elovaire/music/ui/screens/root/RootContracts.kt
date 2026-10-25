@@ -584,15 +584,15 @@ internal data class GenreEntry(
 internal sealed interface LyricsUiState {
     data object Hidden : LyricsUiState
     data object Loading : LyricsUiState
-    data class Ready(val payload: LyricsPayload) : LyricsUiState
+    data class Ready(val payload: LyricsPayload, val songKey: String) : LyricsUiState
     data object Empty : LyricsUiState
 }
 
-internal fun LyricsResult.toUiState(): LyricsUiState = when (this) {
+internal fun LyricsResult.toUiState(songKey: String): LyricsUiState = when (this) {
     is LyricsResult.Found -> payload
         .toDisplayPayload()
         .takeIf { it.lines.isNotEmpty() }
-        ?.let(LyricsUiState::Ready)
+        ?.let { LyricsUiState.Ready(it, songKey) }
         ?: LyricsUiState.Empty
     LyricsResult.NotFound -> LyricsUiState.Empty
     LyricsResult.Timeout -> LyricsUiState.Empty

@@ -9,12 +9,12 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsReader
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsWriter
 import elovaire.music.droidbeauty.app.data.lyrics.canonicalEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.lyrics.toDisplayPayload
+import elovaire.music.droidbeauty.app.data.lyrics.toLyricsIdentity
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
@@ -158,11 +158,12 @@ internal class NowPlayingViewModel(
         manualLyricsOverride,
     ) { visible, nowPlaying, manualOverride ->
         val song = nowPlaying.currentSong
+        val identityKey = song?.toLyricsIdentity()?.cacheKeys?.first()
         LyricsRequest(
             visible = visible,
             song = song,
-            identityKey = song?.let { "${it.id}:${it.uri}:${it.title}:${it.artist}:${it.durationMs / 1_000L}" },
-            manualUiState = manualOverride?.takeIf { it.songId == song?.id }?.uiState,
+            identityKey = identityKey,
+            manualUiState = manualOverride?.takeIf { it.songKey == identityKey }?.uiState,
         )
     }
         .distinctUntilChanged { previous, current ->
@@ -183,15 +184,17 @@ internal class NowPlayingViewModel(
                     return@flow
                 }
 
+                emit(LyricsUiState.Loading)
+                val songKey = requireNotNull(request.identityKey)
                 lyricsReader.localLyrics(request.song)?.let { local ->
-                    val localState = local.toUiState()
+                    val localState = local.toUiState(songKey)
                     emit(localState)
                     logLyrics("local song=${request.song.id} state=${localState::class.simpleName}")
                     return@flow
                 }
 
                 lyricsReader.cachedLyrics(request.song, includeNotFound = false)?.let { cached ->
-                    val cachedState = cached.toUiState()
+                    val cachedState = cached.toUiState(songKey)
                     emit(cachedState)
                     logLyrics("cache song=${request.song.id} state=${cachedState::class.simpleName}")
                     if (cached is LyricsResult.Found) {
@@ -200,7 +203,7 @@ internal class NowPlayingViewModel(
                 }
 
                 lyricsReader.lyricsForSong(request.song).collect { fetchedResult ->
-                    val state = fetchedResult.toUiState()
+                    val state = fetchedResult.toUiState(songKey)
                     logLyrics("local song=${request.song.id} state=${state::class.simpleName}")
                     emit(state)
                 }
@@ -341,12 +344,13 @@ internal class NowPlayingViewModel(
                     val displayPayload = result.payload.toDisplayPayload()
                     val currentSong = playbackManager.nowPlayingState.value.currentSong
                     if (currentSong?.id == pending.song.id && currentSong.uri == pending.song.uri) {
+                        val songKey = pending.song.toLyricsIdentity().cacheKeys.first()
                         manualLyricsOverride.value = ManualLyricsOverride(
-                            songId = pending.song.id,
+                            songKey = songKey,
                             uiState = if (displayPayload.lines.isEmpty()) {
                                 LyricsUiState.Empty
                             } else {
-                                LyricsUiState.Ready(displayPayload)
+                                LyricsUiState.Ready(displayPayload, songKey)
                             },
                         )
                     }
@@ -450,7 +454,7 @@ internal class NowPlayingViewModel(
     )
 
     private data class ManualLyricsOverride(
-        val songId: Long,
+        val songKey: String,
         val uiState: LyricsUiState,
     )
 

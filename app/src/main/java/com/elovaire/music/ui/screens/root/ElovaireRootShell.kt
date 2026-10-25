@@ -77,7 +77,8 @@ internal fun ElovaireRootShell(
                             Modifier
                                 .fillMaxSize()
                                 .blur(navHostBlur)
-                                .hazeSource(chromeHazeState, zIndex = -1f),
+                                .hazeSource(chromeHazeState, zIndex = -1f)
+                                .background(MaterialTheme.colorScheme.background),
                         )
                         if (navHostScrimAlpha > 0f) {
                             Box(

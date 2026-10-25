@@ -28,7 +28,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
@@ -226,7 +225,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazePerformanceMode
@@ -242,8 +240,8 @@ import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
+import elovaire.music.droidbeauty.app.data.lyrics.toLyricsIdentity
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
@@ -418,6 +416,7 @@ internal fun NowPlayingScreen(
     val motionSpecs = rememberMotionSpecs()
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
     val playerHazeState = rememberHazeState()
+    val playerBackdropHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val queueGapPx = with(density) { 30.dp.toPx() }
@@ -683,7 +682,8 @@ internal fun NowPlayingScreen(
 
         Box(
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize()
+                .hazeSource(playerBackdropHazeState, zIndex = -1f),
         ) {
             Box(
                 modifier = Modifier
@@ -784,10 +784,12 @@ internal fun NowPlayingScreen(
                     ),
             )
 
-        CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
+        }
+        CompositionLocalProvider(LocalPlayerHazeState provides playerBackdropHazeState) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .hazeSource(playerBackdropHazeState, zIndex = 0f)
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 20.dp)
@@ -1336,6 +1338,7 @@ internal fun NowPlayingScreen(
                         PlayerSecondaryActionButton(
                             iconResId = R.drawable.ic_lucide_align_left,
                             label = "",
+                            contentDescription = "Lyrics",
                             iconSize = 20.dp,
                             tint = contentColor,
                             showBackground = false,
@@ -1407,7 +1410,6 @@ internal fun NowPlayingScreen(
                     .align(Alignment.CenterHorizontally),
             )
             }
-        }
         }
         if (useSharedArtworkOverlay && currentSong != null) {
             val sharedArtworkCornerRadius = with(density) {
@@ -1519,6 +1521,7 @@ internal fun NowPlayingScreen(
                     QueueSheet(
                         queue = playerUiState.queue,
                         currentIndex = playerUiState.currentIndex,
+                        backdropHazeState = playerBackdropHazeState,
                         playlists = playlists,
                         playlistSongsById = enrichedSongsById,
                         currentSong = currentSong,
@@ -1623,6 +1626,7 @@ internal fun NowPlayingScreen(
                 onHideLyrics = { showLyricsSheet = false },
                 onSaveLyrics = onSaveLyrics,
                 onClearLyricsEditorError = onClearLyricsEditorError,
+                backdropHazeState = playerBackdropHazeState,
             )
         }
     }
@@ -1813,6 +1817,7 @@ private fun SongFileInfoPill(
 private fun QueueSheet(
     queue: List<Song>,
     currentIndex: Int,
+    backdropHazeState: HazeState,
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     currentSong: Song?,
@@ -1837,7 +1842,7 @@ private fun QueueSheet(
 ) {
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
-    val queueEdgeHazeState = LocalPlayerHazeState.current ?: rememberHazeState()
+    val queueEdgeHazeState = backdropHazeState
     val motionSpecs = rememberMotionSpecs()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
@@ -1864,6 +1869,7 @@ private fun QueueSheet(
                 tint = tint,
                 secondaryTint = secondaryTint,
                 onDismiss = onDismiss,
+                modifier = Modifier.hazeSource(queueEdgeHazeState, zIndex = 1f),
             )
             Box(
                 modifier = Modifier
@@ -1886,7 +1892,8 @@ private fun QueueSheet(
             QueueSheetFooter(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(footerHeight),
+                    .height(footerHeight)
+                    .hazeSource(queueEdgeHazeState, zIndex = 1f),
                 statusText = statusText,
                 tint = tint,
                 language = language,
@@ -1923,9 +1930,10 @@ private fun QueueSheetHeader(
     tint: Color,
     secondaryTint: Color,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(56.dp),
         contentAlignment = Alignment.Center,
@@ -2135,6 +2143,7 @@ private fun QueueSongList(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
+                .hazeSource(queueEdgeHazeState, zIndex = 1f)
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -2170,7 +2179,6 @@ private fun QueueSongList(
         QueueEdgeHaze(
             visible = listState.canScrollBackward,
             alignment = Alignment.TopCenter,
-            tint = tint,
             hazeState = queueEdgeHazeState,
             startIntensity = 1f,
             endIntensity = 0f,
@@ -2178,7 +2186,6 @@ private fun QueueSongList(
         QueueEdgeHaze(
             visible = listState.canScrollForward,
             alignment = Alignment.BottomCenter,
-            tint = tint,
             hazeState = queueEdgeHazeState,
             startIntensity = 0f,
             endIntensity = 1f,
@@ -2192,14 +2199,12 @@ private fun QueueSongList(
 internal fun BoxScope.QueueEdgeHaze(
     visible: Boolean,
     alignment: Alignment,
-    tint: Color,
     hazeState: HazeState,
     startIntensity: Float,
     endIntensity: Float,
     edgeHeight: Dp = 20.dp,
 ) {
     if (!visible) return
-    val surface = MaterialTheme.colorScheme.surface
     val edgeMask = rememberSoftEdgeBlurMask(
         startIntensity = startIntensity,
         endIntensity = endIntensity,
@@ -2213,14 +2218,8 @@ internal fun BoxScope.QueueEdgeHaze(
             .hazeBlur(
                 input = HazeInput.Sources(hazeState),
                 style = HazeBlurStyle {
-                    progressive(softEdgeBlurProgressive(edgeMask))
                     blurRadius(34.dp)
-                    backgroundColor(surface.copy(alpha = 0.18f))
-                    colorEffects(listOf(
-                        HazeColorEffect.tint(surface.copy(alpha = 0.08f)),
-                        HazeColorEffect.tint(tint.copy(alpha = 0.035f)),
-                    ))
-                    noiseFactor(0.006f)
+                    noiseFactor(0f)
                 },
                 performanceMode = HazePerformanceMode.Quality,
             )
@@ -2259,10 +2258,6 @@ private fun rememberSoftEdgeBlurMask(
 ): Brush = remember(startIntensity, endIntensity) {
     softEdgeBlurMask(startIntensity, endIntensity)
 }
-
-private fun softEdgeBlurProgressive(
-    edgeMask: Brush,
-): HazeProgressive = HazeProgressive.Brush(edgeMask)
 
 @Composable
 private fun QueueSeparator(
@@ -3721,8 +3716,14 @@ private fun SongContextMenuItem(
     }
 }
 
+private data class LyricsContentState(
+    val songKey: String?,
+    val lyrics: LyricsUiState,
+    val editing: Boolean,
+)
+
 @Composable
-private fun LyricsOverlay(
+internal fun LyricsOverlay(
     playbackManager: NowPlayingPlayback,
     song: Song?,
     lyricsUiState: LyricsUiState,
@@ -3739,6 +3740,7 @@ private fun LyricsOverlay(
     onHideLyrics: () -> Unit,
     onSaveLyrics: (String) -> Unit,
     onClearLyricsEditorError: () -> Unit,
+    backdropHazeState: HazeState? = null,
 ) {
     val motionTransitions = rememberMotionTransitions()
     val motionSpecs = rememberMotionSpecs()
@@ -3746,23 +3748,27 @@ private fun LyricsOverlay(
     val copy = remember(language) { rootUiCopy(language) }
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
-    var overlayEntered by remember(song?.id) { mutableStateOf(false) }
-    var displayedLyricsSongId by remember { mutableStateOf(song?.id) }
-    val animateLyricsForTrackChange = song?.id != displayedLyricsSongId
+    val songKey = remember(song) { song?.toLyricsIdentity()?.cacheKeys?.first() }
+    val currentLyricsState = if (lyricsUiState is LyricsUiState.Ready && lyricsUiState.songKey != songKey) {
+        LyricsUiState.Loading
+    } else {
+        lyricsUiState
+    }
+    var overlayEntered by remember { mutableStateOf(false) }
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 92.dp
     val lyricsButtonArea = 72.dp
     val navigationBarInset = navigationBarInsetDp()
     val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInset
-    val lyricsHazeState = rememberHazeState()
+    val lyricsHazeState = backdropHazeState ?: rememberHazeState()
     val surface = MaterialTheme.colorScheme.surface
-    val listState = rememberLazyListState()
-    var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
-    var autoScrollResumeJob by remember(song?.id) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    var userLyricsScrollActive by remember(song?.id) { mutableStateOf(false) }
-    var isEditingLyrics by remember(song?.id) { mutableStateOf(false) }
-    var lyricsDraft by remember(song?.id) { mutableStateOf("") }
-    var observedSaveRevision by remember(song?.id) {
+    val listState = remember(songKey) { LazyListState() }
+    var autoScrollHeld by remember(songKey) { mutableStateOf(false) }
+    var autoScrollResumeJob by remember(songKey) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var userLyricsScrollActive by remember(songKey) { mutableStateOf(false) }
+    var isEditingLyrics by remember(songKey) { mutableStateOf(false) }
+    var lyricsDraft by remember(songKey) { mutableStateOf("") }
+    var observedSaveRevision by remember(songKey) {
         mutableLongStateOf(lyricsEditorUiState.savedRevision)
     }
     val backgroundReveal by animateFloatAsState(
@@ -3801,9 +3807,9 @@ private fun LyricsOverlay(
         label = "lyrics_content_reveal",
     )
     val canSubmitLyricsEdit = !lyricsEditorUiState.isSaving &&
-        (lyricsDraft.isNotBlank() || lyricsUiState is LyricsUiState.Ready)
+        (lyricsDraft.isNotBlank() || currentLyricsState is LyricsUiState.Ready)
 
-    LaunchedEffect(song?.id) {
+    LaunchedEffect(Unit) {
         overlayEntered = false
         withFrameNanos { }
         overlayEntered = true
@@ -3821,9 +3827,9 @@ private fun LyricsOverlay(
         }
     }
 
-    LaunchedEffect(lyricsUiState, song?.id, isEditingLyrics) {
+    LaunchedEffect(currentLyricsState, songKey, isEditingLyrics) {
         if (!isEditingLyrics) {
-            lyricsDraft = (lyricsUiState as? LyricsUiState.Ready)
+            lyricsDraft = (currentLyricsState as? LyricsUiState.Ready)
                 ?.payload
                 ?.toEmbeddedLyricsText()
                 .orEmpty()
@@ -3848,7 +3854,11 @@ private fun LyricsOverlay(
         }
     }
 
-    val lyricsScrollObserver = remember(song?.id) {
+    DisposableEffect(songKey) {
+        onDispose { autoScrollResumeJob?.cancel() }
+    }
+
+    val lyricsScrollObserver = remember(songKey) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source == NestedScrollSource.UserInput && available.y != 0f) {
@@ -3868,15 +3878,6 @@ private fun LyricsOverlay(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = {},
-            )
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        tintColor.copy(alpha = 0.42f + (0.48f * backgroundReveal)),
-                        tintColor.copy(alpha = 0.36f + (0.48f * backgroundReveal)),
-                        tintColor.copy(alpha = 0.48f + (0.44f * backgroundReveal)),
-                    ),
-                ),
             ),
     ) {
         val screenWidth = with(LocalDensity.current) {
@@ -3885,7 +3886,17 @@ private fun LyricsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(lyricsHazeState, zIndex = -1f),
+                .hazeSource(lyricsHazeState, zIndex = 2f)
+                .then(if (backdropHazeState == null) Modifier.background(surface) else Modifier)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            tintColor.copy(alpha = 0.42f + (0.48f * backgroundReveal)),
+                            tintColor.copy(alpha = 0.36f + (0.48f * backgroundReveal)),
+                            tintColor.copy(alpha = 0.48f + (0.44f * backgroundReveal)),
+                        ),
+                    ),
+                ),
         ) {
             Column(
                 modifier = Modifier
@@ -3904,9 +3915,19 @@ private fun LyricsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    song?.let {
-                        Row(
-                            modifier = Modifier.weight(1f),
+                    AnimatedContent(
+                        targetState = song?.let { it.title to it.artist },
+                        modifier = Modifier.weight(1f),
+                        transitionSpec = {
+                            (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard)) +
+                                slideInVertically(
+                                    animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
+                                    initialOffsetY = { -it / 3 },
+                                )) togetherWith fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick))
+                        },
+                        label = "lyrics_track_header",
+                    ) { metadata ->
+                        if (metadata != null) Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -3922,7 +3943,7 @@ private fun LyricsOverlay(
                                 horizontalAlignment = Alignment.Start,
                             ) {
                                 Text(
-                                    text = it.title,
+                                    text = metadata.first,
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontSize = elovaireScaledSp(17f),
                                         fontWeight = FontWeight.Medium,
@@ -3932,7 +3953,7 @@ private fun LyricsOverlay(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = it.artist,
+                                    text = metadata.second,
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontSize = elovaireScaledSp(15f),
                                         fontWeight = FontWeight.Medium,
@@ -3945,7 +3966,7 @@ private fun LyricsOverlay(
                         }
                     }
                     ElovaireAnimatedVisibility(
-                        visible = isEditingLyrics || lyricsUiState is LyricsUiState.Ready,
+                        visible = isEditingLyrics || currentLyricsState is LyricsUiState.Ready,
                         enter = motionTransitions.contextMenuEnter(),
                         exit = motionTransitions.contextMenuExit(),
                         label = "lyrics_edit_action_visibility",
@@ -3964,7 +3985,7 @@ private fun LyricsOverlay(
                                 if (isEditingLyrics) {
                                     onSaveLyrics(lyricsDraft)
                                 } else {
-                                    lyricsDraft = (lyricsUiState as? LyricsUiState.Ready)
+                                    lyricsDraft = (currentLyricsState as? LyricsUiState.Ready)
                                         ?.payload
                                         ?.toEmbeddedLyricsText()
                                         .orEmpty()
@@ -4005,23 +4026,20 @@ private fun LyricsOverlay(
                         },
                 ) {
                     AnimatedContent(
-                        targetState = isEditingLyrics,
+                        targetState = LyricsContentState(songKey, currentLyricsState, isEditingLyrics),
                         transitionSpec = {
                             fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = LinearOutSlowInEasing)) +
                                 slideInVertically(
                                     animationSpec = motionSpecs.tween(MotionDuration.ScreenExpand, easing = FastOutSlowInEasing),
-                                    initialOffsetY = { it / 12 },
-                                ) +
-                                expandVertically(
-                                    expandFrom = Alignment.Top,
-                                    animationSpec = motionSpecs.tween(MotionDuration.ScreenExpand, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { -it / 16 },
                                 ) togetherWith
                                 fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = FastOutLinearInEasing))
                         },
                         contentKey = { it },
-                        label = "lyrics_editor_state",
-                    ) { editing ->
-                        if (editing) {
+                        modifier = Modifier.fillMaxSize().clipToBounds(),
+                        label = "lyrics_content_state",
+                    ) { content ->
+                        if (content.editing) {
                             LyricsTextEditor(
                                 value = lyricsDraft,
                                 onValueChange = {
@@ -4031,7 +4049,7 @@ private fun LyricsOverlay(
                                 contentColor = contentColor,
                                 errorMessage = lyricsEditorUiState.errorMessage,
                             )
-                        } else when (val state = lyricsUiState) {
+                        } else when (val state = content.lyrics) {
                             LyricsUiState.Hidden,
                             LyricsUiState.Empty -> {
                                 LyricsUnavailableContent(
@@ -4070,13 +4088,11 @@ private fun LyricsOverlay(
                                     )
                                 } else {
                                     LyricsReadyContent(
-                                        song = song,
+                                        songKey = content.songKey,
                                         payload = state.payload,
-                                        animateTrackChange = animateLyricsForTrackChange,
-                                        onTrackChangeAnimationStarted = { displayedLyricsSongId = song?.id },
-                                        activeLyricLineIndex = activeLyricsLineIndex,
-                                        listState = listState,
-                                        autoScrollHeld = autoScrollHeld,
+                                        activeLyricLineIndex = if (content.songKey == songKey) activeLyricsLineIndex else -1,
+                                        listState = remember(content.songKey) { listState },
+                                        autoScrollHeld = autoScrollHeld || content.songKey != songKey,
                                         setAutoScrollHeld = { autoScrollHeld = it },
                                         autoScrollResumeJob = autoScrollResumeJob,
                                         setAutoScrollResumeJob = { autoScrollResumeJob = it },
@@ -4085,7 +4101,11 @@ private fun LyricsOverlay(
                                         hideButtonArea = hideButtonArea,
                                         lyricsBottomBlurArea = lyricsBottomBlurArea,
                                         contentColor = contentColor,
-                                        onSeekTo = onSeekTo,
+                                        onSeekTo = { position ->
+                                            if (content.songKey == songKey && currentLyricsState == state && !isEditingLyrics) {
+                                                onSeekTo(position)
+                                            }
+                                        },
                                     )
                                 }
                             }
@@ -4127,7 +4147,6 @@ private fun LyricsOverlay(
                             .hazeBlur(
                                 input = HazeInput.Sources(lyricsHazeState),
                                 style = HazeBlurStyle {
-                                    progressive(softEdgeBlurProgressive(edgeMask))
                                     blurRadius(34.dp)
                                     backgroundColor(surface.copy(alpha = 0.42f))
                                     colorEffects(listOf(
@@ -4415,7 +4434,7 @@ private fun LyricsUnavailableContent(
 
 @Composable
 @OptIn(ExperimentalHazeApi::class)
-private fun LyricsSkipControl(
+internal fun LyricsSkipControl(
     lyricsHazeState: HazeState,
     contentColor: Color,
     onSkipPrevious: () -> Unit,
@@ -4469,12 +4488,6 @@ private fun LyricsSkipControl(
                             )
                         }
                     }
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .height(20.dp)
-                            .background(contentColor.copy(alpha = 0.3f)),
-                    )
                     val nextInteractionSource = rememberElovaireInteractionSource()
                     Surface(
                         onClick = onSkipNext,
@@ -4503,13 +4516,18 @@ private fun LyricsSkipControl(
                     }
                 }
             }
+            Box(
+                modifier = Modifier.align(Alignment.Center)
+                    .width(2.dp).height(20.dp)
+                    .background(contentColor.copy(alpha = 0.3f)),
+            )
         }
     }
 }
 
 @Composable
 @OptIn(ExperimentalHazeApi::class)
-private fun LyricsControlButton(
+internal fun LyricsControlButton(
     modifier: Modifier,
     shape: Shape,
     lyricsHazeState: HazeState,
@@ -4682,10 +4700,8 @@ private fun LyricsTextEditor(
 
 @Composable
 private fun LyricsReadyContent(
-    song: Song?,
+    songKey: String?,
     payload: LyricsPayload,
-    animateTrackChange: Boolean,
-    onTrackChangeAnimationStarted: () -> Unit,
     activeLyricLineIndex: Int,
     listState: LazyListState,
     autoScrollHeld: Boolean,
@@ -4702,32 +4718,9 @@ private fun LyricsReadyContent(
     val motionSpecs = rememberMotionSpecs()
     val density = LocalDensity.current
     val autoScrollCenterOffsetPx = with(density) { 180.dp.roundToPx() }
-    val lineEntryOffsetPx = with(density) { 10.dp.toPx() }
-    val lineEntryDurationMs = MotionDuration.Standard.toFloat()
-    val lineEntryMaxStaggerMs = 6 * 16f
     val latestActiveLineIndex = rememberUpdatedState(activeLyricLineIndex)
-    val lineEntryClock = remember(song?.id, animateTrackChange) {
-        Animatable(if (animateTrackChange) 0f else 1f)
-    }
-    val lineEntryStartIndex = remember(song?.id) { listState.firstVisibleItemIndex }
-    LaunchedEffect(song?.id, animateTrackChange) {
-        if (animateTrackChange) {
-            lineEntryClock.snapTo(0f)
-            lineEntryClock.animateTo(
-                targetValue = 1f,
-                animationSpec = motionSpecs.tween(
-                    durationMillis = (lineEntryDurationMs + lineEntryMaxStaggerMs).roundToInt(),
-                    easing = LinearEasing,
-                ),
-            )
-        } else {
-            lineEntryClock.snapTo(1f)
-        }
-    }
-    LaunchedEffect(song?.id) {
-        if (animateTrackChange) onTrackChangeAnimationStarted()
-    }
-    LaunchedEffect(song?.id, payload.isSynced, autoScrollHeld) {
+    val latestOnSeekTo by rememberUpdatedState(onSeekTo)
+    LaunchedEffect(songKey, payload.isSynced, autoScrollHeld) {
         if (autoScrollHeld || !payload.isSynced) return@LaunchedEffect
         snapshotFlow { latestActiveLineIndex.value }
             .distinctUntilChanged()
@@ -4801,18 +4794,9 @@ private fun LyricsReadyContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        val entryProgress = if (animateTrackChange) {
-                            val staggerMs = (index - lineEntryStartIndex).coerceIn(0, 6) * 16f
-                            val elapsedMs = lineEntryClock.value * (lineEntryDurationMs + lineEntryMaxStaggerMs)
-                            val progress = ((elapsedMs - staggerMs) / lineEntryDurationMs).coerceIn(0f, 1f)
-                            MotionEasing.RefinedDecelerate.transform(progress)
-                        } else {
-                            1f
-                        }
-                        alpha = entryProgress * lineAlpha.value
-                        translationY = (1f - entryProgress) * -lineEntryOffsetPx
+                        alpha = lineAlpha.value
                     }
-                    .pointerInput(song?.id, payload.lines.size) {
+                    .pointerInput(songKey, payload.lines.size) {
                         detectTapGestures {
                             lyricsSeekPositionMs(
                                 lines = latestLyricsLines,
@@ -4823,7 +4807,7 @@ private fun LyricsReadyContent(
                                 setUserLyricsScrollActive(false)
                                 autoScrollResumeJob?.cancel()
                                 setAutoScrollResumeJob(null)
-                                onSeekTo(seekPositionMs)
+                                latestOnSeekTo(seekPositionMs)
                             }
                         }
                     },

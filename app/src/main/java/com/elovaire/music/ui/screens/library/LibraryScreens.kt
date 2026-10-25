@@ -1160,6 +1160,7 @@ private fun AlbumCollectionContent(
             modifier = Modifier
                 .fillMaxSize()
                 .hazeSource(selectionHazeState, zIndex = -1f)
+                .background(MaterialTheme.colorScheme.background)
                 .elovaireContentChangeMotion(layoutMode),
         ) {
         when (layoutMode) {

@@ -149,7 +149,8 @@ internal fun LibraryFoldersScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .hazeSource(sourceChooserHazeState, zIndex = -1f),
+                    .hazeSource(sourceChooserHazeState, zIndex = -1f)
+                    .background(MaterialTheme.colorScheme.background),
             ) {
             LazyColumn(
                 state = listState,

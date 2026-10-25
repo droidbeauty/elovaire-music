@@ -523,7 +523,8 @@ internal fun AlbumScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(selectionHazeState, zIndex = -1f),
+                .hazeSource(selectionHazeState, zIndex = -1f)
+                .background(MaterialTheme.colorScheme.background),
         ) {
             LazyColumn(
                 state = listState,
