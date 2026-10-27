@@ -64,6 +64,21 @@ androidComponents {
     }
 }
 
+val compilationToolchain = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.toolchainVersion))
+}
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.UsesKotlinJavaToolchain>().configureEach {
+    kotlinJavaToolchain.toolchain.use(compilationToolchain)
+}
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+}
+tasks.withType<JavaCompile>().configureEach {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.toolchainVersion))
+    })
+}
+
 tasks.configureEach {
     if (name == "connectedCheck" || name == "connectedBenchmarkAndroidTest") {
         dependsOn(":app:installBenchmark")

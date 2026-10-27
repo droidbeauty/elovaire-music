@@ -199,10 +199,28 @@ if (providers.gradleProperty("app.r8Diagnostics").map(String::toBoolean).getOrEl
 }
 
 kotlin {
-    jvmToolchain(AppBuildConfig.Java.toolchainVersion)
     compilerOptions {
         jvmTarget = JvmTarget.fromTarget(AppBuildConfig.Java.kotlinJvmTarget)
     }
+}
+
+// Keep the IDE's project language level at 17 while compiling and testing with this JDK.
+val compilationToolchain = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.toolchainVersion))
+}
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.UsesKotlinJavaToolchain>().configureEach {
+    kotlinJavaToolchain.toolchain.use(compilationToolchain)
+}
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(JvmTarget.fromTarget(AppBuildConfig.Java.kotlinJvmTarget))
+}
+tasks.withType<JavaCompile>().configureEach {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.toolchainVersion))
+    })
+}
+tasks.withType<Test>().configureEach {
+    javaLauncher.set(compilationToolchain)
 }
 
 ksp {

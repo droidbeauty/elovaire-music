@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.9.6">
-        <item>Performance and stability improvements</item>
-        <item>Improved per interaction animation quality and efficiency</item>
-        <item>Improved quality of blur in areas that use it</item>
-        <item>Bug fixes</item>
+    <release version="2.9.7">
+        <item>New feature - album of the day section available in the Home tab</item>
+        <item>Improved scrolling behavior</item>
+        <item>Added album management interaction via long press in Recently added section</item>
+        <item>General efficiency upgrades and bug fixes</item>
     </release>
 </changelog>
