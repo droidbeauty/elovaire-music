@@ -76,6 +76,20 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun albumCollisionLeavesOtherGroupsUnchanged() {
+        val primary = song(1L, "content://media/external_primary/audio/media/1").copy(albumId = 42L)
+        val removable = song(2L, "content://media/1234-5678/audio/media/2").copy(albumId = 42L)
+        val unrelated = song(3L, "content://media/external_primary/audio/media/3").copy(albumId = 100L)
+
+        val result = LibrarySnapshotAssembler.canonicalizeAlbumIds(listOf(removable, unrelated, primary))
+
+        assertSame(unrelated, result[1])
+        assertEquals(42L, result[2].albumId)
+        assertEquals(3, result.map(Song::albumId).distinct().size)
+        assertEquals(result, LibrarySnapshotAssembler.canonicalizeAlbumIds(listOf(removable, unrelated, primary)))
+    }
+
+    @Test
     fun assemble_separatesSameAlbumIdAcrossIndependentProviders() {
         val first = song(1L, "content://provider.one/tree/root/document/track-one")
             .copy(id = -1L, albumId = -9L, libraryPath = null)

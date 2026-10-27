@@ -49,9 +49,11 @@ internal object LibrarySnapshotAssembler {
         }
         if (collidingOriginalIds.isEmpty()) return songs
 
-        val albumGroups = songs.map(::albumGroupKey)
+        val albumGroups = songs.map { song ->
+            if (song.albumId in collidingOriginalIds) albumGroupKey(song) else null
+        }
         val collidingGroups = albumGroups.asSequence()
-            .filter { it.originalId in collidingOriginalIds }
+            .filterNotNull()
             .distinct()
             .groupBy(AlbumGroupKey::originalId)
             .values
@@ -83,7 +85,7 @@ internal object LibrarySnapshotAssembler {
                 }
         }
         return songs.mapIndexed { index, song ->
-            val group = albumGroups[index]
+            val group = albumGroups[index] ?: return@mapIndexed song
             val replacement = replacementIds[group] ?: return@mapIndexed song
             if (replacement == song.albumId) song else song.copy(albumId = replacement)
         }

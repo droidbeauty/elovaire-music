@@ -114,13 +114,13 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     ) {
         playlists.forEach { insertPlaylist(it) }
         if (entries.isNotEmpty()) insertPlaylistEntries(entries)
+        val entriesByPlaylist = entries.groupBy(UserPlaylistEntryEntity::playlistId)
         playlists.forEach { expected ->
             check(playlist(expected.playlistId) == expected) {
                 "Playlist import row readback failed for ${expected.playlistId}."
             }
             check(
-                playlistEntries(expected.playlistId) == entries
-                    .filter { it.playlistId == expected.playlistId }
+                playlistEntries(expected.playlistId) == entriesByPlaylist[expected.playlistId].orEmpty()
                     .sortedBy(UserPlaylistEntryEntity::position),
             ) {
                 "Playlist import entry readback failed for ${expected.playlistId}."
@@ -277,8 +277,9 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     @Transaction
     suspend fun repairDeterministicUserData(plan: UserDataRepairPlan) {
         if (plan.normalizePlaylistPositions) {
+            val entriesByPlaylist = playlistEntries().groupBy(UserPlaylistEntryEntity::playlistId)
             playlists().forEach { playlist ->
-                val normalizedSongIds = playlistEntries(playlist.playlistId)
+                val normalizedSongIds = entriesByPlaylist[playlist.playlistId].orEmpty()
                     .sortedWith(compareBy(UserPlaylistEntryEntity::position, UserPlaylistEntryEntity::songId))
                     .map(UserPlaylistEntryEntity::songId)
                     .distinct()

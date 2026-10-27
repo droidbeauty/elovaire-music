@@ -109,7 +109,7 @@ internal class LibrarySnapshotPublisher(
             buildAlbumsFromSongs(affectedSongsByAlbum[albumId].orEmpty())
         }
         val updatedAlbums = current.albums.toMutableList()
-        albumPositions.filterKeys(affectedAlbumIds::contains).values.sortedDescending().forEach(updatedAlbums::removeAt)
+        affectedAlbumIds.mapNotNull(albumPositions::get).sortedDescending().forEach(updatedAlbums::removeAt)
         rebuiltAlbums.sortedWith(ALBUM_COMPARATOR).forEach { album ->
             val insertionPoint = updatedAlbums.binarySearch(album, ALBUM_COMPARATOR).let { index ->
                 if (index >= 0) index else -index - 1

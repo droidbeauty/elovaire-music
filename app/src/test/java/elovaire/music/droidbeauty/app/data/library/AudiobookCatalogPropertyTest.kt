@@ -78,6 +78,18 @@ class AudiobookCatalogPropertyTest {
     }
 
     @Test
+    fun positiveAlbumIdGroupsPartsAcrossTitlesAndFoldersButSeparatesAuthors() {
+        val first = song(1L, "First title", "Author", "/books/one/1.m4b", 1).copy(albumId = 42L)
+        val second = song(2L, "Other title", "Author", "/books/two/2.m4b", 2).copy(albumId = 42L)
+        val otherAuthor = song(3L, "First title", "Other", "/books/one/3.m4b", 3).copy(albumId = 42L)
+
+        val books = AudiobookCatalog.build(listOf(first, second, otherAuthor))
+
+        assertEquals(listOf(1L, 2L), books.first { it.author == "Author" }.parts.map { it.song.id })
+        assertEquals(listOf(3L), books.first { it.author == "Other" }.parts.map { it.song.id })
+    }
+
+    @Test
     fun durationSaturatesWhenPartsExceedLongRange() {
         val first = song(1L, "Book", "Author", "/books/book/part-1.m4b", 1).copy(durationMs = Long.MAX_VALUE)
         val second = song(2L, "Book", "Author", "/books/book/part-2.m4b", 2).copy(durationMs = 10L)

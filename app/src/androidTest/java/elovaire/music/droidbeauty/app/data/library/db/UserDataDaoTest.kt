@@ -83,6 +83,26 @@ class UserDataDaoTest {
     }
 
     @Test
+    fun playlistBatchImportVerifiesUnorderedEntriesAndEmptyPlaylists() = runBlocking {
+        val playlists = listOf(
+            UserPlaylistEntity(1L, "First", false),
+            UserPlaylistEntity(2L, "Second", false),
+            UserPlaylistEntity(3L, "Empty", false),
+        )
+        val entries = listOf(
+            UserPlaylistEntryEntity(2L, 20L, 1),
+            UserPlaylistEntryEntity(1L, 10L, 0),
+            UserPlaylistEntryEntity(2L, 21L, 0),
+        )
+
+        dao.insertPlaylistsWithEntries(playlists, entries)
+
+        assertEquals(listOf(21L, 20L), dao.songIdsForPlaylist(2L))
+        assertEquals(listOf(10L), dao.songIdsForPlaylist(1L))
+        assertTrue(dao.playlistEntries(3L).isEmpty())
+    }
+
+    @Test
     fun criticalPlaylistLookupUsesOrderingIndex() = runBlocking {
         dao.insertPlaylist(UserPlaylistEntity(1L, "Test", false))
         dao.replacePlaylistEntries(1L, listOf(10L, 20L, 30L))
@@ -136,8 +156,13 @@ class UserDataDaoTest {
     @Test
     fun deterministicRepairNormalizesOrderingAndCountersInOneTransaction() = runBlocking {
         dao.insertPlaylist(UserPlaylistEntity(1L, "Repair", false))
+        dao.insertPlaylist(UserPlaylistEntity(2L, "Also repair", false))
+        dao.insertPlaylist(UserPlaylistEntity(3L, "Empty", false))
         database.openHelper.writableDatabase.execSQL(
             "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(1, 10, -1), (1, 20, 7)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(2, 30, 8), (2, 40, -2)",
         )
         database.openHelper.writableDatabase.execSQL(
             "INSERT INTO favorite_songs(songId, position) VALUES(10, -3), (20, 8)",
@@ -162,7 +187,9 @@ class UserDataDaoTest {
             ),
         )
 
-        assertEquals(listOf(10L to 0, 20L to 1), dao.playlistEntries().map { it.songId to it.position })
+        assertEquals(listOf(10L to 0, 20L to 1), dao.playlistEntries(1L).map { it.songId to it.position })
+        assertEquals(listOf(40L to 0, 30L to 1), dao.playlistEntries(2L).map { it.songId to it.position })
+        assertTrue(dao.playlistEntries(3L).isEmpty())
         assertEquals(listOf(10L to 0, 20L to 1), dao.favorites().map { it.songId to it.position })
         assertEquals(listOf(10L to 0, 20L to 1), dao.recentPlayback().map { it.itemId to it.position })
         assertEquals(0, dao.songPlayCounts().single().playCount)

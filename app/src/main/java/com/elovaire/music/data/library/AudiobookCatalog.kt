@@ -53,16 +53,16 @@ internal object AudiobookCatalog {
             uri.startsWith("elovaire-network://", ignoreCase = true) -> uri.substringAfter("elovaire-network://").substringBefore('/')
             else -> uri.substringAfter("://", uri).substringBefore('/')
         }.lowercase(Locale.ROOT)
-        val title = bookTitle(song).lowercase(Locale.ROOT)
         val author = (song.albumArtist ?: song.artist).trim().lowercase(Locale.ROOT)
-        val parent = song.libraryPath
-            ?.replace('\\', '/')
-            ?.substringBeforeLast('/', "")
-            ?.lowercase(Locale.ROOT)
-            .orEmpty()
         return if (song.albumId > 0L) {
             "$source|album:${song.albumId}|$author"
         } else {
+            val title = bookTitle(song).lowercase(Locale.ROOT)
+            val parent = song.libraryPath
+                ?.replace('\\', '/')
+                ?.substringBeforeLast('/', "")
+                ?.lowercase(Locale.ROOT)
+                .orEmpty()
             "$source|folder:$parent|$title|$author"
         }
     }
