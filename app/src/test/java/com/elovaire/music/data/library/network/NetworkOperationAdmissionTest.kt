@@ -11,6 +11,18 @@ import org.junit.Test
 
 class NetworkOperationAdmissionTest {
     @Test
+    fun zeroWaitAcquiresAvailablePermitWithoutWaiting() {
+        val admission = NetworkOperationAdmission(backgroundCapacity = 1, playbackCapacity = 1, maxWaitMs = 0L)
+        val held = admission.acquire(NetworkReadPurpose.Playback)
+        try {
+            assertThrows(IOException::class.java) { admission.acquire(NetworkReadPurpose.Playback) }
+        } finally {
+            held.close()
+        }
+        admission.acquire(NetworkReadPurpose.Playback).close()
+    }
+
+    @Test
     fun backgroundReadsDoNotConsumePlaybackPermits() {
         val admission = NetworkOperationAdmission(backgroundCapacity = 3, playbackCapacity = 2, maxWaitMs = 1L)
         val background = List(3) { admission.acquire(NetworkReadPurpose.Metadata) }

@@ -4686,7 +4686,8 @@ private fun LyricsTextEditor(
                 .fillMaxWidth()
                 .weight(1f)
                 .focusRequester(focusRequester)
-                .verticalScroll(scrollState),
+                .ensureSingleItemRubberBand(scrollState)
+                .verticalScroll(scrollState, overscrollEffect = null),
         )
         if (!errorMessage.isNullOrBlank()) {
             Text(

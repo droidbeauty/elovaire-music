@@ -52,10 +52,10 @@ internal object ExternalAudioMetadataPolicy {
         pathSegment: String?,
         mimeType: String?,
     ): AudioFormatCapability? {
-        val extension = sequenceOf(displayName, pathSegment.orEmpty())
+        val extensionCapability = sequenceOf(displayName, pathSegment.orEmpty())
             .mapNotNull(::extensionFromName)
+            .mapNotNull(AudioFormatPolicy::capabilityForExtension)
             .firstOrNull()
-        val extensionCapability = extension?.let(AudioFormatPolicy::capabilityForExtension)
         val normalizedMime = mimeType
             ?.substringBefore(';')
             ?.trim()

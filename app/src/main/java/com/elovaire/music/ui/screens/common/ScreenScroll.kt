@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.interaction.InteractionCriticalWindow
@@ -492,6 +494,13 @@ internal fun Modifier.ensureSingleItemRubberBand(state: LazyGridState): Modifier
     )
 }
 
+internal fun Modifier.ensureSingleItemRubberBand(state: androidx.compose.foundation.ScrollState): Modifier = composed {
+    this.kuperRubberBand(
+        canScrollBackward = { state.canScrollBackward },
+        canScrollForward = { state.canScrollForward },
+    )
+}
+
 internal fun Modifier.ensureHorizontalRubberBand(state: androidx.compose.foundation.ScrollState): Modifier = composed {
     val baseModifier = this.kuperRubberBand(
         canScrollBackward = { state.canScrollBackward },
@@ -543,6 +552,9 @@ private fun Modifier.kuperRubberBand(
     orientation: Orientation = Orientation.Vertical,
 ): Modifier = composed {
     val motionSpecs = rememberMotionSpecs()
+    val currentCanScrollBackward by rememberUpdatedState(canScrollBackward)
+    val currentCanScrollForward by rememberUpdatedState(canScrollForward)
+    val horizontalRtl = orientation == Orientation.Horizontal && LocalLayoutDirection.current == LayoutDirection.Rtl
     var translationTarget by remember { mutableFloatStateOf(0f) }
     val translation by animateFloatAsState(
         targetValue = translationTarget,
@@ -550,8 +562,36 @@ private fun Modifier.kuperRubberBand(
         label = "list_rubber_band_translation",
     )
     val maxTranslationPx = with(LocalDensity.current) { 11.dp.toPx() }
-    val connection = remember(maxTranslationPx) {
+    val connection = remember(maxTranslationPx, orientation, horizontalRtl) {
         object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                val distance = if (orientation == Orientation.Horizontal) available.x else available.y
+                if (!canTravel(distance)) return Offset.Zero
+                // A light touch of resistance without changing programmatic/a11y scrolling.
+                return if (orientation == Orientation.Horizontal) {
+                    Offset(distance * 0.06f, 0f)
+                } else {
+                    Offset(0f, distance * 0.06f)
+                }
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                val velocity = if (orientation == Orientation.Horizontal) available.x else available.y
+                if (!canTravel(velocity)) return Velocity.Zero
+                return if (orientation == Orientation.Horizontal) {
+                    Velocity(velocity * 0.08f, 0f)
+                } else {
+                    Velocity(0f, velocity * 0.08f)
+                }
+            }
+
+            private fun canTravel(distance: Float): Boolean {
+                val direction = if (horizontalRtl) -distance else distance
+                return (direction > 0f && currentCanScrollBackward()) ||
+                    (direction < 0f && currentCanScrollForward())
+            }
+
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
@@ -563,8 +603,9 @@ private fun Modifier.kuperRubberBand(
                 } else {
                     available.y
                 }
-                val isPullingBackward = availableDistance > 0f && !canScrollBackward()
-                val isPullingForward = availableDistance < 0f && !canScrollForward()
+                val direction = if (horizontalRtl) -availableDistance else availableDistance
+                val isPullingBackward = direction > 0f && !currentCanScrollBackward()
+                val isPullingForward = direction < 0f && !currentCanScrollForward()
                 if (!isPullingBackward && !isPullingForward) return Offset.Zero
                 translationTarget = (translationTarget + (availableDistance * 0.032f))
                     .coerceIn(-maxTranslationPx, maxTranslationPx)

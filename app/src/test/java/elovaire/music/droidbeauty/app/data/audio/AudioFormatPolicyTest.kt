@@ -7,6 +7,21 @@ import org.junit.Test
 
 class AudioFormatPolicyTest {
     @Test
+    fun failedDetectionAndUnknownFilesDoNotClaimPlaybackOrFingerprintSupport() {
+        val format = detected(AudioContainerFormat.Mp3, "audio/mpeg")
+        assertEquals(PlaybackSupport.Unsupported, AudioFormatPolicy.playbackSupport(format.copy(detectionSucceeded = false)))
+        assertFalse(AudioFormatPolicy.canFingerprint("unknown.bin"))
+        assertTrue(AudioFormatPolicy.canFingerprint("track.mp3"))
+    }
+
+    @Test
+    fun tagWritingRejectsContainerThatDoesNotMatchFilename() {
+        val flac = detected(AudioContainerFormat.Flac, "audio/flac")
+        assertEquals(TagWriteSupport.Unsupported, AudioFormatPolicy.tagWriteSupport(flac, "song.mp3"))
+        assertEquals(TagWriteSupport.Safe, AudioFormatPolicy.tagWriteSupport(flac, "song.flac"))
+    }
+
+    @Test
     fun resolveContainer_distinguishesOggCodecsForOga() {
         assertEquals(
             AudioContainerFormat.OggOpus,

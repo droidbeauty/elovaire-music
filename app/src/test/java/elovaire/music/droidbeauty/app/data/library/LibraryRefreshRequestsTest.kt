@@ -10,6 +10,17 @@ import org.junit.Test
 
 class LibraryRefreshRequestsTest {
     @Test
+    fun invalidPerVolumeGenerationFloorFallsBackToFullScan() {
+        val floors = mapOf("external" to 10L, "secondary" to -1L)
+        val blankVolume = mapOf("external" to 10L, " " to 5L)
+        listOf(floors, blankVolume).forEach {
+            assertTrue(LibraryRefreshRequest(mediaStoreGenerationFloors = it).normalized().mediaStoreGenerationFloors.isEmpty())
+            assertFalse(hasValidMediaStoreGenerationFloors(it))
+        }
+        assertTrue(hasValidMediaStoreGenerationFloors(mapOf("external" to 10L)))
+    }
+
+    @Test
     fun normalizedRequestMergesWithItselfWithoutChangingSemantics() {
         val request = LibraryRefreshRequest(
             enrichMetadata = true,

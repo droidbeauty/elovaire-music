@@ -366,32 +366,11 @@ internal class WebDavNetworkFileSystem(
         source: NetworkLibrarySource,
         requestedPath: String,
     ): List<NetworkFileEntry> {
-        val parsed = runCatching {
+        return try {
             parseMultiStatusDocument(body, source, requestedPath)
-        }.getOrNull()
-        if (parsed != null) return parsed
-        return RESPONSE_FRAGMENT.findAll(body.toString(Charsets.UTF_8))
-            .map { match ->
-                runCatching {
-                    parseMultiStatusDocument(
-                        responseFragmentDocument(match.value),
-                        source,
-                        requestedPath,
-                    )
-                }.getOrDefault(emptyList())
-            }
-            .flatten()
-            .distinctBy(NetworkFileEntry::path)
-            .toList()
-    }
-
-    private fun responseFragmentDocument(fragment: String): ByteArray {
-        val prefix = RESPONSE_OPEN_TAG
-            .find(fragment)
-            ?.groupValues
-            ?.getOrNull(1)
-        val namespace = prefix?.let { " xmlns:$it=\"DAV:\"" }.orEmpty()
-        return "<multistatus$namespace>$fragment</multistatus>".toByteArray(Charsets.UTF_8)
+        } catch (failure: org.xml.sax.SAXException) {
+            throw IOException("Invalid WebDAV multistatus response", failure)
+        }
     }
 
     private fun parseMultiStatusDocument(
@@ -401,14 +380,25 @@ internal class WebDavNetworkFileSystem(
     ): List<NetworkFileEntry> {
         val factory = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
-            setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
-            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-            setFeature("http://xml.org/sax/features/external-general-entities", false)
-            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-            isXIncludeAware = false
-            isExpandEntityReferences = false
+            // Android's platform DOM builder uses KXml with document-declaration processing
+            // disabled and does not implement these JAXP features. Reject its DOCTYPE below.
+            if (javaClass.name != "org.apache.harmony.xml.parsers.DocumentBuilderFactoryImpl") {
+                setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+                setFeature("http://xml.org/sax/features/external-general-entities", false)
+                setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                isXIncludeAware = false
+                isExpandEntityReferences = false
+            }
         }
-        val document = factory.newDocumentBuilder().parse(ByteArrayInputStream(body))
+        val builder = factory.newDocumentBuilder().apply {
+            setEntityResolver { _, _ -> throw org.xml.sax.SAXException("External entities are not allowed") }
+        }
+        val document = builder.parse(ByteArrayInputStream(body))
+        if (document.doctype != null) throw IOException("WebDAV document type declarations are not allowed")
+        if (!document.documentElement.matchesName("multistatus")) {
+            throw IOException("Invalid WebDAV multistatus root")
+        }
         return document.documentElement.childElements("response")
             .mapNotNull { response -> parseResponse(response, source, requestedPath) }
             .distinctBy(NetworkFileEntry::path)
@@ -562,15 +552,7 @@ internal class WebDavNetworkFileSystem(
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
         const val MAX_REDIRECTS = 3
         val REDIRECT_STATUSES = setOf(301, 302, 303, 307, 308)
-        val RESPONSE_OPEN_TAG = Regex(
-            "<(?:([A-Za-z_][A-Za-z0-9_.-]*):)?response\\b",
-            RegexOption.IGNORE_CASE,
-        )
         val HTTP_STATUS_REGEX = Regex("\\b(\\d{3})\\b")
-        val RESPONSE_FRAGMENT = Regex(
-            "<(?:[A-Za-z_][A-Za-z0-9_.-]*:)?response\\b.*?</(?:[A-Za-z_][A-Za-z0-9_.-]*:)?response\\s*>",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-        )
         const val PROPFIND_BODY = """
             <?xml version="1.0" encoding="utf-8" ?>
             <D:propfind xmlns:D="DAV:">
@@ -612,9 +594,10 @@ internal fun parseWebDavContentRange(value: String?): WebDavContentRange? {
     if (bounds.size != 2) return null
     val start = bounds[0].toLongOrNull() ?: return null
     val end = bounds[1].toLongOrNull() ?: return null
-    if (end < start || end - start == Long.MAX_VALUE) return null
+    if (start < 0L || end < start || end - start == Long.MAX_VALUE) return null
     val total = parts[1].takeUnless { it == "*" }?.toLongOrNull() ?:
         if (parts[1] == "*") null else return null
+    if (total != null && (total <= 0L || end >= total)) return null
     return WebDavContentRange(start, end, total)
 }
 

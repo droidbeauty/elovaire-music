@@ -730,9 +730,12 @@ internal fun AudiobookDetailScreen(
     val activeSongId = resolvedProgress.songId
     val currentPart = resolvedProgress.partIndex
     val isCompleted = resolvedProgress.completed && activeSongId != currentSongId
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 top = detailTopBarOccupiedHeight() + 20.dp,
                 bottom = bottomPadding + 20.dp,
@@ -1033,6 +1036,7 @@ private fun AudiobookDescriptionDialog(
     onDismiss: () -> Unit,
 ) {
     if (text == null) return
+    val scrollState = rememberScrollState()
     BackHandler(enabled = visible, onBack = onDismiss)
     val motionTransitions = rememberMotionTransitions()
     ElovaireAnimatedVisibility(
@@ -1112,7 +1116,8 @@ private fun AudiobookDescriptionDialog(
                                 .weight(1f)
                                 .fillMaxWidth()
                                 .padding(top = 20.dp)
-                                .verticalScroll(rememberScrollState()),
+                                .ensureSingleItemRubberBand(scrollState)
+                                .verticalScroll(scrollState, overscrollEffect = null),
                             fontFamily = FontFamily.Serif,
                             fontSize = 14.sp,
                             lineHeight = 20.sp,

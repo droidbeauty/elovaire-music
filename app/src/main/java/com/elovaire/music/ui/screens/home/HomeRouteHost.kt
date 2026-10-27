@@ -12,6 +12,7 @@ internal fun HomeRouteHost(
     HomeScreen(
         lastPlayedAlbum = state.libraryDerivedState.lastPlayedAlbum,
         lastPlayedPlaylist = state.libraryDerivedState.lastPlayedPlaylist,
+        albumOfDay = rememberAlbumOfDay(state.appState.library.albums, state.appState.library.isAuthoritative),
         songsById = state.libraryDerivedState.songsById,
         recentlyAddedAlbums = state.libraryDerivedState.recentlyAddedAlbums,
         recentSongs = state.recentSongs,

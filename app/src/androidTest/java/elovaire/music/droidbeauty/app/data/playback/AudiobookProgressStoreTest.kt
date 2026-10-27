@@ -50,6 +50,18 @@ class AudiobookProgressStoreTest {
         assertNull(store.load("old"))
     }
 
+    @Test
+    fun negativeMediaIdsAndMissingBookElapsedSurviveLegacyStorageAndMigration() {
+        val store = AudiobookProgressStore(context)
+        store.save("network", -7L, 100L, 1_000L, nowMs = 10L)
+
+        assertEquals(-7L, store.load("network")?.songId)
+        assertNull(store.load("network")?.bookElapsedMs)
+        assertNull(store.readLegacyRows().getValue(AudiobookProgressStore.storageKey("network")).bookElapsedMs)
+        store.save("network2", AudiobookProgress(-8L, 50L, false, 20L))
+        assertEquals(-8L, store.load("network2")?.songId)
+    }
+
     private fun hashedKey(bookKey: String): String {
         val digest = java.security.MessageDigest.getInstance("SHA-256")
             .digest(bookKey.toByteArray(Charsets.UTF_8))

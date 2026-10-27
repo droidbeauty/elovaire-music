@@ -48,8 +48,8 @@ internal class SmbNetworkFileSystem(
         checkNotReleased()
         return networkProbeResult(
             attempt = {
-                withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
-                NetworkProbeResult(NetworkAvailability.Available)
+                val exists = withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
+                smbFolderProbeResult(exists)
             },
             onFailure = { failure ->
                 val remoteFailure = failure.asRemoteIoFailure()
@@ -307,7 +307,7 @@ internal class SmbNetworkFileSystem(
         private var idleCloseJob: Job? = null
 
         fun isUsable(): Boolean = synchronized(lock) {
-            !invalidated && resources?.share?.isConnected == true
+            !invalidated && (resources == null || resources?.share?.isConnected == true)
         }
 
         fun isIdle(nowElapsedMs: Long): Boolean = synchronized(lock) {
@@ -619,3 +619,7 @@ internal class SmbNetworkFileSystem(
         const val MAX_DIRECTORY_COUNT = 25_000
     }
 }
+
+internal fun smbFolderProbeResult(exists: Boolean): NetworkProbeResult =
+    if (exists) NetworkProbeResult(NetworkAvailability.Available)
+    else NetworkProbeResult(NetworkAvailability.Unavailable, "PathMissing")

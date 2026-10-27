@@ -17,7 +17,7 @@ internal object AppVersionPolicy {
     fun isSame(left: String, right: String): Boolean {
         val leftVersion = parse(left) ?: return false
         val rightVersion = parse(right) ?: return false
-        return leftVersion == rightVersion
+        return leftVersion.compareTo(rightVersion) == 0
     }
 
     fun installerHandoffCompleted(
@@ -70,7 +70,9 @@ internal object AppVersionPolicy {
                 val leftNumeric = left.all(Char::isDigit)
                 val rightNumeric = right.all(Char::isDigit)
                 if (leftNumeric && rightNumeric) {
-                    return compareNumeric(left.trimLeadingZeros(), right.trimLeadingZeros())
+                    compareNumeric(left.trimLeadingZeros(), right.trimLeadingZeros())
+                        .takeIf { it != 0 }?.let { return it }
+                    continue
                 }
                 if (leftNumeric != rightNumeric) return if (leftNumeric) -1 else 1
                 return left.compareTo(right)

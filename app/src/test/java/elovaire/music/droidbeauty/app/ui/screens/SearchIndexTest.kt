@@ -16,6 +16,27 @@ import java.util.Locale
 
 class SearchIndexTest {
     @Test
+    fun previewPreservesInputOrderWhenDifferentSongsHaveEqualSortKeys() {
+        val base = song(id = 1L, title = "Track", artist = "Artist", albumArtist = null)
+        val songs = (0 until 30).map { index -> base.copy(uri = TestUri("content://songs/$index")) }
+        val index = buildSearchIndex(songs, emptyList())
+        val query = NormalizedSearchQuery.from("track")
+        val full = buildSearchResults(query, SearchSortMode.Title, index)
+        val preview = buildSearchResults(query, SearchSortMode.Title, index, includeAllSongs = false)
+        assertEquals(full.matchingSongs, preview.matchingSongs)
+    }
+
+    @Test
+    fun fallbackSnapshotSignatureTracksPlaybackMetadataAndLocation() {
+        val original = song(id = 1L, title = "Track", artist = "Artist", albumArtist = null)
+        val before = SearchLibrarySnapshot(listOf(original), emptyList()).signature()
+        val changedDuration = SearchLibrarySnapshot(listOf(original.copy(durationMs = 999L)), emptyList()).signature()
+        val changedUri = SearchLibrarySnapshot(listOf(original.copy(uri = TestUri("content://other/1"))), emptyList()).signature()
+        assertFalse(before == changedDuration)
+        assertFalse(before == changedUri)
+    }
+
+    @Test
     fun previewPreservesRankingAcrossTiesSortModesAndInputOrders() {
         val songs = (1L..200L).map { id ->
             song(

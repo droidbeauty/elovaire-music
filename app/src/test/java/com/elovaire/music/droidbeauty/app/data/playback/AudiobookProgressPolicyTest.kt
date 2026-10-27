@@ -17,10 +17,11 @@ class AudiobookProgressPolicyTest {
             "book", listOf(0L, 2L, -1L, 2L, 3L), 100L,
             listOf(50L, -5L, 20L, 80L, 100L),
         )
-        assertEquals(listOf(2L, 3L), context.normalizedSongIds)
-        assertEquals(listOf(0L, 100L), context.normalizedSongDurationsMs)
+        assertEquals(listOf(2L, -1L, 3L), context.normalizedSongIds)
+        assertEquals(listOf(0L, 20L, 100L), context.normalizedSongDurationsMs)
         assertEquals(0L, context.elapsedBefore(1))
-        assertEquals(100L, context.durationAt(1))
+        assertEquals(20L, context.durationAt(1))
+        assertEquals(20L, resolveAudiobookBookElapsed(context, emptyList(), -1L, 20L))
 
         val missing = context.copy(orderedSongDurationsMs = listOf(1L))
         assertEquals(emptyList<Long>(), missing.normalizedSongDurationsMs)
@@ -102,6 +103,19 @@ class AudiobookProgressPolicyTest {
         assertFalse(resolved.completed)
         assertEquals(300_000L, resolved.bookElapsedMs)
         assertEquals(1, resolved.partIndex)
+    }
+
+    @Test
+    fun positionBeforeFirstChapterAndInChapterGapsUsesNearestPreviousPart() {
+        val song = song(-1L, 1_000L)
+        val parts = listOf(
+            AudiobookPart(song, 1, "First", startMs = 100L, endMs = 300L),
+            AudiobookPart(song, 2, "Second", startMs = 500L, endMs = 800L),
+        )
+        val book = Audiobook("book", "Book", "Author", null, 500L, parts)
+        assertEquals(0, resolveAudiobookProgress(book, null, -1L, 50L).partIndex)
+        assertEquals(0, resolveAudiobookProgress(book, null, -1L, 400L).partIndex)
+        assertEquals(1, resolveAudiobookProgress(book, null, -1L, 900L).partIndex)
     }
 
     @Test

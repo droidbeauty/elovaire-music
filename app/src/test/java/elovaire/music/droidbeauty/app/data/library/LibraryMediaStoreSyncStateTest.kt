@@ -5,6 +5,24 @@ import org.junit.Test
 
 class LibraryMediaStoreSyncStateTest {
     @Test
+    fun unknownOrAmbiguousVolumeStateNeverReusesCachedLibrary() {
+        val negative = syncState(generation = -1L)
+        val empty = syncState().copy(volumes = emptyList())
+        val duplicate = syncState().let { it.copy(volumes = it.volumes + it.volumes) }
+        listOf(negative, empty, duplicate).forEach { state ->
+            assertEquals(LibrarySyncDecision.FullScan, decideLibrarySync(state, state))
+        }
+        val duplicateCurrent = LibraryMediaStoreSyncState("folders-a", listOf(
+            LibraryMediaStoreVolumeSyncState("external", "1", 10),
+            LibraryMediaStoreVolumeSyncState("external", "1", 10),
+        ))
+        val twoVolumes = duplicateCurrent.copy(volumes = listOf(
+            duplicateCurrent.volumes.first(), LibraryMediaStoreVolumeSyncState("secondary", "1", 10),
+        ))
+        assertEquals(LibrarySyncDecision.FullScan, decideLibrarySync(twoVolumes, duplicateCurrent))
+    }
+
+    @Test
     fun decideLibrarySync_reusesCacheWhenStateMatches() {
         val state = syncState(generation = 10L)
 

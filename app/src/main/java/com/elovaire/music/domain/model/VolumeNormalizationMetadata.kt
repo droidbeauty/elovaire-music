@@ -35,16 +35,18 @@ internal object VolumeNormalizationPolicy {
 
     fun multiplierFor(metadata: VolumeNormalizationMetadata?): Float {
         val normalizedMetadata = metadata ?: return 1f
-        val gainDb = normalizedMetadata.trackGainDb ?: normalizedMetadata.albumGainDb ?: return 1f
-        if (!gainDb.isFinite()) return 1f
+        val gainDb = normalizedMetadata.trackGainDb?.takeIf(Float::isFinite)
+            ?: normalizedMetadata.albumGainDb?.takeIf(Float::isFinite)
+            ?: return 1f
         val unclippedMultiplier = 10f.pow(gainDb / 20f)
             .coerceIn(MIN_MULTIPLIER, MAX_MULTIPLIER)
-        val peak = normalizedMetadata.trackPeak ?: normalizedMetadata.albumPeak
+        val peak = normalizedMetadata.trackPeak?.takeIf { it.isFinite() && it > 0f }
+            ?: normalizedMetadata.albumPeak?.takeIf { it.isFinite() && it > 0f }
         val peakLimited = peak
             ?.takeIf { it.isFinite() && it > 0f }
             ?.let { peakValue -> minOf(unclippedMultiplier, 1f / peakValue) }
             ?: unclippedMultiplier
-        return peakLimited.coerceIn(MIN_MULTIPLIER, MAX_MULTIPLIER)
+        return peakLimited.coerceIn(0f, MAX_MULTIPLIER)
     }
 
     fun parseGain(rawValue: String?, r128: Boolean = false): Float? {
@@ -71,5 +73,5 @@ internal object VolumeNormalizationPolicy {
     private const val MAX_GAIN_DB = 24f
     private const val MAX_PEAK = 8f
     private const val R128_FIXED_POINT_SCALE = 256f
-    private val NUMBER_REGEX = Regex("""[-+]?(?:\d+(?:\.\d+)?|\.\d+)""")
+    private val NUMBER_REGEX = Regex("""[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?""")
 }

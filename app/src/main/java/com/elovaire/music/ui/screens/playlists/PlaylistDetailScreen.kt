@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -291,75 +292,82 @@ internal fun PlaylistDetailScreen(
             ) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        PlaylistArtworkPreview(
-                            songs = playlistSongs,
-                            title = playlistState.name,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholderIconSize = 30.dp,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.Bottom,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text(
-                                    text = playlistState.name,
-                                    style = MaterialTheme.typography.displayLarge.copy(
-                                        fontSize = elovaireScaledSp(ALBUM_HEADER_TITLE_TEXT_SIZE_SP),
-                                        fontWeight = FontWeight.SemiBold,
-                                        lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.8f,
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = buildAnnotatedString {
-                                        withStyle(
-                                            SpanStyle(
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = FontWeight.Normal,
-                                            ),
-                                        ) {
-                                            append(formatCountLabel(playlistSongs.size, "track", language))
-                                        }
-                                        append("  •  ")
-                                        withStyle(
-                                            SpanStyle(
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                                                fontWeight = FontWeight.Medium,
-                                            ),
-                                        ) {
-                                            append(formatPlaylistDuration(playlistDurationMs))
-                                        }
-                                    },
-                                    style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(12f)),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val artworkWidth = (maxWidth * 0.38f) - 10.dp
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                AlbumHeaderPlayButton(
-                                    tint = Color.White,
-                                    backgroundColor = RoseAccent,
-                                    onClick = { onPlayPlaylist(playlistSongs, playlistState.name) },
+                                PlaylistArtworkPreview(
+                                    songs = playlistSongs,
+                                    title = playlistState.name,
+                                    modifier = Modifier.width(artworkWidth),
+                                    placeholderIconSize = 30.dp,
+                                    cornerRadius = 8.dp,
                                 )
-                                AlbumHeaderActionButton(
-                                    iconResId = R.drawable.ic_lucide_shuffle,
-                                    contentDescription = "Shuffle playlist",
-                                    tint = Color.White,
-                                    backgroundColor = RoseAccent,
-                                    iconSize = 18.dp,
-                                    onClick = { onShufflePlaylist(playlistSongs, playlistState.name) },
-                                )
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = playlistState.name,
+                                        style = MaterialTheme.typography.displayLarge.copy(
+                                            fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP),
+                                            fontWeight = FontWeight.SemiBold,
+                                            lineHeight = elovaireScaledSp(28f),
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = buildAnnotatedString {
+                                            withStyle(
+                                                SpanStyle(
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                            ) {
+                                                append(formatCountLabel(playlistSongs.size, "track", language))
+                                            }
+                                            append("  •  ")
+                                            withStyle(
+                                                SpanStyle(
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                            ) {
+                                                append(formatPlaylistDuration(playlistDurationMs))
+                                            }
+                                        },
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = elovaireScaledSp(NOW_PLAYING_ARTIST_TEXT_SIZE_SP),
+                                        ),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AlbumHeaderPlayButton(
+                                tint = Color.White,
+                                backgroundColor = RoseAccent,
+                                onClick = { onPlayPlaylist(playlistSongs, playlistState.name) },
+                            )
+                            AlbumHeaderActionButton(
+                                iconResId = R.drawable.ic_lucide_shuffle,
+                                contentDescription = "Shuffle playlist",
+                                tint = Color.White,
+                                backgroundColor = RoseAccent,
+                                iconSize = 18.dp,
+                                onClick = { onShufflePlaylist(playlistSongs, playlistState.name) },
+                            )
                         }
                     }
                 }

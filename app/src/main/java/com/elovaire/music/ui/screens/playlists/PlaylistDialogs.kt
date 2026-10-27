@@ -353,6 +353,7 @@ internal fun PlaylistCreateFullScreenLayer(
     val motionSpecs = rememberMotionSpecs()
     val scope = rememberCoroutineScope()
     var name by rememberSaveable(surfaceId) { mutableStateOf("") }
+    val scrollState = rememberScrollState()
     var isCreating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var mounted by remember { mutableStateOf(visible) }
@@ -431,7 +432,8 @@ internal fun PlaylistCreateFullScreenLayer(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .verticalScroll(rememberScrollState())
+                            .ensureSingleItemRubberBand(scrollState)
+                            .verticalScroll(scrollState, overscrollEffect = null)
                             .padding(horizontal = 20.dp)
                             .padding(top = topBarOccupiedHeight() + 20.dp, bottom = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp),

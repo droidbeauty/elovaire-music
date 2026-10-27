@@ -102,7 +102,12 @@ internal class PlaybackSessionStore(
                     ?.let { stored -> PlaybackRepeatMode.entries.firstOrNull { it.name == stored } }
                     ?: PlaybackRepeatMode.Off,
                 shuffleEnabled = structure.getBoolean(KEY_SHUFFLE, false),
-                sourcePlaylistId = structure.getLong(KEY_SOURCE_PLAYLIST_ID, -1L).takeIf { it > 0L },
+                sourcePlaylistId = if (structure.contains(KEY_SOURCE_PLAYLIST_PRESENT)) {
+                    structure.getLong(KEY_SOURCE_PLAYLIST_ID, 0L)
+                        .takeIf { structure.getBoolean(KEY_SOURCE_PLAYLIST_PRESENT, false) && it != 0L }
+                } else {
+                    structure.getLong(KEY_SOURCE_PLAYLIST_ID, -1L).takeIf { it > 0L }
+                },
                 wasPlaying = recovery.getBoolean(KEY_WAS_PLAYING, false) && generationsCoherent,
                 savedAtWallTimeMs = savedAtMs,
             ),
@@ -135,6 +140,7 @@ internal class PlaybackSessionStore(
                 .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
                 .putString(KEY_REPEAT_MODE, normalized.repeatMode.name)
                 .putBoolean(KEY_SHUFFLE, normalized.shuffleEnabled)
+                .putBoolean(KEY_SOURCE_PLAYLIST_PRESENT, normalized.sourcePlaylistId != null)
                 .putLong(KEY_SOURCE_PLAYLIST_ID, normalized.sourcePlaylistId ?: -1L)
         }
         if (plan.saveRecovery || saveStructure) {
@@ -191,6 +197,7 @@ internal class PlaybackSessionStore(
         const val KEY_REPEAT_MODE = "repeat_mode"
         const val KEY_SHUFFLE = "shuffle_enabled"
         const val KEY_SOURCE_PLAYLIST_ID = "source_playlist_id"
+        const val KEY_SOURCE_PLAYLIST_PRESENT = "source_playlist_present"
         const val KEY_WAS_PLAYING = "was_playing"
         const val KEY_SAVED_AT = "saved_at_wall_time_ms"
         const val KEY_GENERATION = "generation"
@@ -278,6 +285,6 @@ internal fun normalizePersistedPlaybackSession(session: PersistedPlaybackSession
         currentSongId = ids[resolvedIndex],
         currentIndex = resolvedIndex,
         positionMs = session.positionMs.coerceAtLeast(0L),
-        sourcePlaylistId = session.sourcePlaylistId?.takeIf { it > 0L },
+        sourcePlaylistId = session.sourcePlaylistId?.takeIf { it != 0L },
     )
 }

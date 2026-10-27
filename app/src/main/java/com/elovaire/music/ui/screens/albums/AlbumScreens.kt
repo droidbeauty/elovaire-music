@@ -1154,6 +1154,9 @@ internal fun AddSongsToPlaylistOverlay(
     }
     val normalizedQuery = remember(query) { NormalizedSearchQuery.from(query) }
     val trimmedQuery = query.trim()
+    LaunchedEffect(listState, query) {
+        listState.scrollToItem(0)
+    }
     val albums = remember(candidateSongs) {
         candidateSongs.groupBy { it.albumId }
             .values

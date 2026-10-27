@@ -30,29 +30,25 @@ internal class NetworkSourceMutationRuntime(
     fun save(source: NetworkLibrarySource, credentials: NetworkCredentials) {
         if (released.get()) return
         launch(source.id) { token ->
-            try {
-                if (!runIfCurrent(source.id, token) {
-                    onResult(NetworkSourceMutationResult.Checking(source.id))
-                }) return@launch
-                val outcome = try {
-                    token.slot.mutex.withLock { coordinator.save(source, credentials) }
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (failure: Exception) {
-                    recordFailure(source.id, token, failure)
-                    return@launch
-                }
-                runIfCurrent(source.id, token) {
-                    onResult(
-                        NetworkSourceMutationResult.Saved(
-                            sourceId = source.id,
-                            probeResult = outcome.probeResult,
-                            refreshRequired = outcome.refreshRequired,
-                        ),
-                    )
-                }
-            } finally {
-                clearToken(source.id, token)
+            if (!runIfCurrent(source.id, token) {
+                onResult(NetworkSourceMutationResult.Checking(source.id))
+            }) return@launch
+            val outcome = try {
+                token.slot.mutex.withLock { coordinator.save(source, credentials) }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Exception) {
+                recordFailure(source.id, token, failure)
+                return@launch
+            }
+            runIfCurrent(source.id, token) {
+                onResult(
+                    NetworkSourceMutationResult.Saved(
+                        sourceId = source.id,
+                        probeResult = outcome.probeResult,
+                        refreshRequired = outcome.refreshRequired,
+                    ),
+                )
             }
         }
     }
@@ -60,19 +56,15 @@ internal class NetworkSourceMutationRuntime(
     fun remove(source: NetworkLibrarySource) {
         launch(source.id) { token ->
             try {
-                try {
-                    token.slot.mutex.withLock { coordinator.remove(source) }
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (failure: Exception) {
-                    recordFailure(source.id, token, failure)
-                    return@launch
-                }
-                runIfCurrent(source.id, token) {
-                    onResult(NetworkSourceMutationResult.Removed(source.id))
-                }
-            } finally {
-                clearToken(source.id, token)
+                token.slot.mutex.withLock { coordinator.remove(source) }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Exception) {
+                recordFailure(source.id, token, failure)
+                return@launch
+            }
+            runIfCurrent(source.id, token) {
+                onResult(NetworkSourceMutationResult.Removed(source.id))
             }
         }
     }
@@ -110,6 +102,7 @@ internal class NetworkSourceMutationRuntime(
                     operation(token)
                 }
                 token.job = job
+                job.invokeOnCompletion { clearToken(sourceId, token) }
             }
         }
         if (!accepted) {

@@ -26,8 +26,14 @@ internal fun decideLibrarySync(
     if (cachedSongCount == 0) return LibrarySyncDecision.FullScan
     if (cached.filterFingerprint != current.filterFingerprint) return LibrarySyncDecision.FullScan
     if (cached.volumes.size != current.volumes.size) return LibrarySyncDecision.FullScan
+    if (cached.volumes.isEmpty() || cached.volumes.any { it.generation < 0L } ||
+        current.volumes.any { it.generation < 0L }
+    ) return LibrarySyncDecision.FullScan
 
     val cachedByVolume = cached.volumes.associateBy { it.volumeName }
+    if (cachedByVolume.size != cached.volumes.size || current.volumes.map { it.volumeName }.toSet().size != current.volumes.size) {
+        return LibrarySyncDecision.FullScan
+    }
     var generationAdvanced = false
     current.volumes.forEach { currentVolume ->
         val cachedVolume = cachedByVolume[currentVolume.volumeName] ?: return LibrarySyncDecision.FullScan

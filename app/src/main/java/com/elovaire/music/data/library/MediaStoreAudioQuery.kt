@@ -158,16 +158,13 @@ internal object MediaStoreAudioQuery {
         generationFloors: Map<String, Long>,
         relativeRoots: Set<String>? = null,
     ): QueryResult? {
-        val validFloors = generationFloors
-            .filterKeys(String::isNotBlank)
-            .filterValues { it >= 0L }
-        if (validFloors.isEmpty()) return null
-        val clauses = validFloors.keys.joinToString(" OR ") {
+        if (!hasValidMediaStoreGenerationFloors(generationFloors)) return null
+        val clauses = generationFloors.keys.joinToString(" OR ") {
             "(${MediaStore.MediaColumns.VOLUME_NAME} = ? AND (" +
                 "${MediaStore.MediaColumns.GENERATION_ADDED} > ? OR " +
                 "${MediaStore.MediaColumns.GENERATION_MODIFIED} > ?))"
         }
-        val args = validFloors.flatMap { (volume, generation) ->
+        val args = generationFloors.flatMap { (volume, generation) ->
             listOf(volume, generation.toString(), generation.toString())
         }.toTypedArray()
         val scopedSelection = scopedSelection(relativeRoots)
@@ -244,3 +241,6 @@ internal object MediaStoreAudioQuery {
     private fun Array<String>?.withAdditional(vararg additional: String): Array<String>? =
         (orEmpty().toList() + additional).takeIf(List<String>::isNotEmpty)?.toTypedArray()
 }
+
+internal fun hasValidMediaStoreGenerationFloors(floors: Map<String, Long>): Boolean =
+    floors.isNotEmpty() && floors.all { (volume, generation) -> volume.isNotBlank() && generation >= 0L }

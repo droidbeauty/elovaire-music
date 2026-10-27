@@ -189,6 +189,17 @@ class RoomUserDataStoreTest {
     }
 
     @Test
+    fun audiobookProgressPersistsNegativeNetworkSongIds() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
+        withTimeout(10_000L) { store.userDataReadiness.first { it == UserDataReadiness.Ready } }
+        val progress = AudiobookProgress(songId = -7L, positionMs = 500L, completed = false, updatedAtMs = 20L)
+        store.save("network-book", progress, force = true)
+        store.release().await()
+
+        assertEquals(-7L, database.userDataDao().audiobookProgressRows().single().songId)
+    }
+
+    @Test
     fun firstCreateWaitsForInitializationBeforeAllocatingAnId() = runBlocking {
         database.userDataDao().insertPlaylist(UserPlaylistEntity(1_000L, "Existing", false))
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)

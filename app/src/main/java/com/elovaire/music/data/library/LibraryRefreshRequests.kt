@@ -156,10 +156,10 @@ internal data class LibraryRefreshRequest(
                         targetedNetworkSourceIds.isNullOrEmpty()
                 },
             mediaStoreGenerationFloors = mediaStoreGenerationFloors
-                .filterValues { it >= 0L }
                 .takeIf {
                     !forceMediaIndex &&
                         !hasMixedGenerationFloors &&
+                        it.all { (volume, generation) -> volume.isNotBlank() && generation >= 0L } &&
                         normalizedPaths.isEmpty() &&
                         targetedSafTreeIds.isNullOrEmpty() &&
                         targetedNetworkSourceIds.isNullOrEmpty()

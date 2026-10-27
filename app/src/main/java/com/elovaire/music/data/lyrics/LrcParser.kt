@@ -56,11 +56,14 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
 
         if (text.isBlank() && rawText.isNotBlank()) return@forEach
 
+        var hasValidTimestamp = false
         matches.forEach { match ->
             match.toTimeMs(offsetMs)?.let { startTimeMs ->
+                hasValidTimestamp = true
                 timed += LyricsLine(text = text, startTimeMs = startTimeMs)
             }
         }
+        if (!hasValidTimestamp && text.isNotBlank()) plain += text
     }
 
     if (timed.none { it.text.isNotBlank() }) {

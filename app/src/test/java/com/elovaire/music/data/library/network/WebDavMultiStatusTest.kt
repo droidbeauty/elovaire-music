@@ -9,6 +9,22 @@ import org.junit.Test
 
 class WebDavMultiStatusTest {
     @Test
+    fun truncatedOrUnrelatedXmlCannotBecomeAnAuthoritativeEmptyListing() {
+        val source = NetworkLibrarySource("dav", "Library", NetworkLibraryProtocol.WebDav,
+            "https://nas.example", "", "user", "key")
+        val filesystem = WebDavNetworkFileSystem()
+        listOf(
+            "<multistatus><response><href>/track.mp3</href></response>",
+            "<html></html>",
+            "<!DOCTYPE multistatus [<!ENTITY x 'bad'>]><multistatus/>",
+        ).forEach { body ->
+            assertThrows(java.io.IOException::class.java) {
+                filesystem.parseMultiStatus(body.toByteArray(), source, "")
+            }
+        }
+    }
+
+    @Test
     fun failedPropstatDoesNotSupplyMetadata() {
         val source = NetworkLibrarySource(
             id = "dav",

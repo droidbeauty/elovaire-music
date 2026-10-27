@@ -34,6 +34,7 @@ import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.screens.DetailListTopBar
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
+import elovaire.music.droidbeauty.app.ui.screens.ensureSingleItemRubberBand
 import elovaire.music.droidbeauty.app.ui.screens.TopBarActionSpec
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -67,7 +68,8 @@ internal fun AudiobookTagEditorScreen(
             state.originalBook == null -> Text(copy.notFound, Modifier.align(Alignment.Center))
             else -> LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
+                overscrollEffect = null,
+                modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
                 contentPadding = PaddingValues(
                     start = 18.dp,
                     top = ElovaireSpacing.topBarContentHeight + 44.dp,

@@ -5,11 +5,27 @@ import java.io.ByteArrayInputStream
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NetworkReadPolicyInstrumentedTest {
+    @Test
+    fun webDavParserRejectsTruncatedListingsOnDevice() {
+        val source = NetworkLibrarySource("id", "NAS", NetworkLibraryProtocol.WebDav,
+            "https://nas.example", "", "user", "key")
+        val filesystem = WebDavNetworkFileSystem()
+        val valid = """<D:multistatus xmlns:D="DAV:"><D:response><D:href>/song.mp3</D:href><D:propstat><D:prop><D:getcontentlength>10</D:getcontentlength></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response></D:multistatus>"""
+        assertEquals("song.mp3", filesystem.parseMultiStatus(valid.toByteArray(), source, "").single().path)
+        assertThrows(java.io.IOException::class.java) {
+            filesystem.parseMultiStatus(valid.removeSuffix("</D:multistatus>").toByteArray(), source, "")
+        }
+        assertThrows(java.io.IOException::class.java) {
+            filesystem.parseMultiStatus("<!DOCTYPE multistatus [<!ENTITY x 'bad'>]><multistatus/>".toByteArray(), source, "")
+        }
+    }
+
     @Test
     fun networkPathsPreserveWhitespaceThatBelongsToFileNames() {
         assertEquals(" Music / /song.mp3 ", NetworkPathPolicy.normalizeRelativePath(" Music / /song.mp3 "))

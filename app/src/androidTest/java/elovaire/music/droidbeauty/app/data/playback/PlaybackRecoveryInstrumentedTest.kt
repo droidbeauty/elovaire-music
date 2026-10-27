@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.graphics.Bitmap
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -30,6 +32,31 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PlaybackRecoveryInstrumentedTest {
+    @Test
+    fun playbackSessionRestoresSmartPlaylistAndReadsLegacyNullSentinel() {
+        val target = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = object : ContextWrapper(target) {
+            override fun getApplicationContext(): Context = this
+            override fun getSharedPreferences(name: String, mode: Int) =
+                super.getSharedPreferences("playback_session_test_$name", mode)
+        }
+        val preferences = context.getSharedPreferences("playback_session_committed", Context.MODE_PRIVATE)
+        val session = PersistedPlaybackSession(
+            queueSongIds = listOf(1L), currentSongId = 1L, currentIndex = 0,
+            positionMs = 0L, repeatMode = PlaybackRepeatMode.Off, shuffleEnabled = false,
+            sourcePlaylistId = -1L, wasPlaying = false, savedAtWallTimeMs = 1L,
+        )
+        try {
+            PlaybackSessionStore(context).save(session)
+            assertEquals(-1L, PlaybackSessionStore(context).load()?.sourcePlaylistId)
+            assertTrue(preferences.edit().remove("source_playlist_present").commit())
+            assertEquals(null, PlaybackSessionStore(context).load()?.sourcePlaylistId)
+        } finally {
+            listOf("playback_session_committed", "playback_session_structure", "playback_session_recovery", "playback_session")
+                .forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
+        }
+    }
+
     @Test
     fun rejectedSeekStopsPinningProgressAndPollingForever() {
         var elapsed = 0L

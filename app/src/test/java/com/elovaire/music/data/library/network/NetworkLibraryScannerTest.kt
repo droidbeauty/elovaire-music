@@ -127,6 +127,17 @@ class NetworkLibraryScannerTest {
     }
 
     @Test
+    fun sizeAloneDoesNotProveNetworkFileRevisionAndBlankIdsAreNotRelocationKeys() {
+        val old = inventory("old.mp3", 1L).copy(
+            entry = NetworkFileEntry("old.mp3", false, sizeBytes = 42L, sourceEntryId = " "),
+        )
+        assertEquals(false, old.hasSameRevision(old.entry))
+        assertTrue(buildNetworkInventoryIndexes(listOf(old)).bySourceEntryId.isEmpty())
+        val withEtag = old.copy(entry = old.entry.copy(etag = "etag"))
+        assertTrue(withEtag.hasSameRevision(withEtag.entry))
+    }
+
+    @Test
     fun webDavContentRangeParserRejectsMalformedAndPreservesUnknownTotal() {
         assertEquals(
             WebDavContentRange(10L, 19L, 100L),
@@ -136,6 +147,9 @@ class NetworkLibraryScannerTest {
         assertEquals(null, parseWebDavContentRange("bytes 19-10/100"))
         assertEquals(null, parseWebDavContentRange("bytes 10-19/not-a-size"))
         assertEquals(null, parseWebDavContentRange("bytes 10-19/*")?.totalLength)
+        assertEquals(null, parseWebDavContentRange("bytes -1-9/10"))
+        assertEquals(null, parseWebDavContentRange("bytes 0-9/9"))
+        assertEquals(null, parseWebDavContentRange("bytes 0-9/-1"))
     }
 
     @Test

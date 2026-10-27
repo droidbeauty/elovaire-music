@@ -87,28 +87,50 @@ internal data class SearchLibrarySnapshot(
         val digest = MessageDigest.getInstance("SHA-256")
         digest.appendSearchRevisionValue(songs.size)
         digest.appendSearchRevisionValue(albums.size)
+        digest.appendSearchRevisionValue(audiobooks.size)
         songs.forEach { song ->
-            digest.appendSearchRevisionValue(song.id)
-            digest.appendSearchRevisionValue(song.title)
-            digest.appendSearchRevisionValue(song.artist)
-            digest.appendSearchRevisionValue(song.album)
-            digest.appendSearchRevisionValue(song.albumArtist.orEmpty())
-            digest.appendSearchRevisionValue(song.artUri?.toString().orEmpty())
+            digest.appendSearchSong(song)
         }
         audiobooks.forEach { audiobook ->
             digest.appendSearchRevisionValue(audiobook.stableKey)
             digest.appendSearchRevisionValue(audiobook.title)
             digest.appendSearchRevisionValue(audiobook.author)
-            audiobook.parts.forEach { part -> digest.appendSearchRevisionValue(part.song.id) }
+            digest.appendSearchRevisionValue(audiobook.artUri)
+            digest.appendSearchRevisionValue(audiobook.durationMs)
+            digest.appendSearchRevisionValue(audiobook.description)
+            digest.appendSearchRevisionValue(audiobook.parts.size)
+            audiobook.parts.forEach { part ->
+                digest.appendSearchSong(part.song)
+                digest.appendSearchRevisionValue(part.number)
+                digest.appendSearchRevisionValue(part.titleOverride)
+                digest.appendSearchRevisionValue(part.startMs)
+                digest.appendSearchRevisionValue(part.endMs)
+            }
         }
         albums.forEach { album ->
             digest.appendSearchRevisionValue(album.id)
             digest.appendSearchRevisionValue(album.title)
             digest.appendSearchRevisionValue(album.artist)
             digest.appendSearchRevisionValue(album.artUri?.toString().orEmpty())
+            digest.appendSearchRevisionValue(album.songCount)
+            digest.appendSearchRevisionValue(album.durationMs)
+            digest.appendSearchRevisionValue(album.songs.size)
+            album.songs.forEach(digest::appendSearchSong)
         }
         return digest.digest().toSearchRevisionHex()
     }
+}
+
+private fun MessageDigest.appendSearchSong(song: Song) {
+    listOf(
+        song.id, song.title, song.isExplicit, song.artist, song.album, song.releaseYear,
+        song.genre, song.audioFormat, song.audioQuality, song.fileName, song.albumId,
+        song.durationMs, song.trackNumber, song.discNumber, song.dateAddedSeconds,
+        song.dateModifiedSeconds, song.libraryPath, song.uri, song.artUri, song.metadataResolved,
+        song.albumArtist, song.mediaKind, song.bookmarkMs, song.description,
+        song.volumeNormalization?.trackGainDb, song.volumeNormalization?.albumGainDb,
+        song.volumeNormalization?.trackPeak, song.volumeNormalization?.albumPeak,
+    ).forEach(::appendSearchRevisionValue)
 }
 
 private fun MessageDigest.appendSearchRevisionValue(value: Any?) {

@@ -198,8 +198,8 @@ internal fun EqualizerScreen(
                         Column(
                             modifier = Modifier
                                 .horizontalGestureSafe()
-                                .horizontalScroll(graphScrollState, overscrollEffect = null)
-                                .ensureHorizontalRubberBand(graphScrollState),
+                                .ensureHorizontalRubberBand(graphScrollState)
+                                .horizontalScroll(graphScrollState, overscrollEffect = null),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             EqResponseGraph(
@@ -384,8 +384,8 @@ internal fun EqualizerScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalGestureSafe()
-                                .horizontalScroll(reverbScrollState, overscrollEffect = null)
-                                .ensureHorizontalRubberBand(reverbScrollState),
+                                .ensureHorizontalRubberBand(reverbScrollState)
+                                .horizontalScroll(reverbScrollState, overscrollEffect = null),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -1067,8 +1067,8 @@ private fun EqPresetMenu(
         Row(
             modifier = Modifier.fillMaxWidth()
                 .horizontalGestureSafe()
-                .horizontalScroll(builtInScroll, overscrollEffect = null)
-                .ensureHorizontalRubberBand(builtInScroll),
+                .ensureHorizontalRubberBand(builtInScroll)
+                .horizontalScroll(builtInScroll, overscrollEffect = null),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1091,8 +1091,8 @@ private fun EqPresetMenu(
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .horizontalGestureSafe()
-                    .horizontalScroll(customScroll, overscrollEffect = null)
-                    .ensureHorizontalRubberBand(customScroll),
+                    .ensureHorizontalRubberBand(customScroll)
+                    .horizontalScroll(customScroll, overscrollEffect = null),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 customPresets.forEach { preset ->
@@ -1331,8 +1331,8 @@ private fun SpaciousnessModeMenu(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalGestureSafe()
-            .horizontalScroll(horizontalScrollState, overscrollEffect = null)
-            .ensureHorizontalRubberBand(horizontalScrollState),
+            .ensureHorizontalRubberBand(horizontalScrollState)
+            .horizontalScroll(horizontalScrollState, overscrollEffect = null),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

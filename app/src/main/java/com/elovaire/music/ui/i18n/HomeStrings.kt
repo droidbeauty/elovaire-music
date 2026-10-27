@@ -440,6 +440,42 @@ internal data class HomeUiCopy(
     val noFavoriteAlbumsMessage: String,
 )
 
+internal fun albumOfDayTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Albumi i ditës"
+    AppLanguage.English -> "Album of the day"
+    AppLanguage.ChineseSimplified -> "每日专辑"
+    AppLanguage.Croatian -> "Album dana"
+    AppLanguage.Czech -> "Album dne"
+    AppLanguage.Danish -> "Dagens album"
+    AppLanguage.Dutch -> "Album van de dag"
+    AppLanguage.Bengali -> "আজকের অ্যালবাম"
+    AppLanguage.Estonian -> "Päeva album"
+    AppLanguage.French -> "Album du jour"
+    AppLanguage.German -> "Album des Tages"
+    AppLanguage.Greek -> "Άλμπουμ της ημέρας"
+    AppLanguage.Hindi -> "आज का एल्बम"
+    AppLanguage.Hungarian -> "A nap albuma"
+    AppLanguage.Italian -> "Album del giorno"
+    AppLanguage.Japanese -> "今日のアルバム"
+    AppLanguage.Korean -> "오늘의 앨범"
+    AppLanguage.Latin -> "Album diei"
+    AppLanguage.Latvian -> "Dienas albums"
+    AppLanguage.Lithuanian -> "Dienos albumas"
+    AppLanguage.Malay -> "Album hari ini"
+    AppLanguage.Macedonian -> "Албум на денот"
+    AppLanguage.Norwegian -> "Dagens album"
+    AppLanguage.Polish -> "Album dnia"
+    AppLanguage.Portuguese -> "Álbum do dia"
+    AppLanguage.Russian -> "Альбом дня"
+    AppLanguage.Slovak -> "Album dňa"
+    AppLanguage.Serbian -> "Албум дана"
+    AppLanguage.Spanish -> "Álbum del día"
+    AppLanguage.Swedish -> "Dagens album"
+    AppLanguage.Thai -> "อัลบั้มประจำวัน"
+    AppLanguage.Ukrainian -> "Альбом дня"
+    AppLanguage.Urdu -> "آج کا البم"
+}
+
 internal fun homeCopy(language: AppLanguage): HomeUiCopy = when (language) {
     AppLanguage.Polish -> HomeUiCopy(
         indexingTitle = "Trwa indeksowanie biblioteki",

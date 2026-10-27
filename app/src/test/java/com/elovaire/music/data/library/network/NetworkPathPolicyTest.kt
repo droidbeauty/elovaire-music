@@ -9,6 +9,12 @@ import org.junit.Test
 
 class NetworkPathPolicyTest {
     @Test
+    fun missingSmbFolderIsNotReportedAsAvailable() {
+        assertEquals(NetworkAvailability.Unavailable, smbFolderProbeResult(false).availability)
+        assertEquals(NetworkAvailability.Available, smbFolderProbeResult(true).availability)
+    }
+
+    @Test
     fun filterFingerprintUsesLocationNotCredentialsOrCaseFoldedPaths() {
         val source = NetworkLibrarySource(
             id = "nas",

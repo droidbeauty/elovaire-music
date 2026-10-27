@@ -201,6 +201,7 @@ internal class ChapterExtractorOutput : ExtractorOutput {
             .mapNotNull { chapter ->
                 val startMs = chapter.startTimeMs.takeUnless { it == C.TIME_UNSET }?.coerceAtLeast(0L)
                     ?: return@mapNotNull null
+                if (durationMs > 0L && startMs >= durationMs) return@mapNotNull null
                 ChapterCandidate(
                     title = chapter.title?.value?.trim().orEmpty(),
                     startMs = startMs,
@@ -213,7 +214,12 @@ internal class ChapterExtractorOutput : ExtractorOutput {
             .toList()
         return candidates.mapIndexedNotNull { index, chapter ->
             val nextStartMs = candidates.getOrNull(index + 1)?.startMs
-            val knownEndMs = nextStartMs ?: durationMs.takeIf { it > chapter.startMs }
+            val durationEndMs = durationMs.takeIf { it > chapter.startMs }
+            val knownEndMs = if (nextStartMs != null && durationEndMs != null) {
+                min(nextStartMs, durationEndMs)
+            } else {
+                nextStartMs ?: durationEndMs
+            }
             val endMs = chapter.endMs
                 ?.let { declaredEndMs -> knownEndMs?.let { min(declaredEndMs, it) } ?: declaredEndMs }
                 ?: knownEndMs

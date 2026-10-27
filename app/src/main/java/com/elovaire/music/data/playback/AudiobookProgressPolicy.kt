@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.playback
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 
 data class AudiobookPlaybackContext(
     val bookKey: String,
@@ -22,7 +23,7 @@ data class AudiobookPlaybackContext(
             null
         }
         orderedSongIds.forEachIndexed { index, songId ->
-            if (songId > 0L && seenSongIds.add(songId)) {
+            if (isValidMediaId(songId) && seenSongIds.add(songId)) {
                 uniqueSongIds += songId
                 uniqueSongDurations?.add(orderedSongDurationsMs[index].orZero())
             }
@@ -171,7 +172,9 @@ private fun List<AudiobookPart>.indexOfActivePart(songId: Long?, positionMs: Lon
             true
         }
     }.takeIf { it >= 0 }
-        ?: indexOfLast { it.song.id == songId }.takeIf { it >= 0 }
+        ?: indexOfLast { it.song.id == songId && (it.startMs ?: 0L) <= positionMs.coerceAtLeast(0L) }
+            .takeIf { it >= 0 }
+        ?: indexOfFirst { it.song.id == songId }.takeIf { it >= 0 }
 }
 
 private fun partOffsetMs(part: AudiobookPart, positionMs: Long): Long {

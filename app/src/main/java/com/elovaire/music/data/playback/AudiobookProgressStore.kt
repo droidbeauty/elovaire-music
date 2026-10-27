@@ -4,6 +4,7 @@ import android.content.Context
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import org.json.JSONException
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -58,11 +59,11 @@ internal class AudiobookProgressStore(
                 val updatedAtMs = json.optLong("updatedAtMs").takeIf { it > 0L } ?: return@let null
                 if (updatedAtMs > nowMs + FUTURE_TIMESTAMP_SKEW_MS) return@let null
                 AudiobookProgress(
-                    songId = json.optLong("songId").takeIf { it > 0L } ?: return@let null,
+                    songId = json.optLong("songId").takeIf(::isValidMediaId) ?: return@let null,
                     positionMs = positionMs,
                     completed = json.optBoolean("completed"),
                     updatedAtMs = updatedAtMs,
-                    bookElapsedMs = json.optLong("bookElapsedMs")
+                    bookElapsedMs = json.optLong("bookElapsedMs", -1L)
                         .takeIf { it >= 0L }
                         ?.let { elapsed -> bookDurationMs?.let(elapsed::coerceAtMost) ?: elapsed },
                     bookDurationMs = bookDurationMs,
@@ -104,7 +105,7 @@ internal class AudiobookProgressStore(
         bookDurationMs: Long? = null,
     ) {
         try {
-            if (bookKey.isBlank() || songId <= 0L) return
+            if (bookKey.isBlank() || !isValidMediaId(songId)) return
             val progress = snapshot(
                 songId = songId,
                 positionMs = positionMs,
@@ -127,7 +128,7 @@ internal class AudiobookProgressStore(
     }
 
     override fun save(bookKey: String, progress: AudiobookProgress, force: Boolean) {
-        if (bookKey.isBlank() || progress.songId <= 0L) return
+        if (bookKey.isBlank() || !isValidMediaId(progress.songId)) return
         val json = JSONObject()
             .put("positionMs", progress.positionMs.coerceAtLeast(0L))
             .put("songId", progress.songId)
@@ -164,11 +165,11 @@ internal class AudiobookProgressStore(
             val updatedAtMs = json.optLong("updatedAtMs").takeIf { it > 0L } ?: return@let null
             if (updatedAtMs > nowMs + FUTURE_TIMESTAMP_SKEW_MS) return@let null
             AudiobookProgress(
-                songId = json.optLong("songId").takeIf { it > 0L } ?: return@let null,
+                songId = json.optLong("songId").takeIf(::isValidMediaId) ?: return@let null,
                 positionMs = positionMs,
                 completed = json.optBoolean("completed"),
                 updatedAtMs = updatedAtMs,
-                bookElapsedMs = json.optLong("bookElapsedMs").takeIf { it >= 0L }
+                bookElapsedMs = json.optLong("bookElapsedMs", -1L).takeIf { it >= 0L }
                     ?.let { elapsed -> bookDurationMs?.let(elapsed::coerceAtMost) ?: elapsed },
                 bookDurationMs = bookDurationMs,
             )

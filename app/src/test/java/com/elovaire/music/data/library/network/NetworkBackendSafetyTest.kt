@@ -9,9 +9,30 @@ import kotlinx.coroutines.cancel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertSame
 import org.junit.Test
 
 class NetworkBackendSafetyTest {
+    @Test
+    fun smbConcurrentRequestsReuseAnUnconnectedSession() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val clock = object : elovaire.music.droidbeauty.app.core.AppClock {
+            override fun wallTimeMs() = 0L
+            override fun elapsedTimeMs() = 0L
+        }
+        val fileSystem = SmbNetworkFileSystem(scope, clock)
+        try {
+            val sessionFor = SmbNetworkFileSystem::class.java.getDeclaredMethod(
+                "sessionFor", NetworkLibrarySource::class.java, NetworkCredentials::class.java,
+            ).apply { isAccessible = true }
+            val source = networkSource(NetworkLibraryProtocol.Smb)
+            assertSame(sessionFor.invoke(fileSystem, source, credentials()), sessionFor.invoke(fileSystem, source, credentials()))
+        } finally {
+            fileSystem.release()
+            scope.cancel()
+        }
+    }
+
     @Test
     fun boundedDirectoryConsumerStopsBeforeReadingAnotherEntry() {
         val iterator = (1..10).iterator()

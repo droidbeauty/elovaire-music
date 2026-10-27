@@ -38,6 +38,13 @@ class LrcParserTest {
     }
 
     @Test
+    fun linesWithOnlyInvalidTimestampsFallBackToPlainLyrics() {
+        val payload = requireNotNull(parseLrcOrPlain("[00:99.00]First line\n[01:70]Second line"))
+        assertFalse(payload.isSynced)
+        assertEquals(listOf("First line", "Second line"), payload.lines.map { it.text })
+    }
+
+    @Test
     fun blankTimedLinesAndMetadataDoNotCreateVisibleRows() {
         val payload = requireNotNull(
             parseLrcOrPlain(

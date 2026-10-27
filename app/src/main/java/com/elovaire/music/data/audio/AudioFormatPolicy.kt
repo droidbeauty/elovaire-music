@@ -504,6 +504,7 @@ internal object AudioFormatPolicy {
     }
 
     fun playbackSupport(detected: DetectedAudioFormat): PlaybackSupport {
+        if (!detected.detectionSucceeded) return PlaybackSupport.Unsupported
         if (!detected.hasAudioTrack || detected.hasVideoTrack || detected.isProtected) return PlaybackSupport.Unsupported
         if (!isCodecAllowed(detected.container, detected.codecMimeType)) return PlaybackSupport.Unsupported
         if (detected.decoderAvailable == false) return PlaybackSupport.Unsupported
@@ -568,6 +569,7 @@ internal object AudioFormatPolicy {
         val base = capabilityForFileName(fileName) ?: return TagWriteSupport.Unsupported
         if (base.tagWriteSupport != TagWriteSupport.Safe) return base.tagWriteSupport
         if (detected == null) return base.tagWriteSupport
+        if (detected.container != base.format) return TagWriteSupport.Unsupported
         if (!detected.detectionSucceeded || !detected.hasAudioTrack || detected.hasVideoTrack || detected.isProtected) {
             return TagWriteSupport.Unsupported
         }
@@ -637,7 +639,8 @@ internal object AudioFormatPolicy {
     }
 
     fun canFingerprint(fileName: String): Boolean {
-        return capabilityForFileName(fileName)?.playbackSupport != PlaybackSupport.Unsupported
+        val capability = capabilityForFileName(fileName) ?: return false
+        return capability.playbackSupport != PlaybackSupport.Unsupported
     }
 
     fun playbackMimeType(fileName: String): String? {

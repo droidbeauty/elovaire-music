@@ -7,11 +7,22 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
 import kotlin.system.measureNanoTime
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class MediaTreeBackendEfficiencyInstrumentedTest {
+    @Test
+    fun bucketIdsRoundTripForEveryBrowseCategory() {
+        listOf("songs", "albums", "artists").forEach { parent ->
+            listOf("A", "#").forEach { key ->
+                val id = ElovaireMediaId.Bucket(parent, key)
+                assertEquals(id, ElovaireMediaIds.parse(id.value))
+            }
+        }
+    }
+
     @Test
     fun repeatedArtistBrowseReusesSortedContextData() {
         val songs = (1L..5_000L).map { id ->

@@ -388,8 +388,10 @@ private fun SmartPlaylistEditorContent(
     onSortDirectionChanged: (SortDirection) -> Unit,
     onLimitChanged: (String) -> Unit,
 ) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
         overscrollEffect = null,
         contentPadding = PaddingValues(
             start = 20.dp,

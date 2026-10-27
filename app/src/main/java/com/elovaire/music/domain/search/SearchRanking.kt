@@ -168,8 +168,7 @@ private fun topMatchingSongs(
     limit: Int,
     cancellationCheck: () -> Unit = {},
 ): TopMatchingSongs {
-    val bestFirst = rankedSongComparator(sortMode)
-    val songComparator = searchableSongComparator(sortMode)
+    val bestFirst = rankedSongComparator(sortMode).thenBy { it.sourceIndex }
     val worstFirst = bestFirst.reversed()
     val heap = PriorityQueue<RankedResult<SearchableSong>>(limit, worstFirst)
     var matchCount = 0
@@ -184,14 +183,12 @@ private fun topMatchingSongs(
             normalizedAlbumArtist = song.normalizedAlbumArtist,
         )?.let { score ->
             matchCount++
+            val candidate = RankedResult(song, score, sourceIndex = index)
             if (heap.size < limit) {
-                heap += RankedResult(song, score)
-            } else {
-                val worst = requireNotNull(heap.peek())
-                if (score > worst.score || (score == worst.score && songComparator.compare(song, worst.value) < 0)) {
-                    heap.poll()
-                    heap += RankedResult(song, score)
-                }
+                heap += candidate
+            } else if (bestFirst.compare(candidate, requireNotNull(heap.peek())) < 0) {
+                heap.poll()
+                heap += candidate
             }
         }
     }

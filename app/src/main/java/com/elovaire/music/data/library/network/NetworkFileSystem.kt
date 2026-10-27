@@ -377,7 +377,7 @@ internal class NetworkOperationAdmission(
         try {
             if (closed.get()) throw IOException("Network operation admission is closed")
             val remainingNs = deadline - System.nanoTime()
-            if (remainingNs < 0L || !semaphore.tryAcquire(remainingNs, TimeUnit.NANOSECONDS)) {
+            if (!semaphore.tryAcquire(remainingNs.coerceAtLeast(0L), TimeUnit.NANOSECONDS)) {
                 throw IOException("Network operation capacity is temporarily exhausted")
             }
             if (closed.get()) {

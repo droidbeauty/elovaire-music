@@ -16,6 +16,28 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class NetworkSourceMutationRuntimeTest {
     @Test
+    fun canceledBeforeStartDoesNotRetainSourceSlots() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val runtime = NetworkSourceMutationRuntime(
+            scope = this,
+            coordinator = object : NetworkSourceMutationBackend {
+                override suspend fun save(source: NetworkLibrarySource, credentials: NetworkCredentials) =
+                    NetworkSourceMutationOutcome(NetworkProbeResult(NetworkAvailability.Available), false)
+                override suspend fun remove(source: NetworkLibrarySource) = Unit
+            },
+            onResult = {},
+            ioDispatcher = dispatcher,
+        )
+        repeat(20) {
+            runtime.save(source(), NetworkCredentials("user", "password"))
+        }
+        advanceUntilIdle()
+        val slots = NetworkSourceMutationRuntime::class.java.getDeclaredField("sourceSlots").apply { isAccessible = true }
+        assertEquals(0, (slots.get(runtime) as Map<*, *>).size)
+        runtime.release()
+    }
+
+    @Test
     fun saveEmitsOneTypedCurrentGenerationOutcome() = runTest {
         val source = source()
         val results = mutableListOf<NetworkSourceMutationResult>()

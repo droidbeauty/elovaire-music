@@ -21,6 +21,8 @@ class AppVersionPolicyTest {
         assertTrue(AppVersionPolicy.isSame("v1.2", "1.2.0"))
         assertTrue(AppVersionPolicy.isNewer("999999999999999999999.0.0", "1.999.999"))
         assertFalse(AppVersionPolicy.isNewer("not-a-version", "1.0.0"))
+        assertTrue(AppVersionPolicy.isNewer("1.0.0-01.3", "1.0.0-1.2"))
+        assertTrue(AppVersionPolicy.isSame("1.0.0-01", "1.0.0-1"))
     }
 
     @Test

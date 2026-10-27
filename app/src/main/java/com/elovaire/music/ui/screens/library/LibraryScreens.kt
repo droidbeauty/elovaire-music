@@ -401,6 +401,7 @@ internal fun HomeScreen(
     onOpenRecentlyAdded: () -> Unit,
     onSongSelected: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
+    albumOfDay: Album? = null,
 ) {
     val listState = rememberElovaireLazyListState("home_screen")
     val language = LocalAppLanguage.current
@@ -598,6 +599,17 @@ internal fun HomeScreen(
                                     album = album,
                                     onOpen = { origin -> onAlbumSelected(album, origin) },
                                     onPlay = { onPlayAlbum(album) },
+                                )
+                            }
+                        }
+
+                        if (albumOfDay != null) {
+                            item(key = "home_album_of_day") {
+                                AlbumOfDayModule(
+                                    album = albumOfDay,
+                                    onOpen = { origin -> onAlbumSelected(albumOfDay, origin) },
+                                    onPlay = { onPlayAlbum(albumOfDay) },
+                                    modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
                                 )
                             }
                         }
@@ -2644,7 +2656,8 @@ internal fun ArtistDiscographyPopup(
                                 is ArtistDiscographyResult.Found -> {
                                     LazyColumn(
                                         state = listState,
-                                        modifier = Modifier.fillMaxSize(),
+                                        overscrollEffect = null,
+                                        modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
                                         verticalArrangement = Arrangement.spacedBy(0.dp),
                                     ) {
                                         if (discography.description != null) {
@@ -3115,8 +3128,8 @@ internal fun ArtistAlbumGallery(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalGestureSafe()
-                .horizontalScroll(scrollState, overscrollEffect = null)
-                .ensureHorizontalRubberBand(scrollState),
+                .ensureHorizontalRubberBand(scrollState)
+                .horizontalScroll(scrollState, overscrollEffect = null),
             horizontalArrangement = Arrangement.spacedBy(itemGap),
         ) {
             albums.forEach { album ->

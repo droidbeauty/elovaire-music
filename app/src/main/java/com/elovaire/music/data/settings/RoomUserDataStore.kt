@@ -27,6 +27,7 @@ import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserSmartPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgressRepository
@@ -167,7 +168,7 @@ internal class RoomUserDataStore(
     }
 
     override fun save(bookKey: String, progress: AudiobookProgress, force: Boolean) {
-        if (bookKey.isBlank() || progress.songId <= 0L) return
+        if (bookKey.isBlank() || !isValidMediaId(progress.songId)) return
         val storageKey = storageKeyForBook(bookKey)
         val normalized = progress.copy(
             positionMs = progress.positionMs.coerceAtLeast(0L),

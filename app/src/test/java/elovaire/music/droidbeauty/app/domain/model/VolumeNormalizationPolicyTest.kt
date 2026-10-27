@@ -7,6 +7,26 @@ import org.junit.Test
 
 class VolumeNormalizationPolicyTest {
     @Test
+    fun invalidTrackValuesFallBackToValidAlbumMetadata() {
+        val metadata = VolumeNormalizationMetadata(
+            trackGainDb = Float.NaN, albumGainDb = 6f,
+            trackPeak = Float.NaN, albumPeak = 0.8f,
+        )
+        assertEquals(1.25f, VolumeNormalizationPolicy.multiplierFor(metadata), 0.001f)
+    }
+
+    @Test
+    fun peakProtectionCanReduceGainBelowNormalFloor() {
+        val metadata = VolumeNormalizationMetadata(trackGainDb = -30f, trackPeak = 8f)
+        assertEquals(0.125f, VolumeNormalizationPolicy.multiplierFor(metadata), 0.001f)
+    }
+
+    @Test
+    fun peakParsingSupportsScientificNotation() {
+        assertEquals(0.125f, VolumeNormalizationPolicy.parsePeak("1.25e-1") ?: 0f, 0.0001f)
+    }
+
+    @Test
     fun parseGain_acceptsReplayGainDbValues() {
         assertEquals(-7.5f, VolumeNormalizationPolicy.parseGain("-7.50 dB") ?: 0f, 0.001f)
         assertEquals(3.25f, VolumeNormalizationPolicy.parseGain("+3.25 dB") ?: 0f, 0.001f)

@@ -93,9 +93,9 @@ internal object ElovaireMediaIds {
     private const val MAX_MEDIA_ID_CHARACTERS = 1_024
     private const val MAX_BUCKET_KEY_CHARACTERS = 8
     private val BUCKET_PARENTS = setOf(
-        ElovaireMediaId.Songs.value,
-        ElovaireMediaId.Albums.value,
-        ElovaireMediaId.Artists.value,
+        "songs",
+        "albums",
+        "artists",
     )
 
     private fun String.toDomainIdOrNull(): Long? = toLongOrNull()?.takeIf { it != 0L }

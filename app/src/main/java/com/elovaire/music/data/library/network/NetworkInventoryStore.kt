@@ -198,7 +198,7 @@ internal data class NetworkInventoryEntry(
     val song: Song,
 ) {
     fun hasSameRevision(other: NetworkFileEntry): Boolean {
-        val hasStrongRevision = entry.sizeBytes != null || entry.modifiedAtMs != null || entry.etag != null
+        val hasStrongRevision = entry.modifiedAtMs != null || !entry.etag.isNullOrBlank()
         return hasStrongRevision &&
             entry.sizeBytes == other.sizeBytes &&
             entry.modifiedAtMs == other.modifiedAtMs &&
@@ -265,7 +265,7 @@ internal fun buildNetworkInventoryIndexes(
     entries.forEach { entry ->
         byPath[entry.entry.path] = entry
 
-        entry.entry.sourceEntryId?.let { sourceEntryId ->
+        entry.entry.sourceEntryId?.takeIf(String::isNotBlank)?.let { sourceEntryId ->
             if (sourceEntryId !in ambiguousSourceEntryIds &&
                 bySourceEntryId.putIfAbsent(sourceEntryId, entry) != null
             ) {

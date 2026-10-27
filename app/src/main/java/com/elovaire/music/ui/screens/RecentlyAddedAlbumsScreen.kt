@@ -1,5 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,16 +43,22 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
+import elovaire.music.droidbeauty.app.ui.screens.common.toggleSelection
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -73,6 +83,34 @@ internal fun RecentlyAddedAlbumsScreen(
     val language = LocalAppLanguage.current
     val searchCopy = remember(language) { searchCopy(language) }
     var query by rememberSaveable { mutableStateOf("") }
+    var selectedAlbumIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
+    val selectionModeActive = selectedAlbumIds.isNotEmpty()
+    val selectedAlbums = remember(albums, selectedAlbumIds) {
+        albums.filter { it.id in selectedAlbumIds }
+    }
+    val selectedSongs = remember(selectedAlbums) {
+        selectedAlbums.flatMap(Album::songs).distinctBy(Song::id)
+    }
+    val combinedAlbum = remember(selectedSongs) {
+        Album(
+            id = -1L,
+            title = "",
+            artist = "",
+            artUri = null,
+            songCount = selectedSongs.size,
+            durationMs = selectedSongs.sumDurationMs(),
+            songs = selectedSongs,
+        )
+    }
+    LaunchedEffect(albums) {
+        selectedAlbumIds = selectedAlbumIds.intersect(albums.mapTo(mutableSetOf(), Album::id))
+    }
+    val leaveSelection: () -> Unit = {
+        selectedAlbumIds = emptySet()
+        showPlaylistPicker = false
+    }
+    BackHandler(enabled = selectionModeActive, onBack = leaveSelection)
     val matchingAlbums = remember(albums, query) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
@@ -88,8 +126,14 @@ internal fun RecentlyAddedAlbumsScreen(
     val listState = rememberElovaireLazyListState("recently_added_albums_list")
     val revealRegistry = rememberMotionRevealRegistry()
     val motionSpecs = rememberMotionSpecs()
+    val motionTransitions = rememberMotionTransitions()
+    val selectionTopInset by animateDpAsState(
+        targetValue = if (selectionModeActive) 50.dp else 0.dp,
+        animationSpec = motionSpecs.contentSize(),
+        label = "recently_added_selection_top_inset",
+    )
     val searchBarAreaHeight = 96.dp
-    val contentTopInset = detailTopBarOccupiedHeight() + searchBarAreaHeight
+    val contentTopInset = detailTopBarOccupiedHeight() + selectionTopInset + searchBarAreaHeight
     val searchBarHazeState = rememberHazeState()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -139,11 +183,20 @@ internal fun RecentlyAddedAlbumsScreen(
                         ) {
                             CompactAlbumRow(
                                 album = album,
+                                selectionMode = selectionModeActive,
+                                selected = album.id in selectedAlbumIds,
                                 isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
                                 showFavoriteButton = true,
                                 playlists = playlists,
                                 playlistSongsById = playlistSongsById,
-                                onOpen = { origin -> onAlbumSelected(album, origin) },
+                                onOpen = { origin ->
+                                    if (selectionModeActive) {
+                                        selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                    } else {
+                                        onAlbumSelected(album, origin)
+                                    }
+                                },
+                                onLongPress = { selectedAlbumIds = selectedAlbumIds + album.id },
                                 onToggleFavorite = {
                                     onSetAlbumFavorite(
                                         album.songs.map(Song::id),
@@ -179,7 +232,7 @@ internal fun RecentlyAddedAlbumsScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .padding(
-                    top = detailTopBarOccupiedHeight(),
+                    top = detailTopBarOccupiedHeight() + selectionTopInset,
                 )
                 .height(searchBarAreaHeight),
             contentAlignment = Alignment.Center,
@@ -195,13 +248,45 @@ internal fun RecentlyAddedAlbumsScreen(
                     .padding(horizontal = 20.dp),
             )
         }
+        AnimatedVisibility(
+            visible = selectionModeActive,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = motionTransitions.verticalRevealEnter(),
+            exit = motionTransitions.verticalRevealExit(),
+        ) {
+            TopBarSelectionMenu(
+                topBarHeight = detailTopBarOccupiedHeight(),
+                hazeState = searchBarHazeState,
+                onAddToPlaylist = { showPlaylistPicker = true },
+                onDelete = {
+                    onDeleteAlbumFromDevice(combinedAlbum)
+                    leaveSelection()
+                },
+            )
+        }
         DetailListTopBar(
             title = miscPhrase(language, MiscPhrase.RecentlyAdded),
             subtitle = localizedCountLabel(matchingAlbums.size, "album", language),
-            onBack = onBack,
+            onBack = { if (selectionModeActive) leaveSelection() else onBack() },
             modifier = Modifier.align(Alignment.TopCenter),
         )
     }
+    PlaylistSelectionDialog(
+        visible = showPlaylistPicker && selectionModeActive,
+        title = uiPhrase(language, UiPhrase.AddToPlaylist),
+        subtitle = if (selectedAlbums.size == 1) selectedAlbums.first().title else {
+            "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedSongs.size, "song", language)}"
+        },
+        playlists = playlists.filterNot(Playlist::isSystem),
+        playlistSongsById = playlistSongsById,
+        onDismiss = { showPlaylistPicker = false },
+        onPlaylistSelected = { playlistId ->
+            val result = onAddAlbumToPlaylist(playlistId, combinedAlbum).await()
+            if (result is PlaylistMutationResult.Success) leaveSelection()
+            result
+        },
+        onCreatePlaylist = onCreatePlaylist,
+    )
 }
 
 @Composable

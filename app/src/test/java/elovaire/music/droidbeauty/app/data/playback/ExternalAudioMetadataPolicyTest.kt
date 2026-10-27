@@ -7,6 +7,12 @@ import org.junit.Test
 
 class ExternalAudioMetadataPolicyTest {
     @Test
+    fun supportedPathExtensionIsUsedWhenDisplayNameExtensionIsUnknown() {
+        val actual = ExternalAudioMetadataPolicy.resolveCapability("track.bin", "track.flac", null)
+        assertEquals(elovaire.music.droidbeauty.app.data.audio.AudioContainerFormat.Flac, actual?.format)
+    }
+
+    @Test
     fun acceptsUriSchemesWithoutCaseSensitivity() {
         assertEquals(true, ExternalAudioMetadataPolicy.acceptsUri("CONTENT", 24))
         assertEquals(true, ExternalAudioMetadataPolicy.acceptsUri("FILE", 18))

@@ -512,14 +512,16 @@ internal fun UpdateAvailableDialog(
                         }
                     }
                     val visibleChangeCount = minOf(changes.size, 6).coerceAtLeast(1)
+                    val changelogListState = rememberLazyListState()
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height((visibleChangeCount * 24 + (visibleChangeCount - 1) * 18).dp),
                     ) {
                         LazyColumn(
+                            state = changelogListState,
                             overscrollEffect = null,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(changelogListState),
                             contentPadding = PaddingValues.Zero,
                         ) {
                             item {
@@ -772,8 +774,8 @@ private fun AboutEntryBlock(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(linksScrollState, overscrollEffect = null)
-                        .ensureHorizontalRubberBand(linksScrollState),
+                        .ensureHorizontalRubberBand(linksScrollState)
+                        .horizontalScroll(linksScrollState, overscrollEffect = null),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     visibleLinks.forEach { link ->

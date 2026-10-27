@@ -30,6 +30,13 @@ class PlaybackSessionStoreTest {
     }
 
     @Test
+    fun normalizationRetainsBuiltInSmartPlaylistIdentity() {
+        val value = session(listOf(1L), 1L).copy(sourcePlaylistId = -1L)
+        assertEquals(-1L, normalizePersistedPlaybackSession(value).sourcePlaylistId)
+        assertNull(normalizePersistedPlaybackSession(value.copy(sourcePlaylistId = 0L)).sourcePlaylistId)
+    }
+
+    @Test
     fun persistedFormatRejectsUnknownFutureVersions() {
         assertEquals(true, isSupportedPlaybackSessionVersion(LEGACY_FORMAT_VERSION))
         assertTrue(isSupportedPlaybackSessionVersion(DUAL_FILE_FORMAT_VERSION))

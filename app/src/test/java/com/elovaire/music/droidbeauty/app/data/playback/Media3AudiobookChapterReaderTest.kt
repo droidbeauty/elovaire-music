@@ -28,6 +28,20 @@ import java.io.IOException
 
 class Media3AudiobookChapterReaderTest {
     @Test
+    fun chapterBoundariesStayWithinKnownMediaDuration() {
+        val output = ChapterExtractorOutput()
+        val track = output.track(0, C.TRACK_TYPE_AUDIO) as ChapterTrackOutput
+        track.format(Format.Builder().setSampleMimeType("audio/mp4").setMetadata(Metadata(
+            Chapter.Builder().setStartTimeMs(0L).setEndTimeMs(2_000L).build(),
+            Chapter.Builder().setStartTimeMs(1_500L).setEndTimeMs(2_000L).build(),
+        )).build())
+
+        val chapters = output.chapters(1_000L)
+        assertEquals(1, chapters.size)
+        assertEquals(1_000L, chapters.single().endMs)
+    }
+
+    @Test
     fun chapterMetadataIsFilteredAndNormalized() {
         val output = ChapterExtractorOutput()
         val track = output.track(0, C.TRACK_TYPE_AUDIO) as ChapterTrackOutput
