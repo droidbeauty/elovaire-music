@@ -10,6 +10,9 @@ class PortableSettingsBackupTest {
     fun backsUpPortableSettingsButNotDeviceBoundMediaState() {
         assertTrue(isPortableSettingKey("theme_mode"))
         assertTrue(isPortableSettingKey("crossfade_enabled"))
+        assertTrue(isPortableSettingKey("home_module_order"))
+        assertTrue(isPortableSettingKey("audiobook_playback_speed"))
+        assertTrue(isPortableSettingKey("audiobook_rewind_on_resume"))
         listOf("upscaler_enabled", "upscaler_multiplier", "upscaler_high_precision", "upscaler_headroom_db").forEach {
             assertTrue(isPortableSettingKey(it))
             assertTrue(it in settingsPreferenceKeys)

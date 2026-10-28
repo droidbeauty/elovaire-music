@@ -8,6 +8,7 @@
     -->
     <release version="2.9.7">
         <item>New feature - album of the day section available in the Home tab</item>
+        <item>New feature - customizable order of Home tab layout in settings</item>
         <item>Improved scrolling behavior</item>
         <item>Added album management interaction via long press in Recently added section</item>
         <item>General efficiency upgrades and bug fixes</item>

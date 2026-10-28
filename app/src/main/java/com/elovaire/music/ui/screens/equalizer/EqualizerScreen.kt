@@ -281,6 +281,7 @@ internal fun EqualizerScreen(
                         valueRange = EqValuePolicy.MIN_PREAMP_DB..EqValuePolicy.MAX_PREAMP_DB,
                         centerValue = 0f,
                         stepSize = EqValuePolicy.GAIN_STEP_DB,
+                        visualStepSize = 1f,
                         stepDotAlpha = 1f,
                         modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = "Preamp" },
                     )
@@ -354,6 +355,7 @@ internal fun EqualizerScreen(
                             onValueChange = onSpaciousnessChanged,
                             valueRange = 0f..1f,
                             enabled = settings.spaciousnessMode != SpaciousnessMode.Off,
+                            fullOpacityKnob = true,
                         )
                     }
                 }
@@ -393,6 +395,7 @@ internal fun EqualizerScreen(
                                 label = uiPhrase(language, UiPhrase.Reset),
                                 selected = false,
                                 emphasized = true,
+                                emphasisAlpha = if (settings.reverbDurationMs != 0 || settings.reverbProfile != ReverbProfile.Dry) 1f else 0.4f,
                                 useSubtleIdleBackground = true,
                                 onClick = onResetReverb,
                             )
@@ -975,6 +978,7 @@ private fun EqMacroSliderRow(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     enabled: Boolean = true,
+    fullOpacityKnob: Boolean = false,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -1000,6 +1004,7 @@ private fun EqMacroSliderRow(
             onValueChange = onValueChange,
             valueRange = valueRange,
             enabled = enabled,
+            fullOpacityKnob = fullOpacityKnob,
             modifier = Modifier.semantics { contentDescription = title },
         )
     }
@@ -1074,7 +1079,9 @@ private fun EqPresetMenu(
         ) {
             EqPresetPill(
                 label = uiPhrase(language, UiPhrase.Reset),
-                selected = !equalizerEnabled,
+                selected = false,
+                emphasized = true,
+                emphasisAlpha = if (sanitized != EqValuePolicy.sanitize(EqSettings())) 1f else 0.4f,
                 onClick = onReset,
             )
             presets.forEach { preset ->
@@ -1340,6 +1347,7 @@ private fun SpaciousnessModeMenu(
             label = uiPhrase(language, UiPhrase.Reset),
             selected = false,
             emphasized = true,
+            emphasisAlpha = if (spaciousnessAmount > 0.001f) 1f else 0.4f,
             useSubtleIdleBackground = true,
             onClick = onReset,
         )
@@ -1367,13 +1375,14 @@ private fun EqPresetPill(
     label: String,
     selected: Boolean,
     emphasized: Boolean = false,
+    emphasisAlpha: Float = 1f,
     useSubtleIdleBackground: Boolean = false,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val targetBackgroundColor = if (emphasized) {
-        MaterialTheme.colorScheme.primary
+        MaterialTheme.colorScheme.primary.copy(alpha = emphasisAlpha)
     } else if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
     } else if (useSubtleIdleBackground) {
@@ -1922,11 +1931,13 @@ internal fun ThinContinuousSlider(
     valueRange: ClosedFloatingPointRange<Float>,
     centerValue: Float? = null,
     stepSize: Float? = null,
+    visualStepSize: Float? = null,
     stepDotAlpha: Float = 0.48f,
     lineThickness: Dp = 2.dp,
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    fullOpacityKnob: Boolean = false,
 ) {
     val motionSpecs = rememberMotionSpecs()
     val currentOnValueChange by rememberUpdatedState(onValueChange)
@@ -1934,6 +1945,9 @@ internal fun ThinContinuousSlider(
     val step = stepSize?.takeIf { it.isFinite() && it > 0f }
     val stepCount = step?.let { ((valueRange.endInclusive - valueRange.start) / it).roundToInt() }
         ?.coerceIn(1, 100) ?: 0
+    val visualStepCount = visualStepSize?.takeIf { it.isFinite() && it > 0f }
+        ?.let { ((valueRange.endInclusive - valueRange.start) / it).roundToInt().coerceIn(1, 100) }
+        ?: stepCount
     val range = valueRange.endInclusive - valueRange.start
     val knobColor = MaterialTheme.colorScheme.onSurface
     val centerFraction = centerValue?.let { ((it - valueRange.start) / range).coerceIn(0f, 1f) } ?: 0f
@@ -2005,13 +2019,13 @@ internal fun ThinContinuousSlider(
             strokeWidth = lineThickness.toPx(), cap = StrokeCap.Round)
         drawLine(knobColor.copy(alpha = alpha), Offset(inset + width * centerFraction, y), Offset(x, y),
             strokeWidth = lineThickness.toPx(), cap = StrokeCap.Round)
-        if (stepCount > 0) repeat(stepCount + 1) { index ->
-            val stepX = inset + width * index / stepCount
+        if (visualStepCount > 0) repeat(visualStepCount + 1) { index ->
+            val stepX = inset + width * index / visualStepCount
             if (abs(stepX - x) > inset) {
                 drawCircle(knobColor.copy(alpha = stepDotAlpha * alpha), 2.dp.toPx(), Offset(stepX, y))
             }
         }
-        drawCircle(knobColor.copy(alpha = alpha), inset, Offset(x, y))
+        drawCircle(knobColor.copy(alpha = if (fullOpacityKnob) 1f else alpha), inset, Offset(x, y))
     }
 }
 private fun eqBandFractions(): List<Float> {

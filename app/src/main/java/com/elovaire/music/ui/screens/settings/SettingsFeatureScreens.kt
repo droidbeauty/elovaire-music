@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import kotlin.math.roundToInt
+
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
@@ -34,6 +42,8 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsP
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookExtraCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookPlaybackCategory
 import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistDescription
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
@@ -46,13 +56,17 @@ import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 @Composable
 internal fun AudiobookSettingsScreen(
     settings: AudiobookSettings,
+    playbackSpeed: Float,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onRewindChanged: (Int) -> Unit,
     onForwardChanged: (Int) -> Unit,
     onResumePlaybackChanged: (Boolean) -> Unit,
+    onPlaybackSpeedChanged: (Float) -> Unit,
+    onRewindOnResumeChanged: (Boolean) -> Unit,
 ) {
     val copy = audiobookSettingsCopy(LocalAppLanguage.current)
+    val extraCopy = audiobookExtraCopy(LocalAppLanguage.current)
     val listState = rememberElovaireLazyListState("audiobook_settings")
     Box(
         modifier = Modifier
@@ -73,7 +87,30 @@ internal fun AudiobookSettingsScreen(
             item {
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SectionTitleRow(title = copy.title, compact = true)
+                        SectionTitleRow(title = audiobookPlaybackCategory(LocalAppLanguage.current), compact = true)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+                                    Text(extraCopy.speed, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+                                    Text(extraCopy.speedSubtitle, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                }
+                                Text("${(playbackSpeed * 10).roundToInt() / 10f}×", style = MaterialTheme.typography.titleMedium)
+                            }
+                            SteppedSlider(
+                                selectedIndex = ((playbackSpeed * 10).roundToInt() - 5).coerceIn(0, 20),
+                                stepCount = 21,
+                                onSelectedIndexChanged = { onPlaybackSpeedChanged((it + 5) / 10f) },
+                                modifier = Modifier.testTag("audiobook_speed_slider").semantics {
+                                    contentDescription = extraCopy.speed
+                                    progressBarRangeInfo = ProgressBarRangeInfo(playbackSpeed.coerceIn(0.5f, 2.5f), 0.5f..2.5f, 19)
+                                    setProgress { value -> onPlaybackSpeedChanged((value.coerceIn(0.5f, 2.5f) * 10).roundToInt() / 10f); true }
+                                },
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("0.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("2.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                         AudiobookSeekSettingRow(
                             title = copy.rewindAmount,
                             subtitle = "${settings.rewindSeconds}${copy.seconds}",
@@ -97,6 +134,13 @@ internal fun AudiobookSettingsScreen(
                             subtitle = copy.resumePlaybackSubtitle,
                             enabled = settings.resumePlayback,
                             onEnabledChanged = onResumePlaybackChanged,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        )
+                        SettingToggleRow(
+                            title = extraCopy.rewind,
+                            subtitle = extraCopy.rewindSubtitle,
+                            enabled = settings.rewindOnResume,
+                            onEnabledChanged = onRewindOnResumeChanged,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                     }
@@ -242,8 +286,8 @@ internal fun SmartPlaylistSettingsScreen(
             }
             item {
                 ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
                             Text(
                                 text = copy.maximumSongs,
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
@@ -255,8 +299,7 @@ internal fun SmartPlaylistSettingsScreen(
                             )
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
+                            horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             AudiobookStepButton(

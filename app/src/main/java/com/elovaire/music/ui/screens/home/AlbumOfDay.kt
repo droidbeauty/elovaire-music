@@ -7,6 +7,19 @@ import android.content.IntentFilter
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -39,7 +52,6 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.albumOfDayTitle
-import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.motion.elovaireContentChangeMotion
@@ -105,17 +117,38 @@ internal fun AlbumOfDayModule(
     val screenSize = screenContainerSizePx()
     var bounds by remember { mutableStateOf<Rect?>(null) }
     val open = { onOpen(bounds.toExpandOrigin(screenSize.width.toFloat(), screenSize.height.toFloat())) }
+    val artwork = rememberArtworkBitmap(album.artUri, size = 512).value
+    val metadata = remember(album.songs) {
+        listOfNotNull(
+            album.songs.firstNotNullOfOrNull { it.releaseYear }?.toString(),
+            album.songs.firstOrNull { it.genre.isNotBlank() && it.genre != "Unknown Genre" }?.genre,
+        ).joinToString("  •  ")
+    }
     ModuleCard(
         modifier = modifier
             .elovaireContentChangeMotion(album.id)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .elovaireClickable(onClick = open),
+        contentPadding = PaddingValues(0.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Box {
+        if (artwork != null) {
+            Image(
+                bitmap = artwork,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.4f), 0.5f to Color.White.copy(alpha = 0.1f), 0.65f to Color.Transparent), blendMode = BlendMode.DstIn)
+                    }.blur(40.dp),
+            )
+        }
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             MutedSectionHeader(
                 title = albumOfDayTitle(language),
                 iconResId = R.drawable.ic_lucide_disc_3,
-                onClick = open,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -145,8 +178,8 @@ internal fun AlbumOfDayModule(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = localizedCountLabel(album.songCount, "track", language),
+                    if (metadata.isNotEmpty()) Text(
+                        text = metadata,
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = readableSecondaryTextColor(),
                     )
@@ -160,6 +193,7 @@ internal fun AlbumOfDayModule(
                     onClick = onPlay,
                 )
             }
+        }
         }
     }
 }

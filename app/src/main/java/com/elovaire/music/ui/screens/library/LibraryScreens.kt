@@ -402,6 +402,7 @@ internal fun HomeScreen(
     onSongSelected: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     albumOfDay: Album? = null,
+    homeLayout: List<HomeModule> = defaultHomeLayout,
 ) {
     val listState = rememberElovaireLazyListState("home_screen")
     val language = LocalAppLanguage.current
@@ -579,6 +580,9 @@ internal fun HomeScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
+                        homeLayout.forEach { module ->
+                        when (module) {
+                        HomeModule.LastPlayed -> {
                         when {
                             lastPlayedPlaylist != null && lastPlayedPlaylistSongs.isNotEmpty() -> item(
                                 key = "home_last_played_playlist_${lastPlayedPlaylist.id}",
@@ -603,17 +607,8 @@ internal fun HomeScreen(
                             }
                         }
 
-                        if (albumOfDay != null) {
-                            item(key = "home_album_of_day") {
-                                AlbumOfDayModule(
-                                    album = albumOfDay,
-                                    onOpen = { origin -> onAlbumSelected(albumOfDay, origin) },
-                                    onPlay = { onPlayAlbum(albumOfDay) },
-                                    modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
-                                )
-                            }
                         }
-
+                        HomeModule.RecentlyAdded -> {
                         if (recentlyAddedAlbums.isNotEmpty()) {
                             item(key = "home_recently_added") {
                                 ModuleCard {
@@ -649,6 +644,8 @@ internal fun HomeScreen(
                             }
                         }
 
+                    }
+                    HomeModule.RecentlyPlayed -> {
                     item(key = "home_recently_played") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(
@@ -689,6 +686,20 @@ internal fun HomeScreen(
                         }
                     }
 
+                    }
+                    HomeModule.AlbumOfDay -> {
+                    if (albumOfDay != null) {
+                        item(key = "home_album_of_day") {
+                            AlbumOfDayModule(
+                                album = albumOfDay,
+                                onOpen = { origin -> onAlbumSelected(albumOfDay, origin) },
+                                onPlay = { onPlayAlbum(albumOfDay) },
+                                modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
+                            )
+                        }
+                    }
+                    }
+                    HomeModule.FavoriteAlbums -> {
                     if (favoriteAlbums.isNotEmpty()) {
                         item(key = "home_favorite_albums") {
                             FavoriteAlbumsModule(
@@ -705,6 +716,9 @@ internal fun HomeScreen(
                                 message = homeCopy.noFavoriteAlbumsMessage,
                             )
                         }
+                    }
+                    }
+                    }
                     }
                     }
                 }

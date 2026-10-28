@@ -3,6 +3,44 @@ package elovaire.music.droidbeauty.app.ui.i18n
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 
+internal data class AudiobookExtraCopy(val speed: String, val speedSubtitle: String, val rewind: String, val rewindSubtitle: String)
+
+internal fun audiobookPlaybackCategory(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Odtwarzanie"
+    AppLanguage.German -> "Wiedergabe"
+    AppLanguage.French -> "Lecture"
+    AppLanguage.Spanish -> "Reproducción"
+    AppLanguage.Italian -> "Riproduzione"
+    AppLanguage.Portuguese -> "Reprodução"
+    AppLanguage.Russian -> "Воспроизведение"
+    AppLanguage.Ukrainian -> "Відтворення"
+    AppLanguage.Czech -> "Přehrávání"
+    AppLanguage.Slovak -> "Prehrávanie"
+    AppLanguage.Dutch -> "Afspelen"
+    AppLanguage.Swedish -> "Uppspelning"
+    AppLanguage.Danish -> "Afspilning"
+    AppLanguage.Norwegian -> "Avspilling"
+    else -> "Playback"
+}
+
+internal fun audiobookExtraCopy(language: AppLanguage): AudiobookExtraCopy = when (language) {
+    AppLanguage.Polish -> AudiobookExtraCopy("Prędkość odtwarzania", "Dostosuj tempo narracji audiobooka", "Cofaj przy wznawianiu", "Przy wznawianiu cofnij o ustawiony czas")
+    AppLanguage.German -> AudiobookExtraCopy("Wiedergabegeschwindigkeit", "Das Erzähltempo anpassen", "Beim Fortsetzen zurückspringen", "Beim Fortsetzen um die eingestellte Zeit zurückspringen")
+    AppLanguage.French -> AudiobookExtraCopy("Vitesse de lecture", "Ajuster le rythme de narration", "Reculer à la reprise", "Reculer de la durée réglée lors de la reprise")
+    AppLanguage.Spanish -> AudiobookExtraCopy("Velocidad de reproducción", "Ajusta el ritmo de la narración", "Retroceder al reanudar", "Retrocede el tiempo configurado al continuar")
+    AppLanguage.Italian -> AudiobookExtraCopy("Velocità di riproduzione", "Regola la velocità della narrazione", "Riavvolgi alla ripresa", "Torna indietro del tempo impostato alla ripresa")
+    AppLanguage.Portuguese -> AudiobookExtraCopy("Velocidade de reprodução", "Ajuste a velocidade da narração", "Recuar ao retomar", "Recue o tempo definido ao continuar")
+    AppLanguage.Russian -> AudiobookExtraCopy("Скорость воспроизведения", "Настройте скорость повествования", "Отматывать при продолжении", "При продолжении отматывать на заданное время")
+    AppLanguage.Ukrainian -> AudiobookExtraCopy("Швидкість відтворення", "Налаштуйте швидкість оповіді", "Перемотувати під час продовження", "При продовженні перемотувати на заданий час")
+    AppLanguage.Czech -> AudiobookExtraCopy("Rychlost přehrávání", "Upravte rychlost vyprávění", "Při obnovení převinout zpět", "Při pokračování se vrátit o nastavený čas")
+    AppLanguage.Slovak -> AudiobookExtraCopy("Rýchlosť prehrávania", "Upravte rýchlosť rozprávania", "Pri obnovení pretočiť späť", "Pri pokračovaní sa vrátiť o nastavený čas")
+    AppLanguage.Dutch -> AudiobookExtraCopy("Afspeelsnelheid", "Pas de snelheid van de vertelling aan", "Terugspoelen bij hervatten", "Ga bij hervatten de ingestelde tijd terug")
+    AppLanguage.Swedish -> AudiobookExtraCopy("Uppspelningshastighet", "Justera berättelsens hastighet", "Spola tillbaka vid återupptagning", "Gå tillbaka den inställda tiden när du fortsätter")
+    AppLanguage.Danish -> AudiobookExtraCopy("Afspilningshastighed", "Juster fortællingens hastighed", "Spol tilbage ved genoptagelse", "Gå den indstillede tid tilbage, når du fortsætter")
+    AppLanguage.Norwegian -> AudiobookExtraCopy("Avspillingshastighet", "Juster fortellerhastigheten", "Spol tilbake ved fortsettelse", "Gå tilbake den innstilte tiden når du fortsetter")
+    else -> AudiobookExtraCopy("Playback speed", "Adjust audiobook narration speed", "Rewind when resuming", "Go back by the rewind amount when continuing a book")
+}
+
 internal data class AudiobookSettingsCopy(
     val title: String,
     val subtitle: String,

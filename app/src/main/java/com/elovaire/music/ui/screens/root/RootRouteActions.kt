@@ -166,6 +166,10 @@ internal class RootRouteActions(
         navigationState.navigateTo(NOW_PLAYING_BAR_STYLE_ROUTE)
     }
 
+    fun openHomeLayout() {
+        navigationState.navigateTo(HOME_LAYOUT_ROUTE)
+    }
+
     fun openSmartPlaylistSettings() {
         navigationState.navigateTo(SMART_PLAYLIST_SETTINGS_ROUTE)
     }
@@ -325,6 +329,14 @@ internal class SettingsRouteActions(
 
     fun setAudiobookResumePlayback(enabled: Boolean) {
         settingsDependencies.playbackSettings.setAudiobookResumePlayback(enabled)
+    }
+
+    fun setAudiobookPlaybackSpeed(value: Float) {
+        settingsDependencies.playbackSettings.setAudiobookPlaybackSpeed(value)
+    }
+
+    fun setAudiobookRewindOnResume(enabled: Boolean) {
+        settingsDependencies.playbackSettings.setAudiobookRewindOnResume(enabled)
     }
 
     fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean) {

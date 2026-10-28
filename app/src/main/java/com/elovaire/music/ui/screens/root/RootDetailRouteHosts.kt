@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -166,6 +167,7 @@ internal fun AudiobookDetailRouteHost(
                 displayedBook,
                 part,
                 resume = resume && audiobookSettings.resumePlayback,
+                rewindOnResumeSeconds = if (audiobookSettings.rewindOnResume) audiobookSettings.rewindSeconds else 0,
             )
         },
         onStartOver = {
@@ -481,6 +483,7 @@ internal fun SettingsRouteHost(
         onOpenManagePlaylists = routeActions::openManagePlaylists,
         onOpenSmartPlaylistSettings = routeActions::openSmartPlaylistSettings,
         onOpenNowPlayingBarStyle = routeActions::openNowPlayingBarStyle,
+        onOpenHomeLayout = routeActions::openHomeLayout,
         onOpenPrivacyPolicy = routeActions::openPrivacyPolicy,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
@@ -535,13 +538,17 @@ internal fun AudiobookSettingsRouteHost(
 ) {
     val settings = routeActions.settings.appearanceSettings
     val audiobookSettings by settings.audiobookSettings.collectAsStateWithLifecycle()
+    val playbackSpeed by settings.audiobookPlaybackSpeed.collectAsStateWithLifecycle()
     AudiobookSettingsScreen(
         settings = audiobookSettings,
+        playbackSpeed = playbackSpeed,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onRewindChanged = routeActions.settings::setAudiobookRewindSeconds,
         onForwardChanged = routeActions.settings::setAudiobookForwardSeconds,
         onResumePlaybackChanged = routeActions.settings::setAudiobookResumePlayback,
+        onPlaybackSpeedChanged = routeActions.settings::setAudiobookPlaybackSpeed,
+        onRewindOnResumeChanged = routeActions.settings::setAudiobookRewindOnResume,
     )
 }
 

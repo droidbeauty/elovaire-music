@@ -33,6 +33,7 @@ internal interface AppearanceSettingsStore {
     val crossfadeDurationMs: StateFlow<Long>
     val crossfadeSilenceThresholdDb: StateFlow<Float>
     val audiobookSettings: StateFlow<AudiobookSettings>
+    val audiobookPlaybackSpeed: StateFlow<Float>
     val smartPlaylistEnabledTypes: StateFlow<Set<BuiltInSmartPlaylistType>>
     val smartPlaylistMaxSongs: StateFlow<Int>
 }
@@ -126,6 +127,7 @@ internal interface PlaybackSettingsWriter {
     fun setAudiobookRewindSeconds(value: Int)
     fun setAudiobookForwardSeconds(value: Int)
     fun setAudiobookResumePlayback(enabled: Boolean)
+    fun setAudiobookRewindOnResume(enabled: Boolean)
     fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean)
     fun setSmartPlaylistMaxSongs(value: Int)
 }

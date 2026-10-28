@@ -193,6 +193,9 @@ internal fun RootRouteGraph(
         composable(RootRouteRegistry.NOW_PLAYING_BAR_STYLE) {
             NowPlayingBarStyleRouteHost(routeState, routeActions, padding)
         }
+        composable(RootRouteRegistry.HOME_LAYOUT) {
+            HomeLayoutScreen(bottomPadding = padding.detailBottom, onBack = routeActions::navigateUp)
+        }
         composable(RootRouteRegistry.SMART_PLAYLIST_SETTINGS) {
             SmartPlaylistSettingsRouteHost(routeActions, padding)
         }

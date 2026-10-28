@@ -16,6 +16,25 @@ import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 
+internal fun audiobookResumeTarget(
+    songs: List<Song>,
+    songIndex: Int,
+    positionMs: Long,
+    rewindSeconds: Int,
+): Pair<Song, Long> {
+    var index = songIndex
+    var position = positionMs.coerceIn(0L, songs[index].durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE)
+    var remaining = rewindSeconds.coerceAtLeast(0).toLong() * 1_000L
+    while (remaining > position && index > 0) {
+        val previousDuration = songs[index - 1].durationMs
+        if (previousDuration <= 0L) break
+        remaining -= position
+        index--
+        position = previousDuration
+    }
+    return songs[index] to (position - remaining).coerceAtLeast(0L)
+}
+
 internal class RootPlaybackActions internal constructor(
     private val playbackManager: NowPlayingPlayback,
     private val languageProvider: () -> AppLanguage,
@@ -109,6 +128,7 @@ internal class RootPlaybackActions internal constructor(
         book: Audiobook,
         part: AudiobookPart? = null,
         resume: Boolean = true,
+        rewindOnResumeSeconds: Int = 0,
     ) {
         val requestedPart = part ?: book.parts.firstOrNull() ?: return
         val resumeSongId = if (resume) {
@@ -120,16 +140,20 @@ internal class RootPlaybackActions internal constructor(
         val orderedSongs = book.parts.map(AudiobookPart::song).distinctBy(Song::id)
         if (orderedSongs.isEmpty() || orderedSongs.none { it.id == selectedPart.song.id }) return
         val savedProgress = if (resume) playbackManager.audiobookProgress(book.stableKey) else null
+        val resumePosition = when {
+            resume && resumeSongId != null && savedProgress?.songId == selectedPart.song.id -> savedProgress.positionMs
+            resume && savedProgress == null -> selectedPart.song.bookmarkMs
+            else -> null
+        }
+        val (targetSong, targetPosition) = if (resumePosition != null) {
+            audiobookResumeTarget(orderedSongs, orderedSongs.indexOfFirst { it.id == selectedPart.song.id }, resumePosition, rewindOnResumeSeconds)
+        } else {
+            selectedPart.song to (selectedPart.startMs?.coerceAtLeast(0L) ?: 0L)
+        }
         playbackManager.playSongAtPosition(
-            song = selectedPart.song,
+            song = targetSong,
             collection = orderedSongs,
-            positionMs = if (resume && resumeSongId != null && savedProgress?.songId == selectedPart.song.id) {
-                savedProgress.positionMs.coerceAtMost(selectedPart.song.durationMs.coerceAtLeast(0L))
-            } else if (resume && savedProgress == null) {
-                selectedPart.song.bookmarkMs?.coerceAtLeast(0L) ?: 0L
-            } else {
-                selectedPart.startMs?.coerceAtLeast(0L) ?: 0L
-            },
+            positionMs = targetPosition,
             sourceLabel = book.title,
             shuffleEnabled = false,
             audiobookContext = AudiobookPlaybackContext(

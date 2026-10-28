@@ -109,6 +109,7 @@ internal val settingsPreferenceKeys = setOf(
     "audiobook_rewind_seconds",
     "audiobook_forward_seconds",
     "audiobook_resume_playback",
+    "audiobook_rewind_on_resume",
     "smart_playlist_enabled_types",
     "smart_playlist_max_songs",
     "gapless_playback_enabled",

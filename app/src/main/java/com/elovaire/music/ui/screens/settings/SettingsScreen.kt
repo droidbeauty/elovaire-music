@@ -145,6 +145,7 @@ internal fun SettingsScreen(
     onOpenManagePlaylists: () -> Unit,
     onOpenSmartPlaylistSettings: () -> Unit,
     onOpenNowPlayingBarStyle: () -> Unit,
+    onOpenHomeLayout: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
@@ -272,6 +273,12 @@ internal fun SettingsScreen(
                             copy = copy,
                             onLanguageSelected = onAppLanguageSelected,
                             modifier = Modifier.fillMaxWidth(),
+                        )
+                        SettingNavigationRow(
+                            title = homeLayoutTitle(appLanguage),
+                            subtitle = homeLayoutSubtitle(appLanguage),
+                            onClick = onOpenHomeLayout,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                         SettingNavigationRow(
                             title = styleCopy.title,

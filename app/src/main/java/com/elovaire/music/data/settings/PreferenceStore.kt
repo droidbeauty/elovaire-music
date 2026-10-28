@@ -421,6 +421,10 @@ class PreferenceStore internal constructor(
         updateAudiobookSettings(_audiobookSettings.value.copy(resumePlayback = enabled))
     }
 
+    override fun setAudiobookRewindOnResume(enabled: Boolean) {
+        updateAudiobookSettings(_audiobookSettings.value.copy(rewindOnResume = enabled))
+    }
+
     override fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean) {
         val next = _smartPlaylistEnabledTypes.value.toMutableSet().apply {
             if (enabled) add(type) else remove(type)
@@ -764,6 +768,7 @@ class PreferenceStore internal constructor(
             this[KEY_AUDIOBOOK_REWIND_SECONDS] = _audiobookSettings.value.rewindSeconds
             this[KEY_AUDIOBOOK_FORWARD_SECONDS] = _audiobookSettings.value.forwardSeconds
             this[KEY_AUDIOBOOK_RESUME_PLAYBACK] = _audiobookSettings.value.resumePlayback
+            this[KEY_AUDIOBOOK_REWIND_ON_RESUME] = _audiobookSettings.value.rewindOnResume
             this[KEY_SMART_PLAYLIST_ENABLED_TYPES] = _smartPlaylistEnabledTypes.value
                 .joinToString(",") { it.name }
             this[KEY_SMART_PLAYLIST_MAX_SONGS] = _smartPlaylistMaxSongs.value
@@ -1061,6 +1066,7 @@ class PreferenceStore internal constructor(
             rewindSeconds = preferences.getInt(KEY_AUDIOBOOK_REWIND_SECONDS, 15).sanitizeAudiobookSeekSeconds(),
             forwardSeconds = preferences.getInt(KEY_AUDIOBOOK_FORWARD_SECONDS, 15).sanitizeAudiobookSeekSeconds(),
             resumePlayback = preferences.getBoolean(KEY_AUDIOBOOK_RESUME_PLAYBACK, true),
+            rewindOnResume = preferences.getBoolean(KEY_AUDIOBOOK_REWIND_ON_RESUME, false),
         )
     }
 
@@ -1089,10 +1095,12 @@ class PreferenceStore internal constructor(
             KEY_AUDIOBOOK_REWIND_SECONDS to normalized.rewindSeconds,
             KEY_AUDIOBOOK_FORWARD_SECONDS to normalized.forwardSeconds,
             KEY_AUDIOBOOK_RESUME_PLAYBACK to normalized.resumePlayback,
+            KEY_AUDIOBOOK_REWIND_ON_RESUME to normalized.rewindOnResume,
         ) {
             putInt(KEY_AUDIOBOOK_REWIND_SECONDS, normalized.rewindSeconds)
             putInt(KEY_AUDIOBOOK_FORWARD_SECONDS, normalized.forwardSeconds)
             putBoolean(KEY_AUDIOBOOK_RESUME_PLAYBACK, normalized.resumePlayback)
+            putBoolean(KEY_AUDIOBOOK_REWIND_ON_RESUME, normalized.rewindOnResume)
         }
     }
 
@@ -1203,6 +1211,7 @@ class PreferenceStore internal constructor(
         const val KEY_AUDIOBOOK_REWIND_SECONDS = "audiobook_rewind_seconds"
         const val KEY_AUDIOBOOK_FORWARD_SECONDS = "audiobook_forward_seconds"
         const val KEY_AUDIOBOOK_RESUME_PLAYBACK = "audiobook_resume_playback"
+        const val KEY_AUDIOBOOK_REWIND_ON_RESUME = "audiobook_rewind_on_resume"
         const val KEY_SMART_PLAYLIST_ENABLED_TYPES = "smart_playlist_enabled_types"
         const val KEY_SMART_PLAYLIST_MAX_SONGS = "smart_playlist_max_songs"
         const val CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS = 250L

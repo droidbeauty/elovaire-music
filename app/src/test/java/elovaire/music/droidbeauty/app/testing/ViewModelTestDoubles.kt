@@ -105,6 +105,7 @@ internal class FakeEqualizerSettingsStore(
 }
 
 internal class FakeRootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore {
+    override val audiobookPlaybackSpeed = MutableStateFlow(1f)
     override val upscalerSettings = MutableStateFlow(elovaire.music.droidbeauty.app.domain.model.UpscalerSettings())
     override val eqSettings = MutableStateFlow(EqSettings())
     override val themeMode = MutableStateFlow(ThemeMode.System)

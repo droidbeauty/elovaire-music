@@ -37,6 +37,7 @@ internal const val SETTINGS_ROUTE = "settings"
 internal const val MANAGE_PLAYLISTS_ROUTE = "manage_playlists"
 internal const val LIBRARY_FOLDERS_ROUTE = "library_folders"
 internal const val NOW_PLAYING_BAR_STYLE_ROUTE = "now_playing_bar_style"
+internal const val HOME_LAYOUT_ROUTE = "home_layout"
 internal const val SMART_PLAYLIST_SETTINGS_ROUTE = "smart_playlist_settings"
 internal const val CHANGELOG_ROUTE = "changelog"
 internal const val ABOUT_ROUTE = "about"
@@ -81,6 +82,7 @@ internal object RootRouteRegistry {
     const val MANAGE_PLAYLISTS = MANAGE_PLAYLISTS_ROUTE
     const val LIBRARY_FOLDERS = LIBRARY_FOLDERS_ROUTE
     const val NOW_PLAYING_BAR_STYLE = NOW_PLAYING_BAR_STYLE_ROUTE
+    const val HOME_LAYOUT = HOME_LAYOUT_ROUTE
     const val SMART_PLAYLIST_SETTINGS = SMART_PLAYLIST_SETTINGS_ROUTE
     const val CHANGELOG = CHANGELOG_ROUTE
     const val ABOUT = ABOUT_ROUTE
@@ -112,6 +114,7 @@ internal object RootRouteRegistry {
         MANAGE_PLAYLISTS,
         LIBRARY_FOLDERS,
         NOW_PLAYING_BAR_STYLE,
+        HOME_LAYOUT,
         SMART_PLAYLIST_SETTINGS,
         CHANGELOG,
         ABOUT,
@@ -308,6 +311,7 @@ internal object ElovaireNavigationTransitions {
             MANAGE_PLAYLISTS_ROUTE,
             LIBRARY_FOLDERS_ROUTE,
             NOW_PLAYING_BAR_STYLE_ROUTE,
+            HOME_LAYOUT_ROUTE,
             AUDIOBOOK_SETTINGS_ROUTE,
             SMART_PLAYLIST_SETTINGS_ROUTE,
             EQUALIZER_ROUTE,

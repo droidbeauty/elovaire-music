@@ -60,9 +60,13 @@ class RootActionsTest {
 
         actions.setAppLanguage(AppLanguage.Polish)
         actions.updateTreble(0.75f)
+        actions.setAudiobookPlaybackSpeed(1.3f)
+        actions.setAudiobookRewindOnResume(true)
 
         assertEquals(AppLanguage.Polish, appearance.language)
         assertEquals(0.75f, playback.treble)
+        assertEquals(1.3f, playback.audiobookSpeed)
+        assertEquals(true, playback.rewindOnResume)
     }
 }
 
@@ -117,6 +121,7 @@ private class FakeAppearanceSettingsWriter : AppearanceSettingsWriter {
 }
 
 private class FakeAppearanceSettingsStore : AppearanceSettingsStore {
+    override val audiobookPlaybackSpeed = MutableStateFlow(1f)
     override val upscalerSettings = MutableStateFlow(elovaire.music.droidbeauty.app.domain.model.UpscalerSettings())
     override val eqSettings = MutableStateFlow(EqSettings())
     override val themeMode = MutableStateFlow(ThemeMode.System)
@@ -151,10 +156,12 @@ private class FakeLibrarySettingsWriter : LibrarySettingsWriter {
 
 private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
     var treble: Float? = null
+    var audiobookSpeed: Float? = null
+    var rewindOnResume: Boolean? = null
 
     override fun setUpscalerSettings(settings: elovaire.music.droidbeauty.app.domain.model.UpscalerSettings) = Unit
     override fun setPlaybackVolume(value: Float) = Unit
-    override fun setAudiobookPlaybackSpeed(value: Float) = Unit
+    override fun setAudiobookPlaybackSpeed(value: Float) { audiobookSpeed = value }
     override fun setCrossfadeEnabled(enabled: Boolean) = Unit
     override fun setCrossfadeDurationMs(value: Long) = Unit
     override fun setCrossfadeSilenceThresholdDb(value: Float) = Unit
@@ -163,6 +170,7 @@ private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
     override fun setAudiobookRewindSeconds(value: Int) = Unit
     override fun setAudiobookForwardSeconds(value: Int) = Unit
     override fun setAudiobookResumePlayback(enabled: Boolean) = Unit
+    override fun setAudiobookRewindOnResume(enabled: Boolean) { rewindOnResume = enabled }
     override fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean) = Unit
     override fun setSmartPlaylistMaxSongs(value: Int) = Unit
     override fun updateBass(value: Float) = Unit
