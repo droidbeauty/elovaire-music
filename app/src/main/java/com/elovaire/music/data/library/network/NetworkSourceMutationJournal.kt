@@ -259,12 +259,15 @@ internal suspend fun NetworkSourceMutationJournal.recover(
                         ) { "Committed network source credentials are unavailable" }
                         marker.previousCredentialKey
                             ?.takeIf { it != marker.newCredentialKey }
-                            ?.let(credentialStore::remove)
+                            ?.let { unreferencedCredentialKeys(sourceStore.sources.value, listOf(it)) }
+                            ?.forEach(credentialStore::remove)
                         if (marker.previousLocationFingerprint != marker.newLocationFingerprint) {
                             inventoryStore.remove(marker.sourceId)
                         }
                     } else {
-                        marker.credentialKeyToDiscardOnRollback()?.let(credentialStore::remove)
+                        marker.credentialKeyToDiscardOnRollback()
+                            ?.let { unreferencedCredentialKeys(sourceStore.sources.value, listOf(it)) }
+                            ?.forEach(credentialStore::remove)
                     }
                 }
 
@@ -272,7 +275,9 @@ internal suspend fun NetworkSourceMutationJournal.recover(
                     // Removal is the durable user intent. Completing it is safe even when
                     // process death occurred before the source preference was removed.
                     sourceStore.remove(marker.sourceId)
-                    marker.previousCredentialKey?.let(credentialStore::remove)
+                    marker.previousCredentialKey
+                        ?.let { unreferencedCredentialKeys(sourceStore.sources.value, listOf(it)) }
+                        ?.forEach(credentialStore::remove)
                     inventoryStore.remove(marker.sourceId)
                 }
             }

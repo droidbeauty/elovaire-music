@@ -2,9 +2,17 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NetworkSourceCoordinatorTest {
+    @Test
+    fun staleRemovalDoesNotDeleteCredentialsOwnedByAnotherSource() {
+        val other = source(id = "other", credentialKey = "reused-key")
+        assertEquals(listOf("old-key"), unreferencedCredentialKeys(listOf(other), listOf("reused-key", "old-key", "old-key")))
+        assertEquals(listOf("reused-key"), unreferencedCredentialKeys(emptyList(), listOf("reused-key")))
+    }
+
     @Test
     fun credentialKeyConflictIsDetectedBeforeCredentialWrite() {
         val existing = source(id = "existing", credentialKey = "shared-key")

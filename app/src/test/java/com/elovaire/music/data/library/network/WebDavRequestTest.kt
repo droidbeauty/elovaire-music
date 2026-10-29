@@ -10,6 +10,63 @@ import org.junit.Test
 
 class WebDavRequestTest {
     @Test
+    fun failedChildAndMissingResourceTypeDoNotProduceACompleteListing() {
+        val root = """<response><href>/Music/</href><propstat><prop>
+            <resourcetype><collection/></resourcetype></prop><status>HTTP/1.1 200 OK</status>
+            </propstat></response>"""
+        val children = listOf(
+            "<response><href>/Music/song.mp3</href><status>HTTP/1.1 403 Forbidden</status></response>",
+            "<response><href>https://other.example/song.mp3</href><status>HTTP/1.1 200 OK</status></response>",
+            """<response><href>/Music/album/</href><propstat><prop><getcontentlength>1</getcontentlength></prop>
+                <status>HTTP/1.1 200 OK</status></propstat></response>""",
+        )
+        for (child in children) {
+            val client = OkHttpClient.Builder().followRedirects(false).addInterceptor { chain ->
+                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(207).message("Multi-Status")
+                    .body("<multistatus>$root$child</multistatus>".toResponseBody()).build()
+            }.build()
+            val filesystem = WebDavNetworkFileSystem(propFindClient = client)
+            val source = NetworkLibrarySource("id", "NAS", NetworkLibraryProtocol.WebDav,
+                "https://nas.example", "Music", "user", "key")
+            try {
+                org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+                    filesystem.listBlocking(source, NetworkCredentials("user", "pass"), 20, 1)
+                }
+            } finally {
+                filesystem.release()
+            }
+        }
+    }
+
+    @Test
+    fun discoveryFollowsDirectoryRedirectWithTrailingSlash() {
+        val paths = mutableListOf<String>()
+        val client = OkHttpClient.Builder().followRedirects(false).addInterceptor { chain ->
+            val request = chain.request()
+            paths += request.url.encodedPath
+            val response = Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+            if (paths.size == 1) {
+                response.code(301).message("Moved").header("Location", "/Music/").body("".toResponseBody()).build()
+            } else {
+                response.code(207).message("Multi-Status").body("""
+                    <multistatus><response><href>/Music/</href><propstat><prop>
+                    <resourcetype><collection/></resourcetype></prop>
+                    <status>HTTP/1.1 200 OK</status></propstat></response></multistatus>
+                """.trimIndent().toResponseBody()).build()
+            }
+        }.build()
+        val filesystem = WebDavNetworkFileSystem(propFindClient = client)
+        val source = NetworkLibrarySource("id", "NAS", NetworkLibraryProtocol.WebDav,
+            "https://nas.example", "Music", "user", "key")
+        try {
+            assertEquals(NetworkAvailability.Available, filesystem.probeBlocking(source, NetworkCredentials("user", "pass")).availability)
+            assertEquals(listOf("/Music", "/Music/"), paths)
+        } finally {
+            filesystem.release()
+        }
+    }
+
+    @Test
     fun failedDirectoryResponseCannotProduceAnEmptySuccessfulListing() {
         val client = OkHttpClient.Builder().followRedirects(false).addInterceptor { chain ->
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(207).message("Multi-Status")

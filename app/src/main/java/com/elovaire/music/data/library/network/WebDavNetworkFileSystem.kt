@@ -241,7 +241,7 @@ internal class WebDavNetworkFileSystem(
     ): List<NetworkFileEntry> {
         val requestResource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
         return try {
-            parseMultiStatus(executePropFind(source, credentials, path, depth), source, path)
+            parseMultiStatus(executePropFind(source, credentials, path, depth), source, path, requireComplete = true)
         } finally {
             requestResource.close()
         }
@@ -389,7 +389,8 @@ internal class WebDavNetworkFileSystem(
             !decodedPath.startsWith("$configuredRoot/")
         ) return null
         return runCatching {
-            URL("https://${resolved.rawAuthority}/${NetworkPathPolicy.encodePath(decodedPath)}")
+            val suffix = if (resolved.rawPath.endsWith('/') && decodedPath.isNotEmpty()) "/" else ""
+            URL("https://${resolved.rawAuthority}/${NetworkPathPolicy.encodePath(decodedPath)}$suffix")
         }.getOrNull()
     }
 
@@ -397,9 +398,10 @@ internal class WebDavNetworkFileSystem(
         body: ByteArray,
         source: NetworkLibrarySource,
         requestedPath: String,
+        requireComplete: Boolean = false,
     ): List<NetworkFileEntry> {
         return try {
-            parseMultiStatusDocument(body, source, requestedPath)
+            parseMultiStatusDocument(body, source, requestedPath, requireComplete)
         } catch (failure: org.xml.sax.SAXException) {
             throw IOException("Invalid WebDAV multistatus response", failure)
         }
@@ -409,6 +411,7 @@ internal class WebDavNetworkFileSystem(
         body: ByteArray,
         source: NetworkLibrarySource,
         requestedPath: String,
+        requireComplete: Boolean,
     ): List<NetworkFileEntry> {
         val factory = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
@@ -432,8 +435,25 @@ internal class WebDavNetworkFileSystem(
             throw IOException("Invalid WebDAV multistatus root")
         }
         return document.documentElement.childElements("response")
-            .mapNotNull { response -> parseResponse(response, source, requestedPath) }
+            .mapNotNull { response ->
+                val entry = parseResponse(response, source, requestedPath)
+                if (requireComplete) {
+                    val href = response.childElement("href")?.textContent
+                        ?: throw IOException("WebDAV response is missing its resource path")
+                    if (hrefToPath(href, source, requestedPath) == null ||
+                        entry == null || !response.hasSuccessfulResourceType()
+                    ) {
+                        throw IOException("WebDAV response has incomplete resource information")
+                    }
+                }
+                entry
+            }
             .distinctBy(NetworkFileEntry::path)
+    }
+
+    private fun Element.hasSuccessfulResourceType(): Boolean = childElements("propstat").any { propstat ->
+        val status = propstat.childElement("status")?.textContent?.let(::parseHttpStatus)
+        isSuccessfulHttpStatus(status) && propstat.childElement("prop")?.childElement("resourcetype") != null
     }
 
     private fun parseResponse(

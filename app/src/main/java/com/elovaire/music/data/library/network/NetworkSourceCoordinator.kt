@@ -126,7 +126,8 @@ internal class NetworkSourceCoordinator(
         }
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.SourcePersisted)
         if (previousSource != null && previousSource.credentialKey != normalized.credentialKey) {
-            credentialStore.remove(previousSource.credentialKey)
+            unreferencedCredentialKeys(sourceStore.sources.value, listOf(previousSource.credentialKey))
+                .forEach(credentialStore::remove)
         }
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.CredentialsCleaned)
         if (previousSource != null && previousSource != normalized) {
@@ -158,12 +159,8 @@ internal class NetworkSourceCoordinator(
         mutationJournal.markPhase(source.id, NetworkSourceMutationPhase.SourceRemoved)
         inventoryStore.remove(source.id)
         mutationJournal.markPhase(source.id, NetworkSourceMutationPhase.InventoryRemoved)
-        credentialStoreProvider().apply {
-            remove(source.credentialKey)
-            if (currentSource != null && currentSource.credentialKey != source.credentialKey) {
-                remove(currentSource.credentialKey)
-            }
-        }
+        val keys = listOfNotNull(source.credentialKey, currentSource?.credentialKey)
+        unreferencedCredentialKeys(sourceStore.sources.value, keys).forEach(credentialStoreProvider()::remove)
         mutationJournal.clear(source.id)
     }
 }
@@ -178,6 +175,11 @@ internal fun hasCredentialKeyConflict(
     sources: List<NetworkLibrarySource>,
     candidate: NetworkLibrarySource,
 ): Boolean = sources.any { it.id != candidate.id && it.credentialKey == candidate.credentialKey }
+
+internal fun unreferencedCredentialKeys(sources: List<NetworkLibrarySource>, keys: List<String>): List<String> {
+    val referenced = sources.mapTo(hashSetOf(), NetworkLibrarySource::credentialKey)
+    return keys.distinct().filterNot(referenced::contains)
+}
 
 internal fun shouldRotateCredentialKey(
     previousSource: NetworkLibrarySource?,
