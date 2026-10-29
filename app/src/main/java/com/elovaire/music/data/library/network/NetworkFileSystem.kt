@@ -95,6 +95,8 @@ internal class NetworkFileSystemRegistry(
 
     fun sourceGeneration(sourceId: String): Long = sourceStore.generation(sourceId)
 
+    fun credentialGeneration(source: NetworkLibrarySource): Long = credentialStore.generation(source.credentialKey)
+
     fun networkGeneration(): Long = networkGeneration.get()
 
     fun isCurrent(source: NetworkLibrarySource, generation: Long): Boolean =

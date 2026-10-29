@@ -684,16 +684,17 @@ private fun NetworkSourceEditorScreen(
     var username by rememberSaveable(source?.id) { mutableStateOf(source?.username.orEmpty()) }
     var domain by rememberSaveable(source?.id) { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var saveRequested by rememberSaveable(source?.id) { mutableStateOf(false) }
     val sourceId = rememberSaveable(source?.id) { mutableStateOf(source?.id ?: UUID.randomUUID().toString()) }.value
     val credentialKey = source?.credentialKey ?: "network-credential-$sourceId"
     val protocol = NetworkLibraryProtocol.entries.first { it.name == protocolName }
     val probeResult = probeResults[sourceId]
-    val canSave = server.isNotBlank() && path.isNotBlank()
+    val canSave = server.isNotBlank() && (protocol == NetworkLibraryProtocol.WebDav || path.isNotBlank())
     val isChecking = probeResult?.availability == NetworkAvailability.Checking
     val listState = rememberElovaireLazyListState("network_source_editor", sourceId)
     BackHandler(onBack = onDismiss)
     LaunchedEffect(probeResult?.availability) {
-        if (probeResult?.availability == NetworkAvailability.Available) onDismiss()
+        if (saveRequested && probeResult?.availability == NetworkAvailability.Available) onDismiss()
     }
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -739,6 +740,7 @@ private fun NetworkSourceEditorScreen(
                     contentDescription = copy.saveEditor,
                     onClick = {
                         if (canSave && !isChecking) {
+                            saveRequested = true
                             onSave(
                                 NetworkLibrarySource(
                                     id = sourceId,

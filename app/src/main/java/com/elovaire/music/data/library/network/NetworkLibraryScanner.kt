@@ -92,8 +92,11 @@ internal class NetworkLibraryScanner(
         enrichMetadata: Boolean,
         metadataSemaphore: Semaphore,
     ): NetworkLibrarySourceScanResult {
+        val sourceGeneration = registry.sourceGeneration(source.id)
+        val credentialGeneration = registry.credentialGeneration(source)
+        val transportGeneration = registry.networkGeneration()
         return try {
-            scanSource(source, forceRefresh, enrichMetadata, metadataSemaphore)
+            scanSource(source, forceRefresh, enrichMetadata, metadataSemaphore, sourceGeneration, credentialGeneration, transportGeneration)
         } catch (_: NetworkScanSupersededException) {
             NetworkLibrarySourceScanResult(
                 songs = inventory.load(source).map(NetworkInventoryEntry::song),
@@ -102,29 +105,30 @@ internal class NetworkLibraryScanner(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         } catch (failure: SMBRuntimeException) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         } catch (failure: SecurityException) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         } catch (failure: IllegalArgumentException) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         } catch (failure: IllegalStateException) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         } catch (failure: XmlPullParserException) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         } catch (failure: Exception) {
-            publishSourceFailure(source, failure)
+            publishSourceFailure(source, sourceGeneration, credentialGeneration, transportGeneration, failure)
         }
     }
 
     private suspend fun publishSourceFailure(
         source: NetworkLibrarySource,
+        sourceGeneration: Long,
+        credentialGeneration: Long,
+        transportGeneration: Long,
         failure: Throwable,
     ): NetworkLibrarySourceScanResult {
-        val generation = registry.sourceGeneration(source.id)
-        val credentials = registry.credentials(source)
-        publishAvailability(source, generation, credentials, failure.toProbeResult())
+        publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
         val songs = loadNetworkInventoryOrEmpty { inventory.load(source) }
             .map(NetworkInventoryEntry::song)
         return NetworkLibrarySourceScanResult(songs, isComplete = false)
@@ -152,11 +156,12 @@ internal class NetworkLibraryScanner(
         forceRefresh: Boolean,
         enrichMetadata: Boolean,
         metadataSemaphore: Semaphore,
+        sourceGeneration: Long,
+        credentialGeneration: Long,
+        transportGeneration: Long,
     ): NetworkLibrarySourceScanResult {
         val cached = inventory.load(source)
-        val sourceGeneration = registry.sourceGeneration(source.id)
-        val transportGeneration = registry.networkGeneration()
-        if (!isCurrent(source, sourceGeneration, registry.credentials(source), transportGeneration)) {
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         val hasUnresolvedCachedMetadata = cached.any { !it.song.metadataResolved }
@@ -164,19 +169,20 @@ internal class NetworkLibraryScanner(
             if (!enrichMetadata || !hasUnresolvedCachedMetadata) {
                 return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = true)
             }
-            return enrichCommittedInventory(source, sourceGeneration, transportGeneration, cached, metadataSemaphore)
+            return enrichCommittedInventory(source, sourceGeneration, credentialGeneration, transportGeneration, cached, metadataSemaphore)
         }
         val credentials = registry.credentials(source)
         if (credentials == null) {
             publishAvailability(
                 source = source,
                 sourceGeneration = sourceGeneration,
-                credentials = null,
+                credentialGeneration = credentialGeneration,
+                transportGeneration = transportGeneration,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
             return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
         }
-        val listing = listSourceOrNull(source, sourceGeneration, credentials)
+        val listing = listSourceOrNull(source, sourceGeneration, credentialGeneration, transportGeneration, credentials)
             ?: return NetworkLibrarySourceScanResult(
                 cached.map(NetworkInventoryEntry::song),
                 isComplete = false,
@@ -185,13 +191,14 @@ internal class NetworkLibraryScanner(
         val incompleteReason = (listing as? NetworkListingResult.Incomplete)?.reason
         // A source edit/removal may have completed while the blocking listing was in flight.
         // Never commit or republish the result for an obsolete configuration.
-        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         publishAvailability(
             source,
             sourceGeneration,
-            credentials,
+            credentialGeneration,
+            transportGeneration,
             NetworkProbeResult(
                 availability = NetworkAvailability.Available,
                 message = incompleteReason?.let { "scan-incomplete:$it" },
@@ -214,7 +221,7 @@ internal class NetworkLibraryScanner(
                 .entries
                 .take(MAX_ARTWORKS_PER_SCAN)
                 .associate { (directory, candidate) ->
-                    ensureCurrent(source, sourceGeneration, credentials, transportGeneration)
+                    ensureCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)
                     directory to artworkCache.uriFor(source, candidate.entry, registry)
                 }
                 .also { artworkCache.trim() }
@@ -232,7 +239,7 @@ internal class NetworkLibraryScanner(
             forceRefresh = forceRefresh,
             metadataSemaphore = metadataSemaphore,
             isCurrent = {
-                isCurrent(source, sourceGeneration, credentials, transportGeneration)
+                isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)
             },
         )
         val inventoryChanged = inventoryEntries.size != cached.size || inventoryEntries.any { current ->
@@ -241,7 +248,7 @@ internal class NetworkLibraryScanner(
                 previous != current
         }
         val nowMs = clock.wallTimeMs()
-        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         if (incompleteReason != null) {
@@ -272,6 +279,7 @@ internal class NetworkLibraryScanner(
     private suspend fun enrichCommittedInventory(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
+        credentialGeneration: Long,
         transportGeneration: Long,
         cached: List<NetworkInventoryEntry>,
         metadataSemaphore: Semaphore,
@@ -281,12 +289,13 @@ internal class NetworkLibraryScanner(
             publishAvailability(
                 source = source,
                 sourceGeneration = sourceGeneration,
-                credentials = null,
+                credentialGeneration = credentialGeneration,
+                transportGeneration = transportGeneration,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
             return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
         }
-        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         val cachedIndexes = buildNetworkInventoryIndexes(cached, includeRevisionIndex = false)
@@ -301,10 +310,10 @@ internal class NetworkLibraryScanner(
             forceRefresh = false,
             metadataSemaphore = metadataSemaphore,
             isCurrent = {
-                isCurrent(source, sourceGeneration, credentials, transportGeneration)
+                isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)
             },
         )
-        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         if (enriched != cached) {
@@ -399,16 +408,19 @@ internal class NetworkLibraryScanner(
     private fun publishAvailability(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
-        credentials: NetworkCredentials?,
+        credentialGeneration: Long,
+        transportGeneration: Long,
         result: NetworkProbeResult,
     ) {
-        if (!isCurrent(source, sourceGeneration, credentials)) return
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) return
         onAvailabilityChanged(source.id, result)
     }
 
     private suspend fun listSourceOrNull(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
+        credentialGeneration: Long,
+        transportGeneration: Long,
         credentials: NetworkCredentials,
     ): NetworkListingResult? {
         return try {
@@ -420,22 +432,22 @@ internal class NetworkLibraryScanner(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
             null
         } catch (failure: SMBRuntimeException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
             null
         } catch (failure: IllegalArgumentException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
             null
         } catch (failure: SecurityException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
             null
         } catch (failure: IllegalStateException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
             null
         } catch (failure: XmlPullParserException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
             null
         }
     }
@@ -448,24 +460,19 @@ internal class NetworkLibraryScanner(
     private fun isCurrent(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
-        credentials: NetworkCredentials?,
-    ): Boolean = isCurrentSource(source, sourceGeneration) && registry.credentials(source) == credentials
-
-    private fun isCurrent(
-        source: NetworkLibrarySource,
-        sourceGeneration: Long,
-        credentials: NetworkCredentials?,
+        credentialGeneration: Long,
         transportGeneration: Long,
-    ): Boolean = isCurrent(source, sourceGeneration, credentials) &&
+    ): Boolean = isCurrentSource(source, sourceGeneration) &&
+        registry.credentialGeneration(source) == credentialGeneration &&
         registry.networkGeneration() == transportGeneration
 
     private fun ensureCurrent(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
-        credentials: NetworkCredentials?,
+        credentialGeneration: Long,
         transportGeneration: Long,
     ) {
-        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
+        if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             throw NetworkScanSupersededException()
         }
     }
