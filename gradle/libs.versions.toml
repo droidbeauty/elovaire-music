@@ -31,6 +31,7 @@ tracing = "2.0.5"
 coroutines = "1.11.0"
 serializationCore = "1.12.0"
 smbj = "0.15.0"
+okhttp = "4.12.0"
 glance = "1.2.0"
 bouncycastle = "1.86"
 
@@ -109,6 +110,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
 smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "androidxAnnotation" }

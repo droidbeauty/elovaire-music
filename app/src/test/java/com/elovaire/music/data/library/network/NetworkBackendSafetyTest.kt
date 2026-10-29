@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
 import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -123,6 +124,23 @@ class NetworkBackendSafetyTest {
                 .use { handle ->
                     assertEquals(0L, handle.length)
                     assertEquals(-1, handle.input.read())
+                }
+        } finally {
+            fileSystem.release()
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun smbReadRejectsPathsThatEscapeOrChangeSegmentsBeforeConnecting() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val fileSystem = SmbNetworkFileSystem(scope)
+        try {
+            listOf("../outside.mp3", "folder/../../outside.mp3", "folder\\outside.mp3", "track\u0000.mp3")
+                .forEach { path ->
+                    assertThrows(IOException::class.java) {
+                        fileSystem.openBlocking(networkSource(NetworkLibraryProtocol.Smb), credentials(), path, 0L, -1L)
+                    }
                 }
         } finally {
             fileSystem.release()

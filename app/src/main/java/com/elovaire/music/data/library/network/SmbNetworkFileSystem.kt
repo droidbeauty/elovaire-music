@@ -96,6 +96,7 @@ internal class SmbNetworkFileSystem(
                 ) { item ->
                     val name = item.fileName ?: return@consumeWhile
                     if (name == "." || name == "..") return@consumeWhile
+                    if (name.contains('/') || name.contains('\\') || name.contains('\u0000')) return@consumeWhile
                     val fullPath = NetworkPathPolicy.join(directory, name)
                     val directoryEntry = item.isDirectory()
                     val entry = NetworkFileEntry(
@@ -134,13 +135,15 @@ internal class SmbNetworkFileSystem(
         checkNotReleased()
         require(position >= 0L)
         require(length == -1L || length >= 0L)
+        val relativePath = NetworkPathPolicy.validateRelativePath(path)
+            ?: throw IOException("Invalid SMB media path")
         if (length == 0L) return NetworkReadHandle.empty()
         val session = sessionFor(source, credentials)
         val lease = session.acquire(credentials)
         var file: com.hierynomus.smbj.share.File? = null
         return try {
             val openedFile = lease.share.openFile(
-                NetworkPathPolicy.join(smbPath(source), path),
+                NetworkPathPolicy.join(smbPath(source), relativePath),
                 EnumSet.of(AccessMask.FILE_READ_DATA),
                 EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
                 EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),

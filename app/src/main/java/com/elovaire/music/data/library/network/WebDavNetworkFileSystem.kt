@@ -13,6 +13,12 @@ import java.util.Base64
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.TimeUnit
+import okhttp3.Call
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
@@ -22,9 +28,17 @@ import org.w3c.dom.Element
 
 internal class WebDavNetworkFileSystem(
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val propFindClient: OkHttpClient = OkHttpClient.Builder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .connectTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+        .readTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+        .writeTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+        .build(),
 ) : NetworkFileSystem {
     private val rangeCapabilities = ConcurrentHashMap<String, NetworkRangeCapability>()
     private val activeConnections = ConcurrentHashMap.newKeySet<HttpURLConnection>()
+    private val activePropFindCalls = ConcurrentHashMap.newKeySet<Call>()
     private val released = AtomicBoolean(false)
 
     override fun probeBlocking(
@@ -34,7 +48,9 @@ internal class WebDavNetworkFileSystem(
         checkNotReleased()
         return networkProbeResult(
             attempt = {
-                propFind(source, credentials, source.shareOrPath, depth = 0)
+                val root = NetworkPathPolicy.validateRelativePath(source.shareOrPath)
+                    ?: throw IOException("Invalid WebDAV root path")
+                requireWebDavDirectory(propFind(source, credentials, root, depth = 0), root)
                 NetworkProbeResult(NetworkAvailability.Available)
             },
             onFailure = { failure ->
@@ -53,7 +69,9 @@ internal class WebDavNetworkFileSystem(
         require(maxEntries > 0)
         val results = ArrayList<NetworkFileEntry>()
         val pending = ArrayDeque<Pair<String, Int>>()
-        pending.addLast(source.shareOrPath to 0)
+        val root = NetworkPathPolicy.validateRelativePath(source.shareOrPath)
+            ?: throw IOException("Invalid WebDAV root path")
+        pending.addLast(root to 0)
         val visited = hashSetOf<String>()
         var directoryCount = 0
         var incompleteReason: String? = null
@@ -65,7 +83,9 @@ internal class WebDavNetworkFileSystem(
                 incompleteReason = "directory-budget"
                 break
             }
-            propFind(source, credentials, normalized, depth = 1).forEach { entry ->
+            val directoryEntries = propFind(source, credentials, normalized, depth = 1)
+            requireWebDavDirectory(directoryEntries, normalized)
+            directoryEntries.forEach { entry ->
                 if (entry.path == normalized) return@forEach
                 if (results.size >= maxEntries) {
                     incompleteReason = "entry-budget"
@@ -155,7 +175,7 @@ internal class WebDavNetworkFileSystem(
                     throw IOException("WebDAV server returned an invalid Content-Range")
                 }
                 rangeCapabilities[source.id] = NetworkRangeCapability.Supported
-                input = connection.inputStream
+                input = connection.openInputStreamOrDisconnect()
                 handleLength = if (length >= 0L) minOf(length, rangeLength) else rangeLength
             }
             HttpURLConnection.HTTP_OK -> {
@@ -170,7 +190,7 @@ internal class WebDavNetworkFileSystem(
                 } else {
                     responseLength
                 }
-                input = connection.inputStream.let { stream ->
+                input = connection.openInputStreamOrDisconnect().let { stream ->
                     if (boundedLength != null) {
                         limitWebDavRead(stream, boundedLength)
                     } else {
@@ -210,6 +230,7 @@ internal class WebDavNetworkFileSystem(
         if (!released.compareAndSet(false, true)) return
         rangeCapabilities.clear()
         activeConnections.toList().forEach(::disconnect)
+        activePropFindCalls.toList().forEach(Call::cancel)
     }
 
     private fun propFind(
@@ -219,15 +240,9 @@ internal class WebDavNetworkFileSystem(
         depth: Int,
     ): List<NetworkFileEntry> {
         val requestResource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
-        var connection: HttpURLConnection? = null
         return try {
-            val establishedConnection = executePropFind(source, credentials, path, depth)
-            connection = establishedConnection
-            establishedConnection.inputStream.use { input ->
-                parseMultiStatus(input.readBounded(MAX_PROPFIND_BYTES), source, path)
-            }
+            parseMultiStatus(executePropFind(source, credentials, path, depth), source, path)
         } finally {
-            disconnect(connection)
             requestResource.close()
         }
     }
@@ -269,47 +284,48 @@ internal class WebDavNetworkFileSystem(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private fun executePropFind(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
         path: String,
         depth: Int,
-    ): HttpURLConnection {
+    ): ByteArray {
         checkNotReleased()
         var url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
             ?: throw IOException("WebDAV requires an HTTPS server URL")
         val visited = hashSetOf(url.toString())
-        val requestBody = PROPFIND_BODY.toByteArray(Charsets.UTF_8)
+        val requestBody = PROPFIND_BODY.trimIndent().toRequestBody("application/xml; charset=utf-8".toMediaType())
         var redirects = 0
         while (true) {
-            val connection = openConnection(url, credentials)
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", basicAuth(credentials))
+                .header("Accept", "application/xml, text/xml, */*")
+                .header("Depth", depth.toString())
+                .method("PROPFIND", requestBody)
+                .build()
+            val call = propFindClient.newCall(request)
+            activePropFindCalls.add(call)
             try {
-                connection.requestMethod = "PROPFIND"
-                connection.setRequestProperty("Depth", depth.toString())
-                connection.setRequestProperty("Content-Type", "application/xml; charset=utf-8")
-                connection.setRequestProperty("Content-Length", requestBody.size.toString())
-                connection.doOutput = true
-                connection.connect()
-                connection.outputStream.use { output -> output.write(requestBody) }
-                val status = connection.responseCode
-                if (status !in REDIRECT_STATUSES) {
-                    if (status !in 200..299) throw WebDavHttpException(status)
-                    return connection
+                if (released.get()) {
+                    call.cancel()
+                    throw IllegalStateException("WebDAV file system is released")
                 }
-                val next = connection.getHeaderField("Location")
-                    ?.let { resolveRedirect(url, it, source) }
-                disconnect(connection)
-                if (++redirects > MAX_REDIRECTS || next == null || !visited.add(next.toString())) {
-                    throw NetworkRedirectException("WebDAV redirect policy rejected the response")
+                call.execute().use { response ->
+                    val status = response.code
+                    if (status !in REDIRECT_STATUSES) {
+                        if (status !in 200..299) throw WebDavHttpException(status)
+                        return response.body?.byteStream()?.readBounded(MAX_PROPFIND_BYTES)
+                            ?: throw IOException("WebDAV response has no body")
+                    }
+                    val next = response.header("Location")?.let { resolveRedirect(url, it, source) }
+                    if (++redirects > MAX_REDIRECTS || next == null || !visited.add(next.toString())) {
+                        throw NetworkRedirectException("WebDAV redirect policy rejected the response")
+                    }
+                    url = next
                 }
-                url = next
-            } catch (failure: IOException) {
-                disconnect(connection)
-                throw failure
-            } catch (failure: RuntimeException) {
-                disconnect(connection)
-                throw failure
+            } finally {
+                activePropFindCalls.remove(call)
             }
         }
     }
@@ -323,7 +339,23 @@ internal class WebDavNetworkFileSystem(
             instanceFollowRedirects = false
             setRequestProperty("Authorization", basicAuth(credentials))
             setRequestProperty("Accept", "application/xml, text/xml, */*")
-        }?.also(activeConnections::add) ?: throw IOException("Unsupported WebDAV connection")
+        }?.also { connection ->
+            activeConnections.add(connection)
+            if (released.get()) {
+                disconnect(connection)
+                throw IllegalStateException("WebDAV file system is released")
+            }
+        } ?: throw IOException("Unsupported WebDAV connection")
+    }
+
+    private fun HttpURLConnection.openInputStreamOrDisconnect(): InputStream = try {
+        inputStream
+    } catch (failure: IOException) {
+        disconnect(this)
+        throw failure
+    } catch (failure: RuntimeException) {
+        disconnect(this)
+        throw failure
     }
 
     private fun checkNotReleased() {
@@ -509,7 +541,6 @@ internal class WebDavNetworkFileSystem(
             else -> return null
         }
         val path = NetworkPathPolicy.normalizeRelativePath(relative)
-        if (path.isBlank() && requestedPath.isBlank()) return null
         return path
     }
 
@@ -565,6 +596,12 @@ internal class WebDavNetworkFileSystem(
                 </D:prop>
             </D:propfind>
         """
+    }
+}
+
+private fun requireWebDavDirectory(entries: List<NetworkFileEntry>, path: String) {
+    if (entries.none { it.path == path && it.isDirectory }) {
+        throw IOException("WebDAV response does not confirm the requested directory")
     }
 }
 

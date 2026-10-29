@@ -290,6 +290,7 @@ dependencies {
     implementation(libs.haze.blur)
     implementation(libs.jaudiotagger)
     implementation(libs.smbj)
+    implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     constraints {
         androidTestImplementation(libs.androidx.test.espresso.core)
