@@ -2,8 +2,16 @@ package elovaire.music.droidbeauty.app.data.library.db
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRecoveryResult
 
 class PersistenceMaintenanceTest {
+    @Test
+    fun unfinishedRecoveryBatchIsNotReportedAsComplete() {
+        assertEquals(false, mutationRecoveryComplete(MediaMutationRecoveryResult.Success(128, 1)))
+        assertEquals(true, mutationRecoveryComplete(MediaMutationRecoveryResult.Success(1, 0)))
+        assertEquals(false, mutationRecoveryComplete(MediaMutationRecoveryResult.Failure(IllegalStateException())))
+    }
+
     @Test
     fun retentionCutoffNeverPredatesEpoch() {
         assertEquals(0L, terminalMutationCutoff(1L))

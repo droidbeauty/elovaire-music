@@ -14,6 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 internal data class DeviceDeleteTarget(
@@ -151,17 +152,13 @@ internal class DeviceDeleteCoordinator(
             .put(KEY_FILE_PATHS, filePaths)
             .put(KEY_PARENT_DIRECTORIES, parents)
             .toString()
-        return synchronized(pendingDeletePreferences) {
-            pendingDeletePreferences.edit()
-                .putString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, plan.operationId)
-                .putString(KEY_PENDING_DEVICE_DELETE_PLAN, serializedPlan)
-                .commit()
-        }
+        return persistPendingDeleteState(pendingDeletePreferences, plan.operationId, serializedPlan)
     }
 
     private fun readPendingDelete(): DeviceDeletePlan? {
+        val raw = readPendingDeleteState() ?: return null
         val decoded = runCatching {
-            val root = JSONObject(readPendingDeleteState() ?: return@runCatching null)
+            val root = JSONObject(raw)
             val operationId = root.optString(KEY_OPERATION_ID).takeIf(String::isNotBlank)
                 ?: return@runCatching null
             val array = root.getJSONArray(KEY_TARGETS)
@@ -190,13 +187,12 @@ internal class DeviceDeleteCoordinator(
             operationId = operationId,
             targets = targets,
             uris = targets.map(DeviceDeleteTarget::uri),
-            filePaths = readStringSet(KEY_FILE_PATHS),
-            parentDirectories = readStringSet(KEY_PARENT_DIRECTORIES),
+            filePaths = readStringSet(raw, KEY_FILE_PATHS),
+            parentDirectories = readStringSet(raw, KEY_PARENT_DIRECTORIES),
         )
     }
 
-    private fun readStringSet(key: String): Set<String> {
-        val raw = readPendingDeleteState() ?: return emptySet()
+    private fun readStringSet(raw: String, key: String): Set<String> {
         return runCatching {
             val array = JSONObject(raw).optJSONArray(key) ?: return@runCatching emptySet()
             buildSet {
@@ -233,8 +229,36 @@ internal class DeviceDeleteCoordinator(
         const val KEY_ALBUM_ID = "album_id"
         const val KEY_URI = "uri"
         const val KEY_ART_URI = "art_uri"
-        const val KEY_PENDING_DEVICE_DELETE_OPERATION_ID = "pending_device_delete_operation_id"
-        const val KEY_PENDING_DEVICE_DELETE_PLAN = "pending_device_delete_plan"
         const val MAX_PENDING_TARGETS = 10_000
+    }
+}
+
+internal fun persistPendingDeleteState(
+    preferences: android.content.SharedPreferences,
+    operationId: String,
+    serializedPlan: String,
+): Boolean = synchronized(preferences) {
+    if (preferences.contains(KEY_PENDING_DEVICE_DELETE_PLAN)) return@synchronized false
+    preferences.edit()
+        .putString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, operationId)
+        .putString(KEY_PENDING_DEVICE_DELETE_PLAN, serializedPlan)
+        .commit()
+}
+
+private const val KEY_PENDING_DEVICE_DELETE_OPERATION_ID = "pending_device_delete_operation_id"
+private const val KEY_PENDING_DEVICE_DELETE_PLAN = "pending_device_delete_plan"
+
+internal suspend fun <T : Any> launchPreparedDelete(
+    createRequest: () -> T?,
+    launch: (T) -> Unit,
+    onAborted: suspend () -> Unit,
+) {
+    var launched = false
+    try {
+        val request = createRequest() ?: return
+        launch(request)
+        launched = true
+    } finally {
+        if (!launched) withContext(NonCancellable) { onAborted() }
     }
 }

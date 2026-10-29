@@ -12,6 +12,15 @@ import org.junit.Test
 
 class AudiobookProgressPolicyTest {
     @Test
+    fun checkpointSelectionPrefersAValidRecordOverAnInvalidNewerRecord() {
+        val valid = AudiobookProgress(7L, 500L, false, 10L)
+        assertEquals(0, selectNewestValidCheckpoint(valid, null))
+        assertEquals(1, selectNewestValidCheckpoint(null, valid))
+        assertEquals(1, selectNewestValidCheckpoint(valid, valid.copy(updatedAtMs = 20L)))
+        assertEquals(null, selectNewestValidCheckpoint(null, null))
+    }
+
+    @Test
     fun normalizedDurationsStayAlignedWhenIdsAreInvalidOrDurationsMissing() {
         val context = AudiobookPlaybackContext(
             "book", listOf(0L, 2L, -1L, 2L, 3L), 100L,

@@ -17,7 +17,7 @@ internal class MediaTargetExistenceProbe(
         if (targets.isEmpty()) return emptySet()
         return targets.mapNotNullTo(linkedSetOf()) { (songId, uri) ->
             if (uri.scheme.equals("file", ignoreCase = true)) {
-                return@mapNotNullTo songId.takeIf { uri.path?.let(::File)?.isFile == true }
+                return@mapNotNullTo songId.takeIf { uri.path?.let(::File)?.let(::fileTargetMayExist) != false }
             }
             val projection = if (uri.authority == MediaStore.AUTHORITY) {
                 arrayOf(MediaStore.Audio.Media._ID)
@@ -35,6 +35,17 @@ internal class MediaTargetExistenceProbe(
             }
             songId.takeIf { exists }
         }
+    }
+}
+
+internal fun fileTargetMayExist(file: File): Boolean {
+    return try {
+        if (file.exists()) return true
+        val parent = file.absoluteFile.parentFile ?: return true
+        if (!parent.isDirectory || !parent.canRead()) return true
+        !java.nio.file.Files.notExists(file.toPath())
+    } catch (_: SecurityException) {
+        true
     }
 }
 

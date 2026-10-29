@@ -26,6 +26,16 @@ class AudiobookProgressStoreTest {
     }
 
     @Test
+    fun remapIgnoresNewerCheckpointWithNoValidSong() {
+        val store = AudiobookProgressStore(context)
+        store.save("old", 1L, 100L, 1_000L, nowMs = 10L)
+        preferences.edit().putString(hashedKey("new"), "{\"updatedAtMs\":20}").commit()
+        store.remapBookKey("old", "new")
+        assertEquals(1L, store.load("new")?.songId)
+        assertNull(store.load("old"))
+    }
+
+    @Test
     fun remapBookKeyKeepsNewestCheckpointAndRemovesOldKey() {
         val store = AudiobookProgressStore(context)
         store.save("old", 1L, 100L, 1_000L, nowMs = 10L)

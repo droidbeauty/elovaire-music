@@ -252,9 +252,17 @@ internal fun rememberRootDeleteController(
         if (!pendingDeleteStateLoaded || pendingSongDeletion != null) return@deleteSongsCallback
         rootScope.launch {
             val deletePlan = deleteCoordinator.prepareSongDeletePlan(songs) ?: return@launch
-            val request = mediaStoreDeleteRequest(context, deletePlan.uris) ?: return@launch
-            pendingSongDeletion = deletePlan
-            deleteSongLauncher.launch(request)
+            elovaire.music.droidbeauty.app.data.library.launchPreparedDelete(
+                createRequest = { mediaStoreDeleteRequest(context, deletePlan.uris) },
+                launch = { request ->
+                    pendingSongDeletion = deletePlan
+                    deleteSongLauncher.launch(request)
+                },
+                onAborted = {
+                    pendingSongDeletion = null
+                    deleteCoordinator.clearPendingDelete(deletePlan.operationId)
+                },
+            )
         }
     }
 

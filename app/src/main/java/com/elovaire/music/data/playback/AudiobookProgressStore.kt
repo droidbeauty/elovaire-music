@@ -216,19 +216,27 @@ internal class AudiobookProgressStore(
     }
 
     private fun selectNewestCheckpoint(first: String, second: String?): String? {
-        val firstTimestamp = checkpointTimestamp(first) ?: return second?.takeIf { checkpointTimestamp(it) != null }
-        val secondTimestamp = second?.let(::checkpointTimestamp)
-        return if (secondTimestamp != null && secondTimestamp >= firstTimestamp) second else first
-    }
-
-    private fun checkpointTimestamp(raw: String): Long? {
-        return try {
-            JSONObject(raw).optLong("updatedAtMs").takeIf { it > 0L }
-        } catch (_: JSONException) {
-            null
-        } catch (_: RuntimeException) {
-            null
+        val now = clock.wallTimeMs()
+        val firstProgress = decodeCheckpointOrNull(first, now)
+        val secondProgress = second?.let { decodeCheckpointOrNull(it, now) }
+        return when (selectNewestValidCheckpoint(firstProgress, secondProgress)) {
+            0 -> first
+            1 -> second
+            else -> null
         }
     }
 
+    private fun decodeCheckpointOrNull(raw: String, now: Long): AudiobookProgress? = try {
+        decodeProgress(raw, now)
+    } catch (_: JSONException) {
+        null
+    } catch (_: RuntimeException) {
+        null
+    }
+}
+
+internal fun selectNewestValidCheckpoint(first: AudiobookProgress?, second: AudiobookProgress?): Int? = when {
+    first == null -> if (second == null) null else 1
+    second == null || first.updatedAtMs > second.updatedAtMs -> 0
+    else -> 1
 }

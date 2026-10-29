@@ -10,6 +10,22 @@ import org.junit.Test
 
 class MediaTargetExistenceProbeTest {
     @Test
+    fun inaccessibleParentDoesNotConfirmDeletionOfAFile() {
+        val directory = java.nio.file.Files.createTempDirectory("delete-probe").toFile()
+        try {
+            val existing = directory.resolve("song.mp3").apply { writeText("audio") }
+            assertTrue(fileTargetMayExist(existing))
+            assertFalse(fileTargetMayExist(directory.resolve("deleted.mp3")))
+            assertTrue(fileTargetMayExist(directory.resolve("unmounted/song.mp3")))
+            assertTrue(fileTargetMayExist(object : java.io.File(directory, "restricted.mp3") {
+                override fun exists(): Boolean = throw SecurityException("access denied")
+            }))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun providerFailureRemainsPossiblyPresent() = runBlocking {
         assertTrue(queryTargetMayExist { throw IllegalStateException("provider failed") })
     }

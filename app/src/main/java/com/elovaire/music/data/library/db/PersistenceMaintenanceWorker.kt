@@ -42,7 +42,7 @@ class PersistenceMaintenanceWorker(
                 userDataDao = database.userDataDao(),
             )
             if (!maintenance.recoverCritical()) {
-                return Result.failure()
+                return if (runAttemptCount < MAX_RETRY_COUNT) Result.retry() else Result.failure()
             }
             if (!healthCheckDue()) {
                 return Result.success()
