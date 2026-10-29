@@ -62,26 +62,26 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 internal enum class HomeModule { LastPlayed, RecentlyAdded, RecentlyPlayed, AlbumOfDay, FavoriteAlbums }
-internal val defaultHomeLayout = listOf(HomeModule.RecentlyAdded, HomeModule.LastPlayed, HomeModule.RecentlyPlayed, HomeModule.AlbumOfDay, HomeModule.FavoriteAlbums)
+internal val defaultHomeLayout = listOf(HomeModule.LastPlayed, HomeModule.RecentlyAdded, HomeModule.RecentlyPlayed, HomeModule.AlbumOfDay, HomeModule.FavoriteAlbums)
 private val homeLayoutKey = stringPreferencesKey("home_module_order")
 
 internal fun parseHomeLayout(raw: String?): List<HomeModule> {
     val movable = raw.orEmpty().split(',').mapNotNull { name -> HomeModule.entries.firstOrNull { it.name == name } }
-        .filterNot { it == HomeModule.RecentlyAdded }.distinct().toMutableList()
-    defaultHomeLayout.filterNot { it == HomeModule.RecentlyAdded }.forEach { if (it !in movable) movable.add(it) }
-    movable.add(0, HomeModule.RecentlyAdded)
+        .filterNot { it == HomeModule.LastPlayed }.distinct().toMutableList()
+    defaultHomeLayout.filterNot { it == HomeModule.LastPlayed }.forEach { if (it !in movable) movable.add(it) }
+    movable.add(0, HomeModule.LastPlayed)
     return movable
 }
 
 internal fun moveHomeModule(order: List<HomeModule>, module: HomeModule, direction: Int): List<HomeModule> {
-    if (module == HomeModule.RecentlyAdded || direction == 0) return order
-    val movable = order.filterNot { it == HomeModule.RecentlyAdded }.toMutableList()
+    if (module == HomeModule.LastPlayed || direction == 0) return order
+    val movable = order.filterNot { it == HomeModule.LastPlayed }.toMutableList()
     val from = movable.indexOf(module)
     if (from < 0) return order
     val to = (from + direction.coerceIn(-1, 1)).coerceIn(0, movable.lastIndex)
     if (from == to) return order
     movable.add(to, movable.removeAt(from))
-    movable.add(0, HomeModule.RecentlyAdded)
+    movable.add(0, HomeModule.LastPlayed)
     return movable
 }
 
@@ -160,8 +160,8 @@ internal fun homeLayoutSubtitle(language: AppLanguage): String = when (language)
 private data class HomeLayoutEditorCopy(val hint: String, val lastPlayed: String, val fixed: String, val up: String, val down: String, val reorder: String)
 
 private fun homeLayoutEditorCopy(language: AppLanguage): HomeLayoutEditorCopy = when (language) {
-    AppLanguage.Polish -> HomeLayoutEditorCopy("Przytrzymaj sekcję i przeciągnij, aby zmienić jej położenie", "Ostatnio odtwarzane", "Stała pozycja", "Przenieś w górę", "Przenieś w dół", "Zmień położenie")
-    AppLanguage.German -> HomeLayoutEditorCopy("Halte einen Abschnitt gedrückt und ziehe ihn an eine neue Position", "Zuletzt gespielt", "Feste Position", "Nach oben", "Nach unten", "Anordnen")
+    AppLanguage.Polish -> HomeLayoutEditorCopy("Przytrzymaj sekcję i przeciągnij, aby zmienić jej położenie", "Ostatni album lub playlista", "Stała pozycja", "Przenieś w górę", "Przenieś w dół", "Zmień położenie")
+    AppLanguage.German -> HomeLayoutEditorCopy("Halte einen Abschnitt gedrückt und ziehe ihn an eine neue Position", "Letztes Album oder letzte Playlist", "Feste Position", "Nach oben", "Nach unten", "Anordnen")
     AppLanguage.French -> HomeLayoutEditorCopy("Maintenez une section puis faites-la glisser pour la déplacer", "Dernière lecture", "Position fixe", "Monter", "Descendre", "Déplacer")
     AppLanguage.Spanish -> HomeLayoutEditorCopy("Mantén pulsada una sección y arrástrala para cambiar su orden", "Última reproducción", "Posición fija", "Subir", "Bajar", "Mover")
     else -> HomeLayoutEditorCopy("Touch and hold a section, then drag to reorder it", "Last played", "Fixed position", "Move up", "Move down", "Reorder")
@@ -218,7 +218,7 @@ internal fun HomeLayoutScreen(bottomPadding: Dp, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp))
             }
             items(order, key = { it.name }) { module ->
-                val movable = module != HomeModule.RecentlyAdded
+                val movable = module != HomeModule.LastPlayed
                 val active = dragged == module
                 val scale by animateFloatAsState(if (active) 1.12f else 1f, specs.spring(), label = "home_layout_handle_scale")
                 val alpha by animateFloatAsState(if (active) 1f else 0.5f, specs.tween(), label = "home_layout_handle_alpha")

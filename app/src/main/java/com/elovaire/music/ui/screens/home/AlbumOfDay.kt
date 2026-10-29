@@ -23,6 +23,16 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.luminance
+import elovaire.music.droidbeauty.app.ui.components.rememberArtworkPaletteAccent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +65,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.albumOfDayTitle
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.motion.elovaireContentChangeMotion
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.MutedSectionHeader
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
@@ -111,6 +123,7 @@ internal fun AlbumOfDayModule(
     album: Album,
     onOpen: (ExpandOrigin) -> Unit,
     onPlay: () -> Unit,
+    onShuffle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val language = LocalAppLanguage.current
@@ -118,6 +131,8 @@ internal fun AlbumOfDayModule(
     var bounds by remember { mutableStateOf<Rect?>(null) }
     val open = { onOpen(bounds.toExpandOrigin(screenSize.width.toFloat(), screenSize.height.toFloat())) }
     val artwork = rememberArtworkBitmap(album.artUri, size = 512).value
+    val accent = rememberArtworkPaletteAccent(album.artUri).value ?: MaterialTheme.colorScheme.primary
+    val controlTint = if (accent.luminance() > 0.45f) Color.Black else Color.White
     val metadata = remember(album.songs) {
         listOfNotNull(
             album.songs.firstNotNullOfOrNull { it.releaseYear }?.toString(),
@@ -127,11 +142,10 @@ internal fun AlbumOfDayModule(
     ModuleCard(
         modifier = modifier
             .elovaireContentChangeMotion(album.id)
-            .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .elovaireClickable(onClick = open),
+            .onGloballyPositioned { bounds = it.boundsInWindow() },
         contentPadding = PaddingValues(0.dp),
     ) {
-        Box {
+        Box(modifier = Modifier.elovaireClickable(onClick = open)) {
         if (artwork != null) {
             Image(
                 bitmap = artwork,
@@ -184,14 +198,18 @@ internal fun AlbumOfDayModule(
                         color = readableSecondaryTextColor(),
                     )
                 }
-                AlbumHeaderActionButton(
-                    iconResId = R.drawable.ic_lucide_play,
-                    contentDescription = rootUiCopy(language).playAlbum,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    backgroundColor = MaterialTheme.colorScheme.primary,
-                    iconSize = 18.dp,
-                    onClick = onPlay,
-                )
+                Surface(modifier = Modifier.width(46.dp).height(92.dp), shape = RoundedCornerShape(ElovaireRadii.pill), color = accent, contentColor = controlTint) {
+                    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        val shuffleInteraction = rememberElovaireInteractionSource()
+                        val playInteraction = rememberElovaireInteractionSource()
+                        Box(Modifier.size(46.dp).elovaireActionBump(interactionSource = shuffleInteraction, label = "daily_album_shuffle").clickable(interactionSource = shuffleInteraction, indication = null, onClick = onShuffle), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(R.drawable.ic_lucide_shuffle), contentDescription = "Shuffle album", modifier = Modifier.size(20.dp))
+                        }
+                        Box(Modifier.size(46.dp).elovaireActionBump(interactionSource = playInteraction, label = "daily_album_play").clickable(interactionSource = playInteraction, indication = null, onClick = onPlay), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(R.drawable.ic_lucide_play), contentDescription = rootUiCopy(language).playAlbum, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
             }
         }
         }

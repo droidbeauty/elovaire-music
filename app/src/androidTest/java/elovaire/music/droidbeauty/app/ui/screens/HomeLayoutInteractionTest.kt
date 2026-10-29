@@ -60,7 +60,7 @@ class HomeLayoutInteractionTest {
     }
 
     @Test
-    fun longPressDragPersistsAndRecentlyAddedRemainsFixed() {
+    fun longPressDragPersistsAndLastPlayedRemainsFixed() {
         val store = rule.activity.applicationContext.elovaireSettingsDataStore()
         runBlocking {
             saved = store.data.first()[key]
@@ -76,7 +76,7 @@ class HomeLayoutInteractionTest {
             }
         }
         rule.onNodeWithText("Last played").assertIsDisplayed()
-        rule.onNodeWithContentDescription("Reorder Last played").performTouchInput {
+        rule.onNodeWithContentDescription("Reorder Recently added").performTouchInput {
             down(center)
             advanceEventTime(700)
             moveBy(Offset(0f, 200f), delayMillis = 250)
@@ -84,16 +84,16 @@ class HomeLayoutInteractionTest {
         }
         rule.waitUntil(5_000) { runBlocking { store.data.first()[key] != null } }
         val persisted = runBlocking { parseHomeLayout(store.data.first()[key]) }
-        assertEquals(HomeModule.RecentlyAdded, persisted.first())
+        assertEquals(HomeModule.LastPlayed, persisted.first())
         assertEquals(HomeModule.RecentlyPlayed, persisted[1])
         rule.runOnIdle { mounted = false }
         rule.runOnIdle { mounted = true }
         rule.waitUntil(5_000) {
             val first = rule.onNodeWithText("Recently played").getUnclippedBoundsInRoot().top
-            val last = rule.onNodeWithText("Last played").getUnclippedBoundsInRoot().top
+            val last = rule.onNodeWithText("Recently added").getUnclippedBoundsInRoot().top
             first < last
         }
-        assertTrue(rule.onNodeWithText("Recently played").getUnclippedBoundsInRoot().top < rule.onNodeWithText("Last played").getUnclippedBoundsInRoot().top)
+        assertTrue(rule.onNodeWithText("Recently played").getUnclippedBoundsInRoot().top < rule.onNodeWithText("Recently added").getUnclippedBoundsInRoot().top)
         rule.onNodeWithText("Fixed position").assertIsDisplayed()
     }
 
@@ -108,11 +108,11 @@ class HomeLayoutInteractionTest {
                 }
             }
         }
-        rule.onNodeWithText("1.0×").assertIsDisplayed()
-        rule.onNodeWithContentDescription("Playback speed").performSemanticsAction(SemanticsActions.SetProgress) { it(1.1f) }
-        rule.runOnIdle { assertEquals(1.1f, speed, 0.001f) }
+        rule.onNodeWithText("1.0").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Playback speed").performSemanticsAction(SemanticsActions.SetProgress) { it(1.25f) }
+        rule.runOnIdle { assertEquals(1.25f, speed, 0.001f) }
         rule.onNodeWithContentDescription("Playback speed").performTouchInput { click(Offset(center.x * 1.9f, center.y)) }
-        rule.runOnIdle { assertTrue(speed > 2.2f) }
+        rule.runOnIdle { assertTrue(speed > 1.75f) }
         rule.onNodeWithContentDescription("Playback speed").performTouchInput { click(Offset(center.x * 0.1f, center.y)) }
         rule.runOnIdle { assertTrue(speed < 0.7f) }
         rule.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.Off)).performClick()

@@ -293,7 +293,7 @@ internal fun PlaylistDetailScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                            val artworkWidth = (maxWidth * 0.38f) - 10.dp
+                            val artworkWidth = (maxWidth * 0.38f) - 30.dp
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -352,7 +352,7 @@ internal fun PlaylistDetailScreen(
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             AlbumHeaderPlayButton(

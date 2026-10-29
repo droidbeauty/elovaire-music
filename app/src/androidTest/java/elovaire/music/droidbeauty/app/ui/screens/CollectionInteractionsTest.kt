@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import androidx.compose.ui.test.click
+
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
@@ -98,15 +100,18 @@ class CollectionInteractionsTest {
     fun dailyAlbumCardOpensTheAlbumAndHasIndependentPlayback() {
         var opened = 0
         var played = 0
+        var shuffled = 0
         setContent {
-            AlbumOfDayModule(album(songs.first()), onOpen = { opened++ }, onPlay = { played++ })
+            AlbumOfDayModule(album(songs.first()), onOpen = { opened++ }, onPlay = { played++ }, onShuffle = { shuffled++ })
         }
+        rule.onNodeWithContentDescription("Shuffle album").performClick()
+        rule.runOnIdle { assertEquals(1, shuffled) }
         rule.onNodeWithContentDescription("Play album").performClick()
         rule.runOnIdle {
             assertEquals(1, played)
             assertEquals(0, opened)
         }
-        rule.onNodeWithText("Album of the day").performClick()
+        rule.onNodeWithText("Album of the day").performTouchInput { click() }
         rule.runOnIdle { assertEquals(1, opened) }
         capture("album-of-day.png")
     }

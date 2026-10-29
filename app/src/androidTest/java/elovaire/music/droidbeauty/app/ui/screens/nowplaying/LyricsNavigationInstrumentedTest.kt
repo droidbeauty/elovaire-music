@@ -46,6 +46,18 @@ class LyricsNavigationInstrumentedTest {
     private val device = UiDevice.getInstance(instrumentation)
 
     @Test
+    fun firstEntryShowsLoadingUntilLyricsArrive() {
+        val fixture = Fixture()
+        fixture.open().use {
+            assertTrue(device.wait(Until.findObject(By.text("Loading lyrics...")), 4_000L) != null)
+            assertTrue(device.findObject(By.desc("Add lyrics")) == null)
+            fixture.answer(1, "Lyrics loaded on first entry")
+            text("Lyrics loaded on first entry")
+            assertEquals(listOf(1L), fixture.requests.toList())
+        }
+    }
+
+    @Test
     fun nextPreviousAndRapidSkipsReplaceLyricsWithoutAnotherNavigationRoundTrip() {
         val fixture = Fixture()
         fixture.answer(1, "First song lyrics")

@@ -94,21 +94,21 @@ internal fun AudiobookSettingsScreen(
                                     Text(extraCopy.speed, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
                                     Text(extraCopy.speedSubtitle, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                                 }
-                                Text("${(playbackSpeed * 10).roundToInt() / 10f}×", style = MaterialTheme.typography.titleMedium)
+                                Text("${(playbackSpeed.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f}", style = MaterialTheme.typography.titleMedium)
                             }
                             SteppedSlider(
-                                selectedIndex = ((playbackSpeed * 10).roundToInt() - 5).coerceIn(0, 20),
-                                stepCount = 21,
-                                onSelectedIndexChanged = { onPlaybackSpeedChanged((it + 5) / 10f) },
+                                selectedIndex = ((playbackSpeed * 4).roundToInt() - 2).coerceIn(0, 6),
+                                stepCount = 7,
+                                onSelectedIndexChanged = { onPlaybackSpeedChanged((it + 2) / 4f) },
                                 modifier = Modifier.testTag("audiobook_speed_slider").semantics {
                                     contentDescription = extraCopy.speed
-                                    progressBarRangeInfo = ProgressBarRangeInfo(playbackSpeed.coerceIn(0.5f, 2.5f), 0.5f..2.5f, 19)
-                                    setProgress { value -> onPlaybackSpeedChanged((value.coerceIn(0.5f, 2.5f) * 10).roundToInt() / 10f); true }
+                                    progressBarRangeInfo = ProgressBarRangeInfo(playbackSpeed.coerceIn(0.5f, 2f), 0.5f..2f, 5)
+                                    setProgress { value -> onPlaybackSpeedChanged((value.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f); true }
                                 },
                             )
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("0.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("2.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("2×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         AudiobookSeekSettingRow(

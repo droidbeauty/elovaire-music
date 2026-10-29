@@ -15,7 +15,7 @@ class HomeLayoutTest {
     @Test
     fun restoredLayoutRepairsMissingDuplicateAndUnknownModules() {
         val restored = parseHomeLayout("FavoriteAlbums,FavoriteAlbums,RecentlyPlayed,unknown,LastPlayed")
-        assertEquals(HomeModule.RecentlyAdded, restored[0])
+        assertEquals(HomeModule.LastPlayed, restored[0])
         assertEquals(HomeModule.entries.toSet(), restored.toSet())
         assertEquals(HomeModule.entries.size, restored.size)
         assertEquals(HomeModule.FavoriteAlbums, restored[1])
@@ -23,14 +23,14 @@ class HomeLayoutTest {
     }
 
     @Test
-    fun movableModulesCanBeReorderedWhileRecentlyAddedStaysFirst() {
-        val first = moveHomeModule(defaultHomeLayout, HomeModule.LastPlayed, 1)
-        assertEquals(HomeModule.RecentlyAdded, first[0])
+    fun movableModulesCanBeReorderedWhileLastPlayedStaysFirst() {
+        val first = moveHomeModule(defaultHomeLayout, HomeModule.RecentlyAdded, 1)
+        assertEquals(HomeModule.LastPlayed, first[0])
         assertEquals(HomeModule.RecentlyPlayed, first[1])
-        assertEquals(HomeModule.LastPlayed, first[2])
-        val second = moveHomeModule(first, HomeModule.LastPlayed, -1)
+        assertEquals(HomeModule.RecentlyAdded, first[2])
+        val second = moveHomeModule(first, HomeModule.RecentlyAdded, -1)
         assertEquals(defaultHomeLayout, second)
-        assertEquals(defaultHomeLayout, moveHomeModule(defaultHomeLayout, HomeModule.RecentlyAdded, 1))
+        assertEquals(defaultHomeLayout, moveHomeModule(defaultHomeLayout, HomeModule.LastPlayed, 1))
         assertEquals(defaultHomeLayout, moveHomeModule(defaultHomeLayout, HomeModule.LastPlayed, -1))
     }
 

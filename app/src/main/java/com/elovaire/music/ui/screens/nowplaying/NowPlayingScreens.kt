@@ -3915,29 +3915,30 @@ internal fun LyricsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    AnimatedContent(
-                        targetState = song?.let { it.title to it.artist },
+                    Row(
                         modifier = Modifier.weight(1f),
-                        transitionSpec = {
-                            (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard)) +
-                                slideInVertically(
-                                    animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
-                                    initialOffsetY = { -it / 3 },
-                                )) togetherWith fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick))
-                        },
-                        label = "lyrics_track_header",
-                    ) { metadata ->
-                        if (metadata != null) Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_circle_play),
-                                contentDescription = null,
-                                tint = secondaryContentColor,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Column(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_circle_play),
+                            contentDescription = null,
+                            tint = secondaryContentColor,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        AnimatedContent(
+                            targetState = song?.let { it.title to it.artist },
+                            modifier = Modifier.weight(1f),
+                            transitionSpec = {
+                                (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard)) +
+                                    slideInVertically(
+                                        animationSpec = motionSpecs.tween(MotionDuration.Medium, easing = MotionEasing.RefinedDecelerate),
+                                        initialOffsetY = { -it / 3 },
+                                    )) togetherWith fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick))
+                            },
+                            label = "lyrics_track_header",
+                        ) { metadata ->
+                            if (metadata != null) Column(
                                 modifier = Modifier.fillMaxWidth(0.75f),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                                 horizontalAlignment = Alignment.Start,
@@ -4050,7 +4051,6 @@ internal fun LyricsOverlay(
                                 errorMessage = lyricsEditorUiState.errorMessage,
                             )
                         } else when (val state = content.lyrics) {
-                            LyricsUiState.Hidden,
                             LyricsUiState.Empty -> {
                                 LyricsUnavailableContent(
                                     noLyricsText = copy.noLyrics,
@@ -4062,7 +4062,7 @@ internal fun LyricsOverlay(
                                     },
                                 )
                             }
-                            LyricsUiState.Loading -> {
+                            LyricsUiState.Hidden, LyricsUiState.Loading -> {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center,
@@ -4793,6 +4793,7 @@ private fun LyricsReadyContent(
                 softWrap = true,
                 maxLines = Int.MAX_VALUE,
                 modifier = Modifier
+                    .animateItem(placementSpec = motionSpecs.listPlacement())
                     .fillMaxWidth()
                     .graphicsLayer {
                         alpha = lineAlpha.value

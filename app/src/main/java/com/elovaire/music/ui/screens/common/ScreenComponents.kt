@@ -533,10 +533,7 @@ internal fun MutedSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .elovaireClickable(
-                enabled = onClick != null,
-                onClick = { onClick?.invoke() },
-            ),
+            .then(if (onClick != null) Modifier.elovaireClickable(onClick = onClick) else Modifier),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

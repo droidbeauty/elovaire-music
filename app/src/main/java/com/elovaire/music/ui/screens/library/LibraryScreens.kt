@@ -396,6 +396,7 @@ internal fun HomeScreen(
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onPlayAlbum: (Album) -> Unit,
+    onShuffleAlbum: (Album) -> Unit = {},
     onPlayPlaylist: (Playlist, List<Song>) -> Unit,
     onShufflePlaylist: (Playlist, List<Song>) -> Unit,
     onOpenRecentlyAdded: () -> Unit,
@@ -694,6 +695,7 @@ internal fun HomeScreen(
                                 album = albumOfDay,
                                 onOpen = { origin -> onAlbumSelected(albumOfDay, origin) },
                                 onPlay = { onPlayAlbum(albumOfDay) },
+                                onShuffle = { onShuffleAlbum(albumOfDay) },
                                 modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
                             )
                         }
@@ -757,9 +759,7 @@ private fun LastPlayedAlbumModule(
                 genre?.let(::add)
             }
         }
-        val playBackground = gradient.first()
-            .copy(alpha = 0.24f)
-            .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+        val playBackground = rememberArtworkPaletteAccent(album.artUri).value ?: MaterialTheme.colorScheme.primary
         val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
         val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
         val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
@@ -910,9 +910,7 @@ private fun LastPlayedPlaylistModule(
                 formatPlaylistDuration(totalDurationMs),
             )
         }
-        val playBackground = gradient.first()
-            .copy(alpha = 0.24f)
-            .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+        val playBackground = rememberArtworkPaletteAccent(artworkSong?.artUri).value ?: MaterialTheme.colorScheme.primary
         val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
         val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
         val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)

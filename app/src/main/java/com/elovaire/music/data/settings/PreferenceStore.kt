@@ -355,7 +355,7 @@ class PreferenceStore internal constructor(
     }
 
     override fun setAudiobookPlaybackSpeed(value: Float) {
-        val normalized = value.takeIf(Float::isFinite)?.coerceIn(0.5f, 2.5f) ?: 1f
+        val normalized = value.takeIf(Float::isFinite)?.let { kotlin.math.round(it.coerceIn(0.5f, 2f) * 4f) / 4f } ?: 1f
         synchronized(audiobookSpeedMigrationLock) {
             audiobookSpeedWasChanged = true
             updateStateAndPreference(
@@ -984,7 +984,8 @@ class PreferenceStore internal constructor(
     }
 
     private fun loadAudiobookPlaybackSpeed(): Float {
-        return preferences.getFloat(KEY_AUDIOBOOK_PLAYBACK_SPEED, 1f).coerceIn(0.5f, 2.5f)
+        val value = preferences.getFloat(KEY_AUDIOBOOK_PLAYBACK_SPEED, 1f)
+        return value.takeIf(Float::isFinite)?.let { kotlin.math.round(it.coerceIn(0.5f, 2f) * 4f) / 4f } ?: 1f
     }
 
     private fun migrateLegacyAudiobookPlaybackSpeed() {
@@ -1001,7 +1002,7 @@ class PreferenceStore internal constructor(
                 } else {
                     try {
                         legacyAudiobookPreferences.getFloat(AudiobookProgressStore.LEGACY_SPEED_KEY, 1f)
-                            .coerceIn(0.5f, 2.5f)
+                            .coerceIn(0.5f, 2f).let { kotlin.math.round(it * 4f) / 4f }
                     } catch (_: ClassCastException) {
                         null
                     }
