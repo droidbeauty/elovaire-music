@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.network
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRuntime
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.CountDownLatch
@@ -78,4 +79,38 @@ class HttpCancellationInstrumentedTest {
             scope.cancel()
         }
     }
+    @Test
+    fun cancelledArtistPostDisconnectsItsSocket() {
+        val responseStarted = CountDownLatch(1)
+        val releaseResponse = CountDownLatch(1)
+        val disconnected = CountDownLatch(1)
+        val resources = BackendResourceRuntime()
+        val connection = object : HttpURLConnection(URL("https://artist.test/search")) {
+            override fun connect() = Unit
+            override fun usingProxy() = false
+            override fun getOutputStream() = ByteArrayOutputStream()
+            override fun getResponseCode(): Int {
+                responseStarted.countDown()
+                check(releaseResponse.await(10, TimeUnit.SECONDS))
+                return 200
+            }
+            override fun disconnect() {
+                releaseResponse.countDown()
+                disconnected.countDown()
+            }
+        }
+        val transport = BoundedHttpTransport(resourceTracker = resources, openConnection = { connection })
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val request = scope.launch { transport.post("https://artist.test/search", byteArrayOf(1), maxBytes = 1024) }
+        try {
+            assertTrue(responseStarted.await(3, TimeUnit.SECONDS))
+            request.cancel()
+            runBlocking { withTimeout(2_000L) { request.join() } }
+            assertTrue(disconnected.await(2, TimeUnit.SECONDS))
+        } finally {
+            releaseResponse.countDown()
+            scope.cancel()
+        }
+    }
+
 }

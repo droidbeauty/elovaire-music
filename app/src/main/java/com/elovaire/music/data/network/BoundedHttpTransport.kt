@@ -14,11 +14,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asExecutor
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 
 /** Small, bounded transport for app-owned HTTPS GETs. Callers retain response semantics. */
 internal class BoundedHttpTransport(
@@ -42,7 +40,13 @@ internal class BoundedHttpTransport(
         headers: Map<String, String> = emptyMap(),
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
-    ): BoundedHttpResponse = suspendCancellableCoroutine { continuation ->
+    ): BoundedHttpResponse = executeCancellable { context, connection ->
+        getBlocking(rawUrl, headers, maxBytes, urlPolicy, context, connection)
+    }
+
+    private suspend fun <T> executeCancellable(
+        request: (kotlin.coroutines.CoroutineContext, AtomicReference<HttpURLConnection?>) -> T,
+    ): T = suspendCancellableCoroutine { continuation ->
         val activeConnection = AtomicReference<HttpURLConnection?>()
         continuation.invokeOnCancellation {
             activeConnection.getAndSet(null)?.let { connection ->
@@ -50,12 +54,11 @@ internal class BoundedHttpTransport(
                 ioDispatcher.dispatch(EmptyCoroutineContext) { connection.disconnect() }
             }
         }
-        // A cancelled blocking socket must not hold up flatMapLatest's next lyrics request.
         ioDispatcher.asExecutor().execute {
             continuation.resumeWith(runCatching {
                 continuation.context.ensureActive()
                 resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest).use {
-                    getBlocking(rawUrl, headers, maxBytes, urlPolicy, continuation.context, activeConnection)
+                    request(continuation.context, activeConnection)
                 }
             })
         }
@@ -233,44 +236,39 @@ internal class BoundedHttpTransport(
         headers: Map<String, String> = emptyMap(),
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
-    ): BoundedHttpResponse = withContext(ioDispatcher) {
-        val cancellationContext = currentCoroutineContext()
+    ): BoundedHttpResponse = executeCancellable { cancellationContext, activeConnection ->
         withTrafficStatsTag {
-        val httpResource = resourceTracker.acquire(BackendResourceKind.ActiveHttpRequest)
+            require(maxBytes > 0) { "maxBytes must be positive" }
+            val url = URL(rawUrl)
+            require(urlPolicy(url)) { "HTTP request URL is not allowed" }
+            val connection = openConnection(url)
+            activeConnection.set(connection)
             try {
-                require(maxBytes > 0) { "maxBytes must be positive" }
-                val url = URL(rawUrl)
-                require(urlPolicy(url)) { "HTTP request URL is not allowed" }
-                val connection = (url.openConnection() as? HttpURLConnection)
-                    ?: error("Unsupported HTTP connection")
-                try {
-                    connection.requestMethod = "POST"
-                    connection.connectTimeout = connectTimeoutMs
-                    connection.readTimeout = readTimeoutMs
-                    connection.instanceFollowRedirects = false
-                    connection.doOutput = true
-                    headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
-                    connection.connect()
-                    connection.outputStream.use { output -> output.write(body) }
-                    val status = connection.responseCode
-                    val contentLength = connection.contentLengthLong
-                    if (contentLength > maxBytes) error("HTTP response is too large")
-                    val responseBody = if (status in 200..299) {
-                        connection.inputStream.use { it.readBounded(maxBytes, cancellationContext) }
-                    } else {
-                        ByteArray(0)
-                    }
-                    BoundedHttpResponse(
-                        statusCode = status,
-                        body = responseBody,
-                        retryAfterMs = connection.getHeaderField("Retry-After")?.toRetryAfterMs(),
-                        finalUrl = url,
-                    )
-                } finally {
-                    connection.disconnect()
+                cancellationContext.ensureActive()
+                connection.requestMethod = "POST"
+                connection.connectTimeout = connectTimeoutMs
+                connection.readTimeout = readTimeoutMs
+                connection.instanceFollowRedirects = false
+                connection.doOutput = true
+                headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+                connection.connect()
+                connection.outputStream.use { output -> output.write(body) }
+                val status = connection.responseCode
+                if (connection.contentLengthLong > maxBytes) error("HTTP response is too large")
+                val responseBody = if (status in 200..299) {
+                    connection.inputStream.use { it.readBounded(maxBytes, cancellationContext) }
+                } else {
+                    ByteArray(0)
                 }
+                BoundedHttpResponse(
+                    statusCode = status,
+                    body = responseBody,
+                    retryAfterMs = connection.getHeaderField("Retry-After")?.toRetryAfterMs(),
+                    finalUrl = url,
+                )
             } finally {
-                httpResource.close()
+                activeConnection.compareAndSet(connection, null)
+                connection.disconnect()
             }
         }
     }

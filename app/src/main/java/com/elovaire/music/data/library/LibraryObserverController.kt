@@ -233,6 +233,7 @@ internal class LibraryObserverController(
             .toSet()
         if (!forceRebuild && currentUris == safObserverUris) return
         releaseSafTreeObservers()
+        if (safObserverUris.isNotEmpty()) return
         if (currentUris.isEmpty()) return
         val registeredUris = currentUris.filter { uri ->
             runCatching {
@@ -248,7 +249,11 @@ internal class LibraryObserverController(
 
     private fun releaseSafTreeObservers() {
         if (safObserverUris.isEmpty()) return
-        runCatching { contentResolver.unregisterContentObserver(safObserver) }
+        val failure = runCatching { contentResolver.unregisterContentObserver(safObserver) }.exceptionOrNull()
+        if (failure != null) {
+            logDebug("saf observer unregister failed=${failure::class.simpleName}")
+            return
+        }
         safObserverUris = emptySet()
         safObserverLease?.close()
         safObserverLease = null
@@ -431,7 +436,12 @@ internal class LibraryObserverController(
                     reason = "observer budget exceeded"
                     break
                 }
-                directory.listFiles().orEmpty().forEach { child ->
+                val children = directory.listFiles()
+                if (children == null) {
+                    reason = "directory listing unavailable"
+                    break
+                }
+                children.forEach { child ->
                     if (!child.isDirectory || child.isSymbolicLinkSafely()) return@forEach
                     if (depth >= MAX_RECURSIVE_DIRECTORY_DEPTH) {
                         reason = "directory depth budget exceeded"

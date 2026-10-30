@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -32,6 +33,98 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ArtworkBitmapCacheInstrumentedTest {
+    @Test
+    fun failedSharedDecodePropagatesWithoutRetryingEachWaiter() {
+        val executor = Executors.newFixedThreadPool(2)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val key = "failed-shared-${System.nanoTime()}"
+        val attempts = AtomicInteger()
+        val failure = IllegalStateException("decode failed")
+        try {
+            val owner = executor.submit<Throwable?> {
+                runCatching {
+                    ArtworkBitmapCache.getOrLoad(key) {
+                        attempts.incrementAndGet()
+                        started.countDown()
+                        check(release.await(5, TimeUnit.SECONDS))
+                        throw failure
+                    }
+                }.exceptionOrNull()
+            }
+            assertTrue(started.await(5, TimeUnit.SECONDS))
+            val waiterStarted = CountDownLatch(1)
+            var waiterThread: Thread? = null
+            val waiter = executor.submit<Throwable?> {
+                waiterThread = Thread.currentThread()
+                waiterStarted.countDown()
+                runCatching {
+                    ArtworkBitmapCache.getOrLoad(key) { attempts.incrementAndGet(); null }
+                }.exceptionOrNull()
+            }
+            assertTrue(waiterStarted.await(5, TimeUnit.SECONDS))
+            val deadline = android.os.SystemClock.uptimeMillis() + 5_000L
+            while (waiterThread?.state != Thread.State.WAITING && android.os.SystemClock.uptimeMillis() < deadline) {
+                android.os.SystemClock.sleep(1L)
+            }
+            assertEquals(Thread.State.WAITING, waiterThread?.state)
+            release.countDown()
+            assertSame(failure, owner.get(5, TimeUnit.SECONDS))
+            assertSame(failure, waiter.get(5, TimeUnit.SECONDS))
+            assertEquals(1, attempts.get())
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS))
+        }
+    }
+    @Test
+    fun suspendedWaiterSharesFailureAndRetriesOwnerCancellation() = runBlocking {
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            for (cancelOwner in listOf(false, true)) {
+                val key = "suspended-failure-${System.nanoTime()}"
+                val started = CountDownLatch(1)
+                val release = CountDownLatch(1)
+                val attempts = AtomicInteger()
+                val failure = if (cancelOwner) CancellationException("owner cancelled")
+                    else IllegalStateException("decode failed")
+                val owner = executor.submit {
+                    runCatching {
+                        ArtworkBitmapCache.getOrLoad(key) {
+                            attempts.incrementAndGet()
+                            started.countDown()
+                            check(release.await(5, TimeUnit.SECONDS))
+                            throw failure
+                        }
+                    }
+                }
+                try {
+                    assertTrue(started.await(5, TimeUnit.SECONDS))
+                    val waiter = async(start = CoroutineStart.UNDISPATCHED) {
+                        runCatching { ArtworkBitmapCache.getOrLoadAwaiting(key) { attempts.incrementAndGet(); null } }
+                    }
+                    assertFalse(waiter.isCompleted)
+                    release.countDown()
+                    val result = withTimeout(5_000L) { waiter.await() }
+                    if (cancelOwner) {
+                        assertTrue(result.isSuccess)
+                        assertEquals(2, attempts.get())
+                    } else {
+                        assertSame(failure, result.exceptionOrNull())
+                        assertEquals(1, attempts.get())
+                    }
+                    owner.get(5, TimeUnit.SECONDS)
+                } finally {
+                    release.countDown()
+                }
+            }
+        } finally {
+            executor.shutdownNow()
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS))
+        }
+    }
+
     @Test
     fun synchronousWaitersShareMissingArtworkWithoutRepeatingTheDecode() {
         val executor = Executors.newFixedThreadPool(8)

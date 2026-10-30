@@ -47,7 +47,6 @@ internal class PlaybackRuntimeResources(
     }
 
     fun release() {
-        if (released) return
         released = true
         unregisterNoisyReceiver()
         unregisterAudioDeviceCallback()
@@ -69,10 +68,10 @@ internal class PlaybackRuntimeResources(
                 return
             }
             volumeObserverLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
+            volumeObserverRegistered = true
         } else {
             unregisterVolumeObserver()
         }
-        volumeObserverRegistered = registered
     }
 
     private fun setAudioDeviceCallbackRegistered(registered: Boolean) {
@@ -86,10 +85,10 @@ internal class PlaybackRuntimeResources(
                 return
             }
             audioDeviceCallbackLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
+            audioDeviceCallbackRegistered = true
         } else {
             unregisterAudioDeviceCallback()
         }
-        audioDeviceCallbackRegistered = registered
     }
 
     private fun setNoisyReceiverRegistered(registered: Boolean) {
@@ -108,16 +107,19 @@ internal class PlaybackRuntimeResources(
                 return
             }
             noisyReceiverLease = resourceTracker.acquire(BackendResourceKind.ActiveObserver)
+            noisyReceiverRegistered = true
         } else {
             unregisterNoisyReceiver()
         }
-        noisyReceiverRegistered = registered
     }
 
     private fun unregisterVolumeObserver() {
         if (!volumeObserverRegistered && volumeObserverLease == null) return
-        runCatching { appContext.contentResolver.unregisterContentObserver(volumeObserver) }
-            .onFailure { Log.w(TAG, "Unable to unregister the playback volume observer.", it) }
+        val failure = runCatching { appContext.contentResolver.unregisterContentObserver(volumeObserver) }.exceptionOrNull()
+        if (failure != null) {
+            Log.w(TAG, "Unable to unregister the playback volume observer.", failure)
+            return
+        }
         volumeObserverLease?.close()
         volumeObserverLease = null
         volumeObserverRegistered = false
@@ -125,8 +127,11 @@ internal class PlaybackRuntimeResources(
 
     private fun unregisterAudioDeviceCallback() {
         if (!audioDeviceCallbackRegistered && audioDeviceCallbackLease == null) return
-        runCatching { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) }
-            .onFailure { Log.w(TAG, "Unable to unregister the playback audio-device callback.", it) }
+        val failure = runCatching { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) }.exceptionOrNull()
+        if (failure != null) {
+            Log.w(TAG, "Unable to unregister the playback audio-device callback.", failure)
+            return
+        }
         audioDeviceCallbackLease?.close()
         audioDeviceCallbackLease = null
         audioDeviceCallbackRegistered = false
@@ -134,8 +139,11 @@ internal class PlaybackRuntimeResources(
 
     private fun unregisterNoisyReceiver() {
         if (!noisyReceiverRegistered && noisyReceiverLease == null) return
-        runCatching { appContext.unregisterReceiver(noisyReceiver) }
-            .onFailure { Log.w(TAG, "Unable to unregister the playback noisy-route receiver.", it) }
+        val failure = runCatching { appContext.unregisterReceiver(noisyReceiver) }.exceptionOrNull()
+        if (failure != null) {
+            Log.w(TAG, "Unable to unregister the playback noisy-route receiver.", failure)
+            return
+        }
         noisyReceiverLease?.close()
         noisyReceiverLease = null
         noisyReceiverRegistered = false

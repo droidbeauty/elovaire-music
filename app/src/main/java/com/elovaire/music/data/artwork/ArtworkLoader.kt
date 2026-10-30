@@ -26,8 +26,10 @@ import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.TreeMap
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -201,7 +203,7 @@ internal suspend fun <T> awaitArtworkLoad(future: CompletableFuture<T>): Result<
             if (failure == null) {
                 continuation.resume(Result.success(value))
             } else {
-                continuation.resume(Result.failure(failure.cause ?: failure))
+                continuation.resume(Result.failure(if (failure is CompletionException) failure.cause ?: failure else failure))
             }
         }
     }
@@ -519,8 +521,11 @@ internal object ArtworkBitmapCache {
                 } catch (_: InterruptedException) {
                     Thread.currentThread().interrupt()
                     return null
-                } catch (_: ExecutionException) {
-                    // The owner completed with a failure; retry the requested key below.
+                } catch (_: CancellationException) {
+                    // An independent owner was cancelled; retry for this caller.
+                } catch (failure: ExecutionException) {
+                    val cause = failure.cause ?: failure
+                    if (!completed.invalidated && cause !is CancellationException) throw cause
                 }
             } else {
                 val pending = requireNotNull(ownedLoad)
@@ -557,7 +562,9 @@ internal object ArtworkBitmapCache {
             cached?.let { return it }
             sharedLoad?.let { pending ->
                 val result = awaitArtworkLoad(pending.future)
-                if (result.isSuccess && !pending.invalidated) return result.getOrNull()
+                if (!pending.invalidated && result.exceptionOrNull() !is CancellationException) {
+                    return result.getOrThrow()
+                }
                 continue
             }
             if (waitForAdmission) {
