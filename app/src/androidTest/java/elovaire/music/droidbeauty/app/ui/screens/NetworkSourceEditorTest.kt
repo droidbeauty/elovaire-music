@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -46,9 +48,11 @@ class NetworkSourceEditorTest {
         }
         rule.onNodeWithText("My NAS").performClick()
         rule.onNodeWithText("Network source").assertIsDisplayed()
+        rule.onNodeWithText("SMB2/3").assertIsSelected()
         rule.onNodeWithContentDescription("Save network source").performClick()
         rule.runOnIdle { assertEquals(1, saves); result = NetworkProbeResult(NetworkAvailability.Checking) }
         rule.onNodeWithText("Network source").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Save network source").assertIsNotEnabled()
         rule.runOnIdle { result = NetworkProbeResult(NetworkAvailability.Available) }
         rule.onNodeWithText("My NAS").assertIsDisplayed()
     }

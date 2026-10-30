@@ -23,12 +23,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -51,12 +56,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -702,6 +710,7 @@ private fun NetworkSourceEditorScreen(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
@@ -738,6 +747,7 @@ private fun NetworkSourceEditorScreen(
                 TopBarActionSpec(
                     iconResId = R.drawable.ic_lucide_check,
                     contentDescription = copy.saveEditor,
+                    enabled = canSave && !isChecking,
                     onClick = {
                         if (canSave && !isChecking) {
                             saveRequested = true
@@ -797,6 +807,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             label = { Text(copy.name) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         )
     }
     item {
@@ -807,6 +818,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         )
     }
     item {
@@ -847,16 +859,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
         )
     }
     probeResult?.let { result ->
         item {
             Text(
                 text = networkProbeMessage(result.availability, copy),
-                color = if (result.availability == NetworkAvailability.Available) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
+                color = when (result.availability) {
+                    NetworkAvailability.Available -> MaterialTheme.colorScheme.primary
+                    NetworkAvailability.Checking -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.error
                 },
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -883,7 +896,7 @@ private fun NetworkProtocolSelector(
     onSelected: (NetworkLibraryProtocol) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -925,7 +938,9 @@ private fun NetworkProtocolChoice(
                 interactionSource = interactionSource,
                 label = "network_protocol_${protocol.name}_bump",
             )
-            .clickable(
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
@@ -1068,8 +1083,10 @@ internal fun SettingNavigationRow(
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
+            .defaultMinSize(minHeight = 48.dp)
             .elovaireClickable(
                 interactionSource = interactionSource,
+                role = Role.Button,
                 onClick = onClick,
             )
             .then(

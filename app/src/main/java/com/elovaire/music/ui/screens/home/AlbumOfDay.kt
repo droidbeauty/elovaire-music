@@ -203,7 +203,7 @@ internal fun AlbumOfDayModule(
                         val shuffleInteraction = rememberElovaireInteractionSource()
                         val playInteraction = rememberElovaireInteractionSource()
                         Box(Modifier.size(46.dp).elovaireActionBump(interactionSource = shuffleInteraction, label = "daily_album_shuffle").clickable(interactionSource = shuffleInteraction, indication = null, onClick = onShuffle), contentAlignment = Alignment.Center) {
-                            Icon(painterResource(R.drawable.ic_lucide_shuffle), contentDescription = "Shuffle album", modifier = Modifier.size(20.dp))
+                            Icon(painterResource(R.drawable.ic_lucide_shuffle), contentDescription = rootUiCopy(language).shuffleAlbum, modifier = Modifier.size(20.dp))
                         }
                         Box(Modifier.size(46.dp).elovaireActionBump(interactionSource = playInteraction, label = "daily_album_play").clickable(interactionSource = playInteraction, indication = null, onClick = onPlay), contentAlignment = Alignment.Center) {
                             Icon(painterResource(R.drawable.ic_lucide_play), contentDescription = rootUiCopy(language).playAlbum, modifier = Modifier.size(20.dp))

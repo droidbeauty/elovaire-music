@@ -89,6 +89,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -1420,8 +1421,10 @@ private fun EqPresetPill(
                     enabled = enabled,
                     interactionSource = interactionSource,
                     indication = null,
+                    role = androidx.compose.ui.semantics.Role.Button,
                     onClick = onClick,
                 )
+                .then(if (selected) Modifier.semantics { this.selected = true } else Modifier)
                 .padding(horizontal = 14.dp, vertical = 9.dp),
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             color = contentColor,
@@ -1963,8 +1966,16 @@ internal fun ThinContinuousSlider(
                 progressBarRangeInfo = ProgressBarRangeInfo(safeValue, valueRange, (stepCount - 1).coerceAtLeast(0))
                 if (enabled) {
                     setProgress { requested ->
-                        currentOnValueChange(requested.coerceIn(valueRange))
-                        true
+                        if (!requested.isFinite()) {
+                            false
+                        } else {
+                            val raw = requested.coerceIn(valueRange)
+                            val next = if (step != null && centerValue == null) {
+                                valueRange.start + ((raw - valueRange.start) / step).roundToInt() * step
+                            } else raw
+                            currentOnValueChange(next.coerceIn(valueRange))
+                            true
+                        }
                     }
                 } else {
                     disabled()

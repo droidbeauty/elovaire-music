@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -69,7 +70,7 @@ internal fun AudiobookTagEditorScreen(
             else -> LazyColumn(
                 state = listState,
                 overscrollEffect = null,
-                modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
+                modifier = Modifier.fillMaxSize().imePadding().ensureSingleItemRubberBand(listState),
                 contentPadding = PaddingValues(
                     start = 18.dp,
                     top = ElovaireSpacing.topBarContentHeight + 44.dp,

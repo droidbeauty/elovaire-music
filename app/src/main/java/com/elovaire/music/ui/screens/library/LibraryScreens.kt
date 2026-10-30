@@ -877,7 +877,7 @@ private fun LastPlayedAlbumModule(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_play),
-                            contentDescription = "Play album",
+                            contentDescription = rootUiCopy(LocalAppLanguage.current).playAlbum,
                             modifier = Modifier.size(20.dp),
                         )
                     }
