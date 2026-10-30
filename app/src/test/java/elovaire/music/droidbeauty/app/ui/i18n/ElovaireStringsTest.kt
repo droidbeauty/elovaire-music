@@ -7,6 +7,16 @@ import org.junit.Test
 
 class ElovaireStringsTest {
     @Test
+    fun privacySectionsHaveNoFinalFullStopInAnyLanguage() {
+        AppLanguage.entries.forEach { language ->
+            privacyPolicyCopy(language).sections.forEach { section ->
+                assertFalse(section.body.isBlank())
+                assertFalse(section.body.last() in listOf('.', '。', '।'))
+            }
+        }
+    }
+
+    @Test
     fun polishSongCountsUseTheCorrectNumeralForms() {
         assertEquals("1 utwór", localizedCountLabel(1, "song", AppLanguage.Polish))
         assertEquals("2 utwory", localizedCountLabel(2, "song", AppLanguage.Polish))

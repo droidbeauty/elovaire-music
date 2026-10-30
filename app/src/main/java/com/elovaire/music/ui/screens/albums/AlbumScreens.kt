@@ -675,13 +675,13 @@ internal fun AlbumScreen(
                                     )
                                     Text(
                                         text = albumTechnicalReferenceSong?.audioFormat ?: "AUDIO",
-                                        style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f)),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f), fontWeight = FontWeight.Medium),
                                         color = albumInfoPillTint.copy(alpha = 0.94f),
                                         maxLines = 1,
                                     )
                                     Text(
                                         text = albumTechnicalReferenceSong?.audioQuality ?: "--",
-                                        style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f)),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f), fontWeight = FontWeight.Medium),
                                         color = albumInfoPillTint.copy(alpha = 0.74f),
                                         maxLines = 1,
                                     )
@@ -933,68 +933,12 @@ internal fun AnimatedAudioLinesIcon(
 
 @Composable
 internal fun PlaybackActiveArtworkOverlay(
-    uri: Uri?,
-    title: String,
     modifier: Modifier = Modifier,
 ) {
-    val artworkShape = RoundedCornerShape(ElovaireRadii.artworkSmall)
-    val artworkBitmap = rememberArtworkBitmap(uri = uri, size = 256).value
-    val artworkKey = remember(uri, title) { PlaybackArtworkKey(uri, title) }
-    val motionSpecs = rememberMotionSpecs()
-    var entered by remember(artworkKey) { mutableStateOf(false) }
-    val blurRadius by animateDpAsState(
-        targetValue = if (entered) 18.dp else 0.dp,
-        animationSpec = motionSpecs.contentSize(),
-        label = "active_artwork_blur_radius",
-    )
-    val surfaceAlpha by animateFloatAsState(
-        targetValue = if (entered) 1f else 0f,
-        animationSpec = motionSpecs.fadeIn(),
-        label = "active_artwork_blur_alpha",
-    )
-    LaunchedEffect(artworkKey) {
-        entered = true
-    }
     Box(
-        modifier = modifier
-            .graphicsLayer {
-                compositingStrategy = CompositingStrategy.Offscreen
-                shape = artworkShape
-                clip = true
-            }
-            .clip(artworkShape),
+        modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
-        if (artworkBitmap != null) {
-            Image(
-                bitmap = artworkBitmap,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .matchParentSize()
-                    .graphicsLayer {
-                        scaleX = 1.08f
-                        scaleY = 1.08f
-                        alpha = surfaceAlpha
-                    }
-                    .blur(blurRadius),
-            )
-        } else {
-            ArtworkImage(
-                uri = uri,
-                title = title,
-                modifier = Modifier
-                    .matchParentSize()
-                    .graphicsLayer { alpha = surfaceAlpha }
-                    .blur(blurRadius),
-                cornerRadius = ElovaireRadii.artworkSmall,
-            )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.08f * surfaceAlpha)),
-        )
         AnimatedAudioLinesIcon(
             tint = Color.White.copy(alpha = 0.82f),
             animate = true,
@@ -1002,11 +946,6 @@ internal fun PlaybackActiveArtworkOverlay(
         )
     }
 }
-
-private data class PlaybackArtworkKey(
-    val uri: Uri?,
-    val title: String,
-)
 
 @Composable
 private fun AlbumSongRow(

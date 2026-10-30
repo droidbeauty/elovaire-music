@@ -473,7 +473,7 @@ internal fun NowPlayingScreen(
     )
     val collapseSettleAnimationSpec = motionSpecs.tween<Float>(
         durationMillis = 340,
-        easing = MotionEasing.RefinedAccelerate,
+        easing = FastOutSlowInEasing,
     )
     var interactiveTransitionProgress by remember(liveCurrentSong?.id) { mutableStateOf<Float?>(null) }
     var dismissAnimationRunning by remember(liveCurrentSong?.id) { mutableStateOf(false) }
@@ -1842,7 +1842,7 @@ private fun QueueSheet(
 ) {
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
-    val queueEdgeHazeState = backdropHazeState
+    val queueEdgeHazeState = rememberHazeState()
     val motionSpecs = rememberMotionSpecs()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
@@ -1869,7 +1869,7 @@ private fun QueueSheet(
                 tint = tint,
                 secondaryTint = secondaryTint,
                 onDismiss = onDismiss,
-                modifier = Modifier.hazeSource(queueEdgeHazeState, zIndex = 1f),
+                modifier = Modifier.hazeSource(backdropHazeState, zIndex = 1f),
             )
             Box(
                 modifier = Modifier
@@ -1883,6 +1883,7 @@ private fun QueueSheet(
                     secondaryTint = secondaryTint,
                     listState = listState,
                     queueEdgeHazeState = queueEdgeHazeState,
+                    backdropHazeState = backdropHazeState,
                     isPlaying = isPlaying,
                     onSongSelected = onSongSelected,
                     onQueueItemRemoved = onQueueItemRemoved,
@@ -1893,7 +1894,7 @@ private fun QueueSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(footerHeight)
-                    .hazeSource(queueEdgeHazeState, zIndex = 1f),
+                    .hazeSource(backdropHazeState, zIndex = 1f),
                 statusText = statusText,
                 tint = tint,
                 language = language,
@@ -2119,12 +2120,15 @@ private fun QueueSongList(
     secondaryTint: Color,
     listState: LazyListState,
     queueEdgeHazeState: HazeState,
+    backdropHazeState: HazeState,
     isPlaying: Boolean,
     onSongSelected: (Int) -> Unit,
     onQueueItemRemoved: (Int) -> Unit,
     onAddToPlaylist: (Song) -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
+    val fadeTop = listState.canScrollBackward
+    val fadeBottom = listState.canScrollForward
     val queueKeys = remember(queue) {
         val occurrences = mutableMapOf<Long, Int>()
         queue.map { song ->
@@ -2143,7 +2147,23 @@ private fun QueueSongList(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .drawWithCache {
+                    val top = if (fadeTop) (20.dp.toPx() / size.height).coerceIn(0f, 0.5f) else 0f
+                    val bottom = if (fadeBottom) (30.dp.toPx() / size.height).coerceIn(0f, 0.5f) else 0f
+                    val mask = Brush.verticalGradient(
+                        0f to if (fadeTop) Color.Transparent else Color.Black,
+                        top to Color.Black,
+                        (1f - bottom) to Color.Black,
+                        1f to if (fadeBottom) Color.Transparent else Color.Black,
+                    )
+                    onDrawWithContent {
+                        drawContent()
+                        drawRect(mask, blendMode = BlendMode.DstIn)
+                    }
+                }
                 .hazeSource(queueEdgeHazeState, zIndex = 1f)
+                .hazeSource(backdropHazeState, zIndex = 1f)
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -2710,8 +2730,6 @@ private fun QueueSongRow(
                     exit = fadeOut(animationSpec = motionSpecs.tween(60)),
                 ) {
                     PlaybackActiveArtworkOverlay(
-                        uri = song.artUri,
-                        title = song.album,
                         modifier = Modifier.matchParentSize(),
                     )
                 }

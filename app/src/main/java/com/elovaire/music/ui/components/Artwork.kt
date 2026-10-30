@@ -24,6 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -71,11 +74,6 @@ fun ArtworkImage(
 ) {
     val image = rememberArtworkBitmap(uri = uri, size = requestedSizePx)
     val artworkBitmap = image.value
-    val gradient = if (showArtworkGlow && artworkBitmap == null) {
-        rememberArtworkGradient(uri).value
-    } else {
-        null
-    }
     val shadowTint = rememberArtworkPaletteAccent(uri, requestedSizePx).value
     val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
 
@@ -85,46 +83,8 @@ fun ArtworkImage(
         ArtworkPaletteShadow(
             cornerRadius = cornerRadius,
             tint = shadowTint,
+            blurRadius = if (showArtworkGlow) 22.dp else 18.dp,
         )
-        if (showArtworkGlow) {
-            if (artworkBitmap != null) {
-                Image(
-                    bitmap = artworkBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(0.74f)
-                        .fillMaxHeight(0.26f)
-                        .clip(shape)
-                        .blur(18.dp),
-                    alpha = 0.34f,
-                )
-            } else {
-                val fallbackGradient = gradient ?: defaultArtworkGradient(
-                    MaterialTheme.colorScheme.primary,
-                    MaterialTheme.colorScheme.background,
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(0.74f)
-                        .fillMaxHeight(0.26f)
-                        .clip(shape)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    fallbackGradient.first().copy(alpha = 0f),
-                                    fallbackGradient.first().copy(alpha = 0.1f),
-                                    fallbackGradient.last().copy(alpha = 0.16f),
-                                ),
-                            ),
-                        )
-                        .blur(18.dp),
-                )
-            }
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -174,23 +134,28 @@ internal fun BoxScope.ArtworkPaletteShadow(
     verticalOffset: Dp = 6.dp,
 ) {
     if (tint != null) {
-        val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
-        val shadowElevation = with(LocalDensity.current) {
-            (blurRadius * 0.42f).toPx()
-        }
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .fillMaxSize(0.88f)
+                .fillMaxSize()
                 .offset(y = verticalOffset)
-                .graphicsLayer {
-                    this.shadowElevation = shadowElevation
-                    this.shape = shape
-                    clip = false
-                    ambientShadowColor = tint.copy(alpha = 0.46f)
-                    spotShadowColor = tint.copy(alpha = 0.46f)
-                }
-                .background(tint.copy(alpha = 0.12f), shape),
+                .drawWithCache {
+                    val center = Offset(size.width / 2f, size.height * 0.82f)
+                    val radius = maxOf(size.width, size.height) * 0.52f +
+                        blurRadius.toPx() + cornerRadius.toPx() * 0.1f
+                    val shadow = Brush.radialGradient(
+                        0f to tint.copy(alpha = 0.28f),
+                        0.5f to tint.copy(alpha = 0.13f),
+                        1f to Color.Transparent,
+                        center = center,
+                        radius = radius,
+                    )
+                    onDrawBehind {
+                        scale(scaleX = 1f, scaleY = 0.55f, pivot = center) {
+                            drawCircle(shadow, radius = radius, center = center)
+                        }
+                    }
+                },
         )
     }
 }

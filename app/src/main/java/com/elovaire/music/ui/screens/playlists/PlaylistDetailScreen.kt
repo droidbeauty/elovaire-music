@@ -767,8 +767,6 @@ internal fun PlaylistSongRow(
                     exit = fadeOut(animationSpec = motionSpecs.tween(60)),
                 ) {
                     PlaybackActiveArtworkOverlay(
-                        uri = song.artUri,
-                        title = song.album,
                         modifier = Modifier.matchParentSize(),
                     )
                 }

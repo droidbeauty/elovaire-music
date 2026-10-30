@@ -319,23 +319,11 @@ class MotionTransitions internal constructor(
             durationMillis = MotionDuration.PlayerFade,
             easing = MotionEasing.FadeOut,
         ),
-    ) + scaleOut(
-        targetScale = MotionScale.PlayerOverlayExit,
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.PlayerFade,
-            easing = MotionEasing.RefinedAccelerate,
-        ),
     ) }
 
     fun compactBarEnter(returningFromPlayer: Boolean): EnterTransition {
         if (returningFromPlayer) {
-            return cached(StaticMotionTransition.CompactBarReturnEnter) { fadeIn(
-                animationSpec = specs.tween(
-                    durationMillis = MotionDuration.PlayerFade,
-                    easing = MotionEasing.FadeIn,
-                ),
-                initialAlpha = 0.01f,
-            ) }
+            return EnterTransition.None
         }
         return cached(StaticMotionTransition.CompactBarEnter) {
             fadeSlideVerticalEnter(
@@ -443,33 +431,19 @@ class MotionTransitions internal constructor(
 
     fun topBarActionSwapTransform(): ContentTransform =
         cached(StaticMotionTransition.TopBarActionSwapTransform) {
-            (fadeIn(
+            fadeIn(
                 animationSpec = specs.tween(
-                    durationMillis = MotionDuration.TopBarActionEnter,
+                    durationMillis = 110,
                     easing = MotionEasing.FadeIn,
                 ),
                 initialAlpha = 0f,
-            ) + scaleIn(
-                animationSpec = specs.spring(
-                    dampingRatio = 0.9f,
-                    stiffness = 600f,
-                ),
-                initialScale = 0.94f,
-                transformOrigin = TransformOrigin.Center,
-            )) togetherWith (fadeOut(
+            ) togetherWith fadeOut(
                 animationSpec = specs.tween(
-                    durationMillis = MotionDuration.TopBarActionExit,
+                    durationMillis = 75,
                     easing = MotionEasing.FadeOut,
                 ),
                 targetAlpha = 0f,
-            ) + scaleOut(
-                animationSpec = specs.tween(
-                    durationMillis = MotionDuration.TopBarActionExit,
-                    easing = MotionEasing.RefinedAccelerate,
-                ),
-                targetScale = 0.97f,
-                transformOrigin = TransformOrigin.Center,
-            ))
+            )
         }
 
     fun softContentTransform(): ContentTransform =

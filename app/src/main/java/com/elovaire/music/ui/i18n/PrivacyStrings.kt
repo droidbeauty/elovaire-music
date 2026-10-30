@@ -62,7 +62,7 @@ internal fun privacyPolicyCopy(language: AppLanguage): PrivacySafetyCopy {
 }
 
 private fun privacyPolicySections(language: AppLanguage): List<PrivacySafetySectionCopy> {
-    fun section(title: String, body: String) = PrivacySafetySectionCopy(title, body)
+    fun section(title: String, body: String) = PrivacySafetySectionCopy(title, body.trimEnd('.', '。', '।'))
     return when (language) {
         AppLanguage.Albanian -> listOf(
             section("Përmbledhje", "Elovaire është një luajtës lokal muzike i shpërndarë përmes GitHub. Nuk kërkon llogari, profil reklamash, analitikë ose bibliotekë muzikore në renë kompjuterike."),

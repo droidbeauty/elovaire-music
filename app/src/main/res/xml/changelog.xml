@@ -7,7 +7,8 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.9.8">
-        <item>New feature - album of the day section available in the Home tab</item>
+        <item>Refined quality of blur and shadow effects</item>
+        <item>Fixed inconsistencies in some UI areas</item>
         <item>Bug fixes within NAS support framework</item>
     </release>
 </changelog>
