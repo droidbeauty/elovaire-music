@@ -312,8 +312,10 @@ internal class PlaybackHistoryWriteBuffer {
 
     @Synchronized
     fun restoreRecent(value: RecentPlaybackWrite) {
-        recent = value
-        recentFlushScheduled = false
+        if (recent == null) {
+            recent = value
+            recentFlushScheduled = false
+        }
     }
 
     @Synchronized

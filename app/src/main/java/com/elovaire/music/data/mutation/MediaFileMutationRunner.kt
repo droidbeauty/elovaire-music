@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.mutation
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
@@ -206,7 +208,7 @@ internal class MediaFileMutationRunner(
         val digest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(COMPARE_BUFFER_SIZE)
         while (true) {
-            val count = input.read(buffer)
+            val count = input.readWithProgress(buffer)
             if (count < 0) break
             if (count > 0) digest.update(buffer, 0, count)
         }

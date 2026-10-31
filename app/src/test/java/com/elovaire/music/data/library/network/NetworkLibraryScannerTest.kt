@@ -27,6 +27,19 @@ class NetworkLibraryScannerTest {
     }
 
     @Test
+    fun artworkStartupCleanupPreservesActiveAndFutureDatedDownloads() {
+        val directory = temporaryFolder.newFolder("network-artwork-startup")
+        val now = 200_000_000L
+        val active = File(directory, "active.tmp").apply { writeBytes(byteArrayOf(1)); setLastModified(now) }
+        val future = File(directory, "future.tmp").apply { writeBytes(byteArrayOf(1)); setLastModified(now + 1000) }
+        val stale = File(directory, "stale.tmp").apply { writeBytes(byteArrayOf(1)); setLastModified(now - 90_000_000L) }
+        removeStaleNetworkArtworkTemps(directory, now)
+        assertTrue(active.exists())
+        assertTrue(future.exists())
+        assertTrue(!stale.exists())
+    }
+
+    @Test
     fun artworkTrimKeepsTemporaryFilesOwnedByConcurrentDownloads() {
         val directory = temporaryFolder.newFolder("network-artwork")
         File(directory, "cover.jpg").writeBytes(byteArrayOf(1))

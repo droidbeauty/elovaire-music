@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.audio
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.content.Context
 import android.net.Uri
 import org.jaudiotagger.tag.FieldKey
@@ -42,7 +44,7 @@ internal class EmbeddedTagMetadataReader(context: Context) {
                     val buffer = ByteArray(COPY_BUFFER_BYTES)
                     var total = 0L
                     while (true) {
-                        val read = input.read(buffer)
+                        val read = input.readWithProgress(buffer)
                         if (read < 0) break
                         total += read
                         check(total <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }

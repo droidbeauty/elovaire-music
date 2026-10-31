@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.update
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -272,8 +274,8 @@ internal class GitHubUpdateController(
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         while (true) {
                             currentCoroutineContext().ensureActive()
-                            val count = input.read(buffer)
-                            if (count <= 0) break
+                            val count = input.readWithProgress(buffer)
+                            if (count < 0) break
                             copied = AppUpdateIntegrity.checkedDownloadedByteCount(copied, count, downloadLimit)
                             output.write(buffer, 0, count)
                             val progress = expectedLength?.let { (copied.toFloat() / it).coerceIn(0f, 1f) }

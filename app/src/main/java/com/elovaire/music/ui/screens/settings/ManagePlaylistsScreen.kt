@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+
+import elovaire.music.droidbeauty.app.platform.readWithProgress
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 
@@ -378,7 +380,7 @@ private fun InputStream.readUtf8Bounded(maxBytes: Int): String? {
     val output = ByteArrayOutputStream(minOf(maxBytes, 8_192))
     val buffer = ByteArray(8_192)
     while (true) {
-        val count = read(buffer)
+        val count = readWithProgress(buffer)
         if (count < 0) return output.toByteArray().toString(Charsets.UTF_8)
         if (output.size() > maxBytes - count) return null
         output.write(buffer, 0, count)

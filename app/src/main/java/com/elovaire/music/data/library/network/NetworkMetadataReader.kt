@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.media.MediaDataSource
 import android.media.MediaMetadataRetriever
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
@@ -156,9 +158,8 @@ private class RangeMediaDataSource(
         try {
             readHandle.use { handle ->
                 while (total < requestSize) {
-                    val read = handle.input.read(loaded, total, requestSize - total)
+                    val read = handle.input.readWithProgress(loaded, total, requestSize - total)
                     if (read < 0) break
-                    if (read == 0) continue
                     total += read
                 }
             }

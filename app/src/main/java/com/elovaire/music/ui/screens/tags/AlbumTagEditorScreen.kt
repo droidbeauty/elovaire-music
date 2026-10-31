@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import android.net.Uri
+import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
@@ -35,8 +36,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,7 +52,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -73,6 +76,8 @@ import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmi
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.LocalBackendResourceTracker
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.components.rememberArtworkPaletteAccent
+import androidx.palette.graphics.Palette
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
@@ -82,6 +87,7 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.screens.DetailListTopBar
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
+import elovaire.music.droidbeauty.app.ui.screens.common.EditorTextField
 import elovaire.music.droidbeauty.app.ui.screens.ensureSingleItemRubberBand
 import elovaire.music.droidbeauty.app.ui.screens.formatDuration
 import elovaire.music.droidbeauty.app.ui.screens.sharedTopBarOccupiedHeight
@@ -157,14 +163,29 @@ internal fun AlbumTagEditorScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             item(key = "artwork", contentType = "artwork") {
+                                val previewBitmap = rememberPreviewBitmap(state.selectedArtworkUri, state.selectedArtworkBytes)
+                                val fallbackAccent by rememberArtworkPaletteAccent(album.artUri, TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX)
+                                val previewAccent by produceState<Color?>(initialValue = null, key1 = previewBitmap) {
+                                    value = previewBitmap?.let { bitmap ->
+                                        withContext(Dispatchers.Default) {
+                                            val original = bitmap.asAndroidBitmap()
+                                            val software = if (original.config == Bitmap.Config.HARDWARE) {
+                                                original.copy(Bitmap.Config.ARGB_8888, false)
+                                            } else original
+                                            software?.let {
+                                                val palette = Palette.from(it).generate()
+                                                (palette.darkMutedSwatch ?: palette.mutedSwatch ?: palette.dominantSwatch)?.rgb?.let(::Color)
+                                            }
+                                        }
+                                    }
+                                }
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                                     horizontalArrangement = Arrangement.spacedBy(ElovaireSpacing.sectionVerticalGap),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     EditableArtworkCard(
-                                        artworkUri = state.selectedArtworkUri,
-                                        artworkBytes = state.selectedArtworkBytes,
+                                        previewBitmap = previewBitmap,
                                         fallbackArtworkUri = album.artUri,
                                         title = copy.changeCoverHint,
                                         enabled = !state.isSaving,
@@ -193,11 +214,7 @@ internal fun AlbumTagEditorScreen(
                                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                         )
-                                        CoverArtButton(
-                                            label = copy.changeCover,
-                                            enabled = !state.isSaving,
-                                            onClick = onPickCoverArt,
-                                        )
+                                        CoverArtIndicator(color = previewAccent ?: fallbackAccent ?: MaterialTheme.colorScheme.primary)
                                     }
                                 }
                             }
@@ -507,27 +524,14 @@ private fun TagEditorTextField(
     imeAction: ImeAction = ImeAction.Next,
 ) {
     val focusManager = LocalFocusManager.current
-    OutlinedTextField(
+    EditorTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
-        label = {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-            )
-        },
-        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-        shape = RoundedCornerShape(ElovaireRadii.input),
+        label = label,
         singleLine = true,
         isError = isError,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
-            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
-            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            cursorColor = MaterialTheme.colorScheme.primary,
-        ),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
         keyboardActions = KeyboardActions(
             onNext = { focusManager.moveFocus(FocusDirection.Next) },
@@ -614,14 +618,12 @@ private fun AlbumTagEditorSaveAction(
 
 @Composable
 private fun EditableArtworkCard(
-    artworkUri: Uri?,
-    artworkBytes: ByteArray?,
+    previewBitmap: ImageBitmap?,
     fallbackArtworkUri: Uri?,
     title: String,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val previewBitmap = rememberPreviewBitmap(artworkUri, artworkBytes)
     val motionSpecs = rememberMotionSpecs()
     val interactionSource = rememberElovaireInteractionSource()
     Box(
@@ -667,42 +669,21 @@ private fun EditableArtworkCard(
 }
 
 @Composable
-private fun CoverArtButton(
-    label: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    val interactionSource = rememberElovaireInteractionSource()
-    Surface(
+private fun CoverArtIndicator(color: Color) {
+    Box(
         modifier = Modifier
             .padding(top = 5.dp)
-            .elovaireActionBump(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                label = "album_tag_editor_cover_button",
-            ),
-        shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        onClick = onClick,
-        enabled = enabled,
-        interactionSource = interactionSource,
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(color),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_pencil_line),
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-            )
-        }
+        Icon(
+            painter = painterResource(R.drawable.ic_lucide_pencil_line),
+            contentDescription = null,
+            tint = if (color.luminance() > 0.179f) Color.Black else Color.White,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
 

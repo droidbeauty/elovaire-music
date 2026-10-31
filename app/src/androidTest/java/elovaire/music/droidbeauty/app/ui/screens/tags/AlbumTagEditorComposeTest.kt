@@ -74,7 +74,8 @@ class AlbumTagEditorComposeTest {
             }
             node(By.text("Save")).click()
             assertEquals(0, saveRequests.get())
-            node(By.text("Change cover")).click()
+            assertTrue(device.findObject(By.text("Change cover")) == null)
+            node(By.desc("Tap to choose new album artwork")).click()
             assertEquals(1, coverRequests.get())
             capture("album-editor-overview.png")
 

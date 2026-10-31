@@ -49,6 +49,7 @@ internal class PlaybackSessionStore(
 
     @Synchronized
     override fun load(): PersistedPlaybackSession? {
+        if (hasUnsupportedCommittedSession()) return null
         return if (committedPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
             load(committedPreferences, committedPreferences)
         } else {
@@ -116,6 +117,7 @@ internal class PlaybackSessionStore(
 
     @Synchronized
     override fun save(session: PersistedPlaybackSession) {
+        if (hasUnsupportedCommittedSession()) return
         val normalized = normalizePersistedPlaybackSession(session)
         if (normalized.queueSongIds.isEmpty()) {
             clear()
@@ -156,8 +158,13 @@ internal class PlaybackSessionStore(
         clearObsoletePreferencesIfNeeded()
     }
 
+    private fun hasUnsupportedCommittedSession(): Boolean =
+        committedPreferences.contains(KEY_FORMAT_VERSION) &&
+            committedPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) != CURRENT_FORMAT_VERSION
+
     @Synchronized
     override fun clear() {
+        if (hasUnsupportedCommittedSession()) return
         lastSavedSession = null
         if (clearStateKnown) return
         listOf(committedPreferences, structurePreferences, recoveryPreferences)

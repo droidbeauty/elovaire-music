@@ -9,6 +9,19 @@ import org.junit.Test
 
 class PlaybackHistoryWriteBufferTest {
     @Test
+    fun failedFlushDoesNotOverwriteNewerPendingRecentPlayback() {
+        val buffer = PlaybackHistoryWriteBuffer()
+        val old = RecentPlaybackWrite(listOf(1L), emptyList(), null, null)
+        val newer = RecentPlaybackWrite(listOf(2L), emptyList(), null, null)
+        assertTrue(buffer.setRecent(old))
+        assertEquals(old, buffer.takeRecent())
+        assertTrue(buffer.setRecent(newer))
+        buffer.restoreRecent(old)
+        assertFalse(buffer.scheduleRecentIfNeeded())
+        assertEquals(newer, buffer.takeRecent())
+    }
+
+    @Test
     fun batchesCountsAndSchedulesOnlyOneFlush() {
         val buffer = PlaybackHistoryWriteBuffer()
 

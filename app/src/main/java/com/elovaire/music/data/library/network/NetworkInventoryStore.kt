@@ -72,8 +72,7 @@ internal class NetworkInventoryStore(
     }
 
     suspend fun remove(sourceId: String) {
-        dao.deleteNetworkInventory(sourceId)
-        dao.deleteNetworkInventorySource(sourceId)
+        dao.removeNetworkInventory(sourceId)
     }
 
     private suspend fun migrateLegacyCache(source: NetworkLibrarySource) {

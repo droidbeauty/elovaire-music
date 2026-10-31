@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -109,6 +110,10 @@ internal class NetworkSourceCoordinator(
         mutationJournal.markPhase(normalized.id, NetworkSourceMutationPhase.CredentialPersisted)
         try {
             sourceStore.upsert(normalized)
+        } catch (cancelled: CancellationException) {
+            // The source may already be durable when withContext resumes into a cancelled
+            // caller. Leave the marker and credentials for recovery to reconcile.
+            throw cancelled
         } catch (failure: RuntimeException) {
             val rollbackComplete = runCatching {
                 if (previous != null && previousSource?.credentialKey == normalized.credentialKey) {

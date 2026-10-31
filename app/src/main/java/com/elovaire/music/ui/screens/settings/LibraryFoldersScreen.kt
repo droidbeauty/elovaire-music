@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireCombinedClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
+import elovaire.music.droidbeauty.app.ui.screens.common.EditorTextField
 
 import androidx.activity.compose.BackHandler
 import android.net.Uri
@@ -38,7 +39,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -801,61 +801,61 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
         )
     }
     item {
-        OutlinedTextField(
+        EditorTextField(
             value = name,
             onValueChange = onNameChange,
-            label = { Text(copy.name) },
+            label = copy.name,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         )
     }
     item {
-        OutlinedTextField(
+        EditorTextField(
             value = server,
             onValueChange = onServerChange,
-            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) copy.server else copy.httpsServer) },
-            placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music") },
+            label = if (protocol == NetworkLibraryProtocol.Smb) copy.server else copy.httpsServer,
+            placeholder = if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         )
     }
     item {
-        OutlinedTextField(
+        EditorTextField(
             value = path,
             onValueChange = onPathChange,
-            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) copy.sharePath else copy.path) },
-            placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Music" else "") },
+            label = if (protocol == NetworkLibraryProtocol.Smb) copy.sharePath else copy.path,
+            placeholder = if (protocol == NetworkLibraryProtocol.Smb) "Music" else null,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
     }
     item {
-        OutlinedTextField(
+        EditorTextField(
             value = username,
             onValueChange = onUsernameChange,
-            label = { Text(copy.username) },
+            label = copy.username,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
     }
     if (protocol == NetworkLibraryProtocol.Smb) {
         item {
-            OutlinedTextField(
+            EditorTextField(
                 value = domain,
                 onValueChange = onDomainChange,
-                label = { Text(copy.domainOptional) },
+                label = copy.domainOptional,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
         }
     }
     item {
-        OutlinedTextField(
+        EditorTextField(
             value = password,
             onValueChange = onPasswordChange,
-            label = { Text(copy.password) },
+            label = copy.password,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),

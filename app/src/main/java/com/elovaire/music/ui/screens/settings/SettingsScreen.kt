@@ -232,23 +232,25 @@ internal fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SectionTitleRow(
-                            title = copy.theme,
-                            compact = true,
-                        )
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ThemeModeSegmentedPicker(
-                                selectedMode = themeMode,
-                                onModeSelected = onThemeModeSelected,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 2.dp),
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            SectionTitleRow(
+                                title = copy.theme,
+                                compact = true,
                             )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                ThemeModeSegmentedPicker(
+                                    selectedMode = themeMode,
+                                    onModeSelected = onThemeModeSelected,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 2.dp),
+                                )
+                            }
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             SectionTitleRow(
@@ -316,7 +318,7 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         SettingToggleRow(
                             title = copy.volumeNormalization,
                             subtitle = copy.volumeNormalizationSubtitle,
@@ -327,7 +329,7 @@ internal fun SettingsScreen(
                                 .padding(horizontal = 2.dp)
                                 .align(Alignment.CenterHorizontally),
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         SettingNavigationRow(
                             title = copy.crossfadeTitle,
                             subtitle = crossfadeSummary(
@@ -340,14 +342,14 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         SettingNavigationRow(
                             title = upscalerCopy.title,
                             subtitle = if (upscalerSettings.enabled) "${upscalerSettings.multiplier}× · ${upscalerCopy.subtitle}" else upscalerCopy.off,
                             onClick = onOpenUpscaler,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         SettingNavigationRow(
                             title = audiobookCopy.title,
                             subtitle = audiobookCopy.subtitle,
@@ -366,7 +368,7 @@ internal fun SettingsScreen(
 
             item {
                 ModuleCard {
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SettingNavigationRow(
                             title = foldersCopy.title,
                             subtitle = foldersCopy.subtitle,
@@ -409,7 +411,7 @@ internal fun SettingsScreen(
             }
             item {
                 ModuleCard {
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SettingToggleRow(title = copy.onlineLyricsTitle, subtitle = copy.onlineLyricsSubtitle, enabled = onlineLyricsEnabled, onEnabledChanged = onOnlineLyricsChanged, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingActionRow(title = copy.checkForUpdatesTitle, subtitle = copy.checkForUpdatesSubtitle, actionLabel = updateActionLabel(updateState, appLanguage), actionIconResId = R.drawable.ic_lucide_refresh_cw, enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling, onAction = { if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingNavigationRow(title = privacyPolicyCopy(appLanguage).title, subtitle = privacyPolicySettingsSubtitle(appLanguage), onClick = onOpenPrivacyPolicy, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), testTag = "settings_privacy_policy")

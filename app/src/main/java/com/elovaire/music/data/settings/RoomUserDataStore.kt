@@ -971,16 +971,18 @@ internal class RoomUserDataStore(
     private fun tryEnqueue(operation: RoomOperation, coalescible: Boolean = false): Boolean {
         synchronized(submissionLock) {
             if (released.get() || lifecycle.get() == StoreLifecycle.Failed) return false
-            val accepted = operations.trySend(operation).isSuccess
-            if (accepted) {
+            val accepted = offerRoomOperation(
+                queue = operations,
+                pending = coalescedOperations,
+                name = operation.name,
+                operation = operation,
+                coalescible = coalescible,
+            ) {
                 val depth = queueDepth.incrementAndGet()
                 maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
-                updatePendingOperationResourceLocked()
-            } else if (coalescible) {
-                coalescedOperations[operation.name] = operation
-                updatePendingOperationResourceLocked()
             }
-            return accepted || coalescible
+            updatePendingOperationResourceLocked()
+            return accepted
         }
     }
 
@@ -1169,6 +1171,34 @@ internal class RoomUserDataStore(
         const val RECOVERY_CHECKPOINT_COALESCE_DELAY_MS = 750L
         const val USER_DATA_REVISION_KEY = "user_data_revision"
     }
+}
+
+internal fun <T> offerRoomOperation(
+    queue: Channel<T>,
+    pending: LinkedHashMap<String, T>,
+    name: String,
+    operation: T,
+    coalescible: Boolean,
+    onQueued: () -> Unit,
+): Boolean {
+    if (pending.isNotEmpty() && coalescible) {
+        pending.remove(name)
+        pending[name] = operation
+        return true
+    }
+    while (pending.isNotEmpty()) {
+        val entry = pending.entries.first()
+        if (!queue.trySend(entry.value).isSuccess) return false
+        pending.remove(entry.key)
+        onQueued()
+    }
+    if (queue.trySend(operation).isSuccess) {
+        onQueued()
+        return true
+    }
+    if (!coalescible) return false
+    pending[name] = operation
+    return true
 }
 
 private enum class StoreLifecycle {

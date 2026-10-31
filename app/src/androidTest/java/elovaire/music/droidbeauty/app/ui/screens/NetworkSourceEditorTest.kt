@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
@@ -35,13 +36,14 @@ class NetworkSourceEditorTest {
         val source = NetworkLibrarySource("fixture", "My NAS", NetworkLibraryProtocol.Smb, "nas.example", "Music", "user", "key")
         var result by mutableStateOf(NetworkProbeResult(NetworkAvailability.Available))
         var saves = 0
+        var savedServer = ""
         rule.setContent {
             ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
                 LibraryFoldersScreen(
                     appLanguage = AppLanguage.English,
                     folders = emptyList(), networkSources = listOf(source),
                     networkProbeResults = mapOf(source.id to result), songs = emptyList(), bottomPadding = 0.dp,
-                    onBack = {}, onAddFolder = {}, onAddNetworkSource = { _, _ -> saves++ },
+                    onBack = {}, onAddFolder = {}, onAddNetworkSource = { saved, _ -> saves++; savedServer = saved.server },
                     onRemoveFolder = {}, onRemoveNetworkSource = {}, onRefresh = {},
                 )
             }
@@ -49,8 +51,9 @@ class NetworkSourceEditorTest {
         rule.onNodeWithText("My NAS").performClick()
         rule.onNodeWithText("Network source").assertIsDisplayed()
         rule.onNodeWithText("SMB2/3").assertIsSelected()
+        rule.onNodeWithText("nas.example").performTextReplacement("media.example")
         rule.onNodeWithContentDescription("Save network source").performClick()
-        rule.runOnIdle { assertEquals(1, saves); result = NetworkProbeResult(NetworkAvailability.Checking) }
+        rule.runOnIdle { assertEquals(1, saves); assertEquals("media.example", savedServer); result = NetworkProbeResult(NetworkAvailability.Checking) }
         rule.onNodeWithText("Network source").assertIsDisplayed()
         rule.onNodeWithContentDescription("Save network source").assertIsNotEnabled()
         rule.runOnIdle { result = NetworkProbeResult(NetworkAvailability.Available) }

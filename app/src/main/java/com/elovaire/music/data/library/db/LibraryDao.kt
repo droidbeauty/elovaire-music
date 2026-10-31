@@ -75,6 +75,12 @@ internal interface NetworkInventoryDao {
     suspend fun deleteNetworkInventorySource(sourceId: String)
 
     @Transaction
+    suspend fun removeNetworkInventory(sourceId: String) {
+        deleteNetworkInventory(sourceId)
+        deleteNetworkInventorySource(sourceId)
+    }
+
+    @Transaction
     suspend fun replaceNetworkInventory(
         source: NetworkInventorySourceEntity,
         entries: List<NetworkInventoryEntity>,

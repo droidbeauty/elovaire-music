@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.audio
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.content.Context
 import android.media.MediaCodecList
 import android.media.AudioFormat
@@ -256,8 +258,8 @@ internal class AudioFormatDetector(
                 val bytes = ByteArray(MAX_SIGNATURE_BYTES)
                 var total = 0
                 while (total < bytes.size) {
-                    val read = input.read(bytes, total, bytes.size - total)
-                    if (read <= 0) break
+                    val read = input.readWithProgress(bytes, total, bytes.size - total)
+                    if (read < 0) break
                     total += read
                 }
                 AudioContainerSignatureDetector.detect(bytes, total)

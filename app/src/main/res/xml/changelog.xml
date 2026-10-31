@@ -6,9 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.9.8">
-        <item>Refined quality of blur and shadow effects</item>
-        <item>Fixed inconsistencies in some UI areas</item>
-        <item>Bug fixes within NAS support framework</item>
+    <release version="3.0">
+        <item>UI tweaks in NAS configuration, tag editing system and settings layout</item>
+        <item></item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

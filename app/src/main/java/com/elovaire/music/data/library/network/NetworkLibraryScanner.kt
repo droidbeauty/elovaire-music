@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.content.Context
 import android.net.Uri
 import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
@@ -42,7 +44,7 @@ internal class NetworkLibraryScanner(
     private val retrieverAdmission: MediaMetadataRetrieverAdmission = MediaMetadataRetrieverAdmission(),
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
-    private val artworkCache = NetworkArtworkCache(context)
+    private val artworkCache by lazy { NetworkArtworkCache(context) }
     private val metadataReader = NetworkMetadataReader(
         registry,
         failureRegistry = failureRegistry,
@@ -621,9 +623,7 @@ private class NetworkArtworkCache(context: Context) {
     private val directory = context.applicationContext.filesDir.resolve("network_artwork_v1")
 
     init {
-        directory.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".tmp") }
-            ?.forEach(File::delete)
+        removeStaleNetworkArtworkTemps(directory, System.currentTimeMillis())
     }
 
     fun uriFor(
@@ -636,15 +636,16 @@ private class NetworkArtworkCache(context: Context) {
         if (target.isFile && target.length() in 1..MAX_ARTWORK_BYTES) return Uri.fromFile(target)
         return try {
             directory.mkdirs()
-            val temporary = target.resolveSibling("${target.name}.tmp")
-            if (!downloadArtwork(temporary, source, entry, registry)) return null
-            ElovaireTrace.section("artwork_disk_commit") {
-                if (!temporary.renameTo(target)) {
-                    temporary.delete()
-                    return null
+            val temporary = File.createTempFile("${target.name}.", ".tmp", directory)
+            try {
+                if (!downloadArtwork(temporary, source, entry, registry)) return null
+                ElovaireTrace.section("artwork_disk_commit") {
+                    if (!temporary.renameTo(target)) return null
                 }
+                Uri.fromFile(target)
+            } finally {
+                temporary.delete()
             }
-            Uri.fromFile(target)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: IOException) {
@@ -673,6 +674,7 @@ private class NetworkArtworkCache(context: Context) {
     ): Boolean {
         var completed = false
         try {
+            var total = 0L
             registry.openBlocking(
                 sourceId = source.id,
                 path = entry.path,
@@ -683,11 +685,9 @@ private class NetworkArtworkCache(context: Context) {
                 if (handle.length != null && handle.length > MAX_ARTWORK_BYTES) return false
                 FileOutputStream(temporary).use { output ->
                     val buffer = ByteArray(16 * 1024)
-                    var total = 0L
                     while (true) {
-                        val read = handle.input.read(buffer)
+                        val read = handle.input.readWithProgress(buffer)
                         if (read < 0) break
-                        if (read == 0) continue
                         total += read
                         if (total > MAX_ARTWORK_BYTES) return false
                         output.write(buffer, 0, read)
@@ -695,8 +695,8 @@ private class NetworkArtworkCache(context: Context) {
                     output.flush()
                 }
             }
-            completed = true
-            return true
+            completed = total > 0L
+            return completed
         } finally {
             if (!completed) temporary.delete()
         }
@@ -710,6 +710,17 @@ private class NetworkArtworkCache(context: Context) {
         const val MAX_ARTWORK_BYTES = 4L * 1024L * 1024L
         const val MAX_ARTWORK_FILES = 256
         const val MAX_ARTWORK_CACHE_BYTES = 128L * 1024L * 1024L
+    }
+}
+
+internal fun removeStaleNetworkArtworkTemps(directory: File, nowMs: Long) {
+    directory.listFiles()?.forEach { file ->
+        val modified = file.lastModified()
+        if (file.isFile && file.name.endsWith(".tmp") && modified > 0L &&
+            nowMs >= modified && nowMs - modified > 24L * 60L * 60L * 1_000L
+        ) {
+            file.delete()
+        }
     }
 }
 

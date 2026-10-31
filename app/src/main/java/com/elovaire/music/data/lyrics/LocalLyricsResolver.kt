@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import android.content.ContentResolver
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
@@ -498,8 +500,8 @@ internal class LocalLyricsResolver(
         val buffer = ByteArray(byteCount)
         var offset = 0
         while (offset < byteCount) {
-            val readCount = read(buffer, offset, byteCount - offset)
-            if (readCount <= 0) break
+            val readCount = readWithProgress(buffer, offset, byteCount - offset)
+            if (readCount < 0) break
             offset += readCount
         }
         return if (offset == buffer.size) buffer else buffer.copyOf(offset)
@@ -514,8 +516,8 @@ internal class LocalLyricsResolver(
                 remaining -= skipped
                 continue
             }
-            val read = read(buffer, 0, minOf(buffer.size, remaining))
-            if (read <= 0) return false
+            val read = readWithProgress(buffer, 0, minOf(buffer.size, remaining))
+            if (read < 0) return false
             remaining -= read
         }
         return true

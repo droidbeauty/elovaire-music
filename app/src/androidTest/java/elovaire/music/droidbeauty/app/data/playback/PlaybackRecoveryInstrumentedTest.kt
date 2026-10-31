@@ -33,6 +33,29 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlaybackRecoveryInstrumentedTest {
     @Test
+    fun newerPlaybackSessionIsNotErasedByAnOlderAppVersion() {
+        val target = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = object : ContextWrapper(target) {
+            override fun getApplicationContext(): Context = this
+            override fun getSharedPreferences(name: String, mode: Int) =
+                super.getSharedPreferences("future_playback_test_$name", mode)
+        }
+        val preferences = context.getSharedPreferences("playback_session_committed", Context.MODE_PRIVATE)
+        try {
+            assertTrue(preferences.edit().putInt("format_version", CURRENT_FORMAT_VERSION + 1)
+                .putString("queue_song_ids", "42").commit())
+            val store = PlaybackSessionStore(context)
+            assertEquals(null, store.load())
+            store.clear()
+            store.save(PersistedPlaybackSession(emptyList(), null, -1, 0L, PlaybackRepeatMode.Off, false, null, false, 0L))
+            assertEquals(CURRENT_FORMAT_VERSION + 1, preferences.getInt("format_version", 0))
+            assertEquals("42", preferences.getString("queue_song_ids", null))
+        } finally {
+            context.getSharedPreferences("playback_session_committed", Context.MODE_PRIVATE).edit().clear().commit()
+        }
+    }
+
+    @Test
     fun playbackSessionRestoresSmartPlaylistAndReadsLegacyNullSentinel() {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         val context = object : ContextWrapper(target) {

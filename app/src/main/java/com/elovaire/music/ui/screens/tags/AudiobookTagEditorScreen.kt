@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +36,7 @@ import elovaire.music.droidbeauty.app.ui.screens.DetailListTopBar
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
 import elovaire.music.droidbeauty.app.ui.screens.ensureSingleItemRubberBand
 import elovaire.music.droidbeauty.app.ui.screens.TopBarActionSpec
+import elovaire.music.droidbeauty.app.ui.screens.common.EditorTextField
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 
@@ -166,19 +166,20 @@ private fun AudiobookBookMetadataSection(
                     Text(copy.coverHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            OutlinedTextField(state.bookTitle, onBookTitleChange, Modifier.fillMaxWidth(), label = { Text(copy.bookTitle) }, singleLine = true)
-            OutlinedTextField(state.author, onAuthorChange, Modifier.fillMaxWidth(), label = { Text(copy.author) }, singleLine = true)
-            OutlinedTextField(
+            EditorTextField(state.bookTitle, onBookTitleChange, copy.bookTitle, Modifier.fillMaxWidth())
+            EditorTextField(state.author, onAuthorChange, copy.author, Modifier.fillMaxWidth())
+            EditorTextField(
                 value = state.description,
                 onValueChange = onDescriptionChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(copy.description) },
+                label = copy.description,
+                singleLine = false,
                 minLines = 4,
                 maxLines = 8,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(state.releaseYear, onReleaseYearChange, Modifier.weight(1f), label = { Text(copy.year) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(state.genre, onGenreChange, Modifier.weight(1f), label = { Text(copy.genre) }, singleLine = true)
+                EditorTextField(state.releaseYear, onReleaseYearChange, copy.year, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                EditorTextField(state.genre, onGenreChange, copy.genre, Modifier.weight(1f))
             }
         }
     }
@@ -206,11 +207,11 @@ private fun AudiobookPhysicalPartCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            OutlinedTextField(part.title, { onPartTitleChange(part.songId, it) }, Modifier.fillMaxWidth(), label = { Text(copy.partTitle) }, singleLine = true)
-            OutlinedTextField(part.artist, { onPartArtistChange(part.songId, it) }, Modifier.fillMaxWidth(), label = { Text(copy.partAuthor) }, singleLine = true)
+            EditorTextField(part.title, { onPartTitleChange(part.songId, it) }, copy.partTitle, Modifier.fillMaxWidth())
+            EditorTextField(part.artist, { onPartArtistChange(part.songId, it) }, copy.partAuthor, Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(part.trackNumber, { onPartTrackNumberChange(part.songId, it) }, Modifier.weight(1f), label = { Text(copy.partNumber) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(part.discNumber, { onPartDiscNumberChange(part.songId, it) }, Modifier.weight(1f), label = { Text(copy.discNumber) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                EditorTextField(part.trackNumber, { onPartTrackNumberChange(part.songId, it) }, copy.partNumber, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                EditorTextField(part.discNumber, { onPartDiscNumberChange(part.songId, it) }, copy.discNumber, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
         }
     }

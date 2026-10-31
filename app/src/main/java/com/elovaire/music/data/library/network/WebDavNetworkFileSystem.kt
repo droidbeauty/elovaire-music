@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import elovaire.music.droidbeauty.app.platform.readWithProgress
+
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.FilterInputStream
@@ -585,7 +587,7 @@ internal class WebDavNetworkFileSystem(
         val output = ByteArrayOutputStream(minOf(maxBytes, 32 * 1024))
         val buffer = ByteArray(8 * 1024)
         while (true) {
-            val count = read(buffer)
+            val count = readWithProgress(buffer)
             if (count < 0) return output.toByteArray()
             if (output.size() > maxBytes - count) throw IOException("WebDAV response is too large")
             output.write(buffer, 0, count)
