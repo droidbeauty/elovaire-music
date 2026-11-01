@@ -55,6 +55,9 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SortDirection
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.playlistMainCopy
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
@@ -64,6 +67,22 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistEmptyCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistDeleteCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistMissingCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistPreviewLabel
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistEditRulesLabel
+import elovaire.music.droidbeauty.app.ui.i18n.networkSourcesCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistEditorHeadingCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistRemoveRuleLabel
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistMatchCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistTextRuleCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistOtherRuleCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistValueCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistInputCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistOrderCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSortLabel
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistActionCopy
 
 @Composable
 internal fun SmartPlaylistDetailScreen(
@@ -93,15 +112,16 @@ internal fun SmartPlaylistDetailScreen(
         }
     }
     if (playlist == null || result == null) {
+        val copy = smartPlaylistMissingCopy(language)
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             DetailListTopBar(
-                title = "Smart playlist",
+                title = copy.title,
                 subtitle = null,
                 onBack = onBack,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
             Text(
-                text = "Smart playlist not found",
+                text = copy.message,
                 style = MaterialTheme.typography.bodyLarge,
                 color = readableSecondaryTextColor(),
                 modifier = Modifier.align(Alignment.Center),
@@ -129,7 +149,7 @@ internal fun SmartPlaylistDetailScreen(
                 SmartPlaylistDetailHeader(
                     playlist = playlist,
                     songs = result.songs,
-                    songCountLabel = "${localizedCountLabel(result.songs.size, "song", language)} • Auto-updating",
+                    songCountLabel = "${localizedCountLabel(result.songs.size, "song", language)} • ${playlistMainCopy(language).autoUpdating}",
                     onPlay = { onPlay(playlist, result.songs, false) },
                     onShuffle = { onPlay(playlist, result.songs, true) },
                 )
@@ -176,9 +196,9 @@ internal fun SmartPlaylistDetailScreen(
         )
         SimpleConfirmDialog(
             visible = showDeleteConfirm,
-            title = "Delete smart playlist?",
-            body = "This removes only the saved rules",
-            confirmLabel = "Delete",
+            title = smartPlaylistDeleteCopy(language).title,
+            body = smartPlaylistDeleteCopy(language).message,
+            confirmLabel = uiPhrase(language, UiPhrase.Delete),
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
                 showDeleteConfirm = false
@@ -197,7 +217,8 @@ private fun SmartPlaylistDetailHeader(
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
 ) {
-    val title = playlist.builtInType?.let { builtInSmartPlaylistTitle(it, LocalAppLanguage.current) } ?: playlist.name
+    val language = LocalAppLanguage.current
+    val title = playlist.builtInType?.let { builtInSmartPlaylistTitle(it, language) } ?: playlist.name
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         PlaylistArtworkPreview(
             songs = songs,
@@ -237,7 +258,7 @@ private fun SmartPlaylistDetailHeader(
                 )
                 AlbumHeaderActionButton(
                     iconResId = R.drawable.ic_lucide_shuffle,
-                    contentDescription = "Shuffle smart playlist",
+                    contentDescription = smartPlaylistActionCopy(LocalAppLanguage.current).shuffle,
                     tint = Color.White,
                     backgroundColor = RoseAccent,
                     iconSize = 18.dp,
@@ -250,18 +271,19 @@ private fun SmartPlaylistDetailHeader(
 
 @Composable
 private fun SmartPlaylistEmptyResult() {
+    val copy = smartPlaylistEmptyCopy(LocalAppLanguage.current)
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 34.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            text = "No songs match these rules",
+            text = copy.title,
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
         Text(
-            text = "Try changing the filters or refreshing your library",
+            text = copy.message,
             style = MaterialTheme.typography.bodyLarge,
             color = readableSecondaryTextColor(),
             textAlign = TextAlign.Center,
@@ -278,17 +300,18 @@ private fun SmartPlaylistDetailTopBar(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val title = playlist.builtInType?.let { builtInSmartPlaylistTitle(it, LocalAppLanguage.current) } ?: playlist.name
+    val language = LocalAppLanguage.current
+    val title = playlist.builtInType?.let { builtInSmartPlaylistTitle(it, language) } ?: playlist.name
     DetailListTopBar(
         title = title,
         subtitle = songCountLabel,
         onBack = onBack,
         actions = buildList {
             if (!playlist.isBuiltIn) {
-                add(TopBarActionSpec(R.drawable.ic_lucide_square_pen, "Edit rules", onEdit))
+                add(TopBarActionSpec(R.drawable.ic_lucide_square_pen, smartPlaylistEditRulesLabel(language), onEdit))
             }
             if (!playlist.isBuiltIn) {
-                add(TopBarActionSpec(R.drawable.ic_lucide_trash_2, "Delete smart playlist", onDelete))
+                add(TopBarActionSpec(R.drawable.ic_lucide_trash_2, smartPlaylistActionCopy(language).delete, onDelete))
             }
         },
         modifier = modifier,
@@ -306,6 +329,7 @@ internal fun SmartPlaylistEditorScreen(
     onSave: (SmartPlaylist) -> Unit,
 ) {
     val now = remember { System.currentTimeMillis() }
+    val headingCopy = smartPlaylistEditorHeadingCopy(LocalAppLanguage.current)
     val editing = remember(playlist) {
         playlist?.takeUnless(SmartPlaylist::isBuiltIn)
             ?: SmartPlaylist(
@@ -349,7 +373,7 @@ internal fun SmartPlaylistEditorScreen(
             onLimitChanged = { limitText = it },
         )
         SmartPlaylistEditorTopBar(
-            title = if (playlist == null) "New smart playlist" else "Edit smart playlist",
+            title = if (playlist == null) headingCopy.create else headingCopy.edit,
             onBack = onBack,
             onSave = {
                 val trimmedName = name.trim()
@@ -389,6 +413,10 @@ private fun SmartPlaylistEditorContent(
     onLimitChanged: (String) -> Unit,
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val language = LocalAppLanguage.current
+    val matchCopy = smartPlaylistMatchCopy(language)
+    val textRules = smartPlaylistTextRuleCopy(language)
+    val orderCopy = smartPlaylistOrderCopy(language)
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
@@ -401,11 +429,11 @@ private fun SmartPlaylistEditorContent(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { SmartEditorTextField(name, onNameChanged, "Name") }
+        item { SmartEditorTextField(name, onNameChanged, networkSourcesCopy(language).name) }
         item {
             SmartEditorChoiceRow(
-                title = "Match mode",
-                value = if (matchMode == SmartPlaylistMatchMode.All) "Match all rules" else "Match any rule",
+                title = matchCopy.mode,
+                value = if (matchMode == SmartPlaylistMatchMode.All) matchCopy.all else matchCopy.any,
                 onClick = {
                     onMatchModeChanged(
                         if (matchMode == SmartPlaylistMatchMode.All) SmartPlaylistMatchMode.Any else SmartPlaylistMatchMode.All,
@@ -422,17 +450,17 @@ private fun SmartPlaylistEditorContent(
         }
         item {
             SmartEditorChoiceRow(
-                title = "Add rule",
-                value = "Title contains",
+                title = matchCopy.add,
+                value = textRules.title,
                 iconResId = R.drawable.ic_lucide_plus,
                 onClick = { onRulesChanged(rules + SmartPlaylistRule.TitleContains("")) },
             )
         }
-        item { SmartEditorChoiceRow("Sort", sortField.name) { onSortFieldChanged(sortField.next()) } }
+        item { SmartEditorChoiceRow(orderCopy.sort, smartPlaylistSortLabel(language, sortField)) { onSortFieldChanged(sortField.next()) } }
         item {
             SmartEditorChoiceRow(
-                title = "Direction",
-                value = sortDirection.name,
+                title = orderCopy.direction,
+                value = if (sortDirection == SortDirection.Ascending) orderCopy.ascending else orderCopy.descending,
                 onClick = {
                     onSortDirectionChanged(
                         if (sortDirection == SortDirection.Ascending) SortDirection.Descending else SortDirection.Ascending,
@@ -441,11 +469,11 @@ private fun SmartPlaylistEditorContent(
             )
         }
         item {
-            SmartEditorTextField(limitText, { onLimitChanged(it.filter(Char::isDigit).take(5)) }, "Limit")
+            SmartEditorTextField(limitText, { onLimitChanged(it.filter(Char::isDigit).take(5)) }, smartPlaylistInputCopy(language).limit)
         }
         item {
             Text(
-                text = "Preview: $previewCount songs",
+                text = smartPlaylistPreviewLabel(language, previewCount),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 modifier = Modifier.padding(top = 6.dp),
             )
@@ -464,7 +492,7 @@ private fun SmartPlaylistEditorTopBar(
         title = title,
         subtitle = null,
         onBack = onBack,
-        actions = listOf(TopBarActionSpec(R.drawable.ic_lucide_check, "Save smart playlist", onSave)),
+        actions = listOf(TopBarActionSpec(R.drawable.ic_lucide_check, smartPlaylistEditorHeadingCopy(LocalAppLanguage.current).save, onSave)),
         modifier = modifier,
     )
 }
@@ -475,16 +503,21 @@ private fun SmartRuleRow(
     onRuleChanged: (SmartPlaylistRule) -> Unit,
     onRemove: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val textRules = smartPlaylistTextRuleCopy(language)
+    val otherRules = smartPlaylistOtherRuleCopy(language)
+    val values = smartPlaylistValueCopy(language)
+    val inputs = smartPlaylistInputCopy(language)
     val label = when (rule) {
-        is SmartPlaylistRule.TitleContains -> "Title contains"
-        is SmartPlaylistRule.ArtistContains -> "Artist contains"
-        is SmartPlaylistRule.AlbumContains -> "Album contains"
-        is SmartPlaylistRule.GenreMatches -> "Genre contains"
-        is SmartPlaylistRule.FavoriteIs -> "Favorite is"
-        is SmartPlaylistRule.DurationBetween -> "Duration greater than"
-        is SmartPlaylistRule.PlayCount -> "Play count"
-        is SmartPlaylistRule.FileFormatIs -> "Format is"
-        is SmartPlaylistRule.FolderContains -> "Folder contains"
+        is SmartPlaylistRule.TitleContains -> textRules.title
+        is SmartPlaylistRule.ArtistContains -> textRules.artist
+        is SmartPlaylistRule.AlbumContains -> textRules.album
+        is SmartPlaylistRule.GenreMatches -> textRules.genre
+        is SmartPlaylistRule.FavoriteIs -> otherRules.favorite
+        is SmartPlaylistRule.DurationBetween -> otherRules.duration
+        is SmartPlaylistRule.PlayCount -> otherRules.playCount
+        is SmartPlaylistRule.FileFormatIs -> otherRules.format
+        is SmartPlaylistRule.FolderContains -> textRules.folder
     }
     val interactionSource = rememberElovaireInteractionSource()
     Column(
@@ -499,7 +532,7 @@ private fun SmartRuleRow(
             Text(text = label, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_x),
-                contentDescription = "Remove rule",
+                contentDescription = smartPlaylistRemoveRuleLabel(LocalAppLanguage.current),
                 modifier = Modifier
                     .size(28.dp)
                     .elovaireActionBump(
@@ -515,11 +548,11 @@ private fun SmartRuleRow(
             )
         }
         when (rule) {
-            is SmartPlaylistRule.TitleContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, "Value")
-            is SmartPlaylistRule.ArtistContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, "Value")
-            is SmartPlaylistRule.AlbumContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, "Value")
-            is SmartPlaylistRule.GenreMatches -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, "Value")
-            is SmartPlaylistRule.FavoriteIs -> SmartEditorChoiceRow("Value", if (rule.favorite) "Yes" else "No") {
+            is SmartPlaylistRule.TitleContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, values.value)
+            is SmartPlaylistRule.ArtistContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, values.value)
+            is SmartPlaylistRule.AlbumContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, values.value)
+            is SmartPlaylistRule.GenreMatches -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, values.value)
+            is SmartPlaylistRule.FavoriteIs -> SmartEditorChoiceRow(values.value, if (rule.favorite) values.yes else values.no) {
                 onRuleChanged(rule.copy(favorite = !rule.favorite))
             }
             is SmartPlaylistRule.DurationBetween -> SmartEditorTextField(
@@ -528,17 +561,17 @@ private fun SmartRuleRow(
                     val seconds = it.toLongOrNull()?.takeIf { value -> value in 0L..(Long.MAX_VALUE / 1_000L) }
                     onRuleChanged(rule.copy(minMs = seconds?.times(1_000L)))
                 },
-                label = "Seconds",
+                label = values.seconds,
             )
             is SmartPlaylistRule.PlayCount -> SmartEditorTextField(
                 value = rule.value.toString(),
                 onValueChange = {
                     onRuleChanged(rule.copy(operator = NumericOperator.GreaterThan, value = it.toIntOrNull()?.coerceAtLeast(0) ?: 0))
                 },
-                label = "Count",
+                label = inputs.count,
             )
-            is SmartPlaylistRule.FileFormatIs -> SmartEditorTextField(rule.extension, { onRuleChanged(rule.copy(extension = it)) }, "Extension")
-            is SmartPlaylistRule.FolderContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, "Folder text")
+            is SmartPlaylistRule.FileFormatIs -> SmartEditorTextField(rule.extension, { onRuleChanged(rule.copy(extension = it)) }, inputs.extension)
+            is SmartPlaylistRule.FolderContains -> SmartEditorTextField(rule.query, { onRuleChanged(rule.copy(query = it)) }, inputs.folderText)
         }
     }
 }
@@ -643,7 +676,7 @@ private fun SimpleConfirmDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End,
                         ) {
-                            TextButton(onClick = onDismiss) { Text("Cancel") }
+                            TextButton(onClick = onDismiss) { Text(uiPhrase(LocalAppLanguage.current, UiPhrase.Cancel)) }
                             TextButton(onClick = onConfirm) { Text(confirmLabel) }
                         }
                     }

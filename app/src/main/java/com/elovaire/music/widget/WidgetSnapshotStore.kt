@@ -146,6 +146,10 @@ internal object WidgetPlaybackSnapshotCodec {
             output.writeBoolean(snapshot.durationMs != null)
             snapshot.durationMs?.let(output::writeLong)
             output.writeLong(snapshot.capturedAtElapsedRealtimeMs)
+            output.writeBoolean(snapshot.artworkUri != null)
+            snapshot.artworkUri?.let(output::writeUTF)
+            output.writeBoolean(snapshot.mediaUri != null)
+            snapshot.mediaUri?.let(output::writeUTF)
         }
         return bytes.toByteArray()
     }
@@ -173,11 +177,13 @@ internal object WidgetPlaybackSnapshotCodec {
                 val shuffleEnabled = input.readBoolean()
                 val durationMs = if (input.readBoolean()) input.readLong() else null
                 val capturedAt = input.readLong()
+                val artworkUri = if (input.readBoolean()) input.readUTF() else null
+                val mediaUri = if (input.readBoolean()) input.readUTF() else null
                 if (input.available() != 0) return null
                 if (revision < 0L || capturedAt < 0L) return null
                 if (durationMs?.let { it < 0L } == true) return null
                 if (artwork?.songId?.let { it != songId } == true) return null
-                if (listOf(title, artist, album.orEmpty()).any { it.length > WidgetPlaybackSnapshot.MAX_TEXT_LENGTH }) return null
+                if (listOf(title, artist, album.orEmpty(), artworkUri.orEmpty(), mediaUri.orEmpty()).any { it.length > WidgetPlaybackSnapshot.MAX_TEXT_LENGTH }) return null
                 WidgetPlaybackSnapshot(
                     schemaVersion = schemaVersion,
                     contentRevision = revision,
@@ -192,6 +198,8 @@ internal object WidgetPlaybackSnapshotCodec {
                     shuffleEnabled = shuffleEnabled,
                     durationMs = durationMs,
                     capturedAtElapsedRealtimeMs = capturedAt,
+                    artworkUri = artworkUri,
+                    mediaUri = mediaUri,
                 )
             }
         } catch (_: IOException) {

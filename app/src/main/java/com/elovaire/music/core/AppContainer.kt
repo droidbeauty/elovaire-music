@@ -177,6 +177,8 @@ class AppContainer internal constructor(
         runtimeCoordinator.startPlayback()
     }
 
+    internal fun onWidgetProvidersChanged() = services.onWidgetProvidersChanged()
+
     internal fun launchApplicationWork(block: suspend CoroutineScope.() -> Unit): Job {
         return appScope.launch(block = block)
     }

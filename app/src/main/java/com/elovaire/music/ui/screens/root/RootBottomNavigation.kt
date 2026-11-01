@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +34,8 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -54,6 +57,8 @@ internal fun BottomNavigationBar(
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val iconColor = if (darkTheme) Color.White else InkText
     val navigationInset = navigationBarInsetDp()
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { commonUiCopy(language) }
 
     Box(
         modifier = modifier
@@ -85,7 +90,13 @@ internal fun BottomNavigationBar(
                 destinations.forEach { destination ->
                     BottomNavigationItemButton(
                         iconResId = destination.iconResId,
-                        contentDescription = destination.contentDescription,
+                        contentDescription = when (destination.route) {
+                            HOME_ROUTE -> copy.home
+                            ALBUMS_ROUTE -> copy.albums
+                            PLAYLISTS_ROUTE -> copy.playlists
+                            SEARCH_ROUTE -> copy.search
+                            else -> destination.contentDescription
+                        },
                         baseTint = iconColor,
                         suppressEnterAnimation = suppressEnterAnimation,
                         selected = currentRoute == destination.route,

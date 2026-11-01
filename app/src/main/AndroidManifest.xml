@@ -71,6 +71,61 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".widget.CompactWidgetReceiver"
+            android:exported="true"
+            android:label="Elovaire · Aura">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_compact_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.ClassicWidgetReceiver"
+            android:exported="true"
+            android:label="Elovaire · Echo">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_classic_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.CoverWidgetReceiver"
+            android:exported="true"
+            android:label="Elovaire · Sol">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_cover_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.StudioWidgetReceiver"
+            android:exported="true"
+            android:label="Elovaire · Nova">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_studio_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.ControlsWidgetReceiver"
+            android:exported="true"
+            android:label="Elovaire · Tempo">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_controls_info" />
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboardHidden|uiMode"

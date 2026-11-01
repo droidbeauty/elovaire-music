@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.widget
 
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNowPlayingState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
@@ -8,6 +9,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackTransportState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -25,7 +27,7 @@ class WidgetUpdateRuntimeTest {
             playbackReader = reader,
             snapshotStore = store,
             scope = backgroundScope,
-            providers = WidgetProviderRegistry.productionProviders,
+            providers = emptyList(),
             clock = FixedClock,
         )
 
@@ -67,6 +69,67 @@ class WidgetUpdateRuntimeTest {
         assertEquals(initialWrites + 1, store.writeCount)
         assertEquals(initialUpdates + 1, provider.updateCount)
         assertEquals(true, store.snapshot?.isPlaying)
+        runtime.release()
+    }
+
+    @Test
+    fun languageChangeRefreshesWidgetsWithoutChangingPlayback() = runTest {
+        val store = FakeStore()
+        val reader = FakePlaybackReader()
+        val provider = FakeProvider(instances = 1)
+        val language = MutableStateFlow(AppLanguage.English)
+        val runtime = WidgetUpdateRuntime(
+            playbackReader = reader,
+            snapshotStore = store,
+            scope = backgroundScope,
+            providers = listOf(provider),
+            clock = FixedClock,
+            language = language,
+        )
+        runtime.onProviderLifecycleChanged()
+        runCurrent()
+        advanceTimeBy(50L)
+        runCurrent()
+        val updates = provider.updateCount
+        language.value = AppLanguage.Polish
+        advanceTimeBy(50L)
+        runCurrent()
+        assertEquals(updates + 1, provider.updateCount)
+        runtime.release()
+    }
+
+    @Test
+    fun lifecycleChangeDuringQueryIsReconciledAgain() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var instances = 0
+        var queries = 0
+        val provider = object : WidgetProviderUpdater {
+            override suspend fun activeInstanceCount(): Int {
+                queries += 1
+                val count = instances
+                if (queries == 1) gate.await()
+                return count
+            }
+            override suspend fun updateAll() = Unit
+        }
+        val store = FakeStore()
+        val runtime = WidgetUpdateRuntime(
+            playbackReader = FakePlaybackReader(),
+            snapshotStore = store,
+            scope = backgroundScope,
+            providers = listOf(provider),
+            clock = FixedClock,
+        )
+        runtime.onProviderLifecycleChanged()
+        runCurrent()
+        instances = 1
+        runtime.onProviderLifecycleChanged()
+        gate.complete(Unit)
+        runCurrent()
+        advanceTimeBy(50L)
+        runCurrent()
+        assertEquals(2, queries)
+        assertEquals(1, store.writeCount)
         runtime.release()
     }
 

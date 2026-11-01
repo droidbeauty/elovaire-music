@@ -20,6 +20,8 @@ class WidgetPlaybackSnapshotCodecTest {
             shuffleEnabled = true,
             durationMs = 50_000L,
             capturedAtElapsedRealtimeMs = 2_000L,
+            artworkUri = "content://artwork/10",
+            mediaUri = "content://media/10",
         )
 
         assertEquals(snapshot, WidgetPlaybackSnapshotCodec.decode(WidgetPlaybackSnapshotCodec.encode(snapshot)))

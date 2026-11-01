@@ -1437,7 +1437,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         AppLanguage.Catalan -> Triple("llista", "llistes", "llistes")
         AppLanguage.Finnish -> Triple("soittolista", "soittolistaa", "soittolistaa")
         AppLanguage.Romanian -> Triple("listă", "liste", "liste")
-        AppLanguage.Slovenian -> Triple("seznam", "seznama", "seznamov")
+        AppLanguage.Slovenian -> Triple("seznam predvajanja", "seznama predvajanja", "seznamov predvajanja")
         AppLanguage.Bosnian -> Triple("plejlista", "plejliste", "plejlista")
         AppLanguage.Indonesian -> Triple("daftar putar", "daftar putar", "daftar putar")
         AppLanguage.Punjabi -> Triple("ਪਲੇਲਿਸਟ", "ਪਲੇਲਿਸਟਾਂ", "ਪਲੇਲਿਸਟਾਂ")
@@ -1453,7 +1453,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         AppLanguage.German -> Triple("Playlist", "Playlists", "Playlists")
         AppLanguage.Greek -> Triple("λίστα αναπαραγωγής", "λίστες αναπαραγωγής", "λίστες αναπαραγωγής")
         AppLanguage.Hindi -> Triple("प्लेलिस्ट", "प्लेलिस्ट", "प्लेलिस्ट")
-        AppLanguage.Hungarian -> Triple("lejátszási lista", "lejátszási listák", "lejátszási listák")
+        AppLanguage.Hungarian -> Triple("lejátszási lista", "lejátszási lista", "lejátszási lista")
         AppLanguage.Italian -> Triple("playlist", "playlist", "playlist")
         AppLanguage.Japanese -> Triple("プレイリスト", "プレイリスト", "プレイリスト")
         AppLanguage.Korean -> Triple("재생목록", "재생목록", "재생목록")
@@ -1463,7 +1463,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         AppLanguage.Malay -> Triple("senarai main", "senarai main", "senarai main")
         AppLanguage.Macedonian -> Triple("плејлиста", "плејлисти", "плејлисти")
         AppLanguage.Norwegian -> Triple("spilleliste", "spillelister", "spillelister")
-        AppLanguage.Polish -> Triple("playlista", "playlisty", "playlistów")
+        AppLanguage.Polish -> Triple("playlista", "playlisty", "playlist")
         AppLanguage.Portuguese -> Triple("playlist", "playlists", "playlists")
         AppLanguage.Russian -> Triple("плейлист", "плейлиста", "плейлистов")
         AppLanguage.Slovak -> Triple("zoznam skladieb", "zoznamy skladieb", "zoznamov skladieb")
@@ -1481,45 +1481,43 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
     val label = when {
         language == AppLanguage.Slovenian && lastTwo == 1 -> forms.first
         language == AppLanguage.Slovenian && lastTwo == 2 -> forms.second
-        language == AppLanguage.Slovenian && lastTwo in 3..4 -> "seznami"
+        language == AppLanguage.Slovenian && lastTwo in 3..4 -> "seznami predvajanja"
         language == AppLanguage.Slovenian -> forms.third
         language in setOf(AppLanguage.Bulgarian, AppLanguage.Catalan, AppLanguage.Finnish, AppLanguage.Romanian) -> if (number == 1) forms.first else forms.second
         language == AppLanguage.Punjabi -> if (number == 1) forms.first else forms.second
+        language == AppLanguage.Polish && number == 1 -> forms.first
+        language == AppLanguage.Polish && last in 2..4 && lastTwo !in 12..14 -> forms.second
+        language == AppLanguage.Polish -> forms.third
+        language in setOf(AppLanguage.Czech, AppLanguage.Slovak) && number == 1 -> forms.first
+        language in setOf(AppLanguage.Czech, AppLanguage.Slovak) && number in 2..4 -> forms.second
+        language in setOf(AppLanguage.Czech, AppLanguage.Slovak) -> forms.third
         language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
+        language == AppLanguage.Latvian && last == 1 -> forms.first
         language == AppLanguage.Lithuanian && (last == 0 || lastTwo in 11..19) -> forms.third
         language in setOf(
             AppLanguage.Bosnian,
             AppLanguage.Croatian,
-            AppLanguage.Czech,
-            AppLanguage.Polish,
             AppLanguage.Russian,
             AppLanguage.Serbian,
-            AppLanguage.Slovak,
             AppLanguage.Ukrainian,
         ) && last == 1 && lastTwo != 11 -> forms.first
         language in setOf(
             AppLanguage.Bosnian,
             AppLanguage.Croatian,
-            AppLanguage.Czech,
-            AppLanguage.Polish,
             AppLanguage.Russian,
             AppLanguage.Serbian,
-            AppLanguage.Slovak,
             AppLanguage.Ukrainian,
         ) && last in 2..4 && lastTwo !in 12..14 -> forms.second
         language in setOf(
             AppLanguage.Bosnian,
             AppLanguage.Croatian,
-            AppLanguage.Czech,
-            AppLanguage.Polish,
             AppLanguage.Russian,
             AppLanguage.Serbian,
-            AppLanguage.Slovak,
             AppLanguage.Ukrainian,
         ) -> forms.third
         language == AppLanguage.Lithuanian && last == 1 && lastTwo != 11 -> forms.first
         language == AppLanguage.Lithuanian && last in 2..9 -> forms.second
-        last == 1 && lastTwo != 11 -> forms.first
+        number == 1 -> forms.first
         else -> forms.second
     }
     val separator = if (language == AppLanguage.Romanian && count >= 20 && count % 100 !in 1..19) " de " else " "
@@ -1587,7 +1585,7 @@ private fun localizedComplexCountLabel(
             "song", "track" -> Triple("utwór", "utwory", "utworów")
             "audiobook" -> Triple("audiobook", "audiobooki", "audiobooków")
             "album" -> Triple("album", "albumy", "albumów")
-            "artist" -> Triple("artysta", "artyści", "artystów")
+            "artist" -> Triple("artysta", "artystów", "artystów")
             "genre" -> Triple("gatunek", "gatunki", "gatunków")
             else -> return null
         }
@@ -1604,9 +1602,9 @@ private fun localizedComplexCountLabel(
             "song" -> Triple("песма", "песме", "песама")
             "track" -> Triple("нумера", "нумере", "нумера")
             "audiobook" -> Triple("аудиокњига", "аудиокњиге", "аудиокњига")
-            "album" -> Triple("албум", "албуми", "албума")
-            "artist" -> Triple("извођач", "извођачи", "извођача")
-            "genre" -> Triple("жанр", "жанрови", "жанрова")
+            "album" -> Triple("албум", "албума", "албума")
+            "artist" -> Triple("извођач", "извођача", "извођача")
+            "genre" -> Triple("жанр", "жанра", "жанрова")
             else -> return null
         }
         AppLanguage.Slovak -> when (noun) {
@@ -1643,6 +1641,12 @@ private fun localizedComplexCountLabel(
             else -> forms.third
         }
         language == AppLanguage.Slovenian -> forms.third
+        language == AppLanguage.Polish && number == 1 -> forms.first
+        language == AppLanguage.Polish && last in 2..4 && lastTwo !in 12..14 -> forms.second
+        language == AppLanguage.Polish -> forms.third
+        language in setOf(AppLanguage.Czech, AppLanguage.Slovak) && number == 1 -> forms.first
+        language in setOf(AppLanguage.Czech, AppLanguage.Slovak) && number in 2..4 -> forms.second
+        language in setOf(AppLanguage.Czech, AppLanguage.Slovak) -> forms.third
         language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
         language == AppLanguage.Lithuanian && lastTwo in 11..19 -> forms.third
         last == 1 && lastTwo != 11 -> forms.first

@@ -301,6 +301,7 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.playlistAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -700,7 +701,7 @@ internal fun AlbumScreen(
                             )
                             AlbumHeaderActionButton(
                                 iconResId = R.drawable.ic_lucide_shuffle,
-                                contentDescription = "Shuffle album",
+                                contentDescription = copy.shuffleAlbum,
                                 tint = Color.White,
                                 backgroundColor = RoseAccent,
                                 iconSize = 18.dp,
@@ -807,7 +808,7 @@ internal fun AlbumScreen(
             actions = listOf(
                 TopBarActionSpec(
                     iconResId = R.drawable.ic_lucide_square_pen,
-                    contentDescription = "Edit tags",
+                    contentDescription = copy.editTags,
                     onClick = { onOpenTagEditor(album) },
                 ),
             ),
@@ -1201,11 +1202,12 @@ internal fun AddSongsToPlaylistOverlay(
             current + songId
         }
     }
-    val topBarActions = remember(onAddSongs, onDismiss) {
+    val language = LocalAppLanguage.current
+    val topBarActions = remember(onAddSongs, onDismiss, language) {
         listOf(
             TopBarActionSpec(
                 iconResId = R.drawable.ic_lucide_check,
-                contentDescription = "Confirm added songs",
+                contentDescription = playlistAccessibilityCopy(language).confirmSongs,
                 onClick = {
                     val currentSelectedSongIds = selectedSongIdsState.value
                     if (currentSelectedSongIds.isNotEmpty()) {
@@ -1352,7 +1354,7 @@ internal fun AddSongsToPlaylistOverlay(
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_lucide_x),
-                                    contentDescription = "Clear search",
+                                    contentDescription = searchCopy(LocalAppLanguage.current).clearSearch,
                                     tint = searchBarContentColor.copy(alpha = 0.86f),
                                     modifier = Modifier.size(14.dp),
                                 )

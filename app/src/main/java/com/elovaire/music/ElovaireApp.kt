@@ -19,6 +19,10 @@ class ElovaireApp : Application(), Configuration.Provider {
     }
     val container: AppContainer get() = containerDelegate.value
 
+    internal fun onWidgetProvidersChanged() {
+        if (containerDelegate.isInitialized()) container.onWidgetProvidersChanged()
+    }
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setMinimumLoggingLevel(if (BuildConfig.DEBUG) Log.INFO else Log.ERROR)

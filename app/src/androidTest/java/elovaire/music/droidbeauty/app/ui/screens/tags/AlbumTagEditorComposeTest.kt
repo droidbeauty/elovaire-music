@@ -85,7 +85,7 @@ class AlbumTagEditorComposeTest {
             val field = scrollTo(titleField)
             field.click()
             field.text = ""
-            node(By.textContains("track title cannot be empty."))
+            node(By.textContains("track title cannot be empty"))
             node(By.text("Save")).click()
             assertEquals(0, saveRequests.get())
             field.text = "Edited First Light"

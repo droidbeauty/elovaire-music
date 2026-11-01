@@ -168,13 +168,13 @@ private fun AlbumTagEditorUiState.computeValidationErrors(): List<String> {
     }
     tracks.forEach { track ->
         if (track.trackNumber.toIntOrNull() !in 1..9999 || track.discNumber.toIntOrNull() !in 1..9999) {
-            errors += "${track.fileName}: track and disc numbers must be between 1 and 9999."
+            errors += "${track.fileName}: track and disc numbers must be between 1 and 9999"
         }
         if (track.title.isBlank()) {
-            errors += "${track.fileName}: track title cannot be empty."
+            errors += "${track.fileName}: track title cannot be empty"
         }
         if (track.artist.isBlank()) {
-            errors += "${track.fileName}: track artist cannot be empty."
+            errors += "${track.fileName}: track artist cannot be empty"
         }
     }
     return errors

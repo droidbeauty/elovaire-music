@@ -79,6 +79,7 @@ import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.aboutUpdateCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
@@ -265,7 +266,7 @@ internal fun ChangelogBottomSheetOverlay(
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_lucide_x),
-                                contentDescription = "Close changelog",
+                                contentDescription = aboutUpdateCopy(LocalAppLanguage.current).closeChangelog,
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                                 modifier = Modifier.size(16.dp),
                             )
@@ -326,7 +327,7 @@ internal fun ChangelogReleaseContent(
     ) {
         if (changes.isEmpty()) {
             Text(
-                text = "No changelog entries yet",
+                text = aboutUpdateCopy(LocalAppLanguage.current).noChangelog,
                 style = MaterialTheme.typography.bodyLarge,
                 color = secondaryTextColor,
             )
@@ -433,6 +434,8 @@ internal fun UpdateAvailableDialog(
     modifier: Modifier = Modifier,
 ) {
     val changes = remember(release.notes) { releaseNotesAsChanges(release.notes) }
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { aboutUpdateCopy(language) }
     BackHandler(onBack = controller::dismissAvailableUpdate)
     Box(
         modifier = Modifier
@@ -500,12 +503,12 @@ internal fun UpdateAvailableDialog(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
                             Text(
-                                text = "Update available",
+                                text = copy.updateAvailable,
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "Version ${release.versionName}",
+                                text = "${copy.version} ${release.versionName}",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = readableSecondaryTextColor(),
                             )
@@ -556,12 +559,12 @@ internal fun UpdateAvailableDialog(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         UpdateDialogButton(
-                            text = "Later",
+                            text = copy.later,
                             modifier = Modifier.weight(1f),
                             onClick = controller::dismissAvailableUpdate,
                         )
                         UpdateDialogButton(
-                            text = "Download",
+                            text = copy.download,
                             modifier = Modifier.weight(1f),
                             emphasized = true,
                             loading = state.isDownloading || state.isInstalling,
@@ -1220,7 +1223,7 @@ private fun localizedAboutTitle(
         AppLanguage.Ukrainian -> "Ресурси"
         AppLanguage.Bengali -> "রিসোর্স"
         AppLanguage.Urdu -> "وسائل"
-        else -> title
+        AppLanguage.English -> title
     }
     else -> title
 }
@@ -1271,7 +1274,7 @@ private fun localizedAboutDescription(
         AppLanguage.Ukrainian -> "Мінімалістично створені застосунки й враження для красивішого Android"
         AppLanguage.Bengali -> "আরও সুন্দর Android-এর জন্য ন্যূনতম নকশার অ্যাপ ও অভিজ্ঞতা"
         AppLanguage.Urdu -> "زیادہ خوبصورت Android کے لیے کم سے کم انداز میں ڈیزائن کردہ ایپس اور تجربات"
-        else -> description
+        AppLanguage.English -> description
     }
     "Elovaire" -> when (language) {
         AppLanguage.Bulgarian -> "Елегантен офлайн плейър за вашата локална музика"
@@ -1314,7 +1317,7 @@ private fun localizedAboutDescription(
         AppLanguage.Ukrainian -> "Елегантний офлайн-програвач для вашої локальної музики"
         AppLanguage.Bengali -> "আপনার লোকাল সঙ্গীতের জন্য তৈরি একটি মার্জিত অফলাইন প্লেয়ার"
         AppLanguage.Urdu -> "آپ کی مقامی موسیقی کے لیے بنایا گیا ایک نفیس آف لائن پلیئر"
-        else -> description
+        AppLanguage.English -> description
     }
     "Resources" -> when (language) {
         AppLanguage.Bulgarian -> "Проектите, инструментите и библиотеките, които помагат за създаването на Elovaire"
@@ -1357,7 +1360,7 @@ private fun localizedAboutDescription(
         AppLanguage.Ukrainian -> "Проєкти, інструменти та бібліотеки, що допомагають створювати Elovaire"
         AppLanguage.Bengali -> "Elovaire তৈরিতে সহায়ক প্রকল্প, টুল এবং লাইব্রেরি"
         AppLanguage.Urdu -> "وہ منصوبے، اوزار اور لائبریریاں جو Elovaire بنانے میں مدد کرتی ہیں"
-        else -> description
+        AppLanguage.English -> description
     }
     else -> description
 }
@@ -1407,7 +1410,7 @@ private fun localizedAboutLinkLabel(
         AppLanguage.Ukrainian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
         AppLanguage.Bengali -> if (label.equals("Play Store", true)) "Play Store" else "ওয়েবসাইট"
         AppLanguage.Urdu -> if (label.equals("Play Store", true)) "پلے اسٹور" else "ویب سائٹ"
-        else -> label
+        AppLanguage.English -> label
     }
     "twitter" -> if (language == AppLanguage.Japanese) "X" else label
     "instagram", "ko-fi" -> label

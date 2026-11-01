@@ -2,6 +2,50 @@ package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
+internal fun preampLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Parapërforcimi"
+    AppLanguage.Bengali -> "প্রিঅ্যাম্প"
+    AppLanguage.Bosnian -> "Pretpojačalo"
+    AppLanguage.Bulgarian -> "Предусилване"
+    AppLanguage.Catalan -> "Preamplificació"
+    AppLanguage.ChineseSimplified -> "前级增益"
+    AppLanguage.Croatian -> "Pretpojačalo"
+    AppLanguage.Czech -> "Předzesílení"
+    AppLanguage.Danish -> "Forforstærkning"
+    AppLanguage.Dutch -> "Voorversterking"
+    AppLanguage.English -> "Preamp"
+    AppLanguage.Estonian -> "Eelvõimendus"
+    AppLanguage.Finnish -> "Esivahvistus"
+    AppLanguage.French -> "Préamplification"
+    AppLanguage.German -> "Vorverstärkung"
+    AppLanguage.Greek -> "Προενίσχυση"
+    AppLanguage.Hindi -> "प्रीऐम्प"
+    AppLanguage.Hungarian -> "Előerősítés"
+    AppLanguage.Indonesian -> "Prapenguat"
+    AppLanguage.Italian -> "Preamplificazione"
+    AppLanguage.Japanese -> "プリアンプ"
+    AppLanguage.Korean -> "프리앰프"
+    AppLanguage.Latin -> "Praeamplificatio"
+    AppLanguage.Latvian -> "Priekšpastiprinājums"
+    AppLanguage.Lithuanian -> "Pirminis stiprinimas"
+    AppLanguage.Macedonian -> "Предзасилување"
+    AppLanguage.Malay -> "Prapenguat"
+    AppLanguage.Norwegian -> "Forforsterkning"
+    AppLanguage.Polish -> "Przedwzmacniacz"
+    AppLanguage.Portuguese -> "Pré-amplificação"
+    AppLanguage.Punjabi -> "ਪ੍ਰੀਐਂਪ"
+    AppLanguage.Romanian -> "Preamplificare"
+    AppLanguage.Russian -> "Предусиление"
+    AppLanguage.Serbian -> "Предпојачање"
+    AppLanguage.Slovak -> "Predzosilnenie"
+    AppLanguage.Slovenian -> "Predojačanje"
+    AppLanguage.Spanish -> "Preamplificación"
+    AppLanguage.Swedish -> "Förförstärkning"
+    AppLanguage.Thai -> "ปรีแอมป์"
+    AppLanguage.Ukrainian -> "Попереднє підсилення"
+    AppLanguage.Urdu -> "پری ایمپ"
+}
+
 internal data class EqualizerCopy(
     val presets: String,
     val savePreset: String,

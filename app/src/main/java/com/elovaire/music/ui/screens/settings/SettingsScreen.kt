@@ -97,6 +97,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.updateActionCopy
+import elovaire.music.droidbeauty.app.ui.i18n.settingsAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -689,7 +691,7 @@ private fun LanguageSelectionDialog(
                                 ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_lucide_x),
-                                        contentDescription = "Close $title",
+                                        contentDescription = settingsAccessibilityCopy(LocalAppLanguage.current).closeLanguage,
                                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                                         modifier = Modifier.size(16.dp),
                                     )
@@ -1007,13 +1009,13 @@ private fun TextSizeStepper(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_case_sensitive),
-                contentDescription = "Smaller text",
+                contentDescription = settingsAccessibilityCopy(LocalAppLanguage.current).smallerText,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(14.dp),
             )
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_a_large_small),
-                contentDescription = "Larger text",
+                contentDescription = settingsAccessibilityCopy(LocalAppLanguage.current).largerText,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(17.dp),
             )
@@ -1199,12 +1201,12 @@ private fun crossfadeSummary(
 
 @Suppress("CyclomaticComplexMethod")
 private fun updateActionLabel(state: AppUpdateUiState, language: AppLanguage): String = when {
-    state.isChecking -> "Checking..."
-    state.isDownloading -> "Downloading..."
-    state.isInstalling -> "Installing..."
-    state.installPermissionRequired -> "Allow install"
-    state.availableRelease != null -> "Update"
-    state.errorMessage != null -> "Retry"
+    state.isChecking -> updateActionCopy(language).checking
+    state.isDownloading -> updateActionCopy(language).downloading
+    state.isInstalling -> updateActionCopy(language).installing
+    state.installPermissionRequired -> updateActionCopy(language).allowInstall
+    state.availableRelease != null -> updateActionCopy(language).update
+    state.errorMessage != null -> updateActionCopy(language).retry
     else -> when (language) {
         AppLanguage.Albanian -> "Kontrollo"
         AppLanguage.Bosnian -> "Provjeri"

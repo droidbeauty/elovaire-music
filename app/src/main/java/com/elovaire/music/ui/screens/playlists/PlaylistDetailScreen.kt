@@ -70,6 +70,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.playlistAccessibilityCopy
+import elovaire.music.droidbeauty.app.ui.i18n.shuffleAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
@@ -362,7 +364,7 @@ internal fun PlaylistDetailScreen(
                             )
                             AlbumHeaderActionButton(
                                 iconResId = R.drawable.ic_lucide_shuffle,
-                                contentDescription = "Shuffle playlist",
+                                contentDescription = shuffleAccessibilityCopy(language).playlist,
                                 tint = Color.White,
                                 backgroundColor = RoseAccent,
                                 iconSize = 18.dp,
@@ -745,7 +747,7 @@ internal fun PlaylistSongRow(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_lucide_chevrons_up_down),
-                        contentDescription = "Reorder song",
+                        contentDescription = playlistAccessibilityCopy(LocalAppLanguage.current).reorderSong,
                         tint = handleTint,
                         modifier = Modifier.size(18.dp),
                     )

@@ -243,8 +243,9 @@ internal class AppServices(
             playbackReader = playbackManager,
             snapshotStore = AtomicWidgetSnapshotStore(applicationContext, appDispatchers.io),
             scope = appScope,
-            providers = WidgetProviderRegistry.productionProviders,
+            providers = WidgetProviderRegistry.productionProviders(applicationContext),
             diagnostics = backendDiagnostics,
+            language = preferenceStore.appLanguage,
         )
     }
     val playbackSessionStore = PlaybackSessionStore(applicationContext)
@@ -390,13 +391,17 @@ internal class AppServices(
 
     fun startPlayback() {
         startAudiobookProgressKeyMigration()
-        if (WidgetProviderRegistry.productionProviders.isNotEmpty()) {
-            widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
-        }
+        widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
         networkBackend.start()
         mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.startPlayback()
         portableUserDataBackupRuntime.start()
+    }
+
+    internal fun onWidgetProvidersChanged() {
+        if (widgetUpdateRuntimeDelegate.isInitialized()) {
+            widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
+        }
     }
 
     private fun startAudiobookProgressKeyMigration() {

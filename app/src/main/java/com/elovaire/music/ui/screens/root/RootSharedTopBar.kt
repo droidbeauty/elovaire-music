@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.navigationAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -266,7 +267,7 @@ internal fun UnifiedTopBar(
                     }
                     HeaderIconButton(
                         iconResId = R.drawable.ic_lucide_menu,
-                        contentDescription = "Menu",
+                        contentDescription = navigationAccessibilityCopy(LocalAppLanguage.current).menu,
                         showBackground = false,
                         onClick = onOpenMenu,
                         modifier = Modifier.zIndex(1f),
@@ -327,7 +328,7 @@ internal fun PinnedBackTopBar(
             ) {
                 HeaderIconButton(
                     iconResId = R.drawable.ic_lucide_chevron_left,
-                    contentDescription = "Back",
+                    contentDescription = navigationAccessibilityCopy(LocalAppLanguage.current).back,
                     showBackground = false,
                     onClick = onBack,
                     modifier = Modifier
@@ -362,7 +363,7 @@ internal fun PinnedBackTopBar(
             ) {
                 HeaderIconButton(
                     iconResId = R.drawable.ic_lucide_chevron_left,
-                    contentDescription = "Back",
+                    contentDescription = navigationAccessibilityCopy(LocalAppLanguage.current).back,
                     showBackground = false,
                     onClick = onBack,
                     modifier = Modifier.zIndex(1f),
@@ -522,7 +523,7 @@ internal fun SharedTopBarOverlay(
                                 )
                                 HeaderIconButton(
                                     iconResId = R.drawable.ic_lucide_menu,
-                                    contentDescription = "Menu",
+                                    contentDescription = navigationAccessibilityCopy(language).menu,
                                     showBackground = false,
                                     onClick = currentSpec.onOpenMenu,
                                 )
@@ -544,7 +545,7 @@ internal fun SharedTopBarOverlay(
                         ) {
                             HeaderIconButton(
                                 iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = "Back",
+                                contentDescription = navigationAccessibilityCopy(language).back,
                                 showBackground = false,
                                 onClick = currentSpec.onBack,
                                 modifier = Modifier.align(Alignment.CenterStart),
@@ -593,7 +594,7 @@ internal fun SharedTopBarOverlay(
                             ) {
                                 HeaderIconButton(
                                     iconResId = R.drawable.ic_lucide_chevron_left,
-                                    contentDescription = "Back",
+                                    contentDescription = navigationAccessibilityCopy(language).back,
                                     showBackground = false,
                                     onClick = currentSpec.onBack,
                                 )
@@ -641,7 +642,7 @@ internal fun SharedTopBarOverlay(
                         ) {
                             HeaderIconButton(
                                 iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = "Back",
+                                contentDescription = navigationAccessibilityCopy(language).back,
                                 showBackground = false,
                                 onClick = currentSpec.onBack,
                             )

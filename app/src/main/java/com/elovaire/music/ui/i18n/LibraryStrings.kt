@@ -494,6 +494,53 @@ internal data class CommonUiCopy(
     val refinedFooter: String,
 )
 
+internal fun unknownGenreLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Zhanër i panjohur"
+    AppLanguage.Bengali -> "অজানা ধরন"
+    AppLanguage.Bosnian -> "Nepoznat žanr"
+    AppLanguage.Bulgarian -> "Неизвестен жанр"
+    AppLanguage.Catalan -> "Gènere desconegut"
+    AppLanguage.ChineseSimplified -> "未知流派"
+    AppLanguage.Croatian -> "Nepoznat žanr"
+    AppLanguage.Czech -> "Neznámý žánr"
+    AppLanguage.Danish -> "Ukendt genre"
+    AppLanguage.Dutch -> "Onbekend genre"
+    AppLanguage.English -> "Unknown Genre"
+    AppLanguage.Estonian -> "Tundmatu žanr"
+    AppLanguage.Finnish -> "Tuntematon tyylilaji"
+    AppLanguage.French -> "Genre inconnu"
+    AppLanguage.German -> "Unbekanntes Genre"
+    AppLanguage.Greek -> "Άγνωστο είδος"
+    AppLanguage.Hindi -> "अज्ञात शैली"
+    AppLanguage.Hungarian -> "Ismeretlen műfaj"
+    AppLanguage.Indonesian -> "Genre tidak dikenal"
+    AppLanguage.Italian -> "Genere sconosciuto"
+    AppLanguage.Japanese -> "不明なジャンル"
+    AppLanguage.Korean -> "알 수 없는 장르"
+    AppLanguage.Latin -> "Genus ignotum"
+    AppLanguage.Latvian -> "Nezināms žanrs"
+    AppLanguage.Lithuanian -> "Nežinomas žanras"
+    AppLanguage.Macedonian -> "Непознат жанр"
+    AppLanguage.Malay -> "Genre tidak diketahui"
+    AppLanguage.Norwegian -> "Ukjent sjanger"
+    AppLanguage.Polish -> "Nieznany gatunek"
+    AppLanguage.Portuguese -> "Género desconhecido"
+    AppLanguage.Punjabi -> "ਅਣਜਾਣ ਸ਼ੈਲੀ"
+    AppLanguage.Romanian -> "Gen necunoscut"
+    AppLanguage.Russian -> "Неизвестный жанр"
+    AppLanguage.Serbian -> "Непознат жанр"
+    AppLanguage.Slovak -> "Neznámy žáner"
+    AppLanguage.Slovenian -> "Neznan žanr"
+    AppLanguage.Spanish -> "Género desconocido"
+    AppLanguage.Swedish -> "Okänd genre"
+    AppLanguage.Thai -> "ไม่ทราบแนวเพลง"
+    AppLanguage.Ukrainian -> "Невідомий жанр"
+    AppLanguage.Urdu -> "نامعلوم صنف"
+}
+
+internal fun localizedGenreName(genre: String, language: AppLanguage): String =
+    if (genre.isBlank() || genre == "Unknown Genre") unknownGenreLabel(language) else genre
+
 internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language) {
     AppLanguage.Bulgarian -> CommonUiCopy("Начало", "Библиотека", "Плейлисти", "Търсене", "Добре дошли", "Песни", "Албуми", "Изпълнители", "Жанрове", "Светла", "Тъмна", "Системна", "в библиотеката", "общо", "намерени", "Вашата музика в елегантно изживяване")
     AppLanguage.Catalan -> CommonUiCopy("Inici", "Biblioteca", "Llistes", "Cerca", "Benvingut", "Cançons", "Àlbums", "Artistes", "Gèneres", "Clar", "Fosc", "Sistema", "a la biblioteca", "en total", "trobats", "La teva música en una experiència elegant")

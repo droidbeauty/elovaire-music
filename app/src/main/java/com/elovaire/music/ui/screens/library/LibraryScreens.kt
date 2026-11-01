@@ -316,7 +316,9 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.shuffleAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.artistInfoCopy
+import elovaire.music.droidbeauty.app.ui.i18n.closeArtistInfoLabel
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -335,6 +337,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.playingFromPrefix
 import elovaire.music.droidbeauty.app.ui.i18n.queueTitle
 import elovaire.music.droidbeauty.app.ui.i18n.repeatModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.localizedGenreName
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchSortModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.albumSortLabel
@@ -1030,7 +1033,7 @@ private fun LastPlayedPlaylistModule(
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_lucide_shuffle),
-                                contentDescription = "Shuffle playlist",
+                                contentDescription = shuffleAccessibilityCopy(LocalAppLanguage.current).playlist,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -2029,7 +2032,7 @@ internal fun LibraryCollectionScreen(
                 topPadding = detailTopBarOccupiedHeight(),
                 bottomPadding = bottomPadding,
                 title = common.albums,
-                subtitle = "Alphabetical by album artist, then album title",
+                subtitle = rootUiCopy(language).allAlbumsSubtitle,
                             onLayoutModeChanged = onAlbumCollectionLayoutModeChanged,
                             onSortModeChanged = onAlbumSortModeChanged,
                             onAlbumSelected = onAlbumSelected,
@@ -2391,6 +2394,7 @@ internal fun GenreAlbumsScreen(
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     val filteredAlbums = remember(genre, libraryState.albums) {
         libraryState.albums.filter { album ->
             album.songs.any { song ->
@@ -2408,8 +2412,8 @@ internal fun GenreAlbumsScreen(
             sortMode = sortMode,
             topPadding = detailTopBarOccupiedHeight(),
             bottomPadding = bottomPadding,
-            title = genre.ifBlank { "Unknown Genre" },
-            subtitle = localizedCountLabel(filteredAlbums.size, "album", LocalAppLanguage.current),
+            title = localizedGenreName(genre, language),
+            subtitle = localizedCountLabel(filteredAlbums.size, "album", language),
             onLayoutModeChanged = onLayoutModeChanged,
             onSortModeChanged = onSortModeChanged,
             onAlbumSelected = onAlbumSelected,
@@ -2422,7 +2426,7 @@ internal fun GenreAlbumsScreen(
             onDeleteAlbumFromDevice = onDeleteAlbumFromDevice,
         )
         DetailListTopBar(
-            title = genre.ifBlank { "Unknown Genre" },
+            title = localizedGenreName(genre, language),
             subtitle = localizedCountLabel(filteredAlbums.size, "album", LocalAppLanguage.current),
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
@@ -2654,7 +2658,7 @@ internal fun ArtistDiscographyPopup(
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_lucide_x),
-                                    contentDescription = "Close artist information",
+                                    contentDescription = closeArtistInfoLabel(LocalAppLanguage.current),
                                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                                     modifier = Modifier.size(16.dp),
                                 )
@@ -3079,7 +3083,7 @@ private fun ArtistShuffleButton(
         }
         AlbumHeaderActionButton(
             iconResId = R.drawable.ic_lucide_shuffle,
-            contentDescription = "Shuffle artist",
+            contentDescription = shuffleAccessibilityCopy(LocalAppLanguage.current).artist,
             tint = Color.White,
             backgroundColor = Color.White.copy(alpha = if (enabled) 0.18f else 0.08f),
             iconSize = 18.dp,
@@ -3591,7 +3595,7 @@ private fun GenreRow(
             verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
-                text = genre.name,
+                text = localizedGenreName(genre.name, language),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

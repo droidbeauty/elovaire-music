@@ -73,6 +73,8 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookUnavailableCopy
+import elovaire.music.droidbeauty.app.ui.i18n.viewModeAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookDescriptionCopy
@@ -502,6 +504,8 @@ private fun AudiobooksViewSwitcher(
     layoutMode: AlbumLayoutMode,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { viewModeAccessibilityCopy(language) }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
@@ -509,21 +513,21 @@ private fun AudiobooksViewSwitcher(
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_list,
             selected = layoutMode == AlbumLayoutMode.Compact,
-            contentDescription = "List",
+            contentDescription = copy.list,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Compact) },
         )
         Spacer(modifier = Modifier.width(8.dp))
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_grid_2x2,
             selected = layoutMode == AlbumLayoutMode.Grid,
-            contentDescription = "Grid",
+            contentDescription = copy.grid,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Grid) },
         )
         Spacer(modifier = Modifier.width(8.dp))
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_grid_3x3,
             selected = layoutMode == AlbumLayoutMode.DenseGrid,
-            contentDescription = "Dense grid",
+            contentDescription = copy.denseGrid,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.DenseGrid) },
         )
     }
@@ -534,8 +538,10 @@ internal fun AudiobookUnavailableScreen(
     bottomPadding: Dp,
     onBack: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { audiobookUnavailableCopy(language) }
     Column(modifier = Modifier.fillMaxSize()) {
-        DetailListTopBar(title = "Audiobook unavailable", subtitle = null, onBack = onBack)
+        DetailListTopBar(title = copy.title, subtitle = null, onBack = onBack)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -544,11 +550,11 @@ internal fun AudiobookUnavailableScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "This audiobook is no longer available",
+                    text = copy.message,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 )
                 Text(
-                    text = "Refresh your library and try again",
+                    text = copy.retry,
                     style = MaterialTheme.typography.bodyMedium,
                     color = readableSecondaryTextColor(),
                 )

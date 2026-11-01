@@ -30,6 +30,8 @@ internal data class WidgetPlaybackSnapshot(
     val shuffleEnabled: Boolean,
     val durationMs: Long?,
     val capturedAtElapsedRealtimeMs: Long,
+    val artworkUri: String? = null,
+    val mediaUri: String? = null,
 ) {
     internal fun hasSameWidgetContent(other: WidgetPlaybackSnapshot): Boolean =
         schemaVersion == other.schemaVersion &&
@@ -38,6 +40,8 @@ internal data class WidgetPlaybackSnapshot(
             artist == other.artist &&
             album == other.album &&
             artworkIdentity == other.artworkIdentity &&
+            artworkUri == other.artworkUri &&
+            mediaUri == other.mediaUri &&
             isPlaying == other.isPlaying &&
             transportShowsPause == other.transportShowsPause &&
             repeatMode == other.repeatMode &&
@@ -45,7 +49,7 @@ internal data class WidgetPlaybackSnapshot(
             durationMs == other.durationMs
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 1
+        const val CURRENT_SCHEMA_VERSION = 2
         const val MAX_TEXT_LENGTH = 4_096
     }
 }
@@ -75,6 +79,8 @@ internal fun projectWidgetPlaybackSnapshot(
                 mediaRevisionSeconds = it.dateModifiedSeconds ?: 0L,
             )
         },
+        artworkUri = song?.artUri?.toString()?.take(WidgetPlaybackSnapshot.MAX_TEXT_LENGTH),
+        mediaUri = song?.uri?.toString()?.take(WidgetPlaybackSnapshot.MAX_TEXT_LENGTH),
         isPlaying = transport.isPlaying,
         transportShowsPause = transport.transportShowsPause,
         repeatMode = transport.repeatMode.toWidgetRepeatMode(),

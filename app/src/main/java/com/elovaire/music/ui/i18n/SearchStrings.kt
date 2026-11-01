@@ -27,9 +27,26 @@ internal data class SearchUiCopy(
     val matchingSongsSuffix: String,
 ) {
     fun noResultsMessage(query: String): String = "$noResultsPrefix \"$query\" $noResultsSuffix".trimEnd()
-    fun matchingArtists(count: Int): String = "$count $matchingArtistsSuffix"
-    fun matchingAlbums(count: Int): String = "$count $matchingAlbumsSuffix"
-    fun matchingSongs(count: Int): String = "$count $matchingSongsSuffix"
+    fun matchingArtists(count: Int, language: AppLanguage): String = if (language == AppLanguage.Polish) {
+        val adjective = if (count == 1) "pasujący" else "pasujących"
+        "$count $adjective ${localizedCountLabel(count, "artist", language).substringAfter(' ')}"
+    } else if (language == AppLanguage.English && count == 1) {
+        "1 matching artist"
+    } else "$count $matchingArtistsSuffix"
+
+    fun matchingAlbums(count: Int, language: AppLanguage): String = matchingItems(count, "album", matchingAlbumsSuffix, language)
+    fun matchingSongs(count: Int, language: AppLanguage): String = matchingItems(count, "song", matchingSongsSuffix, language)
+
+    private fun matchingItems(count: Int, noun: String, suffix: String, language: AppLanguage): String {
+        if (language == AppLanguage.English && count == 1) return "1 matching $noun result"
+        if (language != AppLanguage.Polish) return "$count $suffix"
+        val adjective = when {
+            count == 1 -> "pasujący"
+            count % 10 in 2..4 && count % 100 !in 12..14 -> "pasujące"
+            else -> "pasujących"
+        }
+        return "$count $adjective ${localizedCountLabel(count, noun, language).substringAfter(' ')}"
+    }
 }
 
 internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {

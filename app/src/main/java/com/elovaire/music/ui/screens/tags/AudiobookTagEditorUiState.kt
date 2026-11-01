@@ -155,10 +155,10 @@ internal fun AudiobookTagEditorUiState.recalculateFlags(): AudiobookTagEditorUiS
         }
         parts.forEach { part ->
             if (part.trackNumber.toIntOrNull() !in 1..9999 || part.discNumber.toIntOrNull() !in 1..9999) {
-                add("${part.fileName}: track and disc numbers must be between 1 and 9999.")
+                add("${part.fileName}: track and disc numbers must be between 1 and 9999")
             }
-            if (part.title.isBlank()) add("${part.fileName}: chapter title cannot be empty.")
-            if (part.artist.isBlank()) add("${part.fileName}: author cannot be empty.")
+            if (part.title.isBlank()) add("${part.fileName}: chapter title cannot be empty")
+            if (part.artist.isBlank()) add("${part.fileName}: author cannot be empty")
         }
     }
     val originalSongs = book?.canonicalSongs().orEmpty()

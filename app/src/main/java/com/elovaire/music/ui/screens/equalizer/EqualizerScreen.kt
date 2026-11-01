@@ -107,6 +107,8 @@ import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.navigationAccessibilityCopy
+import elovaire.music.droidbeauty.app.ui.i18n.preampLabel
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
@@ -265,7 +267,7 @@ internal fun EqualizerScreen(
                             modifier = Modifier.size(15.dp),
                         )
                         Text(
-                            text = "Preamp",
+                            text = preampLabel(language),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                         )
@@ -284,7 +286,7 @@ internal fun EqualizerScreen(
                         stepSize = EqValuePolicy.GAIN_STEP_DB,
                         visualStepSize = 1f,
                         stepDotAlpha = 1f,
-                        modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = "Preamp" },
+                        modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = preampLabel(language) },
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         listOf("−6 dB", "0 dB", "+6 dB").forEach { label ->
@@ -636,7 +638,7 @@ private fun DetailScreenHeader(
     ) {
         HeaderIconButton(
             iconResId = R.drawable.ic_lucide_chevron_left,
-            contentDescription = "Back",
+            contentDescription = navigationAccessibilityCopy(LocalAppLanguage.current).back,
             showBackground = false,
             onClick = onBack,
         )

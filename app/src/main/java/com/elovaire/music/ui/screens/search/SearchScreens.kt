@@ -300,6 +300,8 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.viewModeAccessibilityCopy
+import elovaire.music.droidbeauty.app.ui.i18n.showAllSongResultsLabel
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
@@ -833,7 +835,7 @@ private fun SearchScreen(
                                 Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                                     SearchResultsCategoryHeader(
                                         title = commonUiCopy(language).artists,
-                                        subtitle = searchCopy(language).matchingArtists(matchingArtists.size),
+                                        subtitle = searchCopy(language).matchingArtists(matchingArtists.size, language),
                                         iconResId = R.drawable.ic_lucide_mic_vocal,
                                     )
                                     SearchHistoryListCard(
@@ -860,7 +862,7 @@ private fun SearchScreen(
                                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                         SearchResultsCategoryHeader(
                                             title = commonUiCopy(language).albums,
-                                            subtitle = copy.matchingAlbums(state.matchingAlbums.size),
+                                            subtitle = copy.matchingAlbums(state.matchingAlbums.size, language),
                                             iconResId = R.drawable.ic_lucide_disc_album,
                                         )
                                         ArtistAlbumGallery(
@@ -1197,7 +1199,7 @@ private fun SearchSongsPreviewHeader(
     ) {
         SearchResultsCategoryHeader(
             title = commonUiCopy(language).songs,
-            subtitle = copy.matchingSongs(resultCount),
+            subtitle = copy.matchingSongs(resultCount, language),
             iconResId = R.drawable.ic_lucide_music,
         )
         InlineActionMotionHost(
@@ -1219,7 +1221,7 @@ private fun SearchSongsPreviewHeader(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
-                        contentDescription = "Show all song results",
+                        contentDescription = showAllSongResultsLabel(language),
                         tint = readableMutedIconColor().copy(alpha = 0.82f),
                         modifier = Modifier
                             .size(16.dp)
@@ -1250,7 +1252,7 @@ private fun SearchSongsResultsHeader(
         ) {
             SearchResultsCategoryHeader(
                 title = commonUiCopy(language).songs,
-                subtitle = copy.matchingSongs(resultCount),
+                subtitle = copy.matchingSongs(resultCount, language),
                 iconResId = R.drawable.ic_lucide_music,
                 modifier = Modifier.weight(1f),
             )
@@ -1528,23 +1530,25 @@ internal fun LibraryModeToggle(
     layoutMode: AlbumLayoutMode,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { viewModeAccessibilityCopy(language) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_list,
             selected = layoutMode == AlbumLayoutMode.Compact,
-            contentDescription = "Compact list",
+            contentDescription = copy.compactList,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Compact) },
         )
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_grid_2x2,
             selected = layoutMode == AlbumLayoutMode.Grid,
-            contentDescription = "Grid",
+            contentDescription = copy.grid,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Grid) },
         )
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_grid_3x3,
             selected = layoutMode == AlbumLayoutMode.DenseGrid,
-            contentDescription = "Dense grid",
+            contentDescription = copy.denseGrid,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.DenseGrid) },
         )
     }

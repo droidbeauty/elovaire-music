@@ -2,6 +2,50 @@ package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
+internal fun closeArtistInfoLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Mbyll informacionin për artistin"
+    AppLanguage.Bengali -> "শিল্পীর তথ্য বন্ধ করুন"
+    AppLanguage.Bosnian -> "Zatvori informacije o izvođaču"
+    AppLanguage.Bulgarian -> "Затвори информацията за изпълнителя"
+    AppLanguage.Catalan -> "Tanca la informació de l’artista"
+    AppLanguage.ChineseSimplified -> "关闭艺人信息"
+    AppLanguage.Croatian -> "Zatvori informacije o izvođaču"
+    AppLanguage.Czech -> "Zavřít informace o umělci"
+    AppLanguage.Danish -> "Luk kunstnerinformation"
+    AppLanguage.Dutch -> "Artiestinformatie sluiten"
+    AppLanguage.English -> "Close artist information"
+    AppLanguage.Estonian -> "Sulge esitaja teave"
+    AppLanguage.Finnish -> "Sulje esittäjän tiedot"
+    AppLanguage.French -> "Fermer les informations sur l’artiste"
+    AppLanguage.German -> "Interpreteninformationen schließen"
+    AppLanguage.Greek -> "Κλείσιμο πληροφοριών καλλιτέχνη"
+    AppLanguage.Hindi -> "कलाकार की जानकारी बंद करें"
+    AppLanguage.Hungarian -> "Előadó adatainak bezárása"
+    AppLanguage.Indonesian -> "Tutup informasi artis"
+    AppLanguage.Italian -> "Chiudi le informazioni sull’artista"
+    AppLanguage.Japanese -> "アーティスト情報を閉じる"
+    AppLanguage.Korean -> "아티스트 정보 닫기"
+    AppLanguage.Latin -> "Informationes de artifice claude"
+    AppLanguage.Latvian -> "Aizvērt informāciju par mākslinieku"
+    AppLanguage.Lithuanian -> "Uždaryti atlikėjo informaciją"
+    AppLanguage.Macedonian -> "Затвори информации за изведувачот"
+    AppLanguage.Malay -> "Tutup maklumat artis"
+    AppLanguage.Norwegian -> "Lukk artistinformasjon"
+    AppLanguage.Polish -> "Zamknij informacje o wykonawcy"
+    AppLanguage.Portuguese -> "Fechar informações do artista"
+    AppLanguage.Punjabi -> "ਕਲਾਕਾਰ ਦੀ ਜਾਣਕਾਰੀ ਬੰਦ ਕਰੋ"
+    AppLanguage.Romanian -> "Închide informațiile despre artist"
+    AppLanguage.Russian -> "Закрыть информацию об исполнителе"
+    AppLanguage.Serbian -> "Затвори информације о извођачу"
+    AppLanguage.Slovak -> "Zavrieť informácie o interpretovi"
+    AppLanguage.Slovenian -> "Zapri podatke o izvajalcu"
+    AppLanguage.Spanish -> "Cerrar información del artista"
+    AppLanguage.Swedish -> "Stäng artistinformation"
+    AppLanguage.Thai -> "ปิดข้อมูลศิลปิน"
+    AppLanguage.Ukrainian -> "Закрити інформацію про виконавця"
+    AppLanguage.Urdu -> "فنکار کی معلومات بند کریں"
+}
+
 internal data class ArtistInfoCopy(
     val buttonDescription: String,
     val discography: String,

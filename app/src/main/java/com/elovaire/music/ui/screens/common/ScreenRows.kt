@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.navigationAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -138,7 +140,7 @@ internal fun DetailListTopBar(
         ) {
             HeaderIconButton(
                 iconResId = R.drawable.ic_lucide_chevron_left,
-                contentDescription = "Back",
+                contentDescription = navigationAccessibilityCopy(LocalAppLanguage.current).back,
                 showBackground = false,
                 onClick = onBack,
                 modifier = Modifier.zIndex(1f),

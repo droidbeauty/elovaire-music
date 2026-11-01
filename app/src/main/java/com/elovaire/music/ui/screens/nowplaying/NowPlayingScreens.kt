@@ -304,6 +304,11 @@ import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.playbackNavigationAccessibilityCopy
+import elovaire.music.droidbeauty.app.ui.i18n.closeQueueAccessibilityLabel
+import elovaire.music.droidbeauty.app.ui.i18n.lyricsAccessibilityCopy
+import elovaire.music.droidbeauty.app.ui.i18n.mediaOptionsAccessibilityCopy
+import elovaire.music.droidbeauty.app.ui.i18n.playerControlAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -518,6 +523,7 @@ internal fun NowPlayingScreen(
     val currentSong = liveCurrentSong
     val displaySong = liveDisplaySong
     val language = LocalAppLanguage.current
+    val playbackNavigation = remember(language) { playbackNavigationAccessibilityCopy(language) }
     val playingFromText = remember(language, playerUiState.sourceLabel, currentSong?.album) {
         val source = playerUiState.sourceLabel
             ?.takeIf { it.isNotBlank() }
@@ -907,7 +913,7 @@ internal fun NowPlayingScreen(
                     ) {
                         HeaderIconButton(
                             iconResId = R.drawable.ic_lucide_chevron_down,
-                            contentDescription = "Minimize",
+                            contentDescription = playerControlAccessibilityCopy(language).minimize,
                             showBackground = false,
                             tint = contentColor,
                             onClick = { dismissNowPlaying(null) },
@@ -1271,7 +1277,7 @@ internal fun NowPlayingScreen(
                                             AudiobookTransportButton(
                                                 iconResId = R.drawable.ic_elovaire_backward_filled,
                                                 seconds = audiobookSettings.rewindSeconds,
-                                                contentDescription = "Rewind",
+                                                contentDescription = playbackNavigation.rewind,
                                                 tint = contentColor,
                                                 onClick = {
                                                     seekCurrentPlaybackBy(
@@ -1283,7 +1289,7 @@ internal fun NowPlayingScreen(
                                         } else {
                                             PlayerTransportButton(
                                                 iconResId = R.drawable.ic_elovaire_backward_filled,
-                                                contentDescription = "Previous",
+                                                contentDescription = playbackNavigation.previous,
                                                 tint = contentColor,
                                                 iconSize = 42.dp,
                                                 onClick = onSkipPrevious,
@@ -1300,7 +1306,7 @@ internal fun NowPlayingScreen(
                                             AudiobookTransportButton(
                                                 iconResId = R.drawable.ic_elovaire_forward_filled,
                                                 seconds = audiobookSettings.forwardSeconds,
-                                                contentDescription = "Forward",
+                                                contentDescription = playbackNavigation.forward,
                                                 tint = contentColor,
                                                 onClick = {
                                                     seekCurrentPlaybackBy(
@@ -1312,7 +1318,7 @@ internal fun NowPlayingScreen(
                                         } else {
                                             PlayerTransportButton(
                                                 iconResId = R.drawable.ic_elovaire_forward_filled,
-                                                contentDescription = "Next",
+                                                contentDescription = playbackNavigation.next,
                                                 tint = contentColor,
                                                 iconSize = 42.dp,
                                                 onClick = onSkipNext,
@@ -1338,7 +1344,7 @@ internal fun NowPlayingScreen(
                         PlayerSecondaryActionButton(
                             iconResId = R.drawable.ic_lucide_align_left,
                             label = "",
-                            contentDescription = "Lyrics",
+                            contentDescription = lyricsAccessibilityCopy(language).lyrics,
                             iconSize = 20.dp,
                             tint = contentColor,
                             showBackground = false,
@@ -1374,7 +1380,7 @@ internal fun NowPlayingScreen(
                         PlayerSecondaryActionButton(
                             iconResId = R.drawable.ic_lucide_list_music,
                             label = "",
-                            contentDescription = "Queue",
+                            contentDescription = queueTitle(language),
                             iconSize = 20.dp,
                             tint = contentColor,
                             showBackground = showQueueSheet,
@@ -1994,7 +2000,7 @@ private fun QueueSheetHeader(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_lucide_x),
-                        contentDescription = "Close queue",
+                        contentDescription = closeQueueAccessibilityLabel(language),
                         tint = tint.copy(alpha = 0.92f),
                         modifier = Modifier.size(16.dp),
                     )
@@ -2481,7 +2487,7 @@ internal fun SleepTimerDialog(
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_timer_reset),
-                            contentDescription = "Reset timer",
+                            contentDescription = playerControlAccessibilityCopy(LocalAppLanguage.current).resetTimer,
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(20.dp),
                         )
@@ -2825,7 +2831,7 @@ private fun QueueSongOverflowMenuButton(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_ellipsis_vertical),
-                contentDescription = "Queue song options",
+                contentDescription = mediaOptionsAccessibilityCopy(LocalAppLanguage.current).queueSong,
                 tint = tint.copy(alpha = 0.82f),
                 modifier = Modifier.size(OverflowMenuIconSize),
             )
@@ -3019,7 +3025,7 @@ private fun QueueMenuButton(
     ) {
         Icon(
             painter = painterResource(id = iconResId),
-            contentDescription = "Queue",
+            contentDescription = queueTitle(LocalAppLanguage.current),
             tint = tint.copy(alpha = 0.92f),
             modifier = Modifier.size(18.dp),
         )
@@ -3394,7 +3400,7 @@ internal fun AlbumOverflowMenuButton(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_ellipsis_vertical),
-                contentDescription = "Album options",
+                contentDescription = mediaOptionsAccessibilityCopy(LocalAppLanguage.current).album,
                 tint = tint.copy(alpha = 0.82f),
                 modifier = Modifier.size(OverflowMenuIconSize),
             )
@@ -3496,7 +3502,7 @@ internal fun SongOverflowMenuButton(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_ellipsis_vertical),
-                contentDescription = "Song options",
+                contentDescription = mediaOptionsAccessibilityCopy(LocalAppLanguage.current).song,
                 tint = tint.copy(alpha = 0.82f),
                 modifier = Modifier.size(OverflowMenuIconSize),
             )
@@ -4397,7 +4403,7 @@ internal fun LyricsOverlay(
                                 contentColor = contentColor,
                             ) {
                                 Text(
-                                    text = "Cancel",
+                                    text = uiPhrase(language, UiPhrase.Cancel),
                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                                 )
@@ -4441,7 +4447,7 @@ private fun LyricsUnavailableContent(
             Spacer(modifier = Modifier.height(30.dp))
             LyricsEditorActionButton(
                 iconResId = R.drawable.ic_lucide_plus,
-                contentDescription = "Add lyrics",
+                contentDescription = lyricsAccessibilityCopy(LocalAppLanguage.current).addLyrics,
                 tint = contentColor,
                 backgroundAlpha = 0.2f,
                 onClick = onAddLyrics,
@@ -4459,6 +4465,8 @@ internal fun LyricsSkipControl(
     onSkipNext: () -> Unit,
 ) {
     val shape = RoundedCornerShape(ElovaireRadii.pill)
+    val language = LocalAppLanguage.current
+    val navigationCopy = remember(language) { playbackNavigationAccessibilityCopy(language) }
     Box(
         modifier = Modifier
             .width(160.dp)
@@ -4501,7 +4509,7 @@ internal fun LyricsSkipControl(
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_elovaire_backward_filled),
-                                contentDescription = "Previous",
+                                contentDescription = navigationCopy.previous,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -4527,7 +4535,7 @@ internal fun LyricsSkipControl(
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_elovaire_forward_filled),
-                                contentDescription = "Next",
+                                contentDescription = navigationCopy.next,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -5039,7 +5047,7 @@ private fun VolumeControlBar(
     ) {
         Icon(
             painter = painterResource(id = R.drawable.ic_lucide_volume_x),
-            contentDescription = "Muted volume",
+            contentDescription = playerControlAccessibilityCopy(LocalAppLanguage.current).mutedVolume,
             tint = contentColor.copy(alpha = 0.5f),
             modifier = Modifier.size(14.dp),
         )
@@ -5100,7 +5108,7 @@ private fun VolumeControlBar(
         }
         Icon(
             painter = painterResource(id = R.drawable.ic_lucide_volume_2),
-            contentDescription = "Maximum volume",
+            contentDescription = playerControlAccessibilityCopy(LocalAppLanguage.current).maximumVolume,
             tint = contentColor.copy(alpha = 0.5f),
             modifier = Modifier.size(14.dp),
         )
