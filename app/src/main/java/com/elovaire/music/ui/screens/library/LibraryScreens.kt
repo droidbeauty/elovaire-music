@@ -337,6 +337,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.repeatModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchSortModeLabel
+import elovaire.music.droidbeauty.app.ui.i18n.albumSortLabel
+import elovaire.music.droidbeauty.app.ui.i18n.songSortLabel
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
@@ -1695,6 +1697,7 @@ private fun AlbumSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (AlbumSortMode) -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     val motionSpecs = rememberMotionSpecs()
     val chevronRotation = animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -1727,7 +1730,7 @@ private fun AlbumSortControl(
                         modifier = Modifier.size(14.dp),
                     )
                     Text(
-                        text = selected.label,
+                        text = albumSortLabel(language, selected),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     )
                     Icon(
@@ -1762,7 +1765,7 @@ private fun AlbumSortControl(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = mode.label,
+                                text = albumSortLabel(language, mode),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 color = if (mode == selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                             )
@@ -2165,6 +2168,7 @@ private fun SongSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (SongSortMode) -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     val motionSpecs = rememberMotionSpecs()
     val chevronRotation = animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -2197,7 +2201,7 @@ private fun SongSortControl(
                         modifier = Modifier.size(14.dp),
                     )
                     Text(
-                        text = selected.label,
+                        text = songSortLabel(language, selected),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     )
                     Icon(
@@ -2232,7 +2236,7 @@ private fun SongSortControl(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = mode.label,
+                                text = songSortLabel(language, mode),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 color = if (mode == selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                             )

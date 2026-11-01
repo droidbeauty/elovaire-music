@@ -11,6 +11,14 @@ internal data class ArtistInfoCopy(
 )
 
 internal fun artistInfoCopy(language: AppLanguage): ArtistInfoCopy = when (language) {
+    AppLanguage.Bulgarian -> ArtistInfoCopy("Информация за изпълнителя", "Дискография", "Зареждане на дискографията…", "Дискографията не е налична", "Дата на издаване")
+    AppLanguage.Catalan -> ArtistInfoCopy("Informació de l’artista", "Discografia", "S’està carregant la discografia…", "La discografia no està disponible", "Data de publicació")
+    AppLanguage.Finnish -> ArtistInfoCopy("Esittäjän tiedot", "Diskografia", "Ladataan diskografiaa…", "Diskografia ei ole saatavilla", "Julkaisupäivä")
+    AppLanguage.Romanian -> ArtistInfoCopy("Informații despre artist", "Discografie", "Se încarcă discografia…", "Discografia nu este disponibilă", "Data lansării")
+    AppLanguage.Slovenian -> ArtistInfoCopy("Podatki o izvajalcu", "Diskografija", "Nalaganje diskografije…", "Diskografija ni na voljo", "Datum izdaje")
+    AppLanguage.Bosnian -> ArtistInfoCopy("Informacije o izvođaču", "Diskografija", "Učitavanje diskografije…", "Diskografija nije dostupna", "Datum izdanja")
+    AppLanguage.Indonesian -> ArtistInfoCopy("Informasi artis", "Diskografi", "Memuat diskografi…", "Diskografi tidak tersedia", "Tanggal rilis")
+    AppLanguage.Punjabi -> ArtistInfoCopy("ਕਲਾਕਾਰ ਦੀ ਜਾਣਕਾਰੀ", "ਡਿਸਕੋਗ੍ਰਾਫੀ", "ਡਿਸਕੋਗ੍ਰਾਫੀ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…", "ਡਿਸਕੋਗ੍ਰਾਫੀ ਉਪਲਬਧ ਨਹੀਂ", "ਰਿਲੀਜ਼ ਦੀ ਮਿਤੀ")
     AppLanguage.Albanian -> ArtistInfoCopy("Informacion për artistin", "Diskografia", "Po ngarkohet diskografia…", "Diskografia nuk është e disponueshme", "Data e publikimit")
     AppLanguage.Bengali -> ArtistInfoCopy("শিল্পীর তথ্য", "ডিসকোগ্রাফি", "ডিসকোগ্রাফি লোড হচ্ছে…", "ডিসকোগ্রাফি পাওয়া যায়নি", "প্রকাশের তারিখ")
     AppLanguage.ChineseSimplified -> ArtistInfoCopy("艺人信息", "作品目录", "正在加载作品目录…", "暂无作品目录信息", "发行日期")

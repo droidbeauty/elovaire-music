@@ -10,6 +10,14 @@ import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 
 internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (language) {
+    AppLanguage.Bulgarian -> SettingsLanguageCopy("Настройки", "Изглед", "Тема", "Размер на текста", "Език", "Текущ език: ${language.nativeName}", "Звук", "Усилване на басите", "Пространствен звук", "Еквалайзер", "Други настройки", "Сканирай библиотеката", "Обновяване на индекса за нови файлове", "Сканирай", "Списък с промени", "Създадено със страст към музиката и добрия дизайн")
+    AppLanguage.Catalan -> SettingsLanguageCopy("Configuració", "Aparença", "Tema", "Mida del text", "Idioma", "Idioma actual: ${language.nativeName}", "So", "Reforç de greus", "Espacialitat", "Equalitzador", "Altres opcions", "Escaneja la biblioteca", "Actualitza l’índex per trobar contingut nou", "Escaneja", "Novetats", "Dissenyat amb passió per la música i el bon disseny")
+    AppLanguage.Finnish -> SettingsLanguageCopy("Asetukset", "Ulkoasu", "Teema", "Tekstin koko", "Kieli", "Käytössä: ${language.nativeName}", "Ääni", "Basson korostus", "Tilavaikutelma", "Taajuuskorjain", "Muut asetukset", "Skannaa kirjasto", "Päivitä indeksi uuden median löytämiseksi", "Skannaa", "Muutosloki", "Suunniteltu rakkaudesta musiikkiin ja hyvään muotoiluun")
+    AppLanguage.Romanian -> SettingsLanguageCopy("Setări", "Aspect", "Temă", "Dimensiunea textului", "Limbă", "Limba curentă: ${language.nativeName}", "Sunet", "Amplificare bas", "Spațialitate", "Egalizator", "Alte setări", "Scanează biblioteca", "Actualizează indexul pentru conținut nou", "Scanează", "Noutăți", "Creat cu pasiune pentru muzică și design")
+    AppLanguage.Slovenian -> SettingsLanguageCopy("Nastavitve", "Videz", "Tema", "Velikost besedila", "Jezik", "Trenutni jezik: ${language.nativeName}", "Zvok", "Ojačitev nizkih tonov", "Prostorskost", "Izenačevalnik", "Druge nastavitve", "Preglej knjižnico", "Posodobi indeks za nove datoteke", "Preglej", "Dnevnik sprememb", "Zasnovano s strastjo do glasbe in dobrega oblikovanja")
+    AppLanguage.Bosnian -> SettingsLanguageCopy("Postavke", "Izgled", "Tema", "Veličina teksta", "Jezik", "Trenutno se koristi: ${language.nativeName}", "Zvuk", "Pojačanje basa", "Prostornost", "Ekvilajzer", "Ostale postavke", "Skeniraj biblioteku", "Osvježi indeks za nove medije", "Skeniraj", "Promjene", "Dizajnirano sa strašću prema muzici i dobrom dizajnu")
+    AppLanguage.Indonesian -> SettingsLanguageCopy("Pengaturan", "Tampilan", "Tema", "Ukuran teks", "Bahasa", "Sedang digunakan: ${language.nativeName}", "Suara", "Penguat bas", "Efek ruang", "Ekualiser", "Pengaturan lainnya", "Pindai pustaka", "Perbarui indeks untuk menemukan media baru", "Pindai", "Riwayat perubahan", "Dirancang dengan kecintaan pada musik dan desain yang baik")
+    AppLanguage.Punjabi -> SettingsLanguageCopy("ਸੈਟਿੰਗਾਂ", "ਦਿੱਖ", "ਥੀਮ", "ਲਿਖਤ ਦਾ ਆਕਾਰ", "ਭਾਸ਼ਾ", "ਮੌਜੂਦਾ ਭਾਸ਼ਾ: ${language.nativeName}", "ਆਵਾਜ਼", "ਬਾਸ ਵਧਾਓ", "ਵਿਸਤਾਰ", "ਇਕੁਆਲਾਈਜ਼ਰ", "ਹੋਰ ਸੈਟਿੰਗਾਂ", "ਲਾਇਬ੍ਰੇਰੀ ਸਕੈਨ ਕਰੋ", "ਨਵਾਂ ਮੀਡੀਆ ਲੱਭਣ ਲਈ ਸੂਚੀ ਤਾਜ਼ਾ ਕਰੋ", "ਸਕੈਨ ਕਰੋ", "ਤਬਦੀਲੀਆਂ", "ਸੰਗੀਤ ਅਤੇ ਵਧੀਆ ਡਿਜ਼ਾਈਨ ਦੇ ਪਿਆਰ ਨਾਲ ਬਣਾਇਆ")
     AppLanguage.Polish -> SettingsLanguageCopy("Ustawienia", "Wygląd", "Motyw", "Rozmiar tekstu", "Język", "Obecnie używany: ${language.nativeName}", "Dźwięk", "Podbicie basu", "Przestrzenność", "Korektor", "Inne ustawienia", "Skanuj bibliotekę", "Odśwież indeksowanie w poszukiwaniu nowych multimediów", "Skanuj", "Lista zmian", "Zaprojektowane z pasją do muzyki i świetnego designu")
     AppLanguage.ChineseSimplified -> SettingsLanguageCopy("设置", "外观", "主题", "文字大小", "语言", "当前使用：${language.nativeName}", "声音", "低音增强", "空间感", "均衡器", "其他设置", "扫描媒体库", "刷新索引以查找新媒体", "扫描", "更新日志", "为音乐和优秀设计倾注热情")
     AppLanguage.Czech -> SettingsLanguageCopy("Nastavení", "Vzhled", "Motiv", "Velikost textu", "Jazyk", "Aktuálně používaný: ${language.nativeName}", "Zvuk", "Zesílení basů", "Prostorovost", "Ekvalizér", "Další nastavení", "Skenovat knihovnu", "Obnoví index pro nová média", "Skenovat", "Změny", "Navrženo s vášní pro hudbu a skvělý design")
@@ -51,7 +59,15 @@ internal data class LibraryScanStatusCopy(
 )
 
 internal fun libraryScanStatusCopy(language: AppLanguage): LibraryScanStatusCopy = when (language) {
+    AppLanguage.Bulgarian -> LibraryScanStatusCopy("Сканиране", "Готово")
+    AppLanguage.Catalan -> LibraryScanStatusCopy("S’està escanejant", "Fet")
+    AppLanguage.Finnish -> LibraryScanStatusCopy("Skannataan", "Valmis")
+    AppLanguage.Romanian -> LibraryScanStatusCopy("Se scanează", "Gata")
+    AppLanguage.Slovenian -> LibraryScanStatusCopy("Pregledovanje", "Končano")
     AppLanguage.Albanian -> LibraryScanStatusCopy("Po skanohet", "U krye")
+    AppLanguage.Bosnian -> LibraryScanStatusCopy("Skeniranje", "Gotovo")
+    AppLanguage.Indonesian -> LibraryScanStatusCopy("Memindai", "Selesai")
+    AppLanguage.Punjabi -> LibraryScanStatusCopy("ਸਕੈਨ ਹੋ ਰਿਹਾ ਹੈ", "ਮੁਕੰਮਲ")
     AppLanguage.Bengali -> LibraryScanStatusCopy("স্ক্যান চলছে", "সম্পন্ন")
     AppLanguage.ChineseSimplified -> LibraryScanStatusCopy("正在扫描", "完成")
     AppLanguage.Croatian -> LibraryScanStatusCopy("Skeniranje", "Gotovo")
@@ -94,6 +110,14 @@ internal fun SettingsLanguageCopy.withLocalizedVolumeNormalization(language: App
 }
 
 private fun volumeNormalizationTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Изравняване на силата на звука"
+    AppLanguage.Catalan -> "Normalització del volum"
+    AppLanguage.Finnish -> "Äänenvoimakkuuden tasaus"
+    AppLanguage.Romanian -> "Normalizarea volumului"
+    AppLanguage.Slovenian -> "Izenačevanje glasnosti"
+    AppLanguage.Bosnian -> "Ujednačavanje glasnoće"
+    AppLanguage.Indonesian -> "Normalisasi volume"
+    AppLanguage.Punjabi -> "ਆਵਾਜ਼ ਦਾ ਪੱਧਰ ਇਕਸਾਰ ਕਰੋ"
     AppLanguage.Polish -> "Normalizacja głośności"
     AppLanguage.Albanian -> "Normalizimi i volumit"
     AppLanguage.ChineseSimplified -> "音量标准化"
@@ -141,6 +165,14 @@ internal data class PlaylistManagementCopy(
 @Suppress("CyclomaticComplexMethod")
 internal fun playlistManagementCopy(language: AppLanguage): PlaylistManagementCopy {
     val labels = when (language) {
+        AppLanguage.Bulgarian -> listOf("Импортирай", "Експортирай всички", "Нямате плейлисти", "Създайте поне един плейлист, за да го експортирате", "Експортирай")
+        AppLanguage.Catalan -> listOf("Importa", "Exporta-ho tot", "No tens cap llista", "Crea almenys una llista per poder-la exportar", "Exporta")
+        AppLanguage.Finnish -> listOf("Tuo", "Vie kaikki", "Sinulla ei ole soittolistoja", "Luo vähintään yksi soittolista, jotta voit viedä sen", "Vie")
+        AppLanguage.Romanian -> listOf("Importă", "Exportă toate", "Nu ai liste de redare", "Creează cel puțin o listă pentru a o exporta", "Exportă")
+        AppLanguage.Slovenian -> listOf("Uvozi", "Izvozi vse", "Nimate seznamov predvajanja", "Ustvarite vsaj en seznam, da ga lahko izvozite", "Izvozi")
+        AppLanguage.Bosnian -> listOf("Uvezi", "Izvezi sve", "Nemate plejlista", "Kreirajte barem jednu plejlistu da biste je mogli izvesti", "Izvezi")
+        AppLanguage.Indonesian -> listOf("Impor", "Ekspor semua", "Anda belum memiliki daftar putar", "Buat setidaknya satu daftar putar untuk mengekspornya", "Ekspor")
+        AppLanguage.Punjabi -> listOf("ਆਯਾਤ ਕਰੋ", "ਸਭ ਨਿਰਯਾਤ ਕਰੋ", "ਤੁਹਾਡੇ ਕੋਲ ਕੋਈ ਪਲੇਲਿਸਟ ਨਹੀਂ ਹੈ", "ਨਿਰਯਾਤ ਕਰਨ ਲਈ ਘੱਟੋ-ਘੱਟ ਇੱਕ ਪਲੇਲਿਸਟ ਬਣਾਓ", "ਨਿਰਯਾਤ ਕਰੋ")
         AppLanguage.Albanian -> listOf("Importo", "Eksporto të gjitha", "Nuk ke lista dëgjimi", "Krijo të paktën një listë dëgjimi që të mund ta eksportosh", "Eksporto")
         AppLanguage.Bengali -> listOf("ইমপোর্ট", "সব এক্সপোর্ট করুন", "আপনার কোনো প্লেলিস্ট নেই", "এক্সপোর্ট করতে অন্তত একটি প্লেলিস্ট তৈরি করুন", "এক্সপোর্ট")
         AppLanguage.ChineseSimplified -> listOf("导入", "全部导出", "你还没有播放列表", "请至少创建一个播放列表后再导出", "导出")
@@ -195,6 +227,14 @@ internal data class CrossfadeCopy(
 
 @Suppress("CyclomaticComplexMethod")
 internal fun crossfadeCopy(language: AppLanguage): CrossfadeCopy = when (language) {
+    AppLanguage.Bulgarian -> CrossfadeCopy("Продължителност на прехода", "Определя колко дълго песните се застъпват при прехода", "Откриване на тишина", "Определя колко тишина да се игнорира при намиране на края на песента")
+    AppLanguage.Catalan -> CrossfadeCopy("Durada de la transició", "Controla quant de temps se superposen les cançons", "Detecció de silenci", "Determina el silenci que s’ignora en cercar el final d’una cançó")
+    AppLanguage.Finnish -> CrossfadeCopy("Häivytyksen pituus", "Määrittää kuinka kauan kappaleet soivat päällekkäin", "Hiljaisuuden tunnistus", "Määrittää kuinka paljon hiljaisuutta ohitetaan kappaleen loppua etsittäessä")
+    AppLanguage.Romanian -> CrossfadeCopy("Durata tranziției", "Stabilește cât timp se suprapun melodiile în timpul tranziției", "Detectarea liniștii", "Stabilește câtă liniște este ignorată la găsirea sfârșitului melodiei")
+    AppLanguage.Slovenian -> CrossfadeCopy("Trajanje prehoda", "Določa, kako dolgo se skladbi med prehodom prekrivata", "Zaznavanje tišine", "Določa, koliko tišine se prezre pri iskanju konca skladbe")
+    AppLanguage.Bosnian -> CrossfadeCopy("Trajanje prijelaza", "Određuje koliko dugo se pjesme preklapaju pri prijelazu", "Otkrivanje tišine", "Određuje koliko se tišine zanemaruje pri traženju kraja pjesme")
+    AppLanguage.Indonesian -> CrossfadeCopy("Durasi transisi", "Mengatur lama lagu saling tumpang tindih saat transisi", "Deteksi keheningan", "Mengatur keheningan yang diabaikan saat mencari akhir lagu")
+    AppLanguage.Punjabi -> CrossfadeCopy("ਫੇਡ ਦੀ ਮਿਆਦ", "ਗੀਤਾਂ ਦੇ ਬਦਲਣ ਵੇਲੇ ਇਕੱਠੇ ਚੱਲਣ ਦੀ ਮਿਆਦ ਤੈਅ ਕਰਦਾ ਹੈ", "ਚੁੱਪ ਦੀ ਪਛਾਣ", "ਗੀਤ ਦਾ ਅੰਤ ਲੱਭਣ ਵੇਲੇ ਅਣਡਿੱਠੀ ਕੀਤੀ ਚੁੱਪ ਤੈਅ ਕਰਦਾ ਹੈ")
     AppLanguage.Albanian -> CrossfadeCopy("Kohëzgjatja e kalimit", "Përcakton sa gjatë mbivendosen këngët gjatë kalimit", "Zbulimi i heshtjes", "Përcakton sa heshtje shpërfillet gjatë gjetjes së fundit të këngës")
     AppLanguage.Bengali -> CrossfadeCopy("ক্রসফেডের দৈর্ঘ্য", "ট্রানজিশনের সময় গানগুলো কতক্ষণ একসঙ্গে বাজবে তা নিয়ন্ত্রণ করে", "নীরবতা শনাক্তকরণ", "গানের শেষ খোঁজার সময় কতটা নীরবতা উপেক্ষা করা হবে তা নির্ধারণ করে")
     AppLanguage.ChineseSimplified -> CrossfadeCopy("淡化时长", "控制歌曲过渡时重叠播放的时间", "静音检测", "设置查找歌曲结尾时忽略的静音长度")
@@ -231,6 +271,14 @@ internal fun crossfadeCopy(language: AppLanguage): CrossfadeCopy = when (languag
 }
 
 internal fun volumeNormalizationSubtitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Намалява разликите в силата на песните, когато метаданните го поддържат"
+    AppLanguage.Catalan -> "Redueix les diferències de volum quan les metadades ho permeten"
+    AppLanguage.Finnish -> "Tasaa kappaleiden äänenvoimakkuutta tiedoston metatietojen salliessa"
+    AppLanguage.Romanian -> "Reduce diferențele de volum când metadatele fișierului permit acest lucru"
+    AppLanguage.Slovenian -> "Zmanjša razlike v glasnosti skladb, če to omogočajo metapodatki"
+    AppLanguage.Bosnian -> "Smanjuje razlike u glasnoći pjesama kada to metapodaci podržavaju"
+    AppLanguage.Indonesian -> "Mengurangi perbedaan volume lagu jika didukung metadata berkas"
+    AppLanguage.Punjabi -> "ਫਾਈਲ ਦੇ ਮੈਟਾਡੇਟਾ ਅਨੁਸਾਰ ਗੀਤਾਂ ਦੀ ਆਵਾਜ਼ ਦਾ ਫ਼ਰਕ ਘਟਾਉਂਦਾ ਹੈ"
     AppLanguage.Polish -> "Zmniejsza różnice głośności między utworami, gdy metadane pliku to obsługują"
     AppLanguage.Albanian -> "Zvogëlon dallimet e volumit mes këngëve kur metadatat e skedarit e mbështesin"
     AppLanguage.ChineseSimplified -> "在文件元数据支持时减少歌曲之间的响度差异"
@@ -279,6 +327,14 @@ private data class SettingsEntryCopy(
 
 internal fun SettingsLanguageCopy.withLocalizedSettingsEntries(language: AppLanguage): SettingsLanguageCopy {
     val entries = when (language) {
+        AppLanguage.Bulgarian -> SettingsEntryCopy("Преливане", "Настройте прехода между песните", "Управление на плейлисти", "Импортирайте и експортирайте плейлисти", "Онлайн текстове", "Изтегляйте текстове от LRCLIB", "Проверка за обновления", "Проверете за по-нова версия")
+        AppLanguage.Catalan -> SettingsEntryCopy("Transició entre cançons", "Ajusta la transició entre cançons", "Gestiona les llistes", "Importa i exporta les llistes", "Lletres en línia", "Obtén lletres de LRCLIB", "Comprova les actualitzacions", "Comprova si hi ha una versió més recent")
+        AppLanguage.Finnish -> SettingsEntryCopy("Ristiinhäivytys", "Säädä kappaleiden välistä siirtymää", "Hallitse soittolistoja", "Tuo ja vie soittolistoja", "Sanoitukset verkosta", "Hae sanoitukset LRCLIB-palvelusta", "Tarkista päivitykset", "Tarkista onko uusi versio saatavilla")
+        AppLanguage.Romanian -> SettingsEntryCopy("Tranziție între melodii", "Ajustează tranziția dintre melodii", "Gestionează listele", "Importă și exportă listele", "Versuri online", "Obține versuri de la LRCLIB", "Verifică actualizările", "Verifică dacă este disponibilă o versiune nouă")
+        AppLanguage.Slovenian -> SettingsEntryCopy("Prelivanje skladb", "Prilagodite prehod med skladbami", "Upravljanje seznamov", "Uvozite in izvozite sezname", "Besedila v spletu", "Pridobite besedila iz LRCLIB", "Preveri posodobitve", "Preverite, ali je na voljo novejša različica")
+        AppLanguage.Bosnian -> SettingsEntryCopy("Prelaz između pjesama", "Podesite prelaz između pjesama", "Upravljaj plejlistama", "Uvezite i izvezite svoje plejliste", "Tekstovi pjesama na mreži", "Preuzmite tekstove s LRCLIB-a", "Provjeri ažuriranja", "Provjerite je li dostupna novija verzija")
+        AppLanguage.Indonesian -> SettingsEntryCopy("Crossfade", "Atur transisi antar lagu", "Kelola daftar putar", "Impor dan ekspor daftar putar", "Lirik online", "Ambil lirik dari LRCLIB", "Periksa pembaruan", "Periksa apakah versi baru tersedia")
+        AppLanguage.Punjabi -> SettingsEntryCopy("ਕਰਾਸਫੇਡ", "ਗੀਤਾਂ ਵਿਚਕਾਰ ਤਬਦੀਲੀ ਸੈੱਟ ਕਰੋ", "ਪਲੇਲਿਸਟਾਂ ਦਾ ਪ੍ਰਬੰਧ", "ਪਲੇਲਿਸਟਾਂ ਆਯਾਤ ਅਤੇ ਨਿਰਯਾਤ ਕਰੋ", "ਆਨਲਾਈਨ ਗੀਤਾਂ ਦੇ ਬੋਲ", "LRCLIB ਤੋਂ ਬੋਲ ਪ੍ਰਾਪਤ ਕਰੋ", "ਅੱਪਡੇਟ ਦੇਖੋ", "ਜਾਂਚੋ ਕਿ ਨਵਾਂ ਵਰਜਨ ਉਪਲਬਧ ਹੈ ਜਾਂ ਨਹੀਂ")
         AppLanguage.Albanian -> SettingsEntryCopy("Kalimi gradual", "Rregullo kalimin midis këngëve", "Menaxho listat e dëgjimit", "Importo dhe eksporto listat e tua të dëgjimit", "Tekste këngësh online", "Merr tekstet e këngëve nga LRCLIB", "Kontrollo për përditësime", "Kontrollo nëse disponohet një version më i ri")
         AppLanguage.Bengali -> SettingsEntryCopy("ক্রসফেড", "গানের মধ্যবর্তী পরিবর্তন সামঞ্জস্য করুন", "প্লেলিস্ট পরিচালনা", "আপনার প্লেলিস্ট ইমপোর্ট ও এক্সপোর্ট করুন", "অনলাইন গানের কথা", "LRCLIB থেকে গানের কথা আনুন", "আপডেট খুঁজুন", "নতুন সংস্করণ আছে কি না দেখুন")
         AppLanguage.ChineseSimplified -> SettingsEntryCopy("交叉淡化", "调整歌曲之间的过渡", "管理播放列表", "导入和导出播放列表", "在线歌词", "从 LRCLIB 获取歌词", "检查更新", "检查是否有新版本")

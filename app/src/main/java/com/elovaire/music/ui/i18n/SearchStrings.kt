@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSortField
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
+import elovaire.music.droidbeauty.app.ui.screens.SongSortMode
 
 
 internal data class SearchUiCopy(
@@ -25,13 +26,37 @@ internal data class SearchUiCopy(
     val matchingAlbumsSuffix: String,
     val matchingSongsSuffix: String,
 ) {
-    fun noResultsMessage(query: String): String = "$noResultsPrefix \"$query\" $noResultsSuffix"
+    fun noResultsMessage(query: String): String = "$noResultsPrefix \"$query\" $noResultsSuffix".trimEnd()
     fun matchingArtists(count: Int): String = "$count $matchingArtistsSuffix"
     fun matchingAlbums(count: Int): String = "$count $matchingAlbumsSuffix"
     fun matchingSongs(count: Int): String = "$count $matchingSongsSuffix"
 }
 
 internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
+    AppLanguage.Hindi -> SearchUiCopy("कलाकार, एल्बम और बहुत कुछ", "खोज साफ़ करें", "अभी तक कुछ नहीं खोजा", "गाने और एल्बम खोजने पर नतीजे यहाँ दिखेंगे", "सुझाए गए एल्बम", "शायद आप इन्हें फिर सुनना चाहें", "हाल की खोजें", "इतिहास साफ़ करें", "कोई नतीजा नहीं", "लाइब्रेरी में इसके लिए कोई नतीजा नहीं मिला", "", "मिलते कलाकार", "मिलते एल्बम", "मिलते गाने")
+    AppLanguage.Latin -> SearchUiCopy("Artifices, alba et alia", "Quaestionem dele", "Nihil adhuc quaesitum", "Eventus hic apparebunt cum cantus et alba quaeres", "Alba proposita", "Fortasse ea iterum audire velis", "Quaestiones recentes", "Historiam dele", "Nulli eventus", "Nihil in bibliotheca respondet", "", "artifices inventi", "alba inventa", "cantus inventi")
+    AppLanguage.Latvian -> SearchUiCopy("Izpildītāji, albumi un cits", "Notīrīt meklēšanu", "Vēl nekas nav meklēts", "Meklējot dziesmas un albumus, rezultāti parādīsies šeit", "Ieteiktie albumi", "Varbūt vēlies tos noklausīties vēlreiz", "Nesen meklētais", "Notīrīt vēsturi", "Nav rezultātu", "Bibliotēkā nav rezultātu vaicājumam", "", "atbilstoši izpildītāji", "atbilstoši albumi", "atbilstošas dziesmas")
+    AppLanguage.Lithuanian -> SearchUiCopy("Atlikėjai, albumai ir daugiau", "Išvalyti paiešką", "Dar nieko neieškota", "Ieškant dainų ir albumų rezultatai bus rodomi čia", "Siūlomi albumai", "Galbūt norėsite jų paklausyti dar kartą", "Naujausios paieškos", "Išvalyti istoriją", "Rezultatų nėra", "Bibliotekoje nerasta rezultatų pagal", "", "atitinkančių atlikėjų", "atitinkančių albumų", "atitinkančių dainų")
+    AppLanguage.Thai -> SearchUiCopy("ศิลปิน อัลบั้ม และอื่น ๆ", "ล้างการค้นหา", "ยังไม่มีการค้นหา", "ผลลัพธ์จะแสดงที่นี่เมื่อค้นหาเพลงและอัลบั้ม", "อัลบั้มแนะนำ", "คุณอาจอยากกลับไปฟังอีกครั้ง", "การค้นหาล่าสุด", "ล้างประวัติ", "ไม่พบผลลัพธ์", "ไม่พบผลลัพธ์ในคลังสำหรับ", "", "ศิลปินที่ตรงกัน", "อัลบั้มที่ตรงกัน", "เพลงที่ตรงกัน")
+    AppLanguage.Dutch -> SearchUiCopy("Artiesten, albums en meer", "Zoekopdracht wissen", "Nog niets gezocht", "Resultaten verschijnen hier wanneer je naar nummers en albums zoekt", "Voorgestelde albums", "Misschien wil je deze opnieuw beluisteren", "Recente zoekopdrachten", "Geschiedenis wissen", "Geen resultaten", "Geen resultaten in de bibliotheek voor", "", "overeenkomende artiesten", "overeenkomende albums", "overeenkomende nummers")
+    AppLanguage.Danish -> SearchUiCopy("Kunstnere, album og mere", "Ryd søgning", "Ingen søgninger endnu", "Resultater vises her, når du søger efter sange og album", "Foreslåede album", "Måske vil du lytte til dem igen", "Seneste søgninger", "Ryd historik", "Ingen resultater", "Ingen resultater i biblioteket for", "", "matchende kunstnere", "matchende album", "matchende sange")
+    AppLanguage.Swedish -> SearchUiCopy("Artister, album och mer", "Rensa sökning", "Inga sökningar än", "Resultat visas här när du söker efter låtar och album", "Föreslagna album", "Du kanske vill lyssna på dem igen", "Senaste sökningarna", "Rensa historik", "Inga resultat", "Inga resultat i biblioteket för", "", "matchande artister", "matchande album", "matchande låtar")
+    AppLanguage.Norwegian -> SearchUiCopy("Artister, album og mer", "Tøm søk", "Ingen søk ennå", "Resultater vises her når du søker etter sanger og album", "Foreslåtte album", "Kanskje du vil høre på disse igjen", "Nylige søk", "Tøm historikk", "Ingen resultater", "Ingen resultater i biblioteket for", "", "treff på artister", "treff på album", "treff på sanger")
+    AppLanguage.Croatian -> SearchUiCopy("Izvođači, albumi i više", "Očisti pretragu", "Još nema pretraga", "Rezultati će se pojaviti kada tražite pjesme i albume", "Predloženi albumi", "Možda ih poželite ponovno poslušati", "Nedavne pretrage", "Očisti povijest", "Nema rezultata", "Nema rezultata u biblioteci za", "", "pronađenih izvođača", "pronađenih albuma", "pronađenih pjesama")
+    AppLanguage.Estonian -> SearchUiCopy("Esitajad, albumid ja muu", "Tühjenda otsing", "Otsinguid veel pole", "Lugude ja albumite otsimisel ilmuvad tulemused siia", "Soovitatud albumid", "Võib-olla soovid neid uuesti kuulata", "Viimased otsingud", "Tühjenda ajalugu", "Tulemusi pole", "Teegist ei leitud vasteid päringule", "", "sobivat esitajat", "sobivat albumit", "sobivat lugu")
+    AppLanguage.Hungarian -> SearchUiCopy("Előadók, albumok és mások", "Keresés törlése", "Még nem kerestél semmit", "A dalok és albumok keresésekor itt jelennek meg a találatok", "Ajánlott albumok", "Talán szívesen meghallgatnád őket újra", "Legutóbbi keresések", "Előzmények törlése", "Nincs találat", "A könyvtárban nincs találat erre:", "", "egyező előadó", "egyező album", "egyező dal")
+    AppLanguage.Greek -> SearchUiCopy("Καλλιτέχνες, άλμπουμ και άλλα", "Εκκαθάριση αναζήτησης", "Δεν έχετε κάνει αναζήτηση ακόμα", "Τα αποτελέσματα θα εμφανίζονται εδώ όταν αναζητάτε τραγούδια και άλμπουμ", "Προτεινόμενα άλμπουμ", "Ίσως θέλετε να τα ακούσετε ξανά", "Πρόσφατες αναζητήσεις", "Εκκαθάριση ιστορικού", "Κανένα αποτέλεσμα", "Δεν βρέθηκαν αποτελέσματα στη βιβλιοθήκη για", "", "καλλιτέχνες που βρέθηκαν", "άλμπουμ που βρέθηκαν", "τραγούδια που βρέθηκαν")
+    AppLanguage.Macedonian -> SearchUiCopy("Изведувачи, албуми и повеќе", "Исчисти пребарување", "Сè уште нема пребарувања", "Резултатите ќе се појават тука кога ќе пребарувате песни и албуми", "Предложени албуми", "Можеби ќе сакате повторно да ги слушнете", "Неодамнешни пребарувања", "Исчисти историја", "Нема резултати", "Нема резултати во библиотеката за", "", "пронајдени изведувачи", "пронајдени албуми", "пронајдени песни")
+    AppLanguage.Bulgarian -> SearchUiCopy("Изпълнители, албуми и още", "Изчисти търсенето", "Все още няма търсения", "Резултатите ще се появят при търсене на песни и албуми", "Предложени албуми", "Може да искате да ги чуете отново", "Последни търсения", "Изчисти историята", "Няма резултати", "Няма резултати в библиотеката за", "", "намерени изпълнители", "намерени албуми", "намерени песни")
+    AppLanguage.Catalan -> SearchUiCopy("Artistes, àlbums i més", "Esborra la cerca", "Encara no has cercat res", "Els resultats apareixeran quan cerquis cançons i àlbums", "Àlbums suggerits", "Potser els vols tornar a escoltar", "Cerques recents", "Esborra l’historial", "Cap resultat", "No hi ha resultats a la biblioteca per a", "", "artistes trobats", "àlbums trobats", "cançons trobades")
+    AppLanguage.Finnish -> SearchUiCopy("Esittäjät, albumit ja muut", "Tyhjennä haku", "Ei vielä hakuja", "Tulokset näkyvät tässä, kun haet kappaleita ja albumeita", "Suositellut albumit", "Voisit kuunnella nämä uudelleen", "Viimeisimmät haut", "Tyhjennä historia", "Ei tuloksia", "Kirjastosta ei löydy tuloksia haulle", "", "vastaavaa esittäjää", "vastaavaa albumia", "vastaavaa kappaletta")
+    AppLanguage.Romanian -> SearchUiCopy("Artiști, albume și altele", "Șterge căutarea", "Nu ai căutat nimic încă", "Rezultatele vor apărea când cauți melodii și albume", "Albume sugerate", "Poate dorești să le reasculți", "Căutări recente", "Șterge istoricul", "Niciun rezultat", "Nu există rezultate în bibliotecă pentru", "", "artiști găsiți", "albume găsite", "melodii găsite")
+    AppLanguage.Slovenian -> SearchUiCopy("Izvajalci, albumi in več", "Počisti iskanje", "Še ni iskanj", "Rezultati bodo prikazani med iskanjem skladb in albumov", "Predlagani albumi", "Morda jih želite znova poslušati", "Nedavna iskanja", "Počisti zgodovino", "Ni rezultatov", "V knjižnici ni rezultatov za", "", "najdenih izvajalcev", "najdenih albumov", "najdenih skladb")
+    AppLanguage.Bosnian -> SearchUiCopy("Izvođači, albumi i više", "Obriši pretragu", "Još nema pretraga", "Rezultati će se pojaviti kada počnete tražiti pjesme i albume", "Predloženi albumi", "Možda ih poželite ponovo poslušati", "Nedavne pretrage", "Obriši historiju", "Nema rezultata", "U biblioteci nema rezultata za", "", "pronađenih izvođača", "pronađenih albuma", "pronađenih pjesama")
+    AppLanguage.Indonesian -> SearchUiCopy("Artis, album, dan lainnya", "Hapus pencarian", "Belum ada pencarian", "Hasil akan muncul saat Anda mencari lagu dan album", "Album yang disarankan", "Mungkin Anda ingin mendengarkannya lagi", "Pencarian terbaru", "Hapus riwayat", "Tidak ada hasil", "Tidak ada hasil di pustaka untuk", "", "artis cocok", "album cocok", "lagu cocok")
+    AppLanguage.Punjabi -> SearchUiCopy("ਕਲਾਕਾਰ, ਐਲਬਮਾਂ ਅਤੇ ਹੋਰ", "ਖੋਜ ਸਾਫ਼ ਕਰੋ", "ਹਾਲੇ ਕੋਈ ਖੋਜ ਨਹੀਂ", "ਗੀਤਾਂ ਅਤੇ ਐਲਬਮਾਂ ਦੀ ਖੋਜ ਕਰਨ ਉੱਤੇ ਨਤੀਜੇ ਇੱਥੇ ਦਿਖਣਗੇ", "ਸੁਝਾਈਆਂ ਐਲਬਮਾਂ", "ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਦੁਬਾਰਾ ਸੁਣਨਾ ਚਾਹ ਸਕਦੇ ਹੋ", "ਹਾਲੀਆ ਖੋਜਾਂ", "ਇਤਿਹਾਸ ਸਾਫ਼ ਕਰੋ", "ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ", "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ", "", "ਮਿਲਦੇ ਕਲਾਕਾਰ", "ਮਿਲਦੀਆਂ ਐਲਬਮਾਂ", "ਮਿਲਦੇ ਗੀਤ")
+    AppLanguage.Albanian -> SearchUiCopy("Artistë, albume dhe më shumë", "Pastro kërkimin", "Ende asnjë kërkim", "Rezultatet do të shfaqen kur të kërkosh këngë dhe albume", "Albume të sugjeruara", "Mund të dëshirosh t’i dëgjosh përsëri", "Kërkimet e fundit", "Pastro historikun", "Nuk u gjet asnjë rezultat", "Nuk ka përputhje në bibliotekë për", "", "artistë të gjetur", "albume të gjetura", "këngë të gjetura")
+    AppLanguage.Serbian -> SearchUiCopy("Извођачи, албуми и друго", "Обриши претрагу", "Још нема претрага", "Резултати ће се појавити када претражиш песме и албуме", "Предложени албуми", "Можда ћеш желети да их поново послушаш", "Недавне претраге", "Обриши историју", "Нема резултата", "Нема подударања у библиотеци за", "", "пронађених извођача", "пронађених албума", "пронађених песама")
     AppLanguage.Polish -> SearchUiCopy("Artyści, albumy i więcej", "Wyczyść wyszukiwanie", "Jeszcze nic nie wyszukano", "Więcej wyników pojawi się podczas wyszukiwania utworów i albumów", "Sugerowane albumy", "Warto do nich wrócić", "Ostatnio wyszukiwane", "Wyczyść historię", "Brak wyników", "Nic w obecnej bibliotece offline nie pasuje do", "jeszcze", "pasujących artystów", "pasujących albumów", "pasujących utworów")
     AppLanguage.ChineseSimplified -> SearchUiCopy("艺人、专辑等", "清除搜索", "还没有搜索", "搜索歌曲和专辑时会显示更多结果", "推荐专辑", "你可能会想再听听", "最近搜索", "清除历史", "没有结果", "当前离线媒体库中没有匹配", "", "个匹配艺人", "个匹配专辑", "个匹配歌曲")
     AppLanguage.Czech -> SearchUiCopy("Umělci, alba a další", "Vymazat hledání", "Zatím nic nehledáno", "Další výsledky se zobrazí při hledání skladeb a alb", "Navržená alba", "Možná se k nim chcete vrátit", "Nedávno hledané", "Vymazat historii", "Žádné výsledky", "V aktuální offline knihovně se nic neshoduje s", "zatím", "odpovídajících umělců", "odpovídajících alb", "odpovídajících skladeb")
@@ -48,51 +73,59 @@ internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
     AppLanguage.Malay -> SearchUiCopy("Artis, album dan banyak lagi", "Kosongkan carian", "Belum ada carian", "Lebih banyak hasil akan muncul di sini apabila anda mencari lagu dan album", "Album disyorkan", "Anda mungkin mahu kembali mendengarnya", "Carian terkini", "Kosongkan sejarah", "Tiada hasil", "Tiada apa-apa dalam pustaka luar talian semasa yang sepadan dengan", "lagi", "artis sepadan", "album sepadan", "lagu sepadan")
     AppLanguage.Bengali -> SearchUiCopy("শিল্পী, অ্যালবাম এবং আরও", "সার্চ মুছুন", "এখনও কিছু খোঁজা হয়নি", "গান ও অ্যালবাম খুঁজলে আরও ফল এখানে দেখা যাবে", "প্রস্তাবিত অ্যালবাম", "সম্ভবত এগুলোতে আবার ফিরতে চাইবেন", "সাম্প্রতিক অনুসন্ধান", "ইতিহাস মুছুন", "কোনো ফল নেই", "বর্তমান অফলাইন লাইব্রেরিতে এর সাথে মেলে এমন কিছু নেই", "এখনও", "মিল থাকা শিল্পী", "মিল থাকা অ্যালবাম", "মিল থাকা গান")
     AppLanguage.Urdu -> SearchUiCopy("آرٹسٹس، البمز اور مزید", "تلاش صاف کریں", "ابھی تک کچھ تلاش نہیں کیا گیا", "گانے اور البمز تلاش کرتے وقت مزید نتائج یہاں دکھائی دیں گے", "تجویز کردہ البمز", "شاید آپ دوبارہ انہیں سننا چاہیں", "حالیہ تلاشیں", "تاریخ صاف کریں", "کوئی نتیجہ نہیں", "موجودہ آف لائن لائبریری میں اس سے ملتا کچھ نہیں", "ابھی", "مطابق آرٹسٹس", "مطابق البمز", "مطابق گانے")
-    else -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You should probably revisit these", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
+    AppLanguage.English -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You should probably revisit these", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
 }
 
 internal fun searchSortModeLabel(
     mode: SearchSongSortMode,
     language: AppLanguage,
 ): String = when (mode) {
-    SearchSongSortMode.Title -> when (language) {
-        AppLanguage.Polish -> "Nazwa utworu"
-        AppLanguage.ChineseSimplified -> "歌曲名"
-        AppLanguage.Czech -> "Název skladby"
-        AppLanguage.French -> "Nom du morceau"
-        AppLanguage.German -> "Songname"
-        AppLanguage.Italian -> "Nome brano"
-        AppLanguage.Japanese -> "曲名"
-        AppLanguage.Spanish -> "Nombre de canción"
-        AppLanguage.Portuguese -> "Nome da música"
-        AppLanguage.Russian -> "Название песни"
-        AppLanguage.Ukrainian -> "Назва пісні"
-        AppLanguage.Slovak -> "Názov skladby"
-        AppLanguage.Korean -> "곡 이름"
-        AppLanguage.Malay -> "Nama lagu"
-        AppLanguage.Bengali -> "গানের নাম"
-        AppLanguage.Urdu -> "گانے کا نام"
-        else -> "Song name"
-    }
-    SearchSongSortMode.Artist -> when (language) {
-        AppLanguage.Polish -> "Nazwa artysty"
-        AppLanguage.ChineseSimplified -> "艺人名"
-        AppLanguage.Czech -> "Jméno umělce"
-        AppLanguage.French -> "Nom de l’artiste"
-        AppLanguage.German -> "Künstlername"
-        AppLanguage.Italian -> "Nome artista"
-        AppLanguage.Japanese -> "アーティスト名"
-        AppLanguage.Spanish -> "Nombre de artista"
-        AppLanguage.Portuguese -> "Nome do artista"
-        AppLanguage.Russian -> "Имя исполнителя"
-        AppLanguage.Ukrainian -> "Ім’я виконавця"
-        AppLanguage.Slovak -> "Meno interpreta"
-        AppLanguage.Korean -> "아티스트 이름"
-        AppLanguage.Malay -> "Nama artis"
-        AppLanguage.Bengali -> "শিল্পীর নাম"
-        AppLanguage.Urdu -> "آرٹسٹ کا نام"
-        else -> "Artist name"
-    }
+    SearchSongSortMode.Title -> songSortLabel(language, SongSortMode.Title)
+    SearchSongSortMode.Artist -> songSortLabel(language, SongSortMode.Artist)
+}
+
+internal fun recentAdditionsEmptyMessage(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Shto muzikë në pajisjen tënde për të parë diçka këtu"
+    AppLanguage.Bengali -> "এখানে কিছু দেখতে ডিভাইসে গান যোগ করুন"
+    AppLanguage.Bosnian -> "Dodajte muziku na uređaj da biste je vidjeli ovdje"
+    AppLanguage.Bulgarian -> "Добавете музика на устройството, за да се покаже тук"
+    AppLanguage.Catalan -> "Afegeix música al dispositiu perquè aparegui aquí"
+    AppLanguage.ChineseSimplified -> "向设备添加音乐后即可在此查看"
+    AppLanguage.Croatian -> "Dodajte glazbu na uređaj da biste je vidjeli ovdje"
+    AppLanguage.Czech -> "Přidejte do zařízení hudbu, aby se zobrazila zde"
+    AppLanguage.Danish -> "Føj musik til enheden for at se den her"
+    AppLanguage.Dutch -> "Voeg muziek toe aan je apparaat om die hier te zien"
+    AppLanguage.English -> "Add music to your device to see something here"
+    AppLanguage.Estonian -> "Lisa seadmesse muusikat, et seda siin näha"
+    AppLanguage.Finnish -> "Lisää musiikkia laitteellesi nähdäksesi sen täällä"
+    AppLanguage.French -> "Ajoutez de la musique sur votre appareil pour la voir ici"
+    AppLanguage.German -> "Füge deinem Gerät Musik hinzu, damit sie hier erscheint"
+    AppLanguage.Greek -> "Προσθέστε μουσική στη συσκευή σας για να εμφανιστεί εδώ"
+    AppLanguage.Hindi -> "यहाँ संगीत देखने के लिए अपने डिवाइस में गाने जोड़ें"
+    AppLanguage.Hungarian -> "Adj zenét az eszközödhöz, hogy itt megjelenjen"
+    AppLanguage.Indonesian -> "Tambahkan musik ke perangkat agar muncul di sini"
+    AppLanguage.Italian -> "Aggiungi musica al dispositivo per visualizzarla qui"
+    AppLanguage.Japanese -> "端末に音楽を追加するとここに表示されます"
+    AppLanguage.Korean -> "기기에 음악을 추가하면 여기에 표시됩니다"
+    AppLanguage.Latin -> "Musicam ad machinam adde ut hic appareat"
+    AppLanguage.Latvian -> "Pievieno ierīcei mūziku, lai to šeit redzētu"
+    AppLanguage.Lithuanian -> "Pridėkite muzikos prie įrenginio, kad ji būtų rodoma čia"
+    AppLanguage.Macedonian -> "Додајте музика на уредот за да се прикаже тука"
+    AppLanguage.Malay -> "Tambah muzik pada peranti anda untuk melihatnya di sini"
+    AppLanguage.Norwegian -> "Legg til musikk på enheten for å se den her"
+    AppLanguage.Polish -> "Dodaj muzykę do urządzenia, aby zobaczyć ją tutaj"
+    AppLanguage.Portuguese -> "Adicione música ao dispositivo para a ver aqui"
+    AppLanguage.Punjabi -> "ਇੱਥੇ ਸੰਗੀਤ ਦੇਖਣ ਲਈ ਆਪਣੇ ਡਿਵਾਈਸ ਉੱਤੇ ਗੀਤ ਜੋੜੋ"
+    AppLanguage.Romanian -> "Adaugă muzică pe dispozitiv pentru a o vedea aici"
+    AppLanguage.Russian -> "Добавьте музыку на устройство, чтобы она появилась здесь"
+    AppLanguage.Serbian -> "Додајте музику на уређај да би се приказала овде"
+    AppLanguage.Slovak -> "Pridajte do zariadenia hudbu, aby sa zobrazila tu"
+    AppLanguage.Slovenian -> "Dodajte glasbo v napravo, da se prikaže tukaj"
+    AppLanguage.Spanish -> "Añade música al dispositivo para verla aquí"
+    AppLanguage.Swedish -> "Lägg till musik på enheten för att se den här"
+    AppLanguage.Thai -> "เพิ่มเพลงลงในอุปกรณ์เพื่อให้แสดงที่นี่"
+    AppLanguage.Ukrainian -> "Додайте музику на пристрій, щоб вона з’явилася тут"
+    AppLanguage.Urdu -> "یہاں موسیقی دیکھنے کے لیے اپنے آلے میں گانے شامل کریں"
 }
 
 
@@ -133,6 +166,14 @@ internal data class NowPlayingBarStyleCopy(
 )
 
 internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCopy = when (language) {
+    AppLanguage.Bulgarian -> NowPlayingBarStyleCopy("Стил на лентата за възпроизвеждане", "Персонализирайте изгледа на плейъра", "Плаващ", "Компактен")
+    AppLanguage.Catalan -> NowPlayingBarStyleCopy("Estil de la barra de reproducció", "Personalitza el reproductor", "Flotant", "Compacte")
+    AppLanguage.Finnish -> NowPlayingBarStyleCopy("Toistopalkin tyyli", "Mukauta toistopalkkia", "Kelluva", "Tiivis")
+    AppLanguage.Romanian -> NowPlayingBarStyleCopy("Stilul barei de redare", "Personalizează playerul", "Plutitor", "Compact")
+    AppLanguage.Slovenian -> NowPlayingBarStyleCopy("Slog vrstice predvajanja", "Prilagodite predvajalnik", "Plavajoča", "Kompaktna")
+    AppLanguage.Bosnian -> NowPlayingBarStyleCopy("Stil trake za reprodukciju", "Prilagodite prikaz reprodukcije", "Plutajuća", "Kompaktna")
+    AppLanguage.Indonesian -> NowPlayingBarStyleCopy("Gaya bilah pemutar", "Sesuaikan tampilan pemutar", "Mengambang", "Ringkas")
+    AppLanguage.Punjabi -> NowPlayingBarStyleCopy("ਹੁਣ ਚੱਲ ਰਹੀ ਪੱਟੀ ਦੀ ਸ਼ੈਲੀ", "ਪਲੇਅਰ ਦਾ ਰੂਪ ਬਦਲੋ", "ਤੈਰਦੀ", "ਸੰਖੇਪ")
     AppLanguage.Albanian -> NowPlayingBarStyleCopy("Stili i shiritit të riprodhimit", "Personalizo modulin e riprodhimit", "Lundrues", "Kompakt")
     AppLanguage.Bengali -> NowPlayingBarStyleCopy("এখন বাজছে বারের স্টাইল", "এখন বাজছে মডিউলটি কাস্টমাইজ করুন", "ভাসমান", "কমপ্যাক্ট")
     AppLanguage.ChineseSimplified -> NowPlayingBarStyleCopy("正在播放栏样式", "自定义正在播放模块", "浮动", "紧凑")
@@ -170,6 +211,14 @@ internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCo
 
 @Suppress("CyclomaticComplexMethod")
 internal fun nowPlayingStyleDescription(language: AppLanguage, compact: Boolean): String = when (language) {
+    AppLanguage.Bulgarian -> if (compact) "Плейър по цялата ширина над навигационната лента" else "Плаващ плейър над навигационната лента"
+    AppLanguage.Catalan -> if (compact) "Reproductor d’amplada completa sobre la barra de navegació" else "Reproductor flotant sobre la barra de navegació"
+    AppLanguage.Finnish -> if (compact) "Koko näytön levyinen soitin navigointipalkin yläpuolella" else "Kelluva soitin navigointipalkin yläpuolella"
+    AppLanguage.Romanian -> if (compact) "Player pe toată lățimea deasupra barei de navigare" else "Player plutitor deasupra barei de navigare"
+    AppLanguage.Slovenian -> if (compact) "Predvajalnik po celotni širini nad navigacijsko vrstico" else "Plavajoči predvajalnik nad navigacijsko vrstico"
+    AppLanguage.Bosnian -> if (compact) "Player preko cijele širine, odmah iznad navigacije" else "Plutajući player iznad navigacijske trake"
+    AppLanguage.Indonesian -> if (compact) "Pemutar selebar layar tepat di atas bilah navigasi" else "Pemutar mengambang di atas bilah navigasi"
+    AppLanguage.Punjabi -> if (compact) "ਨੈਵੀਗੇਸ਼ਨ ਪੱਟੀ ਦੇ ਉੱਪਰ ਪੂਰੀ ਚੌੜਾਈ ਵਾਲਾ ਪਲੇਅਰ" else "ਨੈਵੀਗੇਸ਼ਨ ਪੱਟੀ ਦੇ ਉੱਪਰ ਤੈਰਦਾ ਪਲੇਅਰ"
     AppLanguage.Albanian -> if (compact) "Luajtës nga skaji në skaj direkt mbi shiritin e navigimit" else "Luajtës lundrues mbi shiritin e navigimit"
     AppLanguage.Bengali -> if (compact) "নেভিগেশন বারের ঠিক উপরে প্রান্ত-থেকে-প্রান্ত প্লেয়ার" else "নেভিগেশন বারের উপরে ভাসমান প্লেয়ার"
     AppLanguage.ChineseSimplified -> if (compact) "紧贴导航栏上方的全宽播放器" else "位于导航栏上方的浮动播放器"

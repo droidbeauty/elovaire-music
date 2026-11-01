@@ -368,7 +368,7 @@ internal class GitHubUpdateController(
                 installPermissionRequired = true,
                 downloadProgress = null,
                 installState = AppUpdateInstallState.AwaitingPermission,
-                errorMessage = "Allow installing updates from this source first.",
+                errorMessage = "Allow installing updates from this source first",
             )
         }
         val opened = runCatching {
@@ -483,7 +483,7 @@ internal class GitHubUpdateController(
                 it.copy(
                     isInstalling = false,
                     installState = AppUpdateInstallState.None,
-                    errorMessage = "The staged update is no longer available.",
+                    errorMessage = "The staged update is no longer available",
                 )
             }
             return true
@@ -519,7 +519,7 @@ internal class GitHubUpdateController(
                     isInstalling = false,
                     installPermissionRequired = false,
                     downloadProgress = null,
-                    errorMessage = "The update was not installed.",
+                    errorMessage = "The update was not installed",
                     installState = AppUpdateInstallState.InstallationNotCompleted,
                 )
             }

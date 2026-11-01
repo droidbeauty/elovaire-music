@@ -216,7 +216,7 @@ internal class AlbumTagEditorViewModel(
         if (!granted) {
             _uiState.value = _uiState.value.copy(
                 isSaving = false,
-                statusMessage = "Write access was not granted.",
+                statusMessage = "Write access was not granted",
                 saveOutcome = null,
             ).recalculateFlags()
             return
@@ -238,7 +238,7 @@ internal class AlbumTagEditorViewModel(
     fun onSafWritePermissionResult(
         operationId: String,
         granted: Boolean,
-        failureMessage: String = "Write access was not granted.",
+        failureMessage: String = "Write access was not granted",
     ) {
         val pending = writePermissionState.pending(operationId) ?: return
         if (!granted) {
@@ -276,7 +276,7 @@ internal class AlbumTagEditorViewModel(
         if (writePermissionState.consume(operationId) == null) return
         _uiState.value = _uiState.value.copy(
             isSaving = false,
-            statusMessage = "Android could not open the write-access request.",
+            statusMessage = "Android could not open the write-access request",
             platformAction = null,
         ).recalculateFlags()
     }
@@ -321,11 +321,11 @@ internal class AlbumTagEditorViewModel(
                 isSaving = false,
                 saveFailures = failures,
                 statusMessage = when {
-                    result.permissionRequest != null && result.editedSongIds.isNotEmpty() -> "Saved with ${failures.size} issue(s)."
-                    result.permissionRequest != null -> "Additional write access is needed to finish saving."
+                    result.permissionRequest != null && result.editedSongIds.isNotEmpty() -> "Saved with ${failures.size} issue(s)"
+                    result.permissionRequest != null -> "Additional write access is needed to finish saving"
                     failures.isEmpty() -> null
-                    result.editedSongIds.isNotEmpty() -> "Saved with ${failures.size} issue(s)."
-                    else -> failures.firstOrNull()?.reason ?: "No tags were saved."
+                    result.editedSongIds.isNotEmpty() -> "Saved with ${failures.size} issue(s)"
+                    else -> failures.firstOrNull()?.reason ?: "No tags were saved"
                 },
                 platformAction = null,
                 saveOutcome = when {
@@ -346,7 +346,7 @@ internal class AlbumTagEditorViewModel(
                 if (pending == null) {
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        statusMessage = "A write-access request is already pending.",
+                        statusMessage = "A write-access request is already pending",
                     ).recalculateFlags()
                     return@onSuccess
                 }
@@ -372,7 +372,7 @@ internal class AlbumTagEditorViewModel(
                 if (pending == null) {
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        statusMessage = "A write-access request is already pending.",
+                        statusMessage = "A write-access request is already pending",
                     ).recalculateFlags()
                     return@onFailure
                 }
@@ -391,7 +391,7 @@ internal class AlbumTagEditorViewModel(
             } else {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    statusMessage = throwable.message ?: "Unable to save tags.",
+                    statusMessage = throwable.message ?: "Unable to save tags",
                     platformAction = null,
                 ).recalculateFlags()
             }

@@ -67,9 +67,9 @@ internal enum class LyricsPermissionResultDecision {
     Stale,
 }
 
-internal const val LYRICS_PERMISSION_DENIED_MESSAGE = "Permission to edit this song was denied."
+internal const val LYRICS_PERMISSION_DENIED_MESSAGE = "Permission to edit this song was denied"
 internal const val LYRICS_POST_GRANT_FAILURE_MESSAGE =
-    "Android granted access, but the song file still could not be opened for editing."
+    "Android granted access, but the song file still could not be opened for editing"
 
 internal fun resolveLyricsPermissionResult(
     state: LyricsSavePermissionState,

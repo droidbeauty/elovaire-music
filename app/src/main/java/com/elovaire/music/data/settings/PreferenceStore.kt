@@ -944,16 +944,21 @@ class PreferenceStore internal constructor(
         return when (locale.language.lowercase()) {
             "sq" -> AppLanguage.Albanian
             "bn" -> AppLanguage.Bengali
+            "bs" -> AppLanguage.Bosnian
+            "bg" -> AppLanguage.Bulgarian
+            "ca" -> AppLanguage.Catalan
             "hr" -> AppLanguage.Croatian
             "cs" -> AppLanguage.Czech
             "da" -> AppLanguage.Danish
             "nl" -> AppLanguage.Dutch
             "et" -> AppLanguage.Estonian
             "fr" -> AppLanguage.French
+            "fi" -> AppLanguage.Finnish
             "de" -> AppLanguage.German
             "el" -> AppLanguage.Greek
             "hi" -> AppLanguage.Hindi
             "hu" -> AppLanguage.Hungarian
+            "id", "in" -> AppLanguage.Indonesian
             "it" -> AppLanguage.Italian
             "ja" -> AppLanguage.Japanese
             "ko" -> AppLanguage.Korean
@@ -964,8 +969,11 @@ class PreferenceStore internal constructor(
             "mk" -> AppLanguage.Macedonian
             "no", "nb", "nn" -> AppLanguage.Norwegian
             "pl" -> AppLanguage.Polish
+            "pa" -> AppLanguage.Punjabi
             "pt" -> AppLanguage.Portuguese
             "ru" -> AppLanguage.Russian
+            "ro" -> AppLanguage.Romanian
+            "sl" -> AppLanguage.Slovenian
             "sk" -> AppLanguage.Slovak
             "sr" -> AppLanguage.Serbian
             "zh" -> AppLanguage.ChineseSimplified

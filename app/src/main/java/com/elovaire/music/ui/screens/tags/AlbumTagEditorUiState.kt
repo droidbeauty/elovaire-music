@@ -161,10 +161,10 @@ private fun String.toTextEdit(original: String): TagFieldEdit<String> {
 
 private fun AlbumTagEditorUiState.computeValidationErrors(): List<String> {
     val errors = mutableListOf<String>()
-    if (albumTitle.isBlank()) errors += "Album title cannot be empty."
-    if (albumArtist.isBlank()) errors += "Album artist cannot be empty."
+    if (albumTitle.isBlank()) errors += "Album title cannot be empty"
+    if (albumArtist.isBlank()) errors += "Album artist cannot be empty"
     if (releaseYear.isNotBlank() && releaseYear.toIntOrNull() !in 1..9999) {
-        errors += "Release year must be between 1 and 9999."
+        errors += "Release year must be between 1 and 9999"
     }
     tracks.forEach { track ->
         if (track.trackNumber.toIntOrNull() !in 1..9999 || track.discNumber.toIntOrNull() !in 1..9999) {

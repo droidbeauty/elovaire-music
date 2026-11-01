@@ -43,6 +43,72 @@ internal data class RootUiCopy(
 )
 
 internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
+    AppLanguage.Latin -> RootUiCopy("Aditus ad memoriam requiritur", "Applicatio musicam in directorio Music quaerit", "Aditum permitte", "Elovaire", "Omnia alba", "Ordine alphabetico secundum artificem et titulum", "Indicem renomina", "Serva", "Index novus", "Imago indicis", "Indicem crea", "Tange ut indicem crees", "Nomen indicis", "Nomen dele", "Nulli adhuc cantus in hoc indice", "Bibliothecam scrutare", "Cantus adde", "Verba onerantur…", "Hic cantus verba habere non videtur", "Verba cela", "Bene", "Album non inventum", "Index non inventus", "Cantus saepissime auditi", "editiones praesto", "Album redde", "Album ordine fortuito redde", "Notas muta", "Mutationes serva", "Indicem muta")
+    AppLanguage.Latvian -> RootUiCopy("Nepieciešama piekļuve krātuvei", "Lietotne meklē mūziku mapē Music", "Atļaut piekļuvi", "Elovaire", "Visi albumi", "Alfabētiski pēc albuma izpildītāja un nosaukuma", "Pārdēvēt sarakstu", "Saglabāt", "Jauns saraksts", "Saraksta vāciņš", "Izveidot sarakstu", "Pieskaries, lai izveidotu sarakstu", "Saraksta nosaukums", "Notīrīt nosaukumu", "Sarakstā vēl nav dziesmu", "Meklēt bibliotēkā", "Pievienot dziesmas", "Notiek dziesmas vārdu ielāde…", "Šai dziesmai, šķiet, nav vārdu", "Paslēpt dziesmas vārdus", "Labi", "Albums nav atrasts", "Saraksts nav atrasts", "Visvairāk atskaņotās dziesmas", "pieejamu izdevumu", "Atskaņot albumu", "Atskaņot albumu jauktā secībā", "Rediģēt tagus", "Saglabāt izmaiņas", "Rediģēt sarakstu")
+    AppLanguage.Lithuanian -> RootUiCopy("Reikia prieigos prie saugyklos", "Programėlė ieško muzikos Music aplanke", "Leisti prieigą", "Elovaire", "Visi albumai", "Abėcėlės tvarka pagal atlikėją ir albumo pavadinimą", "Pervadinti grojaraštį", "Išsaugoti", "Naujas grojaraštis", "Grojaraščio viršelis", "Sukurti grojaraštį", "Palieskite, kad sukurtumėte grojaraštį", "Grojaraščio pavadinimas", "Išvalyti pavadinimą", "Grojaraštyje dar nėra dainų", "Ieškoti bibliotekoje", "Pridėti dainų", "Įkeliami dainos žodžiai…", "Panašu, kad ši daina neturi žodžių", "Slėpti žodžius", "Gerai", "Albumas nerastas", "Grojaraštis nerastas", "Dažniausiai klausomos dainos", "galimų leidinių", "Leisti albumą", "Leisti albumą atsitiktine tvarka", "Redaguoti žymas", "Išsaugoti pakeitimus", "Redaguoti grojaraštį")
+    AppLanguage.Estonian -> RootUiCopy("Vajalik on juurdepääs salvestusruumile", "Rakendus otsib muusikat Music-kaustast", "Luba juurdepääs", "Elovaire", "Kõik albumid", "Tähestiku järgi albumi esitaja ja pealkirja põhjal", "Nimeta esitusloend ümber", "Salvesta", "Uus esitusloend", "Esitusloendi kaanepilt", "Loo esitusloend", "Esitusloendi loomiseks puuduta", "Esitusloendi nimi", "Tühjenda nimi", "Esitusloendis pole veel lugusid", "Otsi teegist", "Lisa lugusid", "Laulusõnade laadimine…", "Sellel lool ei näi olevat sõnu", "Peida laulusõnad", "OK", "Albumit ei leitud", "Esitusloendit ei leitud", "Enim esitatud lood", "väljaannet saadaval", "Esita album", "Esita album juhuslikult", "Muuda silte", "Salvesta muudatused", "Muuda esitusloendit")
+    AppLanguage.Greek -> RootUiCopy("Απαιτείται πρόσβαση στον αποθηκευτικό χώρο", "Η εφαρμογή αναζητά μουσική στον φάκελο Music", "Να επιτραπεί η πρόσβαση", "Elovaire", "Όλα τα άλμπουμ", "Αλφαβητικά ανά καλλιτέχνη και τίτλο άλμπουμ", "Μετονομασία λίστας", "Αποθήκευση", "Νέα λίστα", "Εξώφυλλο λίστας", "Δημιουργία λίστας", "Πατήστε για δημιουργία λίστας", "Όνομα λίστας", "Εκκαθάριση ονόματος", "Δεν υπάρχουν ακόμα τραγούδια στη λίστα", "Αναζήτηση στη βιβλιοθήκη", "Προσθήκη τραγουδιών", "Φόρτωση στίχων…", "Αυτό το τραγούδι φαίνεται να μην έχει στίχους", "Απόκρυψη στίχων", "Εντάξει", "Το άλμπουμ δεν βρέθηκε", "Η λίστα δεν βρέθηκε", "Τραγούδια με τις περισσότερες αναπαραγωγές", "διαθέσιμες κυκλοφορίες", "Αναπαραγωγή άλμπουμ", "Τυχαία αναπαραγωγή άλμπουμ", "Επεξεργασία ετικετών", "Αποθήκευση αλλαγών", "Επεξεργασία λίστας")
+    AppLanguage.Hungarian -> RootUiCopy("Tárhelyhozzáférés szükséges", "Az alkalmazás a Music mappában keresi a zenéket", "Hozzáférés engedélyezése", "Elovaire", "Összes album", "Ábécérendben az album előadója és címe szerint", "Lejátszási lista átnevezése", "Mentés", "Új lejátszási lista", "A lista borítója", "Lejátszási lista létrehozása", "Koppints egy lista létrehozásához", "A lista neve", "Név törlése", "Még nincsenek dalok a listán", "Keresés a könyvtárban", "Dalok hozzáadása", "Dalszöveg betöltése…", "Úgy tűnik, ehhez a dalhoz nincs dalszöveg", "Dalszöveg elrejtése", "OK", "Az album nem található", "A lista nem található", "Legtöbbet játszott dalok", "elérhető kiadvány", "Album lejátszása", "Album véletlenszerű lejátszása", "Címkék szerkesztése", "Módosítások mentése", "Lista szerkesztése")
+    AppLanguage.Macedonian -> RootUiCopy("Потребен е пристап до складиштето", "Апликацијата бара музика во папката Music", "Дозволи пристап", "Elovaire", "Сите албуми", "По азбучен ред на изведувач и наслов", "Преименувај плејлиста", "Зачувај", "Нова плејлиста", "Насловна на плејлистата", "Создај плејлиста", "Допрете за да создадете плејлиста", "Име на плејлистата", "Исчисти име", "Сè уште нема песни во плејлистата", "Пребарај библиотека", "Додај песни", "Вчитување текст…", "Изгледа дека песната нема текст", "Скриј текст", "Во ред", "Албумот не е пронајден", "Плејлистата не е пронајдена", "Најслушани песни", "достапни изданија", "Пушти албум", "Мешај албум", "Уреди ознаки", "Зачувај промени", "Уреди плејлиста")
+    AppLanguage.Italian -> RootUiCopy("Accesso alla memoria richiesto", "L’app cerca la musica nella cartella Music", "Consenti accesso", "Elovaire", "Tutti gli album", "In ordine alfabetico per artista e titolo", "Rinomina playlist", "Salva", "Nuova playlist", "Copertina della playlist", "Crea playlist", "Tocca per creare una playlist", "Nome della playlist", "Cancella nome", "Nessun brano nella playlist", "Cerca nella libreria", "Aggiungi brani", "Caricamento del testo…", "Questo brano sembra non avere un testo", "Nascondi testo", "OK", "Album non trovato", "Playlist non trovata", "Brani più ascoltati", "pubblicazioni disponibili", "Riproduci album", "Riproduci album in ordine casuale", "Modifica tag", "Salva modifiche", "Modifica playlist")
+    AppLanguage.Portuguese -> RootUiCopy("É necessário acesso ao armazenamento", "A aplicação procura música na pasta Music", "Permitir acesso", "Elovaire", "Todos os álbuns", "Por ordem alfabética de artista e título do álbum", "Renomear playlist", "Guardar", "Nova playlist", "Capa da playlist", "Criar playlist", "Toque para criar uma playlist", "Nome da playlist", "Limpar nome", "Ainda não há músicas nesta playlist", "Pesquisar na biblioteca", "Adicionar músicas", "A carregar a letra…", "Esta música parece não ter letra", "Ocultar letra", "OK", "Álbum não encontrado", "Playlist não encontrada", "Músicas mais ouvidas", "edições disponíveis", "Reproduzir álbum", "Reproduzir álbum aleatoriamente", "Editar etiquetas", "Guardar alterações", "Editar playlist")
+    AppLanguage.Russian -> RootUiCopy("Необходим доступ к хранилищу", "Приложение ищет музыку в папке Music", "Разрешить доступ", "Elovaire", "Все альбомы", "По исполнителю и названию альбома", "Переименовать плейлист", "Сохранить", "Новый плейлист", "Обложка плейлиста", "Создать плейлист", "Нажмите, чтобы создать плейлист", "Название плейлиста", "Очистить название", "В плейлисте пока нет песен", "Поиск в библиотеке", "Добавить песни", "Загрузка текста…", "Похоже, у этой песни нет текста", "Скрыть текст", "ОК", "Альбом не найден", "Плейлист не найден", "Самые прослушиваемые песни", "доступных изданий", "Воспроизвести альбом", "Перемешать альбом", "Редактировать теги", "Сохранить изменения", "Редактировать плейлист")
+    AppLanguage.Ukrainian -> RootUiCopy("Потрібен доступ до сховища", "Застосунок шукає музику в папці Music", "Дозволити доступ", "Elovaire", "Усі альбоми", "За виконавцем і назвою альбому", "Перейменувати плейлист", "Зберегти", "Новий плейлист", "Обкладинка плейлиста", "Створити плейлист", "Натисніть, щоб створити плейлист", "Назва плейлиста", "Очистити назву", "У плейлисті ще немає пісень", "Пошук у бібліотеці", "Додати пісні", "Завантаження тексту…", "Здається, ця пісня не має тексту", "Приховати текст", "Гаразд", "Альбом не знайдено", "Плейлист не знайдено", "Найчастіше прослуховувані пісні", "доступних видань", "Відтворити альбом", "Перемішати альбом", "Редагувати теги", "Зберегти зміни", "Редагувати плейлист")
+    AppLanguage.Czech -> RootUiCopy("Je nutný přístup k úložišti", "Aplikace hledá hudbu ve složce Music", "Povolit přístup", "Elovaire", "Všechna alba", "Abecedně podle interpreta a názvu alba", "Přejmenovat playlist", "Uložit", "Nový playlist", "Obal playlistu", "Vytvořit playlist", "Klepnutím vytvoříte playlist", "Název playlistu", "Vymazat název", "V playlistu zatím nejsou žádné skladby", "Hledat v knihovně", "Přidat skladby", "Načítání textu…", "Tato skladba zřejmě nemá text", "Skrýt text", "OK", "Album nebylo nalezeno", "Playlist nebyl nalezen", "Nejhranější skladby", "dostupných vydání", "Přehrát album", "Náhodně přehrát album", "Upravit značky", "Uložit změny", "Upravit playlist")
+    AppLanguage.Danish -> RootUiCopy("Adgang til lager er nødvendig", "Appen søger efter musik i mappen Music", "Tillad adgang", "Elovaire", "Alle album", "Alfabetisk efter albumkunstner og albumtitel", "Omdøb afspilningsliste", "Gem", "Ny afspilningsliste", "Afspilningslistens cover", "Opret afspilningsliste", "Tryk for at oprette en afspilningsliste", "Afspilningslistens navn", "Ryd navn", "Der er endnu ingen sange på listen", "Søg i biblioteket", "Tilføj sange", "Indlæser sangtekst…", "Denne sang ser ikke ud til at have en sangtekst", "Skjul sangtekst", "OK", "Album blev ikke fundet", "Afspilningslisten blev ikke fundet", "Mest afspillede sange", "tilgængelige udgivelser", "Afspil album", "Bland album", "Rediger tags", "Gem ændringer", "Rediger afspilningsliste")
+    AppLanguage.Dutch -> RootUiCopy("Opslagtoegang vereist", "De app zoekt muziek in de map Music", "Toegang toestaan", "Elovaire", "Alle albums", "Alfabetisch op albumartiest en albumtitel", "Afspeellijst hernoemen", "Opslaan", "Nieuwe afspeellijst", "Omslag van afspeellijst", "Afspeellijst maken", "Tik om een afspeellijst te maken", "Naam van afspeellijst", "Naam wissen", "Deze afspeellijst bevat nog geen nummers", "Zoeken in bibliotheek", "Nummers toevoegen", "Songtekst laden…", "Dit nummer lijkt geen songtekst te hebben", "Songtekst verbergen", "OK", "Album niet gevonden", "Afspeellijst niet gevonden", "Meest afgespeelde nummers", "uitgaven beschikbaar", "Album afspelen", "Album in willekeurige volgorde afspelen", "Tags bewerken", "Wijzigingen opslaan", "Afspeellijst bewerken")
+    AppLanguage.Norwegian -> RootUiCopy("Tilgang til lagring kreves", "Appen leter etter musikk i Music-mappen", "Tillat tilgang", "Elovaire", "Alle album", "Alfabetisk etter albumartist og albumtittel", "Gi spillelisten nytt navn", "Lagre", "Ny spilleliste", "Spillelisteomslag", "Opprett spilleliste", "Trykk for å opprette en spilleliste", "Navn på spilleliste", "Tøm navn", "Det er ingen sanger i spillelisten ennå", "Søk i biblioteket", "Legg til sanger", "Laster sangtekst…", "Denne sangen ser ikke ut til å ha sangtekst", "Skjul sangtekst", "OK", "Albumet ble ikke funnet", "Spillelisten ble ikke funnet", "Mest spilte sanger", "utgivelser tilgjengelig", "Spill av album", "Spill av album i tilfeldig rekkefølge", "Rediger tagger", "Lagre endringer", "Rediger spilleliste")
+    AppLanguage.Swedish -> RootUiCopy("Lagringsåtkomst krävs", "Appen söker efter musik i mappen Music", "Tillåt åtkomst", "Elovaire", "Alla album", "Alfabetiskt efter albumartist och albumtitel", "Byt namn på spellistan", "Spara", "Ny spellista", "Spellistans omslag", "Skapa spellista", "Tryck för att skapa en spellista", "Spellistans namn", "Rensa namn", "Det finns inga låtar i spellistan än", "Sök i biblioteket", "Lägg till låtar", "Läser in låttext…", "Den här låten verkar inte ha någon låttext", "Dölj låttext", "OK", "Albumet hittades inte", "Spellistan hittades inte", "Mest spelade låtar", "utgåvor tillgängliga", "Spela album", "Blanda album", "Redigera taggar", "Spara ändringar", "Redigera spellista")
+    AppLanguage.ChineseSimplified -> RootUiCopy("需要存储访问权限", "应用会在 Music 文件夹中查找音乐", "允许访问", "Elovaire", "所有专辑", "按专辑艺人和专辑名称排序", "重命名播放列表", "保存", "新建播放列表", "播放列表封面", "创建播放列表", "点击创建播放列表", "播放列表名称", "清除名称", "播放列表中还没有歌曲", "搜索音乐库", "添加歌曲", "正在加载歌词…", "这首歌似乎没有歌词", "隐藏歌词", "确定", "找不到专辑", "找不到播放列表", "播放最多的歌曲", "张可用专辑", "播放专辑", "随机播放专辑", "编辑标签", "保存更改", "编辑播放列表")
+    AppLanguage.Hindi -> RootUiCopy("स्टोरेज की अनुमति ज़रूरी है", "ऐप Music फ़ोल्डर में संगीत ढूँढ़ता है", "पहुँच की अनुमति दें", "Elovaire", "सभी एल्बम", "एल्बम कलाकार और फिर शीर्षक के अनुसार", "प्लेलिस्ट का नाम बदलें", "सहेजें", "नई प्लेलिस्ट", "प्लेलिस्ट का कवर", "प्लेलिस्ट बनाएँ", "प्लेलिस्ट बनाने के लिए टैप करें", "प्लेलिस्ट का नाम", "नाम साफ़ करें", "इस प्लेलिस्ट में अभी कोई गाना नहीं है", "लाइब्रेरी में खोजें", "गाने जोड़ें", "गीत लोड हो रहे हैं…", "लगता है इस गाने के बोल उपलब्ध नहीं हैं", "गीत छिपाएँ", "ठीक है", "एल्बम नहीं मिला", "प्लेलिस्ट नहीं मिली", "सबसे अधिक सुने गए गाने", "उपलब्ध रिलीज़", "एल्बम चलाएँ", "एल्बम शफ़ल करें", "टैग संपादित करें", "बदलाव सहेजें", "प्लेलिस्ट संपादित करें")
+    AppLanguage.Japanese -> RootUiCopy("ストレージへのアクセスが必要です", "アプリはMusicフォルダから音楽を探します", "アクセスを許可", "Elovaire", "すべてのアルバム", "アルバムアーティスト、タイトル順", "プレイリスト名を変更", "保存", "新しいプレイリスト", "プレイリストの画像", "プレイリストを作成", "タップしてプレイリストを作成", "プレイリスト名", "名前をクリア", "このプレイリストに曲はまだありません", "ライブラリを検索", "曲を追加", "歌詞を読み込み中…", "この曲には歌詞がないようです", "歌詞を非表示", "OK", "アルバムが見つかりません", "プレイリストが見つかりません", "よく聴く曲", "件のリリース", "アルバムを再生", "アルバムをシャッフル", "タグを編集", "変更を保存", "プレイリストを編集")
+    AppLanguage.Thai -> RootUiCopy("ต้องได้รับสิทธิ์เข้าถึงพื้นที่เก็บข้อมูล", "แอปค้นหาเพลงในโฟลเดอร์ Music", "อนุญาตการเข้าถึง", "Elovaire", "อัลบั้มทั้งหมด", "เรียงตามศิลปินและชื่ออัลบั้ม", "เปลี่ยนชื่อเพลย์ลิสต์", "บันทึก", "เพลย์ลิสต์ใหม่", "ภาพปกเพลย์ลิสต์", "สร้างเพลย์ลิสต์", "แตะเพื่อสร้างเพลย์ลิสต์", "ชื่อเพลย์ลิสต์", "ล้างชื่อ", "ยังไม่มีเพลงในเพลย์ลิสต์นี้", "ค้นหาในคลัง", "เพิ่มเพลง", "กำลังโหลดเนื้อเพลง…", "เพลงนี้ดูเหมือนจะไม่มีเนื้อเพลง", "ซ่อนเนื้อเพลง", "ตกลง", "ไม่พบอัลบั้ม", "ไม่พบเพลย์ลิสต์", "เพลงที่เล่นบ่อยที่สุด", "รายการเผยแพร่ที่มี", "เล่นอัลบั้ม", "สุ่มเล่นอัลบั้ม", "แก้ไขแท็ก", "บันทึกการเปลี่ยนแปลง", "แก้ไขเพลย์ลิสต์")
+    AppLanguage.Croatian -> RootUiCopy("Potreban je pristup pohrani", "Aplikacija traži glazbu u mapi Music", "Dopusti pristup", "Elovaire", "Svi albumi", "Abecedno prema izvođaču i naslovu albuma", "Preimenuj playlistu", "Spremi", "Nova playlista", "Omot playliste", "Izradi playlistu", "Dodirnite za izradu playliste", "Naziv playliste", "Očisti naziv", "Na playlisti još nema pjesama", "Pretraži biblioteku", "Dodaj pjesme", "Učitavanje teksta…", "Čini se da ova pjesma nema tekst", "Sakrij tekst", "U redu", "Album nije pronađen", "Playlista nije pronađena", "Najslušanije pjesme", "dostupnih izdanja", "Reproduciraj album", "Nasumično reproduciraj album", "Uredi oznake", "Spremi promjene", "Uredi playlistu")
+    AppLanguage.French -> RootUiCopy("Accès au stockage requis", "L’application recherche la musique dans le dossier Music", "Autoriser l’accès", "Elovaire", "Tous les albums", "Par artiste puis par titre d’album", "Renommer la playlist", "Enregistrer", "Nouvelle playlist", "Pochette de la playlist", "Créer une playlist", "Appuyez pour créer une playlist", "Nom de la playlist", "Effacer le nom", "Aucun morceau dans cette playlist", "Rechercher dans la bibliothèque", "Ajouter des morceaux", "Chargement des paroles…", "Ce morceau ne semble pas avoir de paroles", "Masquer les paroles", "OK", "Album introuvable", "Playlist introuvable", "Morceaux les plus écoutés", "publications disponibles", "Lire l’album", "Lire l’album aléatoirement", "Modifier les tags", "Enregistrer les modifications", "Modifier la playlist")
+    AppLanguage.German -> RootUiCopy("Speicherzugriff erforderlich", "Die App sucht im Music-Ordner nach Musik", "Zugriff erlauben", "Elovaire", "Alle Alben", "Alphabetisch nach Albuminterpret und Albumtitel", "Playlist umbenennen", "Speichern", "Neue Playlist", "Playlist-Cover", "Playlist erstellen", "Zum Erstellen einer Playlist tippen", "Playlistname", "Namen löschen", "Noch keine Titel in dieser Playlist", "Bibliothek durchsuchen", "Titel hinzufügen", "Liedtexte werden geladen…", "Für diesen Titel scheint es keinen Liedtext zu geben", "Liedtext ausblenden", "OK", "Album nicht gefunden", "Playlist nicht gefunden", "Meistgespielte Titel", "Veröffentlichungen verfügbar", "Album abspielen", "Album zufällig abspielen", "Tags bearbeiten", "Änderungen speichern", "Playlist bearbeiten")
+    AppLanguage.Spanish -> RootUiCopy("Se necesita acceso al almacenamiento", "La aplicación busca música en la carpeta Music", "Permitir acceso", "Elovaire", "Todos los álbumes", "Por artista y título del álbum", "Cambiar nombre de la playlist", "Guardar", "Nueva playlist", "Portada de la playlist", "Crear playlist", "Toca para crear una playlist", "Nombre de la playlist", "Borrar nombre", "Todavía no hay canciones en esta playlist", "Buscar en la biblioteca", "Añadir canciones", "Cargando letras…", "Parece que esta canción no tiene letra", "Ocultar letra", "Aceptar", "Álbum no encontrado", "Playlist no encontrada", "Canciones más reproducidas", "lanzamientos disponibles", "Reproducir álbum", "Reproducir álbum aleatoriamente", "Editar etiquetas", "Guardar cambios", "Editar playlist")
+    AppLanguage.Bulgarian -> RootUiCopy("Необходим е достъп до хранилището", "Приложението търси музика в папката Music", "Разреши достъп", "Elovaire", "Всички албуми", "По изпълнител и заглавие на албума", "Преименувай плейлиста", "Запази", "Нов плейлист", "Обложка на плейлиста", "Създай плейлист", "Докосни, за да създадеш плейлист", "Име на плейлиста", "Изчисти името", "Все още няма песни в плейлиста", "Търси в библиотеката", "Добави песни", "Зареждане на текстове…", "Изглежда тази песен няма текст", "Скрий текста", "Добре", "Албумът не е намерен", "Плейлистът не е намерен", "Най-слушани песни", "налични издания", "Пусни албума", "Разбъркай албума", "Редактирай етикетите", "Запази промените", "Редактирай плейлиста")
+    AppLanguage.Catalan -> RootUiCopy("Cal accedir a l’emmagatzematge", "L’aplicació cerca música a la carpeta Music", "Permet l’accés", "Elovaire", "Tots els àlbums", "Ordenats per artista i títol", "Canvia el nom de la llista", "Desa", "Llista nova", "Portada de la llista", "Crea una llista", "Toca per crear una llista", "Nom de la llista", "Esborra el nom", "Encara no hi ha cançons en aquesta llista", "Cerca a la biblioteca", "Afegeix cançons", "S’està carregant la lletra…", "Sembla que aquesta cançó no té lletra", "Amaga la lletra", "D’acord", "No s’ha trobat l’àlbum", "No s’ha trobat la llista", "Cançons més escoltades", "edicions disponibles", "Reprodueix l’àlbum", "Barreja l’àlbum", "Edita les etiquetes", "Desa els canvis", "Edita la llista")
+    AppLanguage.Finnish -> RootUiCopy("Tallennustilan käyttöoikeus tarvitaan", "Sovellus etsii musiikkia Music-kansiosta", "Salli käyttöoikeus", "Elovaire", "Kaikki albumit", "Esittäjän ja albumin nimen mukaan", "Nimeä soittolista uudelleen", "Tallenna", "Uusi soittolista", "Soittolistan kansikuva", "Luo soittolista", "Luo soittolista napauttamalla", "Soittolistan nimi", "Tyhjennä nimi", "Soittolistalla ei ole vielä kappaleita", "Hae kirjastosta", "Lisää kappaleita", "Ladataan sanoituksia…", "Tällä kappaleella ei näytä olevan sanoituksia", "Piilota sanoitukset", "OK", "Albumia ei löytynyt", "Soittolistaa ei löytynyt", "Eniten soitetut kappaleet", "julkaisua saatavilla", "Toista albumi", "Sekoita albumi", "Muokkaa tunnisteita", "Tallenna muutokset", "Muokkaa soittolistaa")
+    AppLanguage.Romanian -> RootUiCopy("Este necesar accesul la stocare", "Aplicația caută muzică în dosarul Music", "Permite accesul", "Elovaire", "Toate albumele", "După artist și titlul albumului", "Redenumește lista", "Salvează", "Listă nouă", "Coperta listei", "Creează o listă", "Atinge pentru a crea o listă", "Numele listei", "Șterge numele", "Lista nu conține încă melodii", "Caută în bibliotecă", "Adaugă melodii", "Se încarcă versurile…", "Această melodie pare să nu aibă versuri", "Ascunde versurile", "OK", "Albumul nu a fost găsit", "Lista nu a fost găsită", "Cele mai ascultate melodii", "lansări disponibile", "Redă albumul", "Amestecă albumul", "Editează etichetele", "Salvează modificările", "Editează lista")
+    AppLanguage.Slovenian -> RootUiCopy("Potreben je dostop do shrambe", "Aplikacija išče glasbo v mapi Music", "Dovoli dostop", "Elovaire", "Vsi albumi", "Po izvajalcu in naslovu albuma", "Preimenuj seznam", "Shrani", "Nov seznam", "Naslovnica seznama", "Ustvari seznam", "Tapni za ustvarjanje seznama", "Ime seznama", "Počisti ime", "Na seznamu še ni skladb", "Išči po knjižnici", "Dodaj skladbe", "Nalaganje besedila…", "Videti je, da ta skladba nima besedila", "Skrij besedilo", "V redu", "Albuma ni mogoče najti", "Seznama ni mogoče najti", "Največkrat predvajane skladbe", "izdaj na voljo", "Predvajaj album", "Premešaj album", "Uredi oznake", "Shrani spremembe", "Uredi seznam")
+    AppLanguage.Bosnian -> RootUiCopy("Potreban je pristup pohrani", "Aplikacija traži muziku u mapi Music", "Dozvoli pristup pohrani", "Elovaire", "Svi albumi", "Abecedno po izvođaču i nazivu albuma", "Preimenuj plejlistu", "Sačuvaj", "Nova plejlista", "Omot plejliste", "Kreiraj plejlistu", "Dodirni za kreiranje plejliste", "Naziv plejliste", "Obriši naziv plejliste", "Još nema pjesama u ovoj plejlisti", "Pretraži biblioteku", "Dodaj pjesme", "Učitavanje tekstova…", "Izgleda da ova pjesma nema tekst", "Sakrij tekst", "U redu", "Album nije pronađen", "Plejlista nije pronađena", "Najslušanije pjesme", "dostupnih izdanja", "Pusti album", "Nasumično pusti album", "Uredi oznake", "Sačuvaj izmjene plejliste", "Uredi plejlistu")
+    AppLanguage.Indonesian -> RootUiCopy("Akses penyimpanan diperlukan", "Aplikasi mencari musik di folder Music", "Izinkan akses penyimpanan", "Elovaire", "Semua album", "Urut menurut artis album, lalu judul album", "Ganti nama daftar putar", "Simpan", "Daftar putar baru", "Sampul daftar putar", "Buat daftar putar", "Ketuk untuk membuat daftar putar", "Nama daftar putar", "Hapus nama daftar putar", "Belum ada lagu dalam daftar putar ini", "Cari di pustaka", "Tambahkan lagu", "Memuat lirik…", "Lagu ini tampaknya tidak memiliki lirik", "Sembunyikan lirik", "OK", "Album tidak ditemukan", "Daftar putar tidak ditemukan", "Lagu paling sering diputar", "rilisan tersedia", "Putar album", "Acak album", "Edit tag", "Simpan perubahan daftar putar", "Edit daftar putar")
+    AppLanguage.Punjabi -> RootUiCopy("ਸਟੋਰੇਜ ਤੱਕ ਪਹੁੰਚ ਲੋੜੀਂਦੀ ਹੈ", "ਐਪ Music ਫੋਲਡਰ ਵਿੱਚ ਸੰਗੀਤ ਲੱਭਦੀ ਹੈ", "ਸਟੋਰੇਜ ਤੱਕ ਪਹੁੰਚ ਦਿਓ", "Elovaire", "ਸਾਰੀਆਂ ਐਲਬਮਾਂ", "ਐਲਬਮ ਕਲਾਕਾਰ ਅਤੇ ਫਿਰ ਸਿਰਲੇਖ ਅਨੁਸਾਰ", "ਪਲੇਲਿਸਟ ਦਾ ਨਾਮ ਬਦਲੋ", "ਸੰਭਾਲੋ", "ਨਵੀਂ ਪਲੇਲਿਸਟ", "ਪਲੇਲਿਸਟ ਦੀ ਤਸਵੀਰ", "ਪਲੇਲਿਸਟ ਬਣਾਓ", "ਪਲੇਲਿਸਟ ਬਣਾਉਣ ਲਈ ਟੈਪ ਕਰੋ", "ਪਲੇਲਿਸਟ ਦਾ ਨਾਮ", "ਪਲੇਲਿਸਟ ਦਾ ਨਾਮ ਸਾਫ਼ ਕਰੋ", "ਇਸ ਪਲੇਲਿਸਟ ਵਿੱਚ ਹਾਲੇ ਕੋਈ ਗੀਤ ਨਹੀਂ", "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਖੋਜੋ", "ਗੀਤ ਜੋੜੋ", "ਬੋਲ ਲੋਡ ਹੋ ਰਹੇ ਹਨ…", "ਲੱਗਦਾ ਹੈ ਇਸ ਗੀਤ ਦੇ ਬੋਲ ਨਹੀਂ ਹਨ", "ਬੋਲ ਲੁਕਾਓ", "ਠੀਕ ਹੈ", "ਐਲਬਮ ਨਹੀਂ ਮਿਲੀ", "ਪਲੇਲਿਸਟ ਨਹੀਂ ਮਿਲੀ", "ਸਭ ਤੋਂ ਵੱਧ ਚੱਲੇ ਗੀਤ", "ਉਪਲਬਧ ਰਿਲੀਜ਼ਾਂ", "ਐਲਬਮ ਚਲਾਓ", "ਐਲਬਮ ਸ਼ਫ਼ਲ ਕਰੋ", "ਟੈਗ ਸੋਧੋ", "ਪਲੇਲਿਸਟ ਦੀਆਂ ਤਬਦੀਲੀਆਂ ਸੰਭਾਲੋ", "ਪਲੇਲਿਸਟ ਸੋਧੋ")
+    AppLanguage.Albanian -> RootUiCopy(
+        firstLaunchPermissionTitle = "Kërkohet qasje në hapësirën ruajtëse",
+        firstLaunchPermissionMessage = "Aplikacioni skanon dosjen Music për muzikë në pajisje",
+        firstLaunchPermissionButton = "Lejo qasjen në hapësirën ruajtëse",
+        appName = "Elovaire", allAlbumsTitle = "Të gjitha albumet",
+        allAlbumsSubtitle = "Sipas emrit të artistit dhe më pas titullit të albumit",
+        renamePlaylistTitle = "Riemërto listën e dëgjimit", save = "Ruaj", newPlaylist = "Listë e re dëgjimi",
+        playlistArtworkPlaceholder = "Kopertina e listës së dëgjimit", createPlaylistButton = "Krijo listë dëgjimi",
+        tapToCreateNewPlaylist = "Prek për të krijuar një listë dëgjimi", playlistNamePlaceholder = "Emri i listës së dëgjimit",
+        clearPlaylistName = "Pastro emrin e listës", noSongsInPlaylistYet = "Nuk ka ende këngë në këtë listë",
+        searchLibrary = "Kërko në bibliotekë", addSongsTitle = "Shto këngë", loadingLyrics = "Po ngarkohen tekstet…",
+        noLyrics = "Duket se kjo këngë nuk ka tekst", hideLyrics = "Fshih tekstin", ok = "OK",
+        albumNotFound = "Albumi nuk u gjet", playlistNotFound = "Lista e dëgjimit nuk u gjet",
+        mostPlayedSongs = "Këngët më të dëgjuara", availableReleasesSuffix = "publikime të disponueshme",
+        playAlbum = "Luaj albumin", shuffleAlbum = "Përziej albumin", editTags = "Redakto etiketat",
+        savePlaylistChanges = "Ruaj ndryshimet e listës", editPlaylist = "Redakto listën e dëgjimit",
+    )
+    AppLanguage.Serbian -> RootUiCopy(
+        firstLaunchPermissionTitle = "Потребан је приступ складишту",
+        firstLaunchPermissionMessage = "Апликација подразумевано претражује фасциклу Music за музику на уређају",
+        firstLaunchPermissionButton = "Дозволи приступ складишту",
+        appName = "Elovaire", allAlbumsTitle = "Сви албуми",
+        allAlbumsSubtitle = "По абецедном реду извођача, затим назива албума",
+        renamePlaylistTitle = "Преименуј плејлисту", save = "Сачувај", newPlaylist = "Нова плејлиста",
+        playlistArtworkPlaceholder = "Омот плејлисте", createPlaylistButton = "Направи плејлисту",
+        tapToCreateNewPlaylist = "Додирни да направиш плејлисту", playlistNamePlaceholder = "Назив плејлисте",
+        clearPlaylistName = "Обриши назив плејлисте", noSongsInPlaylistYet = "Још нема песама у овој плејлисти",
+        searchLibrary = "Претражи библиотеку", addSongsTitle = "Додај песме", loadingLyrics = "Учитавање текстова…",
+        noLyrics = "Изгледа да ова песма нема текст", hideLyrics = "Сакриј текст", ok = "У реду",
+        albumNotFound = "Албум није пронађен", playlistNotFound = "Плејлиста није пронађена",
+        mostPlayedSongs = "Најслушаније песме", availableReleasesSuffix = "доступних издања",
+        playAlbum = "Пусти албум", shuffleAlbum = "Насумично пусти албум", editTags = "Уреди ознаке",
+        savePlaylistChanges = "Сачувај измене плејлисте", editPlaylist = "Уреди плејлисту",
+    )
     AppLanguage.Polish -> RootUiCopy(
         firstLaunchPermissionTitle = "Dostęp do pamięci jest wymagany, aby rozpocząć",
         firstLaunchPermissionMessage = "Aplikacja domyślnie skanuje folder Muzyka w poszukiwaniu muzyki na urządzeniu",
@@ -235,13 +301,13 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         savePlaylistChanges = "پلے لسٹ کی تبدیلیاں محفوظ کریں",
         editPlaylist = "پلے لسٹ میں ترمیم کریں",
     )
-    else -> RootUiCopy(
+    AppLanguage.English -> RootUiCopy(
         firstLaunchPermissionTitle = "Storage access required to start",
         firstLaunchPermissionMessage = "The app scans Music folder by default in search for music on the device",
         firstLaunchPermissionButton = "Allow storage access",
         appName = "Elovaire",
         allAlbumsTitle = "All albums",
-        allAlbumsSubtitle = "Alphabetical by album artist, then album title.",
+        allAlbumsSubtitle = "Alphabetical by album artist, then album title",
         renamePlaylistTitle = "Rename playlist",
         save = "Save",
         newPlaylist = "New playlist",
@@ -257,8 +323,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         noLyrics = "This song seems to have no lyrics",
         hideLyrics = "Hide lyrics",
         ok = "OK",
-        albumNotFound = "Album not found.",
-        playlistNotFound = "Playlist not found.",
+        albumNotFound = "Album not found",
+        playlistNotFound = "Playlist not found",
         mostPlayedSongs = "Most played songs",
         availableReleasesSuffix = "available releases",
         playAlbum = "Play album",
@@ -278,6 +344,14 @@ private fun RootUiCopy.withLocalizedFirstLaunchPermission(language: AppLanguage)
 }
 
 private fun firstLaunchPermissionTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Необходим е достъп до хранилището"
+    AppLanguage.Catalan -> "Cal accedir a l’emmagatzematge"
+    AppLanguage.Finnish -> "Tallennustilan käyttöoikeus tarvitaan"
+    AppLanguage.Romanian -> "Este necesar accesul la stocare"
+    AppLanguage.Slovenian -> "Potreben je dostop do shrambe"
+    AppLanguage.Bosnian -> "Potreban je pristup pohrani"
+    AppLanguage.Indonesian -> "Akses penyimpanan diperlukan"
+    AppLanguage.Punjabi -> "ਸਟੋਰੇਜ ਤੱਕ ਪਹੁੰਚ ਲੋੜੀਂਦੀ ਹੈ"
     AppLanguage.Polish -> "Dostęp do pamięci jest wymagany, aby rozpocząć"
     AppLanguage.Albanian -> "Kërkohet qasje në hapësirën ruajtëse"
     AppLanguage.ChineseSimplified -> "需要存储访问权限才能开始"
@@ -314,6 +388,14 @@ private fun firstLaunchPermissionTitle(language: AppLanguage): String = when (la
 }
 
 private fun firstLaunchPermissionMessage(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Приложението търси музика в папката Music на устройството"
+    AppLanguage.Catalan -> "L’aplicació cerca música a la carpeta Music del dispositiu"
+    AppLanguage.Finnish -> "Sovellus etsii musiikkia laitteen Music-kansiosta"
+    AppLanguage.Romanian -> "Aplicația caută muzică în dosarul Music al dispozitivului"
+    AppLanguage.Slovenian -> "Aplikacija išče glasbo v mapi Music v napravi"
+    AppLanguage.Bosnian -> "Aplikacija traži muziku u mapi Music na uređaju"
+    AppLanguage.Indonesian -> "Aplikasi memindai folder Music untuk mencari musik di perangkat"
+    AppLanguage.Punjabi -> "ਐਪ ਡਿਵਾਈਸ ਦੇ Music ਫੋਲਡਰ ਵਿੱਚ ਸੰਗੀਤ ਲੱਭਦੀ ਹੈ"
     AppLanguage.Polish -> "Aplikacja domyślnie skanuje folder Muzyka w poszukiwaniu muzyki na urządzeniu"
     AppLanguage.Albanian -> "Aplikacioni skanon si parazgjedhje dosjen Music për të gjetur muzikë në pajisje"
     AppLanguage.ChineseSimplified -> "应用默认扫描 Music 文件夹，以查找设备上的音乐"
@@ -350,6 +432,14 @@ private fun firstLaunchPermissionMessage(language: AppLanguage): String = when (
 }
 
 private fun firstLaunchPermissionButton(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Разреши достъп"
+    AppLanguage.Catalan -> "Permet l’accés"
+    AppLanguage.Finnish -> "Salli käyttöoikeus"
+    AppLanguage.Romanian -> "Permite accesul"
+    AppLanguage.Slovenian -> "Dovoli dostop"
+    AppLanguage.Bosnian -> "Dozvoli pristup pohrani"
+    AppLanguage.Indonesian -> "Izinkan akses penyimpanan"
+    AppLanguage.Punjabi -> "ਸਟੋਰੇਜ ਤੱਕ ਪਹੁੰਚ ਦਿਓ"
     AppLanguage.Polish -> "Zezwól na dostęp do pamięci"
     AppLanguage.Albanian -> "Lejo qasjen në hapësirën ruajtëse"
     AppLanguage.ChineseSimplified -> "允许存储访问"
@@ -390,33 +480,54 @@ internal fun availableReleasesLabel(count: Int, language: AppLanguage): String {
     return "$count ${copy.availableReleasesSuffix}"
 }
 
-internal fun repeatModeLabel(repeatMode: PlaybackRepeatMode, language: AppLanguage): String = when (repeatMode) {
-    PlaybackRepeatMode.Off -> when (language) {
-        AppLanguage.Polish -> "Kolejność"
-        AppLanguage.Slovak -> "Poradie"
-        AppLanguage.Korean -> "순서"
-        AppLanguage.Malay -> "Turutan"
-        AppLanguage.Bengali -> "ক্রম"
-        AppLanguage.Urdu -> "ترتیب"
-        else -> "Order"
+internal fun repeatModeLabel(repeatMode: PlaybackRepeatMode, language: AppLanguage): String {
+    val labels = when (language) {
+        AppLanguage.Albanian -> Triple("Renditja", "Përsërit një", "Përsërit të gjitha")
+        AppLanguage.Bengali -> Triple("ক্রম", "একটি পুনরাবৃত্তি", "সব পুনরাবৃত্তি")
+        AppLanguage.Bosnian -> Triple("Redoslijed", "Ponovi jednu", "Ponovi sve")
+        AppLanguage.Bulgarian -> Triple("Ред", "Повтори една", "Повтори всички")
+        AppLanguage.Catalan -> Triple("Ordre", "Repeteix-ne una", "Repeteix-les totes")
+        AppLanguage.ChineseSimplified -> Triple("顺序播放", "单曲循环", "全部循环")
+        AppLanguage.Croatian -> Triple("Redoslijed", "Ponovi jednu", "Ponovi sve")
+        AppLanguage.Czech -> Triple("Pořadí", "Opakovat jednu", "Opakovat vše")
+        AppLanguage.Danish -> Triple("Rækkefølge", "Gentag én", "Gentag alle")
+        AppLanguage.Dutch -> Triple("Volgorde", "Herhaal één", "Herhaal alles")
+        AppLanguage.English -> Triple("Order", "Repeat one", "Repeat all")
+        AppLanguage.Estonian -> Triple("Järjekord", "Korda üht", "Korda kõiki")
+        AppLanguage.Finnish -> Triple("Järjestys", "Toista yksi", "Toista kaikki")
+        AppLanguage.French -> Triple("Ordre", "Répéter un titre", "Tout répéter")
+        AppLanguage.German -> Triple("Reihenfolge", "Einen Titel wiederholen", "Alle wiederholen")
+        AppLanguage.Greek -> Triple("Σειρά", "Επανάληψη ενός", "Επανάληψη όλων")
+        AppLanguage.Hindi -> Triple("क्रम", "एक दोहराएँ", "सभी दोहराएँ")
+        AppLanguage.Hungarian -> Triple("Sorrend", "Egy ismétlése", "Összes ismétlése")
+        AppLanguage.Indonesian -> Triple("Urutan", "Ulangi satu", "Ulangi semua")
+        AppLanguage.Italian -> Triple("Ordine", "Ripeti uno", "Ripeti tutto")
+        AppLanguage.Japanese -> Triple("順番", "1曲リピート", "全曲リピート")
+        AppLanguage.Korean -> Triple("순서", "한 곡 반복", "전체 반복")
+        AppLanguage.Latin -> Triple("Ordo", "Unum repete", "Omnia repete")
+        AppLanguage.Latvian -> Triple("Secība", "Atkārtot vienu", "Atkārtot visu")
+        AppLanguage.Lithuanian -> Triple("Tvarka", "Kartoti vieną", "Kartoti viską")
+        AppLanguage.Macedonian -> Triple("Редослед", "Повтори една", "Повтори сè")
+        AppLanguage.Malay -> Triple("Turutan", "Ulang satu", "Ulang semua")
+        AppLanguage.Norwegian -> Triple("Rekkefølge", "Gjenta én", "Gjenta alle")
+        AppLanguage.Polish -> Triple("Kolejność", "Powtórz jeden", "Powtórz wszystko")
+        AppLanguage.Portuguese -> Triple("Ordem", "Repetir uma", "Repetir tudo")
+        AppLanguage.Punjabi -> Triple("ਕ੍ਰਮ", "ਇੱਕ ਦੁਹਰਾਓ", "ਸਭ ਦੁਹਰਾਓ")
+        AppLanguage.Romanian -> Triple("Ordine", "Repetă una", "Repetă toate")
+        AppLanguage.Russian -> Triple("Порядок", "Повторить один", "Повторить всё")
+        AppLanguage.Serbian -> Triple("Редослед", "Понови једну", "Понови све")
+        AppLanguage.Slovak -> Triple("Poradie", "Opakovať jednu", "Opakovať všetko")
+        AppLanguage.Slovenian -> Triple("Vrstni red", "Ponovi eno", "Ponovi vse")
+        AppLanguage.Spanish -> Triple("Orden", "Repetir una", "Repetir todo")
+        AppLanguage.Swedish -> Triple("Ordning", "Upprepa en", "Upprepa alla")
+        AppLanguage.Thai -> Triple("ลำดับ", "เล่นซ้ำหนึ่งเพลง", "เล่นซ้ำทั้งหมด")
+        AppLanguage.Ukrainian -> Triple("Порядок", "Повторити один", "Повторити все")
+        AppLanguage.Urdu -> Triple("ترتیب", "ایک کو دہرائیں", "سب دہرائیں")
     }
-    PlaybackRepeatMode.One -> when (language) {
-        AppLanguage.Polish -> "Powtórz jeden"
-        AppLanguage.Slovak -> "Opakovať jednu"
-        AppLanguage.Korean -> "한 곡 반복"
-        AppLanguage.Malay -> "Ulang satu"
-        AppLanguage.Bengali -> "একটি পুনরাবৃত্তি"
-        AppLanguage.Urdu -> "ایک کو دہرائیں"
-        else -> "Repeat one"
-    }
-    PlaybackRepeatMode.All -> when (language) {
-        AppLanguage.Polish -> "Powtórz wszystko"
-        AppLanguage.Slovak -> "Opakovať všetko"
-        AppLanguage.Korean -> "전체 반복"
-        AppLanguage.Malay -> "Ulang semua"
-        AppLanguage.Bengali -> "সব পুনরাবৃত্তি"
-        AppLanguage.Urdu -> "سب دہرائیں"
-        else -> "Repeat all"
+    return when (repeatMode) {
+        PlaybackRepeatMode.Off -> labels.first
+        PlaybackRepeatMode.One -> labels.second
+        PlaybackRepeatMode.All -> labels.third
     }
 }
 
@@ -441,6 +552,14 @@ internal data class HomeUiCopy(
 )
 
 internal fun albumOfDayTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Албум на деня"
+    AppLanguage.Catalan -> "Àlbum del dia"
+    AppLanguage.Finnish -> "Päivän albumi"
+    AppLanguage.Romanian -> "Albumul zilei"
+    AppLanguage.Slovenian -> "Album dneva"
+    AppLanguage.Bosnian -> "Album dana"
+    AppLanguage.Indonesian -> "Album hari ini"
+    AppLanguage.Punjabi -> "ਅੱਜ ਦੀ ਐਲਬਮ"
     AppLanguage.Albanian -> "Albumi i ditës"
     AppLanguage.English -> "Album of the day"
     AppLanguage.ChineseSimplified -> "每日专辑"
@@ -477,6 +596,14 @@ internal fun albumOfDayTitle(language: AppLanguage): String = when (language) {
 }
 
 internal fun homeCopy(language: AppLanguage): HomeUiCopy = when (language) {
+    AppLanguage.Bulgarian -> HomeUiCopy("Индексиране на библиотеката", "Търсене на музика в устройството", "Библиотеката е празна", "Добавете музика в устройството", "Няма скоро добавени албуми", "Скоро добавените албуми ще се появят тук", "Последно слушани", "Песните ще се появят тук", "Любими албуми", "Музиката, към която се връщате често", "Все още няма любими албуми", "Слушайте музика и любимите ви албуми ще се появят тук")
+    AppLanguage.Catalan -> HomeUiCopy("S’està indexant la biblioteca", "S’està cercant música al dispositiu", "La biblioteca és buida", "Afegeix música al dispositiu", "No hi ha àlbums afegits recentment", "Els àlbums nous apareixeran aquí", "Escoltades recentment", "Les cançons apareixeran aquí aviat", "Àlbums preferits", "La música que escoltes sovint", "Encara no hi ha àlbums preferits", "Escolta música i els teus àlbums preferits apareixeran aquí")
+    AppLanguage.Finnish -> HomeUiCopy("Indeksoidaan kirjastoa", "Etsitään musiikkia laitteelta", "Kirjasto on tyhjä", "Lisää musiikkia laitteellesi", "Ei äskettäin lisättyjä albumeita", "Uudet albumit näkyvät täällä", "Äskettäin soitetut", "Kappaleet näkyvät täällä pian", "Suosikkialbumisi", "Musiikkia, johon palaat usein", "Ei vielä suosikkialbumeita", "Kuuntele musiikkia, niin suosikkialbumisi näkyvät täällä")
+    AppLanguage.Romanian -> HomeUiCopy("Se indexează biblioteca", "Se caută muzică pe dispozitiv", "Biblioteca este goală", "Adaugă muzică pe dispozitiv", "Nu există albume adăugate recent", "Albumele adăugate recent vor apărea aici", "Redate recent", "Melodiile vor apărea aici în curând", "Albumele tale preferate", "Muzica pe care o asculți des", "Nu ai încă albume preferate", "Ascultă muzică și albumele preferate vor apărea aici")
+    AppLanguage.Slovenian -> HomeUiCopy("Indeksiranje knjižnice", "Iskanje glasbe v napravi", "Knjižnica je prazna", "Dodajte glasbo v napravo", "Ni nedavno dodanih albumov", "Nedavno dodani albumi bodo prikazani tukaj", "Nedavno predvajano", "Skladbe bodo kmalu prikazane tukaj", "Vaši priljubljeni albumi", "Glasba, h kateri se pogosto vračate", "Še ni priljubljenih albumov", "Poslušajte glasbo in priljubljeni albumi bodo prikazani tukaj")
+    AppLanguage.Bosnian -> HomeUiCopy("Indeksiranje biblioteke", "Tražimo muziku na uređaju", "Biblioteka je prazna", "Dodajte muziku na uređaj", "Nema nedavno dodanih albuma", "Nedavno dodani albumi će se pojaviti ovdje", "Nedavno slušano", "Pjesme će se uskoro pojaviti ovdje", "Vaši omiljeni albumi", "Muzika kojoj se često vraćate", "Još nema omiljenih albuma", "Slušajte muziku i vaši omiljeni albumi će se pojaviti ovdje")
+    AppLanguage.Indonesian -> HomeUiCopy("Mengindeks pustaka", "Mencari musik di perangkat", "Pustaka kosong", "Tambahkan musik ke perangkat", "Belum ada album yang baru ditambahkan", "Album yang baru ditambahkan akan muncul di sini", "Baru diputar", "Lagu akan segera muncul di sini", "Album favorit Anda", "Musik yang sering Anda dengarkan", "Belum ada album favorit", "Dengarkan musik dan album favorit Anda akan muncul di sini")
+    AppLanguage.Punjabi -> HomeUiCopy("ਲਾਇਬ੍ਰੇਰੀ ਦੀ ਸੂਚੀ ਬਣ ਰਹੀ ਹੈ", "ਡਿਵਾਈਸ ਉੱਤੇ ਸੰਗੀਤ ਲੱਭਿਆ ਜਾ ਰਿਹਾ ਹੈ", "ਲਾਇਬ੍ਰੇਰੀ ਖਾਲੀ ਹੈ", "ਆਪਣੇ ਡਿਵਾਈਸ ਉੱਤੇ ਸੰਗੀਤ ਜੋੜੋ", "ਹਾਲ ਹੀ ਵਿੱਚ ਕੋਈ ਐਲਬਮ ਨਹੀਂ ਜੋੜੀ ਗਈ", "ਹਾਲ ਹੀ ਵਿੱਚ ਜੋੜੀਆਂ ਐਲਬਮਾਂ ਇੱਥੇ ਦਿਖਣਗੀਆਂ", "ਹਾਲ ਹੀ ਵਿੱਚ ਚੱਲੇ", "ਗੀਤ ਜਲਦੀ ਇੱਥੇ ਦਿਖਣਗੇ", "ਤੁਹਾਡੀਆਂ ਮਨਪਸੰਦ ਐਲਬਮਾਂ", "ਸੰਗੀਤ ਜੋ ਤੁਸੀਂ ਅਕਸਰ ਸੁਣਦੇ ਹੋ", "ਹਾਲੇ ਕੋਈ ਮਨਪਸੰਦ ਐਲਬਮ ਨਹੀਂ", "ਸੰਗੀਤ ਸੁਣੋ ਅਤੇ ਮਨਪਸੰਦ ਐਲਬਮਾਂ ਇੱਥੇ ਦਿਖਣਗੀਆਂ")
     AppLanguage.Polish -> HomeUiCopy(
         indexingTitle = "Trwa indeksowanie biblioteki",
         indexingMessage = "Utwory i albumy pojawią się po zakończeniu indeksowania",
@@ -959,6 +1086,70 @@ internal fun localizedCountLabel(
     }
     localizedComplexCountLabel(count, noun, language)?.let { return it }
     val (singular, plural) = when (language) {
+        AppLanguage.Bulgarian -> when (noun) {
+            "song", "track" -> "песен" to "песни"
+            "audiobook" -> "аудиокнига" to "аудиокниги"
+            "album" -> "албум" to "албума"
+            "artist" -> "изпълнител" to "изпълнители"
+            "genre" -> "жанр" to "жанра"
+            else -> noun to noun
+        }
+        AppLanguage.Catalan -> when (noun) {
+            "song", "track" -> "cançó" to "cançons"
+            "audiobook" -> "audiollibre" to "audiollibres"
+            "album" -> "àlbum" to "àlbums"
+            "artist" -> "artista" to "artistes"
+            "genre" -> "gènere" to "gèneres"
+            else -> noun to noun
+        }
+        AppLanguage.Finnish -> when (noun) {
+            "song", "track" -> "kappale" to "kappaletta"
+            "audiobook" -> "äänikirja" to "äänikirjaa"
+            "album" -> "albumi" to "albumia"
+            "artist" -> "esittäjä" to "esittäjää"
+            "genre" -> "tyylilaji" to "tyylilajia"
+            else -> noun to noun
+        }
+        AppLanguage.Romanian -> when (noun) {
+            "song", "track" -> "melodie" to "melodii"
+            "audiobook" -> "audiocarte" to "audiocărți"
+            "album" -> "album" to "albume"
+            "artist" -> "artist" to "artiști"
+            "genre" -> "gen" to "genuri"
+            else -> noun to noun
+        }
+        AppLanguage.Slovenian -> when (noun) {
+            "song", "track" -> "skladba" to "skladb"
+            "audiobook" -> "zvočna knjiga" to "zvočnih knjig"
+            "album" -> "album" to "albumov"
+            "artist" -> "izvajalec" to "izvajalcev"
+            "genre" -> "žanr" to "žanrov"
+            else -> noun to noun
+        }
+        AppLanguage.Bosnian -> when (noun) {
+            "song", "track" -> "pjesma" to "pjesme"
+            "audiobook" -> "audioknjiga" to "audioknjige"
+            "album" -> "album" to "albuma"
+            "artist" -> "izvođač" to "izvođača"
+            "genre" -> "žanr" to "žanra"
+            else -> noun to noun
+        }
+        AppLanguage.Indonesian -> when (noun) {
+            "song", "track" -> "lagu" to "lagu"
+            "audiobook" -> "buku audio" to "buku audio"
+            "album" -> "album" to "album"
+            "artist" -> "artis" to "artis"
+            "genre" -> "genre" to "genre"
+            else -> noun to noun
+        }
+        AppLanguage.Punjabi -> when (noun) {
+            "song", "track" -> "ਗੀਤ" to "ਗੀਤ"
+            "audiobook" -> "ਆਡੀਓ ਕਿਤਾਬ" to "ਆਡੀਓ ਕਿਤਾਬਾਂ"
+            "album" -> "ਐਲਬਮ" to "ਐਲਬਮਾਂ"
+            "artist" -> "ਕਲਾਕਾਰ" to "ਕਲਾਕਾਰ"
+            "genre" -> "ਸ਼ੈਲੀ" to "ਸ਼ੈਲੀਆਂ"
+            else -> noun to noun
+        }
         AppLanguage.Albanian -> when (noun) {
             "song" -> "këngë" to "këngë"
             "track" -> "këngë" to "këngë"
@@ -1235,12 +1426,21 @@ internal fun localizedCountLabel(
         }
     }
     val label = if (count == 1) singular else plural
-    return "$count $label"
+    val separator = if (language == AppLanguage.Romanian && count >= 20 && count % 100 !in 1..19) " de " else " "
+    return "$count$separator$label"
 }
 
 @Suppress("CyclomaticComplexMethod")
 private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): String {
     val forms = when (language) {
+        AppLanguage.Bulgarian -> Triple("плейлист", "плейлиста", "плейлиста")
+        AppLanguage.Catalan -> Triple("llista", "llistes", "llistes")
+        AppLanguage.Finnish -> Triple("soittolista", "soittolistaa", "soittolistaa")
+        AppLanguage.Romanian -> Triple("listă", "liste", "liste")
+        AppLanguage.Slovenian -> Triple("seznam", "seznama", "seznamov")
+        AppLanguage.Bosnian -> Triple("plejlista", "plejliste", "plejlista")
+        AppLanguage.Indonesian -> Triple("daftar putar", "daftar putar", "daftar putar")
+        AppLanguage.Punjabi -> Triple("ਪਲੇਲਿਸਟ", "ਪਲੇਲਿਸਟਾਂ", "ਪਲੇਲਿਸਟਾਂ")
         AppLanguage.Albanian -> Triple("listë dëgjimi", "lista dëgjimi", "lista dëgjimi")
         AppLanguage.ChineseSimplified -> Triple("播放列表", "播放列表", "播放列表")
         AppLanguage.Croatian -> Triple("playlista", "playliste", "playlista")
@@ -1279,9 +1479,16 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
     val lastTwo = number % 100
     val last = number % 10
     val label = when {
+        language == AppLanguage.Slovenian && lastTwo == 1 -> forms.first
+        language == AppLanguage.Slovenian && lastTwo == 2 -> forms.second
+        language == AppLanguage.Slovenian && lastTwo in 3..4 -> "seznami"
+        language == AppLanguage.Slovenian -> forms.third
+        language in setOf(AppLanguage.Bulgarian, AppLanguage.Catalan, AppLanguage.Finnish, AppLanguage.Romanian) -> if (number == 1) forms.first else forms.second
+        language == AppLanguage.Punjabi -> if (number == 1) forms.first else forms.second
         language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
         language == AppLanguage.Lithuanian && (last == 0 || lastTwo in 11..19) -> forms.third
         language in setOf(
+            AppLanguage.Bosnian,
             AppLanguage.Croatian,
             AppLanguage.Czech,
             AppLanguage.Polish,
@@ -1291,6 +1498,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
             AppLanguage.Ukrainian,
         ) && last == 1 && lastTwo != 11 -> forms.first
         language in setOf(
+            AppLanguage.Bosnian,
             AppLanguage.Croatian,
             AppLanguage.Czech,
             AppLanguage.Polish,
@@ -1300,6 +1508,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
             AppLanguage.Ukrainian,
         ) && last in 2..4 && lastTwo !in 12..14 -> forms.second
         language in setOf(
+            AppLanguage.Bosnian,
             AppLanguage.Croatian,
             AppLanguage.Czech,
             AppLanguage.Polish,
@@ -1313,7 +1522,8 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         last == 1 && lastTwo != 11 -> forms.first
         else -> forms.second
     }
-    return "$count $label"
+    val separator = if (language == AppLanguage.Romanian && count >= 20 && count % 100 !in 1..19) " de " else " "
+    return "$count$separator$label"
 }
 
 @Suppress("CyclomaticComplexMethod")
@@ -1323,6 +1533,22 @@ private fun localizedComplexCountLabel(
     language: AppLanguage,
 ): String? {
     val forms = when (language) {
+        AppLanguage.Slovenian -> when (noun) {
+            "song", "track" -> Triple("skladba", "skladbi", "skladb")
+            "audiobook" -> Triple("zvočna knjiga", "zvočni knjigi", "zvočnih knjig")
+            "album" -> Triple("album", "albuma", "albumov")
+            "artist" -> Triple("izvajalec", "izvajalca", "izvajalcev")
+            "genre" -> Triple("žanr", "žanra", "žanrov")
+            else -> return null
+        }
+        AppLanguage.Bosnian -> when (noun) {
+            "song", "track" -> Triple("pjesma", "pjesme", "pjesama")
+            "audiobook" -> Triple("audioknjiga", "audioknjige", "audioknjiga")
+            "album" -> Triple("album", "albuma", "albuma")
+            "artist" -> Triple("izvođač", "izvođača", "izvođača")
+            "genre" -> Triple("žanr", "žanra", "žanrova")
+            else -> return null
+        }
         AppLanguage.Croatian -> when (noun) {
             "song", "track" -> Triple("pjesma", "pjesme", "pjesama")
             "audiobook" -> Triple("audioknjiga", "audioknjige", "audioknjiga")
@@ -1406,6 +1632,17 @@ private fun localizedComplexCountLabel(
     val lastTwo = number % 100
     val last = number % 10
     val label = when {
+        language == AppLanguage.Slovenian && lastTwo == 1 -> forms.first
+        language == AppLanguage.Slovenian && lastTwo == 2 -> forms.second
+        language == AppLanguage.Slovenian && lastTwo in 3..4 -> when (noun) {
+            "song", "track" -> "skladbe"
+            "audiobook" -> "zvočne knjige"
+            "album" -> "albumi"
+            "artist" -> "izvajalci"
+            "genre" -> "žanri"
+            else -> forms.third
+        }
+        language == AppLanguage.Slovenian -> forms.third
         language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
         language == AppLanguage.Lithuanian && lastTwo in 11..19 -> forms.third
         last == 1 && lastTwo != 11 -> forms.first

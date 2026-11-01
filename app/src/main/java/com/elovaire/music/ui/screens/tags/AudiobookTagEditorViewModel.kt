@@ -118,7 +118,7 @@ internal class AudiobookTagEditorViewModel(
         if (!matchesPlatformActionResult(writePermissionState.pending(operationId)?.operationId, operationId)) return
         val pending = writePermissionState.consume(operationId) ?: return
         if (!granted) {
-            finishFailure("Write access was not granted.")
+            finishFailure("Write access was not granted")
             return
         }
         viewModelScope.launch { performSave(pending.request, true) }
@@ -151,7 +151,7 @@ internal class AudiobookTagEditorViewModel(
     }
 
     fun onWritePermissionLaunchFailed(operationId: String) {
-        if (writePermissionState.consume(operationId) != null) finishFailure("Android could not open the write-access request.")
+        if (writePermissionState.consume(operationId) != null) finishFailure("Android could not open the write-access request")
     }
 
     private suspend fun performSave(request: AudiobookTagEditRequest, writeConsentGranted: Boolean) {
@@ -175,10 +175,10 @@ internal class AudiobookTagEditorViewModel(
                 _uiState.value = _uiState.value.copy(
                     isSaving = result.permissionRequest != null,
                     statusMessage = when {
-                        result.permissionRequest != null -> "Additional write access is needed to finish saving."
+                        result.permissionRequest != null -> "Additional write access is needed to finish saving"
                         failures.isEmpty() -> null
-                        result.editedSongs.isNotEmpty() -> "Saved with ${failures.size} issue(s)."
-                        else -> failures.firstOrNull()?.reason ?: "No tags were saved."
+                        result.editedSongs.isNotEmpty() -> "Saved with ${failures.size} issue(s)"
+                        else -> failures.firstOrNull()?.reason ?: "No tags were saved"
                     },
                     saveFailures = failures,
                     platformAction = null,
@@ -221,7 +221,7 @@ internal class AudiobookTagEditorViewModel(
                         ).recalculateFlags()
                     }
                 } else {
-                    finishFailure(throwable.message ?: "Unable to save audiobook tags.")
+                    finishFailure(throwable.message ?: "Unable to save audiobook tags")
                 }
             }
     }

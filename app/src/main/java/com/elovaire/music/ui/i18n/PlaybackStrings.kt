@@ -10,6 +10,14 @@ import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 
 internal fun playingFromPrefix(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Възпроизвеждане от"
+    AppLanguage.Catalan -> "Reproduint des de"
+    AppLanguage.Finnish -> "Toistetaan lähteestä"
+    AppLanguage.Romanian -> "Se redă din"
+    AppLanguage.Slovenian -> "Predvajanje iz"
+    AppLanguage.Bosnian -> "Reprodukcija iz"
+    AppLanguage.Indonesian -> "Diputar dari"
+    AppLanguage.Punjabi -> "ਇੱਥੋਂ ਚੱਲ ਰਿਹਾ ਹੈ"
     AppLanguage.Polish -> "Odtwarzanie z"
     AppLanguage.Slovak -> "Prehráva sa z"
     AppLanguage.ChineseSimplified -> "播放来源"
@@ -54,6 +62,14 @@ internal fun localizedAllSongsSource(language: AppLanguage): String = when (lang
 internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language: AppLanguage): String = when (type) {
     BuiltInSmartPlaylistType.RecentlyAdded -> miscPhrase(language, MiscPhrase.RecentlyAdded)
     BuiltInSmartPlaylistType.MostPlayed -> when (language) {
+        AppLanguage.Bulgarian -> "Най-слушани"
+        AppLanguage.Catalan -> "Més escoltades"
+        AppLanguage.Finnish -> "Eniten soitetut"
+        AppLanguage.Romanian -> "Cele mai ascultate"
+        AppLanguage.Slovenian -> "Največkrat predvajano"
+        AppLanguage.Bosnian -> "Najslušanije"
+        AppLanguage.Indonesian -> "Paling sering diputar"
+        AppLanguage.Punjabi -> "ਸਭ ਤੋਂ ਵੱਧ ਚੱਲੇ"
         AppLanguage.Albanian -> "Më të luajturat"
         AppLanguage.Bengali -> "সবচেয়ে বেশি শোনা"
         AppLanguage.Croatian -> "Najslušanije"
@@ -89,6 +105,14 @@ internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language:
         AppLanguage.English -> "Most played"
     }
     BuiltInSmartPlaylistType.Favorites -> when (language) {
+        AppLanguage.Bulgarian -> "Любими"
+        AppLanguage.Catalan -> "Preferides"
+        AppLanguage.Finnish -> "Suosikit"
+        AppLanguage.Romanian -> "Favorite"
+        AppLanguage.Slovenian -> "Priljubljeno"
+        AppLanguage.Bosnian -> "Omiljeno"
+        AppLanguage.Indonesian -> "Favorit"
+        AppLanguage.Punjabi -> "ਮਨਪਸੰਦ"
         AppLanguage.Albanian -> "Të preferuarat"
         AppLanguage.Bengali -> "পছন্দের"
         AppLanguage.Croatian -> "Favoriti"
@@ -128,6 +152,14 @@ internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language:
 internal fun artistTopTracksSubtitle(count: Int, language: AppLanguage): String {
     val tracks = localizedCountLabel(count, "track", language)
     val suffix = when (language) {
+        AppLanguage.Bulgarian -> "към които се връщате най-често"
+        AppLanguage.Catalan -> "que escoltes més sovint"
+        AppLanguage.Finnish -> "joihin palaat useimmin"
+        AppLanguage.Romanian -> "pe care le asculți cel mai des"
+        AppLanguage.Slovenian -> "h katerim se najpogosteje vračate"
+        AppLanguage.Bosnian -> "kojima se najčešće vraćate"
+        AppLanguage.Indonesian -> "yang paling sering Anda dengarkan"
+        AppLanguage.Punjabi -> "ਜੋ ਤੁਸੀਂ ਸਭ ਤੋਂ ਵੱਧ ਸੁਣਦੇ ਹੋ"
         AppLanguage.Albanian -> "që i ktheheni më shpesh"
         AppLanguage.Bengali -> "যেগুলোতে আপনি সবচেয়ে বেশি ফিরে আসেন"
         AppLanguage.Croatian -> "kojima se najčešće vraćate"
@@ -166,6 +198,14 @@ internal fun artistTopTracksSubtitle(count: Int, language: AppLanguage): String 
 }
 
 internal fun privacyPolicySettingsSubtitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Научете как приложението защитава данните ви"
+    AppLanguage.Catalan -> "Descobreix com l’aplicació protegeix les teves dades"
+    AppLanguage.Finnish -> "Lue, miten sovellus suojaa tietojasi"
+    AppLanguage.Romanian -> "Află cum îți protejează aplicația datele"
+    AppLanguage.Slovenian -> "Preberite, kako aplikacija varuje vaše podatke"
+    AppLanguage.Bosnian -> "Saznajte kako aplikacija štiti vaše podatke"
+    AppLanguage.Indonesian -> "Pelajari cara aplikasi melindungi data Anda"
+    AppLanguage.Punjabi -> "ਜਾਣੋ ਐਪ ਤੁਹਾਡੇ ਡੇਟਾ ਦੀ ਸੁਰੱਖਿਆ ਕਿਵੇਂ ਕਰਦੀ ਹੈ"
     AppLanguage.Albanian -> "Si i trajton Elovaire skedarët, lejet, kërkesat e rrjetit dhe të dhënat e aplikacionit"
     AppLanguage.Bengali -> "Elovaire কীভাবে ফাইল, অনুমতি, নেটওয়ার্ক অনুরোধ ও অ্যাপ ডেটা পরিচালনা করে"
     AppLanguage.Croatian -> "Kako Elovaire upravlja datotekama, dozvolama, mrežnim zahtjevima i podacima aplikacije"
@@ -202,6 +242,14 @@ internal fun privacyPolicySettingsSubtitle(language: AppLanguage): String = when
 }
 
 internal fun discLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Диск"
+    AppLanguage.Catalan -> "Disc"
+    AppLanguage.Finnish -> "Levy"
+    AppLanguage.Romanian -> "Disc"
+    AppLanguage.Slovenian -> "Disk"
+    AppLanguage.Bosnian -> "Disk"
+    AppLanguage.Indonesian -> "Cakram"
+    AppLanguage.Punjabi -> "ਡਿਸਕ"
     AppLanguage.Albanian -> "Disku"
     AppLanguage.English -> "Disc"
     AppLanguage.ChineseSimplified -> "碟片"
@@ -240,6 +288,14 @@ internal fun discLabel(language: AppLanguage): String = when (language) {
 @Suppress("CyclomaticComplexMethod")
 internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): String = when {
     presetName != null -> when (language) {
+        AppLanguage.Bulgarian -> "Избрано: $presetName"
+        AppLanguage.Catalan -> "Definit a $presetName"
+        AppLanguage.Finnish -> "Valittu: $presetName"
+        AppLanguage.Romanian -> "Setat la $presetName"
+        AppLanguage.Slovenian -> "Nastavljeno na $presetName"
+        AppLanguage.Bosnian -> "Postavljeno na $presetName"
+        AppLanguage.Indonesian -> "Disetel ke $presetName"
+        AppLanguage.Punjabi -> "$presetName ਸੈੱਟ ਹੈ"
         AppLanguage.Albanian -> "Caktuar në $presetName"
         AppLanguage.English -> "Set to $presetName"
         AppLanguage.ChineseSimplified -> "已设为 $presetName"
@@ -275,6 +331,14 @@ internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): S
         AppLanguage.Urdu -> "$presetName پر سیٹ ہے"
     }
     else -> when (language) {
+        AppLanguage.Bulgarian -> "Изключен"
+        AppLanguage.Catalan -> "Actualment desactivat"
+        AppLanguage.Finnish -> "Tällä hetkellä pois käytöstä"
+        AppLanguage.Romanian -> "Dezactivat momentan"
+        AppLanguage.Slovenian -> "Trenutno izklopljeno"
+        AppLanguage.Bosnian -> "Trenutno isključeno"
+        AppLanguage.Indonesian -> "Saat ini nonaktif"
+        AppLanguage.Punjabi -> "ਇਸ ਵੇਲੇ ਬੰਦ ਹੈ"
         AppLanguage.Albanian -> "Aktualisht i fikur"
         AppLanguage.English -> "Currently off"
         AppLanguage.ChineseSimplified -> "当前已关闭"
@@ -312,6 +376,14 @@ internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): S
 }
 
 internal fun queueTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Опашка"
+    AppLanguage.Catalan -> "Cua"
+    AppLanguage.Finnish -> "Toistojono"
+    AppLanguage.Romanian -> "Coadă"
+    AppLanguage.Slovenian -> "Čakalna vrsta"
+    AppLanguage.Bosnian -> "Red čekanja"
+    AppLanguage.Indonesian -> "Antrean"
+    AppLanguage.Punjabi -> "ਕਤਾਰ"
     AppLanguage.Polish -> "Kolejka"
     AppLanguage.Slovak -> "Front"
     AppLanguage.ChineseSimplified -> "队列"
@@ -357,6 +429,14 @@ internal data class SleepTimerCopy(
 )
 
 internal fun sleepTimerCopy(language: AppLanguage): SleepTimerCopy = when (language) {
+    AppLanguage.Bulgarian -> SleepTimerCopy("Таймер за заспиване", "Изключен", "Край на песента", "Потвърди", "Затвори таймера", " мин")
+    AppLanguage.Catalan -> SleepTimerCopy("Temporitzador de son", "Desactivat", "Final de la cançó", "Confirma", "Tanca el temporitzador")
+    AppLanguage.Finnish -> SleepTimerCopy("Uniajastin", "Pois", "Kappaleen lopussa", "Vahvista", "Sulje uniajastin")
+    AppLanguage.Romanian -> SleepTimerCopy("Temporizator de somn", "Oprit", "Sfârșitul melodiei", "Confirmă", "Închide temporizatorul")
+    AppLanguage.Slovenian -> SleepTimerCopy("Časovnik za spanje", "Izklopljeno", "Konec skladbe", "Potrdi", "Zapri časovnik")
+    AppLanguage.Bosnian -> SleepTimerCopy("Tajmer za spavanje", "Isključeno", "Kraj pjesme", "Potvrdi", "Zatvori tajmer")
+    AppLanguage.Indonesian -> SleepTimerCopy("Timer tidur", "Nonaktif", "Akhir lagu", "Konfirmasi", "Tutup timer tidur")
+    AppLanguage.Punjabi -> SleepTimerCopy("ਸਲੀਪ ਟਾਈਮਰ", "ਬੰਦ", "ਗੀਤ ਦਾ ਅੰਤ", "ਪੁਸ਼ਟੀ ਕਰੋ", "ਸਲੀਪ ਟਾਈਮਰ ਬੰਦ ਕਰੋ", " ਮਿੰਟ")
     AppLanguage.Albanian -> SleepTimerCopy("Kohëmatësi i gjumit", "Fikur", "Fundi i këngës", "Konfirmo", "Mbyll kohëmatësin")
     AppLanguage.English -> SleepTimerCopy("Sleep timer", "Off", "End of song", "Confirm", "Close sleep timer")
     AppLanguage.ChineseSimplified -> SleepTimerCopy("睡眠定时器", "关闭", "歌曲结束时", "确认", "关闭睡眠定时器", " 分钟")
@@ -393,6 +473,14 @@ internal fun sleepTimerCopy(language: AppLanguage): SleepTimerCopy = when (langu
 }
 
 internal fun playLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Bulgarian -> "Пусни"
+    AppLanguage.Catalan -> "Reprodueix"
+    AppLanguage.Finnish -> "Toista"
+    AppLanguage.Romanian -> "Redă"
+    AppLanguage.Slovenian -> "Predvajaj"
+    AppLanguage.Bosnian -> "Pusti"
+    AppLanguage.Indonesian -> "Putar"
+    AppLanguage.Punjabi -> "ਚਲਾਓ"
     AppLanguage.Polish -> "Odtwórz"
     AppLanguage.Slovak -> "Prehrať"
     AppLanguage.ChineseSimplified -> "播放"

@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
@@ -49,6 +50,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.recentAdditionsEmptyMessage
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
@@ -341,7 +343,7 @@ private fun RecentlyAddedSearchControls(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_x),
-                            contentDescription = "Clear search",
+                            contentDescription = searchCopy(LocalAppLanguage.current).clearSearch,
                             tint = searchBarContentColor.copy(alpha = 0.86f),
                             modifier = Modifier.size(14.dp),
                         )
@@ -365,20 +367,21 @@ private fun RecentlyAddedSearchControls(
 private fun RecentlyAddedEmptyState(
     modifier: Modifier = Modifier,
 ) {
+    val language = LocalAppLanguage.current
     Column(
         modifier = modifier.padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "No matches found",
+            text = if (language == AppLanguage.English) "No matches found" else searchCopy(language).noResultsTitle,
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Add music to your device to see something here",
+            text = recentAdditionsEmptyMessage(language),
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

@@ -177,7 +177,7 @@ internal fun SmartPlaylistDetailScreen(
         SimpleConfirmDialog(
             visible = showDeleteConfirm,
             title = "Delete smart playlist?",
-            body = "This removes only the saved rules.",
+            body = "This removes only the saved rules",
             confirmLabel = "Delete",
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {

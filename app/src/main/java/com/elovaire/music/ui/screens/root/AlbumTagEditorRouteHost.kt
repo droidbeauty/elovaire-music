@@ -112,9 +112,9 @@ private fun AlbumTagWriteEffects(
             operationId = operationId,
             granted = granted,
             failureMessage = if (uri == null) {
-                "Write access was not granted."
+                "Write access was not granted"
             } else {
-                "The selected folder did not grant persistent write access."
+                "The selected folder did not grant persistent write access"
             },
         )
         if (!granted) safWriteAttemptedOperationId = null
@@ -221,7 +221,7 @@ private fun firstSafWriteProblem(
                 ?.let { failure ->
                     SafWriteProblem(
                         uri = target.uri,
-                        message = failure.message ?: "The selected document provider does not allow tag editing.",
+                        message = failure.message ?: "The selected document provider does not allow tag editing",
                     )
                 }
         }

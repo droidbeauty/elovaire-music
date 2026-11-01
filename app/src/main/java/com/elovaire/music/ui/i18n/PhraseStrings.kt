@@ -38,7 +38,18 @@ internal fun uiPhrase(language: AppLanguage, phrase: UiPhrase): String {
     return uiPhraseTranslations[language]?.get(phrase) ?: uiPhraseTranslations.getValue(AppLanguage.English).getValue(phrase)
 }
 
+internal fun hasUiPhraseTranslation(language: AppLanguage, phrase: UiPhrase): Boolean =
+    uiPhraseTranslations[language]?.containsKey(phrase) == true
+
 private val uiPhraseTranslations = mapOf(
+    AppLanguage.Bulgarian to mapOf(UiPhrase.About to "Относно", UiPhrase.AddToPlaylist to "Добави към плейлист", UiPhrase.AddToQueue to "Добави към опашката", UiPhrase.GoToAlbum to "Към албума", UiPhrase.DeleteFromLibrary to "Изтрий от библиотеката", UiPhrase.DeleteAlbum to "Изтрий албума", UiPhrase.Delete to "Изтрий", UiPhrase.Rename to "Преименувай", UiPhrase.RemoveFromList to "Премахни от списъка", UiPhrase.NewPlaylist to "Нов плейлист", UiPhrase.Cancel to "Отказ", UiPhrase.Create to "Създай", UiPhrase.Reset to "Нулирай", UiPhrase.Dry to "Без ефект", UiPhrase.Wet to "С ефект", UiPhrase.Off to "Изключено", UiPhrase.Reverb to "Реверберация", UiPhrase.ToneShaping to "Тонален баланс", UiPhrase.Bass to "Бас", UiPhrase.Midrange to "Средни", UiPhrase.Treble to "Високи", UiPhrase.EffectStrength to "Сила на ефекта"),
+    AppLanguage.Catalan to mapOf(UiPhrase.About to "Quant a", UiPhrase.AddToPlaylist to "Afegeix a la llista", UiPhrase.AddToQueue to "Afegeix a la cua", UiPhrase.GoToAlbum to "Ves a l’àlbum", UiPhrase.DeleteFromLibrary to "Suprimeix de la biblioteca", UiPhrase.DeleteAlbum to "Suprimeix l’àlbum", UiPhrase.Delete to "Suprimeix", UiPhrase.Rename to "Canvia el nom", UiPhrase.RemoveFromList to "Treu de la llista", UiPhrase.NewPlaylist to "Llista nova", UiPhrase.Cancel to "Cancel·la", UiPhrase.Create to "Crea", UiPhrase.Reset to "Restableix", UiPhrase.Dry to "Sense efecte", UiPhrase.Wet to "Amb efecte", UiPhrase.Off to "Desactivat", UiPhrase.Reverb to "Reverberació", UiPhrase.ToneShaping to "Balanç tonal", UiPhrase.Bass to "Greus", UiPhrase.Midrange to "Mitjans", UiPhrase.Treble to "Aguts", UiPhrase.EffectStrength to "Intensitat de l’efecte"),
+    AppLanguage.Finnish to mapOf(UiPhrase.About to "Tietoja", UiPhrase.AddToPlaylist to "Lisää soittolistalle", UiPhrase.AddToQueue to "Lisää jonoon", UiPhrase.GoToAlbum to "Siirry albumiin", UiPhrase.DeleteFromLibrary to "Poista kirjastosta", UiPhrase.DeleteAlbum to "Poista albumi", UiPhrase.Delete to "Poista", UiPhrase.Rename to "Nimeä uudelleen", UiPhrase.RemoveFromList to "Poista listalta", UiPhrase.NewPlaylist to "Uusi soittolista", UiPhrase.Cancel to "Peruuta", UiPhrase.Create to "Luo", UiPhrase.Reset to "Palauta", UiPhrase.Dry to "Ilman tehostetta", UiPhrase.Wet to "Tehostettu", UiPhrase.Off to "Pois", UiPhrase.Reverb to "Kaiku", UiPhrase.ToneShaping to "Äänitasapaino", UiPhrase.Bass to "Basso", UiPhrase.Midrange to "Keskiäänet", UiPhrase.Treble to "Diskantti", UiPhrase.EffectStrength to "Tehosteen voimakkuus"),
+    AppLanguage.Romanian to mapOf(UiPhrase.About to "Despre", UiPhrase.AddToPlaylist to "Adaugă la listă", UiPhrase.AddToQueue to "Adaugă la coadă", UiPhrase.GoToAlbum to "Mergi la album", UiPhrase.DeleteFromLibrary to "Șterge din bibliotecă", UiPhrase.DeleteAlbum to "Șterge albumul", UiPhrase.Delete to "Șterge", UiPhrase.Rename to "Redenumește", UiPhrase.RemoveFromList to "Elimină din listă", UiPhrase.NewPlaylist to "Listă nouă", UiPhrase.Cancel to "Anulează", UiPhrase.Create to "Creează", UiPhrase.Reset to "Resetează", UiPhrase.Dry to "Fără efect", UiPhrase.Wet to "Cu efect", UiPhrase.Off to "Oprit", UiPhrase.Reverb to "Reverberație", UiPhrase.ToneShaping to "Echilibru tonal", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Medii", UiPhrase.Treble to "Înalte", UiPhrase.EffectStrength to "Intensitatea efectului"),
+    AppLanguage.Slovenian to mapOf(UiPhrase.About to "O aplikaciji", UiPhrase.AddToPlaylist to "Dodaj na seznam", UiPhrase.AddToQueue to "Dodaj v čakalno vrsto", UiPhrase.GoToAlbum to "Pojdi na album", UiPhrase.DeleteFromLibrary to "Izbriši iz knjižnice", UiPhrase.DeleteAlbum to "Izbriši album", UiPhrase.Delete to "Izbriši", UiPhrase.Rename to "Preimenuj", UiPhrase.RemoveFromList to "Odstrani s seznama", UiPhrase.NewPlaylist to "Nov seznam", UiPhrase.Cancel to "Prekliči", UiPhrase.Create to "Ustvari", UiPhrase.Reset to "Ponastavi", UiPhrase.Dry to "Brez učinka", UiPhrase.Wet to "Z učinkom", UiPhrase.Off to "Izklopljeno", UiPhrase.Reverb to "Odmev", UiPhrase.ToneShaping to "Tonsko ravnovesje", UiPhrase.Bass to "Nizki toni", UiPhrase.Midrange to "Srednji toni", UiPhrase.Treble to "Visoki toni", UiPhrase.EffectStrength to "Moč učinka"),
+    AppLanguage.Bosnian to mapOf(UiPhrase.About to "O aplikaciji", UiPhrase.AddToPlaylist to "Dodaj u plejlistu", UiPhrase.AddToQueue to "Dodaj u red", UiPhrase.GoToAlbum to "Idi na album", UiPhrase.DeleteFromLibrary to "Izbriši iz biblioteke", UiPhrase.DeleteAlbum to "Izbriši album", UiPhrase.Delete to "Izbriši", UiPhrase.Rename to "Preimenuj", UiPhrase.RemoveFromList to "Ukloni s liste", UiPhrase.NewPlaylist to "Nova plejlista", UiPhrase.Cancel to "Otkaži", UiPhrase.Create to "Kreiraj", UiPhrase.Reset to "Resetuj", UiPhrase.Dry to "Suho", UiPhrase.Wet to "Mokro", UiPhrase.Off to "Isključeno", UiPhrase.Reverb to "Odjek", UiPhrase.ToneShaping to "Tonski balans", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Srednji", UiPhrase.Treble to "Visoki", UiPhrase.EffectStrength to "Jačina efekta"),
+    AppLanguage.Indonesian to mapOf(UiPhrase.About to "Tentang", UiPhrase.AddToPlaylist to "Tambahkan ke daftar putar", UiPhrase.AddToQueue to "Tambahkan ke antrean", UiPhrase.GoToAlbum to "Buka album", UiPhrase.DeleteFromLibrary to "Hapus dari pustaka", UiPhrase.DeleteAlbum to "Hapus album", UiPhrase.Delete to "Hapus", UiPhrase.Rename to "Ganti nama", UiPhrase.RemoveFromList to "Hapus dari daftar", UiPhrase.NewPlaylist to "Daftar putar baru", UiPhrase.Cancel to "Batal", UiPhrase.Create to "Buat", UiPhrase.Reset to "Atur ulang", UiPhrase.Dry to "Kering", UiPhrase.Wet to "Basah", UiPhrase.Off to "Nonaktif", UiPhrase.Reverb to "Reverb", UiPhrase.ToneShaping to "Keseimbangan nada", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Tengah", UiPhrase.Treble to "Tinggi", UiPhrase.EffectStrength to "Kekuatan efek"),
+    AppLanguage.Punjabi to mapOf(UiPhrase.About to "ਬਾਰੇ", UiPhrase.AddToPlaylist to "ਪਲੇਲਿਸਟ ਵਿੱਚ ਜੋੜੋ", UiPhrase.AddToQueue to "ਕਤਾਰ ਵਿੱਚ ਜੋੜੋ", UiPhrase.GoToAlbum to "ਐਲਬਮ ਖੋਲ੍ਹੋ", UiPhrase.DeleteFromLibrary to "ਲਾਇਬ੍ਰੇਰੀ ਤੋਂ ਮਿਟਾਓ", UiPhrase.DeleteAlbum to "ਐਲਬਮ ਮਿਟਾਓ", UiPhrase.Delete to "ਮਿਟਾਓ", UiPhrase.Rename to "ਨਾਮ ਬਦਲੋ", UiPhrase.RemoveFromList to "ਸੂਚੀ ਤੋਂ ਹਟਾਓ", UiPhrase.NewPlaylist to "ਨਵੀਂ ਪਲੇਲਿਸਟ", UiPhrase.Cancel to "ਰੱਦ ਕਰੋ", UiPhrase.Create to "ਬਣਾਓ", UiPhrase.Reset to "ਰੀਸੈੱਟ ਕਰੋ", UiPhrase.Dry to "ਸੁੱਕਾ", UiPhrase.Wet to "ਗਿੱਲਾ", UiPhrase.Off to "ਬੰਦ", UiPhrase.Reverb to "ਰੀਵਰਬ", UiPhrase.ToneShaping to "ਸੁਰ ਸੰਤੁਲਨ", UiPhrase.Bass to "ਬਾਸ", UiPhrase.Midrange to "ਮੱਧ", UiPhrase.Treble to "ਉੱਚੀਆਂ ਧੁਨਾਂ", UiPhrase.EffectStrength to "ਪ੍ਰਭਾਵ ਦੀ ਤਾਕਤ"),
     AppLanguage.English to mapOf(
         UiPhrase.About to "About",
         UiPhrase.AddToPlaylist to "Add to playlist",
@@ -101,6 +112,14 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
     return when (this) {
         SpaciousnessMode.Off -> uiPhrase(language, UiPhrase.Off)
         SpaciousnessMode.StereoWidth -> when (language) {
+            AppLanguage.Bulgarian -> "Стерео ширина"
+            AppLanguage.Catalan -> "Amplada estèreo"
+            AppLanguage.Finnish -> "Stereoleveys"
+            AppLanguage.Romanian -> "Lățime stereo"
+            AppLanguage.Slovenian -> "Širina sterea"
+            AppLanguage.Bosnian -> "Stereo širina"
+            AppLanguage.Indonesian -> "Lebar stereo"
+            AppLanguage.Punjabi -> "ਸਟੀਰੀਓ ਚੌੜਾਈ"
             AppLanguage.Albanian -> "Gjerësi stereo"
             AppLanguage.Polish -> "Szerokość stereo"
             AppLanguage.Hindi -> "स्टीरियो चौड़ाई"
@@ -133,9 +152,17 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Urdu -> "اسٹیریو چوڑائی"
             AppLanguage.ChineseSimplified -> "立体声宽度"
             AppLanguage.Japanese -> "ステレオ幅"
-            else -> "Stereo Width"
+            AppLanguage.English -> "Stereo Width"
         }
         SpaciousnessMode.CrossfeedDepth -> when (language) {
+            AppLanguage.Bulgarian -> "Смесване на каналите"
+            AppLanguage.Catalan -> "Mescla de canals"
+            AppLanguage.Finnish -> "Kanavien ristiinsyöttö"
+            AppLanguage.Romanian -> "Amestecarea canalelor"
+            AppLanguage.Slovenian -> "Prepletanje kanalov"
+            AppLanguage.Bosnian -> "Unakrsno miješanje"
+            AppLanguage.Indonesian -> "Campur silang"
+            AppLanguage.Punjabi -> "ਕਰਾਸਫੀਡ"
             AppLanguage.Albanian -> "Përzierje kanalesh"
             AppLanguage.Polish -> "Przenikanie kanałów"
             AppLanguage.Hindi -> "क्रॉसफीड"
@@ -168,9 +195,17 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Urdu -> "کراس فیڈ"
             AppLanguage.ChineseSimplified -> "交叉馈送"
             AppLanguage.Japanese -> "クロスフィード"
-            else -> "Crossfeed"
+            AppLanguage.English -> "Crossfeed"
         }
         SpaciousnessMode.EarlyReflectionRoom -> when (language) {
+            AppLanguage.Bulgarian -> "Помещение"
+            AppLanguage.Catalan -> "Sala"
+            AppLanguage.Finnish -> "Huone"
+            AppLanguage.Romanian -> "Cameră"
+            AppLanguage.Slovenian -> "Prostor"
+            AppLanguage.Bosnian -> "Prostorija"
+            AppLanguage.Indonesian -> "Ruangan"
+            AppLanguage.Punjabi -> "ਕਮਰਾ"
             AppLanguage.Albanian -> "Dhomë"
             AppLanguage.Polish -> "Pokój"
             AppLanguage.Hindi -> "कमरा"
@@ -203,9 +238,17 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Urdu -> "کمرہ"
             AppLanguage.ChineseSimplified -> "房间"
             AppLanguage.Japanese -> "ルーム"
-            else -> "Room"
+            AppLanguage.English -> "Room"
         }
         SpaciousnessMode.Philharmony -> when (language) {
+            AppLanguage.Bulgarian -> "Филхармония"
+            AppLanguage.Catalan -> "Filharmonia"
+            AppLanguage.Finnish -> "Filharmonia"
+            AppLanguage.Romanian -> "Filarmonică"
+            AppLanguage.Slovenian -> "Filharmonija"
+            AppLanguage.Bosnian -> "Filharmonija"
+            AppLanguage.Indonesian -> "Filharmoni"
+            AppLanguage.Punjabi -> "ਫਿਲਹਾਰਮਨੀ"
             AppLanguage.Albanian -> "Filarmonia"
             AppLanguage.Polish -> "Filharmonia"
             AppLanguage.Hindi -> "फिलहार्मनी"
@@ -238,9 +281,17 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Urdu -> "فلہارمونی"
             AppLanguage.ChineseSimplified -> "爱乐厅"
             AppLanguage.Japanese -> "フィルハーモニー"
-            else -> "Philharmony"
+            AppLanguage.English -> "Philharmony"
         }
         SpaciousnessMode.HaasSpace -> when (language) {
+            AppLanguage.Bulgarian -> "Пространство на Хаас"
+            AppLanguage.Catalan -> "Espai Haas"
+            AppLanguage.Finnish -> "Haas-tilavaikutelma"
+            AppLanguage.Romanian -> "Spațiu Haas"
+            AppLanguage.Slovenian -> "Haasov prostor"
+            AppLanguage.Bosnian -> "Haasov prostor"
+            AppLanguage.Indonesian -> "Ruang Haas"
+            AppLanguage.Punjabi -> "ਹਾਸ ਸਪੇਸ"
             AppLanguage.Albanian -> "Hapësira Haas"
             AppLanguage.Polish -> "Przestrzeń Haasa"
             AppLanguage.Hindi -> "हास स्पेस"
@@ -273,9 +324,17 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Urdu -> "ہاس اسپیس"
             AppLanguage.ChineseSimplified -> "Haas 空间"
             AppLanguage.Japanese -> "ハース空間"
-            else -> "Haas Space"
+            AppLanguage.English -> "Haas Space"
         }
         SpaciousnessMode.HarmonicAir -> when (language) {
+            AppLanguage.Bulgarian -> "Хармонична ефирност"
+            AppLanguage.Catalan -> "Aire harmònic"
+            AppLanguage.Finnish -> "Harmoninen ilmavuus"
+            AppLanguage.Romanian -> "Aer armonic"
+            AppLanguage.Slovenian -> "Harmonična zračnost"
+            AppLanguage.Bosnian -> "Harmonijski prostor"
+            AppLanguage.Indonesian -> "Udara harmonis"
+            AppLanguage.Punjabi -> "ਹਾਰਮੋਨਿਕ ਏਅਰ"
             AppLanguage.Albanian -> "Ajër harmonik"
             AppLanguage.Polish -> "Harmoniczne powietrze"
             AppLanguage.Hindi -> "हार्मोनिक एयर"
@@ -308,7 +367,7 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Urdu -> "ہارمونک ایئر"
             AppLanguage.ChineseSimplified -> "和声音场"
             AppLanguage.Japanese -> "ハーモニックエア"
-            else -> "Harmonic Air"
+            AppLanguage.English -> "Harmonic Air"
         }
     }
 }

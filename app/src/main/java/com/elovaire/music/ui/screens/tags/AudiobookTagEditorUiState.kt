@@ -148,10 +148,10 @@ internal fun AudiobookTagEditorUiState.toAudiobookTagEditRequest(): AudiobookTag
 internal fun AudiobookTagEditorUiState.recalculateFlags(): AudiobookTagEditorUiState {
     val book = originalBook
     val errors = buildList {
-        if (bookTitle.isBlank()) add("Book title cannot be empty.")
-        if (author.isBlank()) add("Author cannot be empty.")
+        if (bookTitle.isBlank()) add("Book title cannot be empty")
+        if (author.isBlank()) add("Author cannot be empty")
         if (releaseYear.isNotBlank() && releaseYear.toIntOrNull() !in 1..9999) {
-            add("Release year must be between 1 and 9999.")
+            add("Release year must be between 1 and 9999")
         }
         parts.forEach { part ->
             if (part.trackNumber.toIntOrNull() !in 1..9999 || part.discNumber.toIntOrNull() !in 1..9999) {

@@ -12,6 +12,14 @@ internal data class EqualizerCopy(
 )
 
 internal fun equalizerCopy(language: AppLanguage): EqualizerCopy = when (language) {
+    AppLanguage.Bulgarian -> EqualizerCopy("Настройки", "Запази настройката", "Име на настройката", "Вашите настройки", "Замени", "Името вече се използва; запазването ще замени настройката")
+    AppLanguage.Catalan -> EqualizerCopy("Predefinits", "Desa el predefinit", "Nom del predefinit", "Els teus predefinits", "Substitueix", "Aquest nom ja existeix; en desar-lo se substituirà el predefinit")
+    AppLanguage.Finnish -> EqualizerCopy("Esiasetukset", "Tallenna esiasetus", "Esiasetuksen nimi", "Omat esiasetukset", "Korvaa", "Nimi on jo käytössä; tallentaminen korvaa nykyisen esiasetuksen")
+    AppLanguage.Romanian -> EqualizerCopy("Presetări", "Salvează presetarea", "Numele presetării", "Presetările tale", "Înlocuiește", "Numele este deja folosit; salvarea va înlocui presetarea")
+    AppLanguage.Slovenian -> EqualizerCopy("Prednastavitve", "Shrani prednastavitev", "Ime prednastavitve", "Vaše prednastavitve", "Zamenjaj", "Ime je že v uporabi; shranjevanje bo zamenjalo obstoječo prednastavitev")
+    AppLanguage.Bosnian -> EqualizerCopy("Postavke", "Sačuvaj postavku", "Naziv postavke", "Vaše postavke", "Zamijeni", "Ovaj naziv se već koristi; spremanje će zamijeniti postojeću postavku")
+    AppLanguage.Indonesian -> EqualizerCopy("Prasetel", "Simpan prasetel", "Nama prasetel", "Prasetel Anda", "Ganti", "Nama ini sudah digunakan; menyimpan akan mengganti prasetel tersebut")
+    AppLanguage.Punjabi -> EqualizerCopy("ਪ੍ਰੀਸੈੱਟ", "ਪ੍ਰੀਸੈੱਟ ਸੰਭਾਲੋ", "ਪ੍ਰੀਸੈੱਟ ਦਾ ਨਾਮ", "ਤੁਹਾਡੇ ਪ੍ਰੀਸੈੱਟ", "ਬਦਲੋ", "ਇਹ ਨਾਮ ਪਹਿਲਾਂ ਹੀ ਵਰਤਿਆ ਗਿਆ ਹੈ; ਸੰਭਾਲਣ ਨਾਲ ਪੁਰਾਣਾ ਪ੍ਰੀਸੈੱਟ ਬਦਲ ਜਾਵੇਗਾ")
     AppLanguage.English -> EqualizerCopy("Presets", "Save preset", "Preset name", "Your presets", "Replace", "This name is already in use; saving will replace that preset")
     AppLanguage.Polish -> EqualizerCopy("Ustawienia korektora", "Zapisz ustawienia", "Nazwa ustawień", "Twoje ustawienia", "Zastąp", "Ta nazwa jest już używana — zapisanie zastąpi poprzednie ustawienia")
     AppLanguage.Albanian -> EqualizerCopy("Paracaktime", "Ruaj paracaktimin", "Emri i paracaktimit", "Paracaktimet e tua", "Zëvendëso", "Ky emër është në përdorim; ruajtja do të zëvendësojë paracaktimin")

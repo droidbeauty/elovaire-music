@@ -89,7 +89,7 @@ private fun AudiobookTagWriteEffects(
         viewModel.onSafWritePermissionResult(
             operationId,
             granted,
-            if (uri == null) "Write access was not granted." else "The selected folder did not grant persistent write access.",
+            if (uri == null) "Write access was not granted" else "The selected folder did not grant persistent write access",
         )
         if (!granted) safWriteAttemptedOperationId = null
     }
@@ -169,7 +169,7 @@ private fun firstAudiobookSafWriteProblem(context: android.content.Context, uris
         .filterIsInstance<MediaWriteTarget.SafDocument>()
         .mapNotNull { target ->
             runCatching { contentIo.requireSafWriteAccess(target.uri) }.exceptionOrNull()?.let { failure ->
-                AudiobookSafWriteProblem(target.uri, failure.message ?: "The selected document provider does not allow tag editing.")
+                AudiobookSafWriteProblem(target.uri, failure.message ?: "The selected document provider does not allow tag editing")
             }
         }
         .firstOrNull()
