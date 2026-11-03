@@ -304,6 +304,7 @@ internal class AlbumTagEditorViewModel(
                     songId = failure.songId,
                     fileName = failure.fileName,
                     reason = failure.reason,
+                    cause = failure.cause,
                 )
             }
             _uiState.value = _uiState.value.copy(

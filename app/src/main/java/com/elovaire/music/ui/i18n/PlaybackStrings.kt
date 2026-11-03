@@ -9,6 +9,50 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 
+internal fun pauseLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Pauzë"
+    AppLanguage.Bosnian -> "Pauziraj"
+    AppLanguage.Bulgarian -> "Пауза"
+    AppLanguage.Catalan -> "Pausa"
+    AppLanguage.Finnish -> "Tauko"
+    AppLanguage.Romanian -> "Pauză"
+    AppLanguage.Slovenian -> "Premor"
+    AppLanguage.Indonesian -> "Jeda"
+    AppLanguage.Punjabi -> "ਰੋਕੋ"
+    AppLanguage.English -> "Pause"
+    AppLanguage.ChineseSimplified -> "暂停"
+    AppLanguage.Croatian -> "Pauziraj"
+    AppLanguage.Czech -> "Pozastavit"
+    AppLanguage.Danish -> "Pause"
+    AppLanguage.Dutch -> "Pauzeren"
+    AppLanguage.Bengali -> "বিরতি"
+    AppLanguage.Estonian -> "Paus"
+    AppLanguage.French -> "Pause"
+    AppLanguage.German -> "Pause"
+    AppLanguage.Greek -> "Παύση"
+    AppLanguage.Hindi -> "रोकें"
+    AppLanguage.Hungarian -> "Szünet"
+    AppLanguage.Italian -> "Pausa"
+    AppLanguage.Japanese -> "一時停止"
+    AppLanguage.Korean -> "일시정지"
+    AppLanguage.Latin -> "Intermitte"
+    AppLanguage.Latvian -> "Pauze"
+    AppLanguage.Lithuanian -> "Pristabdyti"
+    AppLanguage.Malay -> "Jeda"
+    AppLanguage.Macedonian -> "Пауза"
+    AppLanguage.Norwegian -> "Pause"
+    AppLanguage.Polish -> "Wstrzymaj"
+    AppLanguage.Portuguese -> "Pausa"
+    AppLanguage.Russian -> "Пауза"
+    AppLanguage.Slovak -> "Pozastaviť"
+    AppLanguage.Serbian -> "Пауза"
+    AppLanguage.Spanish -> "Pausar"
+    AppLanguage.Swedish -> "Pausa"
+    AppLanguage.Thai -> "หยุดชั่วคราว"
+    AppLanguage.Ukrainian -> "Пауза"
+    AppLanguage.Urdu -> "توقف"
+}
+
 internal fun playingFromPrefix(language: AppLanguage): String = when (language) {
     AppLanguage.Bulgarian -> "Възпроизвеждане от"
     AppLanguage.Catalan -> "Reproduint des de"
@@ -286,6 +330,134 @@ internal fun discLabel(language: AppLanguage): String = when (language) {
 }
 
 @Suppress("CyclomaticComplexMethod")
+internal fun equalizerCustomLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Personalizuar"
+    AppLanguage.Bengali -> "নিজস্ব"
+    AppLanguage.Bosnian -> "Prilagođeno"
+    AppLanguage.Bulgarian -> "Персонализирано"
+    AppLanguage.Catalan -> "Personalitzat"
+    AppLanguage.ChineseSimplified -> "自定义"
+    AppLanguage.Croatian -> "Prilagođeno"
+    AppLanguage.Czech -> "Vlastní"
+    AppLanguage.Danish -> "Brugerdefineret"
+    AppLanguage.Dutch -> "Aangepast"
+    AppLanguage.English -> "Custom"
+    AppLanguage.Estonian -> "Kohandatud"
+    AppLanguage.Finnish -> "Mukautettu"
+    AppLanguage.French -> "Personnalisé"
+    AppLanguage.German -> "Benutzerdefiniert"
+    AppLanguage.Greek -> "Προσαρμοσμένο"
+    AppLanguage.Hindi -> "कस्टम"
+    AppLanguage.Hungarian -> "Egyéni"
+    AppLanguage.Indonesian -> "Kustom"
+    AppLanguage.Italian -> "Personalizzato"
+    AppLanguage.Japanese -> "カスタム"
+    AppLanguage.Korean -> "사용자 설정"
+    AppLanguage.Latin -> "Personale"
+    AppLanguage.Latvian -> "Pielāgots"
+    AppLanguage.Lithuanian -> "Pasirinktinis"
+    AppLanguage.Macedonian -> "Приспособено"
+    AppLanguage.Malay -> "Tersuai"
+    AppLanguage.Norwegian -> "Egendefinert"
+    AppLanguage.Polish -> "własne"
+    AppLanguage.Portuguese -> "Personalizado"
+    AppLanguage.Punjabi -> "ਕਸਟਮ"
+    AppLanguage.Romanian -> "Personalizat"
+    AppLanguage.Russian -> "Пользовательский"
+    AppLanguage.Serbian -> "Прилагођено"
+    AppLanguage.Slovak -> "Vlastné"
+    AppLanguage.Slovenian -> "Po meri"
+    AppLanguage.Spanish -> "Personalizado"
+    AppLanguage.Swedish -> "Anpassad"
+    AppLanguage.Thai -> "กำหนดเอง"
+    AppLanguage.Ukrainian -> "Власний"
+    AppLanguage.Urdu -> "حسب ضرورت"
+}
+
+internal fun localizedEqualizerPreset(name: String, language: AppLanguage): String {
+    val index = when (name) {
+        "Electronic" -> 0
+        "Classical" -> 1
+        "Acoustic" -> 2
+        "Vocal" -> 3
+        else -> return localizedEqualizerGenre(name, language)
+    }
+    return when (language) {
+        AppLanguage.Albanian -> listOf("Elektronike", "Klasike", "Akustike", "Vokale")
+        AppLanguage.Bengali -> listOf("ইলেকট্রনিক", "ধ্রুপদি", "অ্যাকুস্টিক", "কণ্ঠস্বর")
+        AppLanguage.Bosnian -> listOf("Elektronska", "Klasična", "Akustična", "Vokal")
+        AppLanguage.Bulgarian -> listOf("Електронна", "Класическа", "Акустична", "Вокали")
+        AppLanguage.Catalan -> listOf("Electrònica", "Clàssica", "Acústica", "Veus")
+        AppLanguage.ChineseSimplified -> listOf("电子", "古典", "原声", "人声")
+        AppLanguage.Croatian -> listOf("Elektronička", "Klasična", "Akustična", "Vokali")
+        AppLanguage.Czech -> listOf("Elektronická", "Klasická", "Akustická", "Vokály")
+        AppLanguage.Danish -> listOf("Elektronisk", "Klassisk", "Akustisk", "Vokal")
+        AppLanguage.Dutch -> listOf("Elektronisch", "Klassiek", "Akoestisch", "Vocaal")
+        AppLanguage.English -> listOf("Electronic", "Classical", "Acoustic", "Vocal")
+        AppLanguage.Estonian -> listOf("Elektrooniline", "Klassikaline", "Akustiline", "Vokaal")
+        AppLanguage.Finnish -> listOf("Elektroninen", "Klassinen", "Akustinen", "Laulu")
+        AppLanguage.French -> listOf("Électronique", "Classique", "Acoustique", "Voix")
+        AppLanguage.German -> listOf("Elektronisch", "Klassik", "Akustisch", "Gesang")
+        AppLanguage.Greek -> listOf("Ηλεκτρονική", "Κλασική", "Ακουστική", "Φωνητικά")
+        AppLanguage.Hindi -> listOf("इलेक्ट्रॉनिक", "शास्त्रीय", "अकूस्टिक", "वोकल")
+        AppLanguage.Hungarian -> listOf("Elektronikus", "Klasszikus", "Akusztikus", "Ének")
+        AppLanguage.Indonesian -> listOf("Elektronik", "Klasik", "Akustik", "Vokal")
+        AppLanguage.Italian -> listOf("Elettronica", "Classica", "Acustica", "Voce")
+        AppLanguage.Japanese -> listOf("エレクトロニック", "クラシック", "アコースティック", "ボーカル")
+        AppLanguage.Korean -> listOf("일렉트로닉", "클래식", "어쿠스틱", "보컬")
+        AppLanguage.Latin -> listOf("Electronica", "Classica", "Acustica", "Vox")
+        AppLanguage.Latvian -> listOf("Elektroniskā", "Klasiskā", "Akustiskā", "Vokāls")
+        AppLanguage.Lithuanian -> listOf("Elektroninė", "Klasikinė", "Akustinė", "Vokalas")
+        AppLanguage.Macedonian -> listOf("Електронска", "Класична", "Акустична", "Вокали")
+        AppLanguage.Malay -> listOf("Elektronik", "Klasik", "Akustik", "Vokal")
+        AppLanguage.Norwegian -> listOf("Elektronisk", "Klassisk", "Akustisk", "Vokal")
+        AppLanguage.Polish -> listOf("Elektroniczna", "Klasyczna", "Akustyczna", "Wokal")
+        AppLanguage.Portuguese -> listOf("Eletrónica", "Clássica", "Acústica", "Voz")
+        AppLanguage.Punjabi -> listOf("ਇਲੈਕਟ੍ਰਾਨਿਕ", "ਸ਼ਾਸਤਰੀ", "ਅਕੂਸਟਿਕ", "ਵੋਕਲ")
+        AppLanguage.Romanian -> listOf("Electronică", "Clasică", "Acustică", "Voce")
+        AppLanguage.Russian -> listOf("Электронная", "Классическая", "Акустическая", "Вокал")
+        AppLanguage.Serbian -> listOf("Електронска", "Класична", "Акустична", "Вокали")
+        AppLanguage.Slovak -> listOf("Elektronická", "Klasická", "Akustická", "Vokály")
+        AppLanguage.Slovenian -> listOf("Elektronska", "Klasična", "Akustična", "Vokali")
+        AppLanguage.Spanish -> listOf("Electrónica", "Clásica", "Acústica", "Voz")
+        AppLanguage.Swedish -> listOf("Elektronisk", "Klassisk", "Akustisk", "Sång")
+        AppLanguage.Thai -> listOf("อิเล็กทรอนิกส์", "คลาสสิก", "อะคูสติก", "เสียงร้อง")
+        AppLanguage.Ukrainian -> listOf("Електронна", "Класична", "Акустична", "Вокал")
+        AppLanguage.Urdu -> listOf("الیکٹرانک", "کلاسیکی", "اکوسٹک", "آواز")
+    }[index]
+}
+
+private fun localizedEqualizerGenre(name: String, language: AppLanguage): String {
+    val index = when (name) {
+        "Jazz" -> 0
+        "Pop" -> 1
+        "Rock" -> 2
+        "Metal" -> 3
+        "Soul" -> 4
+        "Hip-Hop" -> 5
+        else -> return name
+    }
+    val labels = when (language) {
+        AppLanguage.Bengali -> listOf("জ্যাজ", "পপ", "রক", "মেটাল", "সোল", "হিপ-হপ")
+        AppLanguage.Bulgarian -> listOf("Джаз", "Поп", "Рок", "Метъл", "Соул", "Хип-хоп")
+        AppLanguage.ChineseSimplified -> listOf("爵士", "流行", "摇滚", "金属", "灵魂乐", "嘻哈")
+        AppLanguage.Greek -> listOf("Τζαζ", "Ποπ", "Ροκ", "Μέταλ", "Σόουλ", "Χιπ χοπ")
+        AppLanguage.Hindi -> listOf("जैज़", "पॉप", "रॉक", "मेटल", "सोल", "हिप-हॉप")
+        AppLanguage.Japanese -> listOf("ジャズ", "ポップ", "ロック", "メタル", "ソウル", "ヒップホップ")
+        AppLanguage.Korean -> listOf("재즈", "팝", "록", "메탈", "소울", "힙합")
+        AppLanguage.Macedonian -> listOf("Џез", "Поп", "Рок", "Метал", "Соул", "Хип-хоп")
+        AppLanguage.Punjabi -> listOf("ਜੈਜ਼", "ਪੌਪ", "ਰੌਕ", "ਮੈਟਲ", "ਸੋਲ", "ਹਿਪ-ਹੌਪ")
+        AppLanguage.Russian -> listOf("Джаз", "Поп", "Рок", "Метал", "Соул", "Хип-хоп")
+        AppLanguage.Serbian -> listOf("Џез", "Поп", "Рок", "Метал", "Соул", "Хип-хоп")
+        AppLanguage.Thai -> listOf("แจ๊ส", "ป๊อป", "ร็อก", "เมทัล", "โซล", "ฮิปฮอป")
+        AppLanguage.Ukrainian -> listOf("Джаз", "Поп", "Рок", "Метал", "Соул", "Хіп-хоп")
+        AppLanguage.Urdu -> listOf("جاز", "پاپ", "راک", "میٹل", "سول", "ہپ ہاپ")
+        else -> return name
+    }
+    return labels[index]
+}
+
+@Suppress("CyclomaticComplexMethod")
 internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): String = when {
     presetName != null -> when (language) {
         AppLanguage.Bulgarian -> "Избрано: $presetName"
@@ -319,7 +491,7 @@ internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): S
         AppLanguage.Malay -> "Ditetapkan kepada $presetName"
         AppLanguage.Macedonian -> "Поставено на $presetName"
         AppLanguage.Norwegian -> "Satt til $presetName"
-        AppLanguage.Polish -> "Ustawiono na $presetName"
+        AppLanguage.Polish -> "Wybrano: $presetName"
         AppLanguage.Portuguese -> "Definido para $presetName"
         AppLanguage.Russian -> "Установлено: $presetName"
         AppLanguage.Slovak -> "Nastavené na $presetName"

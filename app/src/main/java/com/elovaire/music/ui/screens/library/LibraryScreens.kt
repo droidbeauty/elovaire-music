@@ -316,6 +316,8 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 import elovaire.music.droidbeauty.app.ui.i18n.shuffleAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.artistInfoCopy
 import elovaire.music.droidbeauty.app.ui.i18n.closeArtistInfoLabel
@@ -826,7 +828,7 @@ private fun LastPlayedAlbumModule(
             ) {
                 ArtworkImage(
                     uri = album.artUri,
-                    title = album.title,
+                    title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     modifier = Modifier
                         .size(88.dp)
                         .albumSharedArtwork(
@@ -841,14 +843,14 @@ private fun LastPlayedAlbumModule(
                     verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
-                        text = album.title,
+                        text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                         color = contentColor,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = album.artist,
+                        text = localizedArtistName(album.artist, LocalAppLanguage.current),
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                         color = secondaryContentColor,
                         maxLines = 1,
@@ -990,7 +992,7 @@ private fun LastPlayedPlaylistModule(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = artworkSong?.artist.orEmpty(),
+                        text = artworkSong?.artist?.let { localizedArtistName(it, LocalAppLanguage.current) }.orEmpty(),
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                         color = secondaryContentColor,
                         maxLines = 1,
@@ -1503,7 +1505,7 @@ private fun AlbumCollectionContent(
         visible = showPlaylistPicker && selectionModeActive,
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
         subtitle = when (selectedAlbums.size) {
-            1 -> selectedAlbums.first().title
+            1 -> localizedAlbumTitle(selectedAlbums.first().title, language)
             else -> "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedAlbumSongs.size, "song", language)}"
         },
         playlists = playlists.filterNot { it.isSystem },
@@ -2641,7 +2643,7 @@ internal fun ArtistDiscographyPopup(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    text = artistName,
+                                    text = localizedArtistName(artistName, LocalAppLanguage.current),
                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                     color = readableSecondaryTextColor(),
                                     maxLines = 1,
@@ -2767,7 +2769,7 @@ internal fun ArtistDiscographyPopup(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                 ) {
                                                     Text(
-                                                        text = album.title,
+                                                        text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                                                         modifier = Modifier.weight(1f),
                                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                                                         color = MaterialTheme.colorScheme.onSurface,
@@ -2945,7 +2947,7 @@ private fun ArtistHeroHeader(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                text = artistName,
+                text = localizedArtistName(artistName, LocalAppLanguage.current),
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontSize = elovaireScaledSp(34f),
                     lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.88f,
@@ -3309,7 +3311,7 @@ private fun FavoriteAlbumCompactCell(
         ) {
             ArtworkImage(
                 uri = album.artUri,
-                title = album.title,
+                title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                 modifier = Modifier
                     .size(48.dp)
                     .albumSharedArtwork(
@@ -3324,7 +3326,7 @@ private fun FavoriteAlbumCompactCell(
                 verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
-                    text = album.title,
+                    text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                         lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 0.72f,
@@ -3333,7 +3335,7 @@ private fun FavoriteAlbumCompactCell(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = album.artist,
+                    text = localizedArtistName(album.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                     maxLines = 1,
@@ -3369,7 +3371,7 @@ private fun CompactSongTile(
         ) {
             ArtworkImage(
                 uri = song.artUri,
-                title = song.album,
+                title = localizedAlbumTitle(song.album, LocalAppLanguage.current),
                 modifier = Modifier.size(48.dp),
                 cornerRadius = ElovaireRadii.artworkSmall,
             )
@@ -3383,7 +3385,7 @@ private fun CompactSongTile(
                     maxLines = 1,
                 )
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
@@ -3406,7 +3408,7 @@ private fun SongGridCard(
     ) {
         ArtworkImage(
             uri = song.artUri,
-            title = song.album,
+            title = localizedAlbumTitle(song.album, LocalAppLanguage.current),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
@@ -3429,7 +3431,7 @@ private fun SongGridCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
@@ -3457,7 +3459,7 @@ private fun ArtistGridCard(
     ) {
         ArtworkImage(
             uri = artist.artUri,
-            title = artist.name,
+            title = localizedArtistName(artist.name, language),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
@@ -3465,7 +3467,7 @@ private fun ArtistGridCard(
         )
         Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
             Text(
-                text = artist.name,
+                text = localizedArtistName(artist.name, LocalAppLanguage.current),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -3506,7 +3508,7 @@ internal fun ArtistRow(
         ) { uri ->
             ArtworkImage(
                 uri = uri,
-                title = artist.name,
+                title = localizedArtistName(artist.name, language),
                 modifier = Modifier.size(50.dp),
                 cornerRadius = ElovaireRadii.pill,
                 requestedSizePx = 256,
@@ -3517,7 +3519,7 @@ internal fun ArtistRow(
             verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
-                text = artist.name,
+                text = localizedArtistName(artist.name, LocalAppLanguage.current),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -3668,7 +3670,7 @@ private fun RecentSongRow(
         ) {
             ArtworkImage(
                 uri = song.artUri,
-                title = song.album,
+                title = localizedAlbumTitle(song.album, LocalAppLanguage.current),
                 modifier = Modifier.size(52.dp),
                 cornerRadius = ElovaireRadii.artwork,
             )
@@ -3682,7 +3684,7 @@ private fun RecentSongRow(
                     maxLines = 1,
                 )
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
@@ -3766,7 +3768,7 @@ private fun SearchSongRow(
                     )
                 }
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                     maxLines = 1,
@@ -3860,7 +3862,7 @@ internal fun HomeRecentSongRow(
                     )
                 }
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                     maxLines = 1,
@@ -4008,7 +4010,7 @@ private fun AlbumGridCard(
         ) {
             ArtworkImage(
                 uri = album.artUri,
-                title = album.title,
+                title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                 modifier = Modifier
                     .matchParentSize()
                     .albumSharedArtwork(
@@ -4034,13 +4036,13 @@ private fun AlbumGridCard(
                 verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
-                    text = album.title,
+                    text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = album.artist,
+                    text = localizedArtistName(album.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
@@ -4098,7 +4100,7 @@ internal fun CompactAlbumRow(
         ) {
             ArtworkImage(
                 uri = album.artUri,
-                title = album.title,
+                title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                 modifier = Modifier
                     .size(62.dp)
                     .albumSharedArtwork(
@@ -4114,13 +4116,13 @@ internal fun CompactAlbumRow(
                 verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
-                    text = album.title,
+                    text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = album.artist,
+                    text = localizedArtistName(album.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,

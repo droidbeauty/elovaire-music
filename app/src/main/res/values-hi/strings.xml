@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">हाल ही में चलाया गया</string>
+    <string name="shortcut_albums">एल्बम</string>
+    <string name="shortcut_playlists">प्लेलिस्ट</string>
+    <string name="shortcut_search">खोजें</string>
+</resources>

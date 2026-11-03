@@ -301,6 +301,9 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAudioFormat
 import elovaire.music.droidbeauty.app.ui.i18n.playlistAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
@@ -584,7 +587,7 @@ internal fun AlbumScreen(
                         ) {
                             ArtworkImage(
                                 uri = album.artUri,
-                                title = album.title,
+                                title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .albumSharedArtwork(
@@ -617,7 +620,7 @@ internal fun AlbumScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
-                            text = album.title,
+                            text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                             style = MaterialTheme.typography.displayLarge.copy(
                                 fontSize = elovaireScaledSp(ALBUM_HEADER_TITLE_TEXT_SIZE_SP),
                                 lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.8f,
@@ -628,7 +631,7 @@ internal fun AlbumScreen(
                             },
                         )
                         Text(
-                            text = album.artist,
+                            text = localizedArtistName(album.artist, LocalAppLanguage.current),
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontSize = elovaireScaledSp(ALBUM_HEADER_ARTIST_TEXT_SIZE_SP),
                                 fontWeight = FontWeight.Medium,
@@ -675,7 +678,7 @@ internal fun AlbumScreen(
                                         modifier = Modifier.size(12.dp),
                                     )
                                     Text(
-                                        text = albumTechnicalReferenceSong?.audioFormat ?: "AUDIO",
+                                        text = localizedAudioFormat(albumTechnicalReferenceSong?.audioFormat.orEmpty(), LocalAppLanguage.current),
                                         style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f), fontWeight = FontWeight.Medium),
                                         color = albumInfoPillTint.copy(alpha = 0.94f),
                                         maxLines = 1,
@@ -1028,7 +1031,7 @@ private fun AlbumSongRow(
                     )
                 }
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                     maxLines = 1,
@@ -1285,7 +1288,7 @@ internal fun AddSongsToPlaylistOverlay(
                                 modifier = Modifier.size(16.dp),
                             )
                             Text(
-                                text = tab.label,
+                                text = tab.label(language),
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 color = if (selected) {
@@ -1538,13 +1541,13 @@ internal fun AddSongsToPlaylistOverlay(
 
         DetailListTopBar(
             title = when {
-                selectedAlbum != null -> selectedAlbum.title
-                selectedArtistName != null -> selectedArtistName.orEmpty()
+                selectedAlbum != null -> localizedAlbumTitle(selectedAlbum.title, LocalAppLanguage.current)
+                selectedArtistName != null -> localizedArtistName(selectedArtistName.orEmpty(), LocalAppLanguage.current)
                 else -> miscPhrase(LocalAppLanguage.current, MiscPhrase.AddSongs)
             },
             subtitle = when (selectedSongIds.size) {
                 0 -> when {
-                    selectedAlbum != null -> selectedAlbum.artist
+                    selectedAlbum != null -> localizedArtistName(selectedAlbum.artist, LocalAppLanguage.current)
                     selectedArtistName != null -> miscPhrase(LocalAppLanguage.current, MiscPhrase.ChooseSongs)
                     else -> null
                 }
@@ -1642,7 +1645,7 @@ private fun SelectableSongRow(
             Box(modifier = Modifier.size(44.dp)) {
                 ArtworkImage(
                     uri = song.artUri,
-                    title = song.album,
+                    title = localizedAlbumTitle(song.album, LocalAppLanguage.current),
                     modifier = Modifier.matchParentSize(),
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
@@ -1675,7 +1678,7 @@ private fun SelectableSongRow(
                     )
                 }
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
@@ -1744,7 +1747,7 @@ private fun SelectableAlbumPickerRow(
         ) {
             ArtworkImage(
                 uri = album.artUri,
-                title = album.title,
+                title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                 modifier = Modifier.size(62.dp),
                 cornerRadius = ElovaireRadii.artworkSmall,
             )
@@ -1753,13 +1756,13 @@ private fun SelectableAlbumPickerRow(
                 verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
-                    text = album.title,
+                    text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = album.artist,
+                    text = localizedArtistName(album.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,

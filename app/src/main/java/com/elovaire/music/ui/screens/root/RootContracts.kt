@@ -235,7 +235,7 @@ internal val DefaultTopLevelDestinations = listOf(
     TopLevelDestination(
         route = ALBUMS_ROUTE,
         iconResId = R.drawable.ic_lucide_library,
-        contentDescription = "Albums",
+        contentDescription = "Library",
     ),
     TopLevelDestination(
         route = PLAYLISTS_ROUTE,
@@ -487,12 +487,19 @@ internal enum class SearchContentMode {
 }
 
 internal enum class PlaylistPickerTab(
-    val label: String,
     @DrawableRes val iconResId: Int,
 ) {
-    Songs("Songs", R.drawable.ic_lucide_music),
-    Albums("Albums", R.drawable.ic_lucide_disc_album),
-    Artists("Artists", R.drawable.ic_lucide_mic_vocal),
+    Songs(R.drawable.ic_lucide_music),
+    Albums(R.drawable.ic_lucide_disc_album),
+    Artists(R.drawable.ic_lucide_mic_vocal),
+}
+
+internal fun PlaylistPickerTab.label(language: AppLanguage): String = commonUiCopy(language).let { copy ->
+    when (this) {
+        PlaylistPickerTab.Songs -> copy.songs
+        PlaylistPickerTab.Albums -> copy.albums
+        PlaylistPickerTab.Artists -> copy.artists
+    }
 }
 
 internal enum class AlbumSortMode(

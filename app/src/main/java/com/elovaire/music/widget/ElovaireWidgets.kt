@@ -120,8 +120,8 @@ class ControlsWidgetReceiver : ElovaireWidgetReceiver() { override val glanceApp
 @Composable
 internal fun WidgetContent(design: WidgetDesign, state: WidgetPlaybackSnapshot?, artwork: Bitmap?, copy: WidgetCopy, context: Context) {
     val open = actionStartActivity(WidgetLaunchIntentFactory.openNowPlaying(context))
-    val title = state?.title?.ifBlank { "Elovaire" } ?: "Elovaire"
-    val artist = state?.artist.orEmpty()
+    val title = widgetTitle(state, copy)
+    val artist = state?.artist.orEmpty().let { if (it == "Unknown Artist") copy.unknownArtist else it }
     val playing = state?.transportShowsPause == true
     val inset = if (design == WidgetDesign.Compact || design == WidgetDesign.Controls) 8.dp else 12.dp
     val background = if (design == WidgetDesign.Controls) R.drawable.widget_panel_background else R.drawable.widget_loading_background

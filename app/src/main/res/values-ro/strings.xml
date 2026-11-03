@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Redat recent</string>
+    <string name="shortcut_albums">Albume</string>
+    <string name="shortcut_playlists">Liste de redare</string>
+    <string name="shortcut_search">Căutare</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Terakhir diputar</string>
+    <string name="shortcut_albums">Album</string>
+    <string name="shortcut_playlists">Daftar putar</string>
+    <string name="shortcut_search">Cari</string>
+</resources>

@@ -40,7 +40,6 @@ import kotlinx.coroutines.CancellationException
 
 internal object ExternalAudioIntentHandler {
     private const val EXTERNAL_ALBUM_ID_BASE = -9_000_000_000_000L
-    private const val EXTERNAL_SONG_ID_BASE = -8_000_000_000_000L
 
     fun canHandle(intent: Intent?): Boolean {
         val uri = intent?.data ?: return false
@@ -566,6 +565,10 @@ internal fun stableExternalId(
 }
 
 private const val EXTERNAL_ID_RANGE = 1_000_000_000_000L
+private const val EXTERNAL_SONG_ID_BASE = -8_000_000_000_000L
+
+internal fun isExternalAudioSongId(id: Long): Boolean =
+    id >= EXTERNAL_SONG_ID_BASE && id < EXTERNAL_SONG_ID_BASE + EXTERNAL_ID_RANGE
 
 internal fun hasExternalAudioCopySpace(availableBytes: Long, nextChunkBytes: Int): Boolean =
     availableBytes >= MIN_EXTERNAL_AUDIO_REMAINING_BYTES &&

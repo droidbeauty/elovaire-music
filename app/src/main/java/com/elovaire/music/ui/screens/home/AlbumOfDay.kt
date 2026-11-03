@@ -61,6 +61,8 @@ import elovaire.music.droidbeauty.app.data.settings.elovaireSettingsDataStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 import elovaire.music.droidbeauty.app.ui.i18n.albumOfDayTitle
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
@@ -171,7 +173,7 @@ internal fun AlbumOfDayModule(
             ) {
                 ArtworkImage(
                     uri = album.artUri,
-                    title = album.title,
+                    title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     modifier = Modifier.size(100.dp),
                     cornerRadius = ElovaireRadii.artwork,
                 )
@@ -180,13 +182,13 @@ internal fun AlbumOfDayModule(
                     verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
-                        text = album.title,
+                        text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = album.artist,
+                        text = localizedArtistName(album.artist, LocalAppLanguage.current),
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                         color = readableSecondaryTextColor(),
                         maxLines = 1,

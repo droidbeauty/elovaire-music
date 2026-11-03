@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Viimeksi soitettu</string>
+    <string name="shortcut_albums">Albumit</string>
+    <string name="shortcut_playlists">Soittolistat</string>
+    <string name="shortcut_search">Haku</string>
+</resources>

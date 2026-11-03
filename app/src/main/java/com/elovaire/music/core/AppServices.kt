@@ -351,7 +351,7 @@ internal class AppServices(
         networkBackend.remove(source)
     }
 
-    private val mediaTree = ElovaireMediaTree(libraryRepository, userDataStore)
+    private val mediaTree = ElovaireMediaTree(libraryRepository, userDataStore) { preferenceStore.appLanguage.value }
     private val startupCoordinator = AppStartupCoordinator(
         applicationContext = applicationContext,
         appScope = appScope,
@@ -367,6 +367,7 @@ internal class AppServices(
         session = playbackManager.mediaLibrarySession,
         libraryRepository = libraryRepository,
         settings = userDataStore,
+        language = preferenceStore.appLanguage,
         scope = libraryScope,
         dispatcher = appDispatchers.default,
     )
@@ -377,6 +378,7 @@ internal class AppServices(
                 playback = PlaybackManagerMediaPlaybackPort(playbackManager),
                 readExecutor = mediaLibraryReadExecutor,
                 catalog = mediaTree,
+                language = { preferenceStore.appLanguage.value },
                 readiness = StartupReadinessPort(
                     ready = startupCoordinator.durableStartupReady,
                     operational = { startupCoordinator.durableStartupState.value.allowsMediaButton() },

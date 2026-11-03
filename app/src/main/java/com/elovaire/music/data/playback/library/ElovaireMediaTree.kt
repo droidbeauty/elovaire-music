@@ -11,7 +11,13 @@ import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.data.playback.AudiobookPlaybackContext
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
+import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
+import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.SearchableAudiobook
@@ -81,6 +87,7 @@ internal interface MediaLibraryCommandResolver {
 internal class ElovaireMediaTree(
     private val libraryRepository: LibraryReader,
     private val preferenceStore: MediaLibraryUserDataReader,
+    private val language: () -> AppLanguage = { AppLanguage.English },
 ) : MediaCatalogPort {
     private val snapshotCache = MediaTreeSnapshotCache()
 
@@ -91,17 +98,17 @@ internal class ElovaireMediaTree(
     fun rootChildren(): List<MediaItem> {
         val snapshot = snapshot()
         return when {
-            !snapshot.permissionGranted -> listOf(ElovaireMediaItems.permissionRequiredInfo())
-            snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty() -> listOf(ElovaireMediaItems.emptyLibraryInfo())
+            !snapshot.permissionGranted -> listOf(ElovaireMediaItems.permissionRequiredInfo(language()))
+            snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty() -> listOf(ElovaireMediaItems.emptyLibraryInfo(language()))
             else -> listOf(
-                ElovaireMediaItems.recentlyAddedRoot(),
-                ElovaireMediaItems.favoritesRoot(),
-                ElovaireMediaItems.audiobooksRoot().takeIf { snapshot.audiobooks.isNotEmpty() },
-                ElovaireMediaItems.albumsRoot(),
-                ElovaireMediaItems.artistsRoot(),
-                ElovaireMediaItems.genresRoot().takeIf { snapshot.hasUsefulGenres() },
-                ElovaireMediaItems.playlistsRoot(),
-                ElovaireMediaItems.songsRoot(),
+                ElovaireMediaItems.recentlyAddedRoot(language()),
+                ElovaireMediaItems.favoritesRoot(language()),
+                ElovaireMediaItems.audiobooksRoot(language()).takeIf { snapshot.audiobooks.isNotEmpty() },
+                ElovaireMediaItems.albumsRoot(language()),
+                ElovaireMediaItems.artistsRoot(language()),
+                ElovaireMediaItems.genresRoot(language()).takeIf { snapshot.hasUsefulGenres() },
+                ElovaireMediaItems.playlistsRoot(language()),
+                ElovaireMediaItems.songsRoot(language()),
             ).filterNotNull()
         }
     }
@@ -109,10 +116,10 @@ internal class ElovaireMediaTree(
     override fun childrenOf(id: ElovaireMediaId): List<MediaItem> {
         val snapshot = snapshot()
         if (!snapshot.permissionGranted) {
-            return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.permissionRequiredInfo()) else emptyList()
+            return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.permissionRequiredInfo(language())) else emptyList()
         }
         if (snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty()) {
-            return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.emptyLibraryInfo()) else emptyList()
+            return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.emptyLibraryInfo(language())) else emptyList()
         }
         return when (id) {
             ElovaireMediaId.Root -> rootChildren()
@@ -123,39 +130,39 @@ internal class ElovaireMediaTree(
                 parent = BUCKET_PARENT_SONGS,
                 rows = snapshot.songsByTitle(),
                 bucketKeys = snapshot::songBucketKeys,
-                item = ElovaireMediaItems::song,
+                item = { ElovaireMediaItems.song(it, language()) },
             )
             ElovaireMediaId.Albums -> bucketIfLarge(
                 parent = BUCKET_PARENT_ALBUMS,
                 rows = snapshot.albumsByTitle(),
                 bucketKeys = snapshot::albumBucketKeys,
-                item = ElovaireMediaItems::album,
+                item = { ElovaireMediaItems.album(it, language()) },
             )
             ElovaireMediaId.Artists -> bucketIfLarge(
                 parent = BUCKET_PARENT_ARTISTS,
                 rows = snapshot.artistNames(),
                 bucketKeys = snapshot::artistBucketKeys,
-                item = ElovaireMediaItems::artist,
+                item = { ElovaireMediaItems.artist(it, language()) },
             )
-            ElovaireMediaId.Genres -> snapshot.genreNames().map(ElovaireMediaItems::genre)
+            ElovaireMediaId.Genres -> snapshot.genreNames().map { ElovaireMediaItems.genre(it, language()) }
             ElovaireMediaId.Playlists -> snapshot.nonEmptyPlaylistsByName()
                 .map(ElovaireMediaItems::playlist)
-            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().map(ElovaireMediaItems::song)
-            ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().map(ElovaireMediaItems::song)
-            ElovaireMediaId.Audiobooks -> snapshot.audiobooks.map(ElovaireMediaItems::audiobook)
+            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().map { ElovaireMediaItems.song(it, language()) }
+            ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().map { ElovaireMediaItems.song(it, language()) }
+            ElovaireMediaId.Audiobooks -> snapshot.audiobooks.map { ElovaireMediaItems.audiobook(it, language()) }
             is ElovaireMediaId.Song -> emptyList()
             is ElovaireMediaId.Album -> snapshot.album(id.albumId)
                 ?.songs.orEmpty()
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             is ElovaireMediaId.Artist -> snapshot
                 .songsForArtistInContext(ElovaireMediaIds.decodeName(id.encodedName))
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             is ElovaireMediaId.Genre -> snapshot
                 .songsForGenreInContext(ElovaireMediaIds.decodeName(id.encodedName))
-                .map(ElovaireMediaItems::song)
-            is ElovaireMediaId.Playlist -> snapshot.playlistSongs(id.playlistId).map(snapshot::mediaItem)
+                .map { ElovaireMediaItems.song(it, language()) }
+            is ElovaireMediaId.Playlist -> snapshot.playlistSongs(id.playlistId).map { snapshot.mediaItem(it, language()) }
             is ElovaireMediaId.Audiobook -> snapshot.audiobook(id.stableKey)?.parts.orEmpty()
-                .map { part -> ElovaireMediaItems.audiobookPart(part.song) }
+                .map { part -> ElovaireMediaItems.audiobookPart(part.song, language()) }
             is ElovaireMediaId.Bucket -> bucketChildren(id, snapshot)
         }
     }
@@ -177,7 +184,7 @@ internal class ElovaireMediaTree(
                 parent = BUCKET_PARENT_SONGS,
                 rows = snapshot.songsByTitle(),
                 bucketKeys = snapshot::songBucketKeys,
-                item = ElovaireMediaItems::song,
+                item = { ElovaireMediaItems.song(it, language()) },
                 page = page,
                 pageSize = pageSize,
             )
@@ -185,7 +192,7 @@ internal class ElovaireMediaTree(
                 parent = BUCKET_PARENT_ALBUMS,
                 rows = snapshot.albumsByTitle(),
                 bucketKeys = snapshot::albumBucketKeys,
-                item = ElovaireMediaItems::album,
+                item = { ElovaireMediaItems.album(it, language()) },
                 page = page,
                 pageSize = pageSize,
             )
@@ -193,36 +200,36 @@ internal class ElovaireMediaTree(
                 parent = BUCKET_PARENT_ARTISTS,
                 rows = snapshot.artistNames(),
                 bucketKeys = snapshot::artistBucketKeys,
-                item = ElovaireMediaItems::artist,
+                item = { ElovaireMediaItems.artist(it, language()) },
                 page = page,
                 pageSize = pageSize,
             )
             ElovaireMediaId.Genres -> pageWindow(snapshot.genreNames(), page, pageSize)
-                .map(ElovaireMediaItems::genre)
+                .map { ElovaireMediaItems.genre(it, language()) }
             ElovaireMediaId.Playlists -> pageWindow(snapshot.nonEmptyPlaylistsByName(), page, pageSize)
                 .map(ElovaireMediaItems::playlist)
             ElovaireMediaId.Favorites -> pageWindow(snapshot.favoriteSongsByTitle(), page, pageSize)
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             ElovaireMediaId.RecentlyAdded -> pageWindow(snapshot.recentlyAddedSongs(), page, pageSize)
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             ElovaireMediaId.Audiobooks -> pageWindow(snapshot.audiobooks, page, pageSize)
-                .map(ElovaireMediaItems::audiobook)
+                .map { ElovaireMediaItems.audiobook(it, language()) }
             is ElovaireMediaId.Album -> pageWindow(snapshot.album(id.albumId)?.songs.orEmpty(), page, pageSize)
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             is ElovaireMediaId.Artist -> pageWindow(
                 snapshot.songsForArtistInContext(ElovaireMediaIds.decodeName(id.encodedName)),
                 page,
                 pageSize,
-            ).map(ElovaireMediaItems::song)
+            ).map { ElovaireMediaItems.song(it, language()) }
             is ElovaireMediaId.Genre -> pageWindow(
                 snapshot.songsForGenreInContext(ElovaireMediaIds.decodeName(id.encodedName)),
                 page,
                 pageSize,
-            ).map(ElovaireMediaItems::song)
+            ).map { ElovaireMediaItems.song(it, language()) }
             is ElovaireMediaId.Playlist -> pageWindow(snapshot.playlistSongs(id.playlistId), page, pageSize)
-                .map(snapshot::mediaItem)
+                .map { snapshot.mediaItem(it, language()) }
             is ElovaireMediaId.Audiobook -> pageWindow(snapshot.audiobook(id.stableKey)?.parts.orEmpty(), page, pageSize)
-                .map { part -> ElovaireMediaItems.audiobookPart(part.song) }
+                .map { part -> ElovaireMediaItems.audiobookPart(part.song, language()) }
             is ElovaireMediaId.Bucket -> bucketChildrenPage(id, snapshot, page, pageSize)
             else -> pageWindow(childrenOf(id), page, pageSize)
         }
@@ -234,32 +241,32 @@ internal class ElovaireMediaTree(
         if (!snapshot.permissionGranted) {
             return when (parsed) {
                 ElovaireMediaId.Root -> ElovaireMediaItems.root()
-                ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo()
+                ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo(language())
                 else -> null
             }
         }
         return when (parsed) {
             ElovaireMediaId.Root -> ElovaireMediaItems.root()
-            ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo()
-            ElovaireMediaId.EmptyLibrary -> ElovaireMediaItems.emptyLibraryInfo()
-            ElovaireMediaId.Songs -> ElovaireMediaItems.songsRoot()
-            ElovaireMediaId.Albums -> ElovaireMediaItems.albumsRoot()
-            ElovaireMediaId.Artists -> ElovaireMediaItems.artistsRoot()
-            ElovaireMediaId.Genres -> ElovaireMediaItems.genresRoot()
-            ElovaireMediaId.Playlists -> ElovaireMediaItems.playlistsRoot()
-            ElovaireMediaId.Favorites -> ElovaireMediaItems.favoritesRoot()
-            ElovaireMediaId.RecentlyAdded -> ElovaireMediaItems.recentlyAddedRoot()
-            ElovaireMediaId.Audiobooks -> ElovaireMediaItems.audiobooksRoot()
+            ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo(language())
+            ElovaireMediaId.EmptyLibrary -> ElovaireMediaItems.emptyLibraryInfo(language())
+            ElovaireMediaId.Songs -> ElovaireMediaItems.songsRoot(language())
+            ElovaireMediaId.Albums -> ElovaireMediaItems.albumsRoot(language())
+            ElovaireMediaId.Artists -> ElovaireMediaItems.artistsRoot(language())
+            ElovaireMediaId.Genres -> ElovaireMediaItems.genresRoot(language())
+            ElovaireMediaId.Playlists -> ElovaireMediaItems.playlistsRoot(language())
+            ElovaireMediaId.Favorites -> ElovaireMediaItems.favoritesRoot(language())
+            ElovaireMediaId.RecentlyAdded -> ElovaireMediaItems.recentlyAddedRoot(language())
+            ElovaireMediaId.Audiobooks -> ElovaireMediaItems.audiobooksRoot(language())
             is ElovaireMediaId.Song -> snapshot.playableSong(parsed.songId)
-                ?.let { song -> if (song.mediaKind == AudioMediaKind.Audiobook) ElovaireMediaItems.audiobookPart(song) else ElovaireMediaItems.song(song) }
+                ?.let { song -> if (song.mediaKind == AudioMediaKind.Audiobook) ElovaireMediaItems.audiobookPart(song, language()) else ElovaireMediaItems.song(song, language()) }
             is ElovaireMediaId.Album -> snapshot.album(parsed.albumId)
-                ?.let(ElovaireMediaItems::album)
-            is ElovaireMediaId.Artist -> ElovaireMediaItems.artist(ElovaireMediaIds.decodeName(parsed.encodedName))
-            is ElovaireMediaId.Genre -> ElovaireMediaItems.genre(ElovaireMediaIds.decodeName(parsed.encodedName))
+                ?.let { ElovaireMediaItems.album(it, language()) }
+            is ElovaireMediaId.Artist -> ElovaireMediaItems.artist(ElovaireMediaIds.decodeName(parsed.encodedName), language())
+            is ElovaireMediaId.Genre -> ElovaireMediaItems.genre(ElovaireMediaIds.decodeName(parsed.encodedName), language())
             is ElovaireMediaId.Playlist -> snapshot.playlist(parsed.playlistId)
                 ?.let(ElovaireMediaItems::playlist)
             is ElovaireMediaId.Audiobook -> snapshot.audiobook(parsed.stableKey)
-                ?.let(ElovaireMediaItems::audiobook)
+                ?.let { ElovaireMediaItems.audiobook(it, language()) }
             is ElovaireMediaId.Bucket -> ElovaireMediaItems.bucket(parsed.parent, parsed.key)
         }
     }
@@ -269,9 +276,9 @@ internal class ElovaireMediaTree(
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty()) return null
         return when (parsed) {
-            ElovaireMediaId.Songs -> snapshot.songsByTitle().toQueue("Songs")
-            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().toQueue("Favorites")
-            ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().toQueue("Recently added")
+            ElovaireMediaId.Songs -> snapshot.songsByTitle().toQueue(commonUiCopy(language()).songs)
+            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().toQueue(builtInSmartPlaylistTitle(BuiltInSmartPlaylistType.Favorites, language()))
+            ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().toQueue(miscPhrase(language(), MiscPhrase.RecentlyAdded))
             is ElovaireMediaId.Song -> {
                 val song = snapshot.playableSong(parsed.songId) ?: return null
                 if (song.mediaKind == AudioMediaKind.Audiobook) {
@@ -425,19 +432,21 @@ internal class ElovaireMediaTree(
     private fun searchMediaItem(snapshot: MediaTreeSnapshot, mediaId: String): MediaItem? {
         return when (val parsed = ElovaireMediaIds.parse(mediaId)) {
             is ElovaireMediaId.Song -> snapshot.playableSong(parsed.songId)?.let { song ->
-                if (song.mediaKind == AudioMediaKind.Audiobook) ElovaireMediaItems.audiobookPart(song) else ElovaireMediaItems.song(song)
+                if (song.mediaKind == AudioMediaKind.Audiobook) ElovaireMediaItems.audiobookPart(song, language()) else ElovaireMediaItems.song(song, language())
             }
-            is ElovaireMediaId.Album -> snapshot.album(parsed.albumId)?.let(ElovaireMediaItems::album)
+            is ElovaireMediaId.Album -> snapshot.album(parsed.albumId)?.let { ElovaireMediaItems.album(it, language()) }
             is ElovaireMediaId.Artist -> ElovaireMediaItems.artist(
                 ElovaireMediaIds.decodeName(parsed.encodedName),
+                language(),
             )
             is ElovaireMediaId.Genre -> ElovaireMediaItems.genre(
                 ElovaireMediaIds.decodeName(parsed.encodedName),
+                language(),
             )
             is ElovaireMediaId.Playlist -> snapshot.playlist(parsed.playlistId)
                 ?.let(ElovaireMediaItems::playlist)
             is ElovaireMediaId.Audiobook -> snapshot.audiobook(parsed.stableKey)
-                ?.let(ElovaireMediaItems::audiobook)
+                ?.let { ElovaireMediaItems.audiobook(it, language()) }
             else -> null
         }
     }
@@ -450,6 +459,8 @@ internal class ElovaireMediaTree(
             append(System.identityHashCode(snapshot.playlists))
             append(':')
             append(snapshot.permissionGranted)
+            append(':')
+            append(language().name)
         }
     }
 
@@ -518,7 +529,7 @@ internal class ElovaireMediaTree(
             null -> null
         } ?: snapshot.album(recentSong.albumId)
             ?.let { album -> ResolvedPlayableQueue(recentSong, album.songs, album.title, null) }
-            ?: ResolvedPlayableQueue(recentSong, snapshot.songsByTitle(), "Songs", null)
+            ?: ResolvedPlayableQueue(recentSong, snapshot.songsByTitle(), commonUiCopy(language()).songs, null)
     }
 
     private fun snapshot(): MediaTreeSnapshot {
@@ -554,11 +565,11 @@ internal class ElovaireMediaTree(
     ): List<MediaItem> {
         return when (id.parent) {
             BUCKET_PARENT_SONGS -> snapshot.songsForBucket(id.key)
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             BUCKET_PARENT_ALBUMS -> snapshot.albumsForBucket(id.key)
-                .map(ElovaireMediaItems::album)
+                .map { ElovaireMediaItems.album(it, language()) }
             BUCKET_PARENT_ARTISTS -> snapshot.artistsForBucket(id.key)
-                .map(ElovaireMediaItems::artist)
+                .map { ElovaireMediaItems.artist(it, language()) }
             else -> emptyList()
         }
     }
@@ -571,11 +582,11 @@ internal class ElovaireMediaTree(
     ): List<MediaItem> {
         return when (id.parent) {
             BUCKET_PARENT_SONGS -> pageWindow(snapshot.songsForBucket(id.key), page, pageSize)
-                .map(ElovaireMediaItems::song)
+                .map { ElovaireMediaItems.song(it, language()) }
             BUCKET_PARENT_ALBUMS -> pageWindow(snapshot.albumsForBucket(id.key), page, pageSize)
-                .map(ElovaireMediaItems::album)
+                .map { ElovaireMediaItems.album(it, language()) }
             BUCKET_PARENT_ARTISTS -> pageWindow(snapshot.artistsForBucket(id.key), page, pageSize)
-                .map(ElovaireMediaItems::artist)
+                .map { ElovaireMediaItems.artist(it, language()) }
             else -> emptyList()
         }
     }
@@ -624,9 +635,9 @@ internal class ElovaireMediaTree(
     }
 
     private fun defaultQueue(snapshot: MediaTreeSnapshot): ResolvedPlayableQueue? {
-        return snapshot.favoriteSongsByTitle().toQueue("Favorites")
-            ?: snapshot.recentlyAddedSongs().toQueue("Recently added")
-            ?: snapshot.songsByTitle().toQueue("Songs")
+        return snapshot.favoriteSongsByTitle().toQueue(builtInSmartPlaylistTitle(BuiltInSmartPlaylistType.Favorites, language()))
+            ?: snapshot.recentlyAddedSongs().toQueue(miscPhrase(language(), MiscPhrase.RecentlyAdded))
+            ?: snapshot.songsByTitle().toQueue(commonUiCopy(language()).songs)
     }
 
     private fun audiobookQueue(book: Audiobook, startSong: Song?): ResolvedPlayableQueue? {
@@ -820,10 +831,10 @@ internal class ElovaireMediaTree(
         fun audiobook(stableKey: String): Audiobook? = audiobooksByStableKey[stableKey]
         fun audiobookContainingSong(songId: Long): Audiobook? = audiobooksBySongId[songId]
         fun playlist(id: Long): Playlist? = playlistsById[id]
-        fun mediaItem(song: Song): MediaItem = if (song.mediaKind == AudioMediaKind.Audiobook) {
-            ElovaireMediaItems.audiobookPart(song)
+        fun mediaItem(song: Song, language: AppLanguage): MediaItem = if (song.mediaKind == AudioMediaKind.Audiobook) {
+            ElovaireMediaItems.audiobookPart(song, language)
         } else {
-            ElovaireMediaItems.song(song)
+            ElovaireMediaItems.song(song, language)
         }
         fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase(Locale.ROOT)].orEmpty()
         fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase(Locale.ROOT)].orEmpty()

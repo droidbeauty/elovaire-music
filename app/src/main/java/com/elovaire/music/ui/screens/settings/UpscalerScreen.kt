@@ -37,7 +37,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.upscalerCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
-import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import kotlin.math.roundToInt
 
@@ -57,42 +56,42 @@ internal fun UpscalerScreen(
             state = listState,
             modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
-                start = 18.dp, end = 18.dp,
+                start = ElovaireSpacing.screenHorizontalPadding,
+                end = ElovaireSpacing.screenHorizontalPadding,
                 top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.sectionVerticalGap),
         ) {
             item(key = "upscaler", contentType = "settings") {
-                ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        UpscalerToggleRow(
-                            title = copy.enabled,
-                            subtitle = copy.subtitle,
-                            checked = value.enabled,
-                            onChanged = { onSettingsChanged(value.copy(enabled = it)) },
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    UpscalerToggleRow(
+                        title = copy.enabled,
+                        subtitle = copy.subtitle,
+                        checked = value.enabled,
+                        onChanged = { onSettingsChanged(value.copy(enabled = it)) },
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(copy.multiplier, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface)
+                        UpscalerSlider(
+                            selected = factors.indexOf(value.multiplier),
+                            stepCount = factors.size,
+                            title = copy.multiplier,
+                            stateLabel = "${value.multiplier}×",
+                            onChanged = { onSettingsChanged(value.copy(multiplier = factors[it])) },
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(copy.multiplier, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface)
-                            UpscalerSlider(
-                                selected = factors.indexOf(value.multiplier),
-                                stepCount = factors.size,
-                                title = copy.multiplier,
-                                stateLabel = "${value.multiplier}×",
-                                onChanged = { onSettingsChanged(value.copy(multiplier = factors[it])) },
-                            )
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                factors.forEach { Text("${it}×", style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface) }
-                            }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            factors.forEach { Text("${it}×", style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface) }
                         }
                     }
                 }
             }
-            item {
-                ModuleCard {
+            item(key = "precision", contentType = "settings") {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                     UpscalerToggleRow(
                         title = copy.precision,
                         subtitle = copy.precisionSubtitle,
@@ -101,8 +100,9 @@ internal fun UpscalerScreen(
                     )
                 }
             }
-            item {
-                ModuleCard {
+            item(key = "headroom", contentType = "settings") {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("${copy.headroom} · ${value.headroomDb} dB", style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)

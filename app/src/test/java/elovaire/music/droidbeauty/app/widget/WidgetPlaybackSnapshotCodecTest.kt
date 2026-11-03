@@ -3,8 +3,31 @@ package elovaire.music.droidbeauty.app.widget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
 class WidgetPlaybackSnapshotCodecTest {
+    @Test
+    fun widgetTitleLocalizesOnlyExternalFallback() {
+        val snapshot = WidgetPlaybackSnapshot(
+            contentRevision = 1L,
+            currentSongId = -8_000_000_000_000L,
+            title = "External audio",
+            artist = "",
+            album = null,
+            artworkIdentity = null,
+            isPlaying = false,
+            transportShowsPause = false,
+            repeatMode = WidgetRepeatMode.Off,
+            shuffleEnabled = false,
+            durationMs = null,
+            capturedAtElapsedRealtimeMs = 0L,
+        )
+        val copy = widgetCopy(AppLanguage.Polish)
+        assertEquals("Zewnętrzny plik audio", widgetTitle(snapshot, copy))
+        assertEquals("External audio", widgetTitle(snapshot.copy(currentSongId = 1L), copy))
+        assertEquals("Real title", widgetTitle(snapshot.copy(title = "Real title"), copy))
+        assertEquals("Elovaire", widgetTitle(null, copy))
+    }
     @Test
     fun currentSnapshotRoundTripsWithoutDomainObjects() {
         val snapshot = WidgetPlaybackSnapshot(

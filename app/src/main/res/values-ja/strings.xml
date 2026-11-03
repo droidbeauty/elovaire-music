@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">最近の再生</string>
+    <string name="shortcut_albums">アルバム</string>
+    <string name="shortcut_playlists">プレイリスト</string>
+    <string name="shortcut_search">検索</string>
+</resources>

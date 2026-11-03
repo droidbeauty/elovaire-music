@@ -30,6 +30,48 @@ internal data class SearchUiCopy(
     fun matchingArtists(count: Int, language: AppLanguage): String = if (language == AppLanguage.Polish) {
         val adjective = if (count == 1) "pasujący" else "pasujących"
         "$count $adjective ${localizedCountLabel(count, "artist", language).substringAfter(' ')}"
+    } else if (language == AppLanguage.Latvian) {
+        latvianMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Slovenian) {
+        slovenianMatchingCount(count, "artist")
+    } else if (language == AppLanguage.French) {
+        frenchMatchingCount(count, "artist")
+    } else if (language == AppLanguage.German) {
+        germanMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Dutch) {
+        dutchMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Catalan) {
+        catalanMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Finnish) {
+        finnishMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Romanian) {
+        romanianMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Danish || language == AppLanguage.Swedish) {
+        scandinavianMatchingCount(count, "artist", language)
+    } else if (language == AppLanguage.Czech) {
+        czechMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Slovak) {
+        slovakMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Russian || language == AppLanguage.Ukrainian) {
+        eastSlavicMatchingCount(count, "artist", language)
+    } else if (language == AppLanguage.Bosnian || language == AppLanguage.Croatian || language == AppLanguage.Serbian) {
+        southSlavicMatchingCount(count, "artist", language)
+    } else if (language == AppLanguage.Bulgarian || language == AppLanguage.Macedonian) {
+        balkanMatchingCount(count, "artist", language)
+    } else if (language == AppLanguage.Greek || language == AppLanguage.Hungarian || language == AppLanguage.Albanian) {
+        labeledMatchingCount(count, "artist", language)
+    } else if (language == AppLanguage.Estonian) {
+        estonianMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Lithuanian) {
+        lithuanianMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Latin) {
+        latinMatchingCount(count, "artist")
+    } else if (language == AppLanguage.Hindi || language == AppLanguage.Punjabi || language == AppLanguage.Urdu) {
+        southAsianMatchingCount(count, "artist", language)
+    } else if (language == AppLanguage.Bengali) {
+        bengaliMatchingCount(count, "artist")
+    } else if (language in setOf(AppLanguage.Spanish, AppLanguage.Portuguese, AppLanguage.Italian)) {
+        romanceMatchingCount(count, "artist", language)
     } else if (language == AppLanguage.English && count == 1) {
         "1 matching artist"
     } else "$count $matchingArtistsSuffix"
@@ -39,6 +81,27 @@ internal data class SearchUiCopy(
 
     private fun matchingItems(count: Int, noun: String, suffix: String, language: AppLanguage): String {
         if (language == AppLanguage.English && count == 1) return "1 matching $noun result"
+        if (language == AppLanguage.Latvian) return latvianMatchingCount(count, noun)
+        if (language == AppLanguage.Slovenian) return slovenianMatchingCount(count, noun)
+        if (language == AppLanguage.French) return frenchMatchingCount(count, noun)
+        if (language == AppLanguage.German) return germanMatchingCount(count, noun)
+        if (language == AppLanguage.Dutch) return dutchMatchingCount(count, noun)
+        if (language == AppLanguage.Catalan) return catalanMatchingCount(count, noun)
+        if (language == AppLanguage.Finnish) return finnishMatchingCount(count, noun)
+        if (language == AppLanguage.Romanian) return romanianMatchingCount(count, noun)
+        if (language == AppLanguage.Danish || language == AppLanguage.Swedish) return scandinavianMatchingCount(count, noun, language)
+        if (language == AppLanguage.Czech) return czechMatchingCount(count, noun)
+        if (language == AppLanguage.Slovak) return slovakMatchingCount(count, noun)
+        if (language == AppLanguage.Russian || language == AppLanguage.Ukrainian) return eastSlavicMatchingCount(count, noun, language)
+        if (language == AppLanguage.Bosnian || language == AppLanguage.Croatian || language == AppLanguage.Serbian) return southSlavicMatchingCount(count, noun, language)
+        if (language == AppLanguage.Bulgarian || language == AppLanguage.Macedonian) return balkanMatchingCount(count, noun, language)
+        if (language == AppLanguage.Greek || language == AppLanguage.Hungarian || language == AppLanguage.Albanian) return labeledMatchingCount(count, noun, language)
+        if (language == AppLanguage.Estonian) return estonianMatchingCount(count, noun)
+        if (language == AppLanguage.Lithuanian) return lithuanianMatchingCount(count, noun)
+        if (language == AppLanguage.Latin) return latinMatchingCount(count, noun)
+        if (language == AppLanguage.Hindi || language == AppLanguage.Punjabi || language == AppLanguage.Urdu) return southAsianMatchingCount(count, noun, language)
+        if (language == AppLanguage.Bengali) return bengaliMatchingCount(count, noun)
+        if (language in setOf(AppLanguage.Spanish, AppLanguage.Portuguese, AppLanguage.Italian)) return romanceMatchingCount(count, noun, language)
         if (language != AppLanguage.Polish) return "$count $suffix"
         val adjective = when {
             count == 1 -> "pasujący"
@@ -47,6 +110,168 @@ internal data class SearchUiCopy(
         }
         return "$count $adjective ${localizedCountLabel(count, noun, language).substringAfter(' ')}"
     }
+}
+
+private fun frenchMatchingCount(count: Int, noun: String): String =
+    "${localizedCountLabel(count, noun, AppLanguage.French)} ${if (count == 1) "correspondant" else "correspondants"}"
+
+private fun romanceMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    val adjective = when (language) {
+        AppLanguage.Spanish -> if (count == 1) "coincidente" else "coincidentes"
+        AppLanguage.Portuguese -> if (count == 1) "correspondente" else "correspondentes"
+        AppLanguage.Italian -> if (count == 1) "corrispondente" else "corrispondenti"
+        else -> error("Unsupported language")
+    }
+    return "${localizedCountLabel(count, noun, language)} $adjective"
+}
+
+private fun germanMatchingCount(count: Int, noun: String): String {
+    val adjective = if (count == 1) {
+        if (noun == "album") "passendes" else "passender"
+    } else "passende"
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.German).substringAfter(' ')}"
+}
+
+private fun dutchMatchingCount(count: Int, noun: String): String {
+    val adjective = if (count == 1 && noun != "artist") "overeenkomend" else "overeenkomende"
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Dutch).substringAfter(' ')}"
+}
+
+private fun catalanMatchingCount(count: Int, noun: String): String {
+    val adjective = when {
+        noun == "song" && count == 1 -> "trobada"
+        noun == "song" -> "trobades"
+        count == 1 -> "trobat"
+        else -> "trobats"
+    }
+    return "${localizedCountLabel(count, noun, AppLanguage.Catalan)} $adjective"
+}
+
+private fun finnishMatchingCount(count: Int, noun: String): String {
+    val adjective = if (count == 1) "vastaava" else "vastaavaa"
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Finnish).substringAfter(' ')}"
+}
+
+private fun romanianMatchingCount(count: Int, noun: String): String {
+    val adjective = when {
+        noun == "artist" && count != 1 -> "găsiți"
+        noun == "song" && count == 1 -> "găsită"
+        noun != "artist" && count != 1 -> "găsite"
+        else -> "găsit"
+    }
+    return "${localizedCountLabel(count, noun, AppLanguage.Romanian)} $adjective"
+}
+
+private fun scandinavianMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    val adjective = if (language == AppLanguage.Danish) "matchende" else "matchande"
+    return "$count $adjective ${localizedCountLabel(count, noun, language).substringAfter(' ')}"
+}
+
+private fun czechMatchingCount(count: Int, noun: String): String {
+    val adjective = when {
+        count == 1 && noun == "artist" -> "nalezený"
+        count == 1 && noun == "album" -> "nalezené"
+        count == 1 -> "nalezená"
+        count in 2..4 && noun == "artist" -> "nalezení"
+        count in 2..4 && noun == "album" -> "nalezená"
+        count in 2..4 -> "nalezené"
+        else -> "nalezených"
+    }
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Czech).substringAfter(' ')}"
+}
+
+private fun slovakMatchingCount(count: Int, noun: String): String {
+    val adjective = when {
+        count == 1 && noun == "song" -> "nájdená"
+        count == 1 -> "nájdený"
+        count in 2..4 && noun == "artist" -> "nájdení"
+        count in 2..4 -> "nájdené"
+        else -> "nájdených"
+    }
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Slovak).substringAfter(' ')}"
+}
+
+private fun eastSlavicMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    val prefix = if (language == AppLanguage.Russian) "Найдено" else "Знайдено"
+    return "$prefix: ${localizedCountLabel(count, noun, language)}"
+}
+
+private fun southSlavicMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    val prefix = if (language == AppLanguage.Serbian) "Пронађено" else "Pronađeno"
+    return "$prefix: ${localizedCountLabel(count, noun, language)}"
+}
+
+private fun balkanMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    return "Резултати: ${localizedCountLabel(count, noun, language)}"
+}
+
+private fun labeledMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    val label = when (language) {
+        AppLanguage.Greek -> "Αποτελέσματα"
+        AppLanguage.Hungarian -> "Találatok"
+        AppLanguage.Albanian -> "Rezultate"
+        else -> error("Unsupported language")
+    }
+    return "$label: ${localizedCountLabel(count, noun, language)}"
+}
+
+private fun estonianMatchingCount(count: Int, noun: String): String {
+    val adjective = if (count == 1) "sobiv" else "sobivat"
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Estonian).substringAfter(' ')}"
+}
+
+private fun lithuanianMatchingCount(count: Int, noun: String): String =
+    "Rasta: ${localizedCountLabel(count, noun, AppLanguage.Lithuanian)}"
+
+private fun latinMatchingCount(count: Int, noun: String): String {
+    val adjective = when {
+        noun == "album" && count == 1 -> "inventum"
+        noun == "album" -> "inventa"
+        count == 1 -> "inventus"
+        else -> "inventi"
+    }
+    return "${localizedCountLabel(count, noun, AppLanguage.Latin)} $adjective"
+}
+
+private fun southAsianMatchingCount(count: Int, noun: String, language: AppLanguage): String {
+    val label = when (language) {
+        AppLanguage.Hindi -> "नतीजे"
+        AppLanguage.Punjabi -> "ਨਤੀਜੇ"
+        AppLanguage.Urdu -> "نتائج"
+        else -> error("Unsupported language")
+    }
+    return "$label: ${localizedCountLabel(count, noun, language)}"
+}
+
+private fun bengaliMatchingCount(count: Int, noun: String): String {
+    val counted = localizedCountLabel(count, noun, AppLanguage.Bengali)
+    return "${counted.substringBefore(' ')} মিল থাকা ${counted.substringAfter(' ')}"
+}
+
+private fun slovenianMatchingCount(count: Int, noun: String): String {
+    val lastTwo = count.coerceAtLeast(0) % 100
+    val adjective = when (lastTwo) {
+        1 -> if (noun == "song") "najdena" else "najden"
+        2 -> if (noun == "song") "najdeni" else "najdena"
+        3, 4 -> if (noun == "song") "najdene" else "najdeni"
+        else -> "najdenih"
+    }
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Slovenian).substringAfter(' ')}"
+}
+
+private fun latvianMatchingCount(count: Int, noun: String): String {
+    val number = count.coerceAtLeast(0)
+    val last = number % 10
+    val genitive = last == 0 || number % 100 in 11..19
+    val singular = last == 1 && !genitive
+    val adjective = when {
+        genitive -> "atbilstošu"
+        noun == "song" && singular -> "atbilstoša"
+        noun == "song" -> "atbilstošas"
+        singular -> "atbilstošs"
+        else -> "atbilstoši"
+    }
+    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Latvian).substringAfter(' ')}"
 }
 
 internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {

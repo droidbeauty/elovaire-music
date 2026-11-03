@@ -7,6 +7,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.settings.MediaLibraryInvalidationReader
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 internal data class MediaLibraryCommittedState(
@@ -24,6 +26,7 @@ internal data class MediaLibraryCommittedState(
     val permissionGranted: Boolean,
     val favoriteSongIds: List<Long>,
     val playlists: List<Playlist>,
+    val language: AppLanguage = AppLanguage.English,
 )
 
 internal object MediaLibraryInvalidationParents {
@@ -32,6 +35,20 @@ internal object MediaLibraryInvalidationParents {
         current: MediaLibraryCommittedState,
     ): List<String> {
         val changed = linkedSetOf<String>()
+        if (previous.language != current.language) {
+            changed += listOf(
+                ElovaireMediaId.Root.value,
+                ElovaireMediaId.Songs.value,
+                ElovaireMediaId.Albums.value,
+                ElovaireMediaId.Artists.value,
+                ElovaireMediaId.Genres.value,
+                ElovaireMediaId.Playlists.value,
+                ElovaireMediaId.Favorites.value,
+                ElovaireMediaId.RecentlyAdded.value,
+                ElovaireMediaId.Audiobooks.value,
+            )
+            current.playlists.forEach { changed += ElovaireMediaIds.playlist(it.id) }
+        }
         if (previous.permissionGranted != current.permissionGranted) {
             changed += ElovaireMediaId.Root.value
         }
@@ -68,6 +85,7 @@ internal class MediaLibraryInvalidationCoordinator(
     private val session: MediaLibrarySession,
     private val libraryRepository: LibraryReader,
     private val settings: MediaLibraryInvalidationReader,
+    private val language: StateFlow<AppLanguage>,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val coalesceWindowMs: Long = 25L,
@@ -89,12 +107,14 @@ internal class MediaLibraryInvalidationCoordinator(
                 libraryRepository.scanState,
                 settings.favoriteSongIds,
                 settings.playlists,
-            ) { content, scan, favoriteSongIds, playlists ->
+                language,
+            ) { content, scan, favoriteSongIds, playlists, currentLanguage ->
                 MediaLibraryCommittedState(
                     libraryRevision = content.contentRevision,
                     permissionGranted = scan.permissionGranted,
                     favoriteSongIds = favoriteSongIds,
                     playlists = playlists,
+                    language = currentLanguage,
                 )
             }
                 .distinctUntilChanged()

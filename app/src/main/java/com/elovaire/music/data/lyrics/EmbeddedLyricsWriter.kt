@@ -377,7 +377,7 @@ internal val EmbeddedLyricsWriteFailure.userMessage: String
         EmbeddedLyricsWriteFailure.StoragePermissionMissing -> "Access to this music folder was lost. Add the folder again to save lyrics."
         EmbeddedLyricsWriteFailure.WriteAccessUnavailable -> "Android could not open this song for editing."
         EmbeddedLyricsWriteFailure.WriteAccessStillUnavailableAfterGrant ->
-            "Android granted access, but the song file still could not be opened for editing."
+            "Android granted access, but the song file still could not be opened for editing"
         EmbeddedLyricsWriteFailure.ProviderRejectedWriteMode -> "The storage provider does not support safely replacing this song."
         EmbeddedLyricsWriteFailure.SourceReadFailed -> "Unable to read this song for lyrics editing."
         EmbeddedLyricsWriteFailure.TempWriteFailed -> "Unable to prepare this song for lyrics editing."

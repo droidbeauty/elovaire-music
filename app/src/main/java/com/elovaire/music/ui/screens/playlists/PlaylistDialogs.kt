@@ -89,6 +89,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
+import elovaire.music.droidbeauty.app.ui.i18n.localizedPlaylistCreateError
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
@@ -500,7 +502,7 @@ internal fun PlaylistCreateFullScreenLayer(
                         )
                         AnimatedVisibility(visible = errorMessage != null) {
                             Text(
-                                text = errorMessage.orEmpty(),
+                                text = localizedPlaylistCreateError(errorMessage.orEmpty(), language),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -694,7 +696,7 @@ internal fun AddAlbumToPlaylistDialog(
     PlaylistSelectionDialog(
         visible = true,
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
-        subtitle = album.title,
+        subtitle = localizedAlbumTitle(album.title, language),
         playlists = playlists,
         playlistSongsById = playlistSongsById,
         onDismiss = onDismiss,

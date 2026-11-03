@@ -107,6 +107,7 @@ import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedEqualizerPreset
 import elovaire.music.droidbeauty.app.ui.i18n.navigationAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.preampLabel
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -1089,7 +1090,7 @@ private fun EqPresetMenu(
             )
             presets.forEach { preset ->
                 EqPresetPill(
-                    label = preset.name,
+                    label = localizedEqualizerPreset(preset.name, language),
                     selected = preset.name == activeBuiltIn,
                     onClick = { onApplyPreset(preset.name, currentSettings.copy(bands = preset.settings.bands)) },
                 )

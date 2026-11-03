@@ -315,7 +315,7 @@ internal class AudiobookTagEditorViewModel(
         .replace("%7C", "|")
         .replace("%25", "%")
 
-    private fun TagEditFailure.toUiFailure() = TagEditFailureUi(songId, fileName, reason)
+    private fun TagEditFailure.toUiFailure() = TagEditFailureUi(songId, fileName, reason, cause)
 
     private companion object {
         const val KEY_BOOK_KEY = "audiobook_tag_editor.book_key"

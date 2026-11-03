@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 
 internal data class RootTopBarMenuActions(
     val openSettings: () -> Unit,
@@ -52,7 +53,7 @@ internal fun rootSharedTopBarSpec(
             title = topBarTitle(currentRoute, language),
             showSettings = currentRoute in TopMenuRoutes,
             supplementalActionIconResId = playlistSupplementalActionIcon(currentRoute),
-            supplementalActionContentDescription = if (currentRoute == PLAYLISTS_ROUTE) "Create playlist" else null,
+            supplementalActionContentDescription = if (currentRoute == PLAYLISTS_ROUTE) rootUiCopy(language).createPlaylistButton else null,
             onSupplementalAction = if (currentRoute == PLAYLISTS_ROUTE) onRequestCreatePlaylist else null,
             onOpenMenu = onOpenMenu,
         )

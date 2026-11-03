@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Senest afspillet</string>
+    <string name="shortcut_albums">Albummer</string>
+    <string name="shortcut_playlists">Afspilningslister</string>
+    <string name="shortcut_search">Søg</string>
+</resources>

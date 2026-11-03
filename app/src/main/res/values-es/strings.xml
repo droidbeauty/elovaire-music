@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Última reproducción</string>
+    <string name="shortcut_albums">Álbumes</string>
+    <string name="shortcut_playlists">Listas</string>
+    <string name="shortcut_search">Buscar</string>
+</resources>

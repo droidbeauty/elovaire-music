@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Utoljára lejátszott</string>
+    <string name="shortcut_albums">Albumok</string>
+    <string name="shortcut_playlists">Lejátszási listák</string>
+    <string name="shortcut_search">Keresés</string>
+</resources>

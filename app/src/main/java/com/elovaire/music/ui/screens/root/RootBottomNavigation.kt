@@ -92,7 +92,7 @@ internal fun BottomNavigationBar(
                         iconResId = destination.iconResId,
                         contentDescription = when (destination.route) {
                             HOME_ROUTE -> copy.home
-                            ALBUMS_ROUTE -> copy.albums
+                            ALBUMS_ROUTE -> copy.library
                             PLAYLISTS_ROUTE -> copy.playlists
                             SEARCH_ROUTE -> copy.search
                             else -> destination.contentDescription

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Τελευταία αναπαραγωγή</string>
+    <string name="shortcut_albums">Άλμπουμ</string>
+    <string name="shortcut_playlists">Λίστες αναπαραγωγής</string>
+    <string name="shortcut_search">Αναζήτηση</string>
+</resources>

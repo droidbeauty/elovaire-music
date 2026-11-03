@@ -227,7 +227,7 @@ internal fun smartPlaylistDescription(type: BuiltInSmartPlaylistType, language: 
         AppLanguage.Italian -> "Brani e album aggiunti di recente alla tua libreria"
         AppLanguage.Japanese -> "ライブラリに最近追加された曲とアルバム"
         AppLanguage.Korean -> "라이브러리에 최근 추가된 노래와 앨범"
-        AppLanguage.Latin -> "Carmina et albumina nuper bibliothecae tuae addita"
+        AppLanguage.Latin -> "Carmina et alba nuper bibliothecae tuae addita"
         AppLanguage.Latvian -> "Dziesmas un albumi, kas nesen pievienoti tavai bibliotēkai"
         AppLanguage.Lithuanian -> "Neseniai į tavo biblioteką įtrauktos dainos ir albumai"
         AppLanguage.Macedonian -> "Песни и албуми неодамна додадени во твојата библиотека"

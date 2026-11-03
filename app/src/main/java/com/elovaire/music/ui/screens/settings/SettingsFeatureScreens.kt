@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +41,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
+import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsPolicy
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -48,7 +52,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistDescription
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
-import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -87,7 +90,7 @@ internal fun AudiobookSettingsScreen(
             item {
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SectionTitleRow(title = audiobookPlaybackCategory(LocalAppLanguage.current), compact = true)
+                        SettingsFeatureHeader(title = audiobookPlaybackCategory(LocalAppLanguage.current), iconResId = R.drawable.ic_lucide_book_audio)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
@@ -261,31 +264,30 @@ internal fun SmartPlaylistSettingsScreen(
             state = listState,
             modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
-                start = 18.dp,
-                top = topBarOccupiedHeight() + 20.dp,
-                end = 18.dp,
+                start = ElovaireSpacing.screenHorizontalPadding,
+                top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
+                end = ElovaireSpacing.screenHorizontalPadding,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.sectionVerticalGap),
         ) {
             item {
-                ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionTitleRow(title = copy.availableMixes, compact = true)
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    SettingsFeatureHeader(title = copy.availableMixes, iconResId = R.drawable.ic_lucide_list_music)
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         BuiltInSmartPlaylistType.entries.forEach { type ->
                             SettingToggleRow(
                                 title = builtInSmartPlaylistTitle(type, language),
                                 subtitle = smartPlaylistDescription(type, language),
                                 enabled = type in enabledTypes,
                                 onEnabledChanged = { enabled -> onTypeEnabledChanged(type, enabled) },
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                        }
                     }
+                        }
                 }
             }
             item {
-                ModuleCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
                             Text(
@@ -334,7 +336,6 @@ internal fun SmartPlaylistSettingsScreen(
                             )
                         }
                     }
-                }
             }
         }
         PinnedBackTopBar(
@@ -344,8 +345,21 @@ internal fun SmartPlaylistSettingsScreen(
         )
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 8.dp,
+            topInset = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
             bottomInset = bottomPadding + buttonNavigationScrollBoost(),
         )
+    }
+}
+
+@Composable
+private fun SettingsFeatureHeader(title: String, @DrawableRes iconResId: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(
+            painter = painterResource(iconResId),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+            modifier = Modifier.size(16.dp),
+        )
+        Text(title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
     }
 }

@@ -2,6 +2,53 @@ package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
+internal fun localizedAudiobookAuthor(author: String, language: AppLanguage): String {
+    if (author.isNotBlank() && author != "Unknown Author") return author
+    return when (language) {
+        AppLanguage.Albanian -> "Autor i panjohur"
+        AppLanguage.Bengali -> "অজানা লেখক"
+        AppLanguage.Bosnian -> "Nepoznat autor"
+        AppLanguage.Bulgarian -> "Неизвестен автор"
+        AppLanguage.Catalan -> "Autor desconegut"
+        AppLanguage.ChineseSimplified -> "未知作者"
+        AppLanguage.Croatian -> "Nepoznat autor"
+        AppLanguage.Czech -> "Neznámý autor"
+        AppLanguage.Danish -> "Ukendt forfatter"
+        AppLanguage.Dutch -> "Onbekende auteur"
+        AppLanguage.English -> "Unknown Author"
+        AppLanguage.Estonian -> "Tundmatu autor"
+        AppLanguage.Finnish -> "Tuntematon kirjailija"
+        AppLanguage.French -> "Auteur inconnu"
+        AppLanguage.German -> "Unbekannter Autor"
+        AppLanguage.Greek -> "Άγνωστος συγγραφέας"
+        AppLanguage.Hindi -> "अज्ञात लेखक"
+        AppLanguage.Hungarian -> "Ismeretlen szerző"
+        AppLanguage.Indonesian -> "Penulis tidak dikenal"
+        AppLanguage.Italian -> "Autore sconosciuto"
+        AppLanguage.Japanese -> "不明な著者"
+        AppLanguage.Korean -> "알 수 없는 저자"
+        AppLanguage.Latin -> "Auctor ignotus"
+        AppLanguage.Latvian -> "Nezināms autors"
+        AppLanguage.Lithuanian -> "Nežinomas autorius"
+        AppLanguage.Macedonian -> "Непознат автор"
+        AppLanguage.Malay -> "Pengarang tidak diketahui"
+        AppLanguage.Norwegian -> "Ukjent forfatter"
+        AppLanguage.Polish -> "Nieznany autor"
+        AppLanguage.Portuguese -> "Autor desconhecido"
+        AppLanguage.Punjabi -> "ਅਣਜਾਣ ਲੇਖਕ"
+        AppLanguage.Romanian -> "Autor necunoscut"
+        AppLanguage.Russian -> "Неизвестный автор"
+        AppLanguage.Serbian -> "Непознат аутор"
+        AppLanguage.Slovak -> "Neznámy autor"
+        AppLanguage.Slovenian -> "Neznan avtor"
+        AppLanguage.Spanish -> "Autor desconocido"
+        AppLanguage.Swedish -> "Okänd författare"
+        AppLanguage.Thai -> "ไม่ทราบผู้แต่ง"
+        AppLanguage.Ukrainian -> "Невідомий автор"
+        AppLanguage.Urdu -> "نامعلوم مصنف"
+    }
+}
+
 internal data class AudiobookUiCopy(
     val title: String,
     val continueListening: String,

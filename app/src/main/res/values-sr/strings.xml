@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Недавно пуштено</string>
+    <string name="shortcut_albums">Албуми</string>
+    <string name="shortcut_playlists">Плејлисте</string>
+    <string name="shortcut_search">Претрага</string>
+</resources>

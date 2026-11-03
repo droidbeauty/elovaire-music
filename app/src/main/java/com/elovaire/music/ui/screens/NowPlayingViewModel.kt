@@ -99,6 +99,7 @@ internal data class PlayerUiState(
     val shuffleEnabled: Boolean = false,
     val volume: Float = 1f,
     val sourceLabel: String? = null,
+    val sourcePlaylistId: Long? = null,
     val crossfadeEnabled: Boolean = false,
     val sleepTimer: PlaybackSleepTimerState = PlaybackSleepTimerState(),
 )
@@ -137,6 +138,7 @@ internal class NowPlayingViewModel(
                 shuffleEnabled = transport.shuffleEnabled,
                 volume = volume.volume,
                 sourceLabel = nowPlaying.sourceLabel,
+                sourcePlaylistId = queue.sourcePlaylistId,
                 crossfadeEnabled = crossfadeEnabled,
             )
         },

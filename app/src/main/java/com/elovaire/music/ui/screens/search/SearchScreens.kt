@@ -300,6 +300,9 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 import elovaire.music.droidbeauty.app.ui.i18n.viewModeAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.showAllSongResultsLabel
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
@@ -528,7 +531,7 @@ private fun SearchScreen(
             SearchHistoryEntry(
                 key = "artist:${artist.name.lowercase(Locale.ROOT)}",
                 kind = SearchHistoryKind.Artist,
-                title = artist.name,
+                title = localizedArtistName(artist.name, language),
                 subtitle = localizedCountLabel(artist.songCount, "song", language),
                 artUri = artist.artUri,
                 query = artist.name,
@@ -1010,7 +1013,7 @@ private fun SearchQuickPick(
     ) {
         ArtworkImage(
             uri = album.artUri,
-            title = album.title,
+            title = localizedAlbumTitle(album.title, LocalAppLanguage.current),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
@@ -1019,13 +1022,13 @@ private fun SearchQuickPick(
         )
         Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
             Text(
-                text = album.title,
+                text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = album.artist,
+                text = localizedArtistName(album.artist, LocalAppLanguage.current),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -1135,7 +1138,7 @@ private fun SearchAudiobooksResults(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = book.author,
+                                text = localizedAudiobookAuthor(book.author, LocalAppLanguage.current),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                 color = readableSecondaryTextColor(),
                                 maxLines = 1,
@@ -1441,6 +1444,15 @@ private fun SearchHistoryListRow(
     entry: SearchHistoryEntry,
     onClick: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val title = when (entry.kind) {
+        SearchHistoryKind.Album -> localizedAlbumTitle(entry.title, language)
+        SearchHistoryKind.Artist -> localizedArtistName(entry.title, language)
+    }
+    val subtitle = when (entry.kind) {
+        SearchHistoryKind.Album -> localizedArtistName(entry.subtitle, language)
+        SearchHistoryKind.Artist -> localizedAlbumTitle(entry.subtitle, language)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1453,7 +1465,7 @@ private fun SearchHistoryListRow(
     ) {
         ArtworkImage(
             uri = entry.artUri,
-            title = entry.title,
+            title = title,
             modifier = Modifier.size(
                 if (entry.kind == SearchHistoryKind.Artist) 50.dp else 46.dp,
             ),
@@ -1465,13 +1477,13 @@ private fun SearchHistoryListRow(
             verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
-                text = entry.title,
+                text = title,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = entry.subtitle,
+                text = subtitle,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

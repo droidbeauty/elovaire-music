@@ -10,6 +10,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AlbumTagEditorUiStateTest {
+    @org.junit.Test
+    fun additionalTagIssuesUseEnglishSingularAndPlural() {
+        org.junit.Assert.assertEquals("+1 more validation issue", additionalTagIssueCount(1, "validation"))
+        org.junit.Assert.assertEquals("+2 more save issues", additionalTagIssueCount(2, "save"))
+    }
     @Test
     fun toAlbumTagEditRequest_includesVisibleAlbumAndTrackEdits() {
         val album = testAlbum()

@@ -49,7 +49,7 @@ internal data class AudiobookTagEditorUiState(
     val isSaving: Boolean = false,
     val canSave: Boolean = false,
     val hasUnsavedChanges: Boolean = false,
-    val validationErrors: List<String> = emptyList(),
+    val validationErrors: List<TagValidationIssue> = emptyList(),
     val saveFailures: List<TagEditFailureUi> = emptyList(),
     val statusMessage: String? = null,
     val platformAction: AudiobookTagEditorPlatformAction? = null,
@@ -148,17 +148,17 @@ internal fun AudiobookTagEditorUiState.toAudiobookTagEditRequest(): AudiobookTag
 internal fun AudiobookTagEditorUiState.recalculateFlags(): AudiobookTagEditorUiState {
     val book = originalBook
     val errors = buildList {
-        if (bookTitle.isBlank()) add("Book title cannot be empty")
-        if (author.isBlank()) add("Author cannot be empty")
+        if (bookTitle.isBlank()) add(TagValidationIssue(TagValidationKind.BookTitle))
+        if (author.isBlank()) add(TagValidationIssue(TagValidationKind.Author))
         if (releaseYear.isNotBlank() && releaseYear.toIntOrNull() !in 1..9999) {
-            add("Release year must be between 1 and 9999")
+            add(TagValidationIssue(TagValidationKind.ReleaseYear))
         }
         parts.forEach { part ->
             if (part.trackNumber.toIntOrNull() !in 1..9999 || part.discNumber.toIntOrNull() !in 1..9999) {
-                add("${part.fileName}: track and disc numbers must be between 1 and 9999")
+                add(TagValidationIssue(TagValidationKind.TrackNumbers, part.fileName))
             }
-            if (part.title.isBlank()) add("${part.fileName}: chapter title cannot be empty")
-            if (part.artist.isBlank()) add("${part.fileName}: author cannot be empty")
+            if (part.title.isBlank()) add(TagValidationIssue(TagValidationKind.ChapterTitle, part.fileName))
+            if (part.artist.isBlank()) add(TagValidationIssue(TagValidationKind.ChapterAuthor, part.fileName))
         }
     }
     val originalSongs = book?.canonicalSongs().orEmpty()

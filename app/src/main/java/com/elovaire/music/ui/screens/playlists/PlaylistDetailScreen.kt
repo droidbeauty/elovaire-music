@@ -70,6 +70,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 import elovaire.music.droidbeauty.app.ui.i18n.playlistAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.shuffleAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
@@ -759,7 +761,7 @@ internal fun PlaylistSongRow(
             ) {
                 ArtworkImage(
                     uri = song.artUri,
-                    title = song.album,
+                    title = localizedAlbumTitle(song.album, LocalAppLanguage.current),
                     modifier = Modifier.matchParentSize(),
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
@@ -793,7 +795,7 @@ internal fun PlaylistSongRow(
                     )
                 }
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                     maxLines = 1,

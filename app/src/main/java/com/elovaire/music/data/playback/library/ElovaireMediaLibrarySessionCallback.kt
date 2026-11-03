@@ -32,6 +32,7 @@ import elovaire.music.droidbeauty.app.data.playback.pendingMediaButtonResumption
 import elovaire.music.droidbeauty.app.data.playback.toPlayerRepeatMode
 import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
 @OptIn(UnstableApi::class)
 internal class ElovaireMediaLibrarySessionCallback(
@@ -39,6 +40,7 @@ internal class ElovaireMediaLibrarySessionCallback(
     private val playback: MediaPlaybackPort,
     private val readExecutor: MediaLibraryReadExecutor = MediaLibraryReadExecutor(),
     private val readiness: MediaLibraryReadinessPort = StartupReadinessPort(),
+    private val language: () -> AppLanguage = { AppLanguage.English },
 ) : MediaLibrarySession.Callback {
     private val queueResolutionGeneration = AtomicLong(0L)
     private val searchResults = MediaLibrarySearchCache()
@@ -222,6 +224,7 @@ internal class ElovaireMediaLibrarySessionCallback(
 
     private fun ResolvedPlayableQueue.toMediaItemsWithStartPosition(startPositionMs: Long): MediaSession.MediaItemsWithStartPosition {
         val resolvedStartIndex = queue.indexOfFirst { it.id == startSong.id }.coerceAtLeast(0)
+        val currentLanguage = language()
         val resolvedStartPositionMs = when {
             startPositionMs == C.TIME_UNSET -> C.TIME_UNSET
             startPositionMs <= 0L -> 0L
@@ -229,7 +232,7 @@ internal class ElovaireMediaLibrarySessionCallback(
             else -> startPositionMs
         }
         return MediaSession.MediaItemsWithStartPosition(
-            queue.map(ElovaireMediaItems::playable),
+            queue.map { ElovaireMediaItems.playable(it, currentLanguage) },
             resolvedStartIndex,
             resolvedStartPositionMs,
         )

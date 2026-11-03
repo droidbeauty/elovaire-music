@@ -9,6 +9,19 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.carMediaCopy
+import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
+import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
+import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
+import elovaire.music.droidbeauty.app.ui.i18n.localizedGenreName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
+import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 
 internal object ElovaireMediaItems {
     fun root(): MediaItem = browsable(
@@ -18,77 +31,77 @@ internal object ElovaireMediaItems {
         extras = CarMediaStyleExtras.rootExtras(),
     )
 
-    fun permissionRequiredInfo(): MediaItem = informational(
+    fun permissionRequiredInfo(language: AppLanguage = AppLanguage.English): MediaItem = informational(
         mediaId = ElovaireMediaId.PermissionRequired.value,
-        title = "Open Elovaire on phone",
-        subtitle = "Grant music access to browse in Android Auto",
+        title = carMediaCopy(language).openPhone,
+        subtitle = carMediaCopy(language).grantAccess,
     )
 
-    fun emptyLibraryInfo(): MediaItem = informational(
+    fun emptyLibraryInfo(language: AppLanguage = AppLanguage.English): MediaItem = informational(
         mediaId = ElovaireMediaId.EmptyLibrary.value,
-        title = "No music found",
-        subtitle = "Add music on your phone to browse in Android Auto",
+        title = if (language == AppLanguage.English) "No music found" else homeCopy(language).emptyLibraryTitle,
+        subtitle = carMediaCopy(language).addMusic,
     )
 
-    fun songsRoot(): MediaItem = browsable(
+    fun songsRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Songs.value,
-        "Songs",
+        commonUiCopy(language).songs,
         MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
         artworkUri = drawableUri("ic_lucide_list_music"),
         extras = CarMediaStyleExtras.songsExtras(),
     )
-    fun albumsRoot(): MediaItem = browsable(
+    fun albumsRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Albums.value,
-        "Albums",
+        commonUiCopy(language).albums,
         MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS,
         artworkUri = drawableUri("ic_lucide_disc_album"),
         extras = CarMediaStyleExtras.albumsExtras(),
     )
-    fun artistsRoot(): MediaItem = browsable(
+    fun artistsRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Artists.value,
-        "Artists",
+        commonUiCopy(language).artists,
         MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS,
         artworkUri = drawableUri("ic_lucide_mic_vocal"),
     )
-    fun genresRoot(): MediaItem = browsable(
+    fun genresRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Genres.value,
-        "Genres",
+        commonUiCopy(language).genres,
         MediaMetadata.MEDIA_TYPE_FOLDER_GENRES,
         artworkUri = drawableUri("ic_lucide_guitar"),
     )
-    fun playlistsRoot(): MediaItem = browsable(
+    fun playlistsRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Playlists.value,
-        "Playlists",
+        commonUiCopy(language).playlists,
         MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS,
         artworkUri = drawableUri("ic_lucide_list_music"),
     )
-    fun favoritesRoot(): MediaItem = browsable(
+    fun favoritesRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Favorites.value,
-        "Favorites",
+        builtInSmartPlaylistTitle(BuiltInSmartPlaylistType.Favorites, language),
         MediaMetadata.MEDIA_TYPE_PLAYLIST,
         artworkUri = drawableUri("ic_lucide_star_filled"),
         extras = CarMediaStyleExtras.songsExtras(),
     )
-    fun recentlyAddedRoot(): MediaItem = browsable(
+    fun recentlyAddedRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.RecentlyAdded.value,
-        "Recently added",
+        miscPhrase(language, MiscPhrase.RecentlyAdded),
         MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
         artworkUri = drawableUri("ic_lucide_refresh_cw"),
         extras = CarMediaStyleExtras.songsExtras(),
     )
 
-    fun audiobooksRoot(): MediaItem = browsable(
+    fun audiobooksRoot(language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaId.Audiobooks.value,
-        "Audiobooks",
+        audiobookCopy(language).title,
         MediaMetadata.MEDIA_TYPE_FOLDER_AUDIO_BOOKS,
         artworkUri = drawableUri("ic_lucide_library"),
     )
 
-    fun audiobook(book: Audiobook): MediaItem = browsable(
+    fun audiobook(book: Audiobook, language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         ElovaireMediaIds.audiobook(book.stableKey),
         book.title,
         MediaMetadata.MEDIA_TYPE_AUDIO_BOOK,
-        subtitle = book.author,
+        subtitle = localizedAudiobookAuthor(book.author, language),
         artworkUri = localArtworkUri(book.artUri) ?: drawableUri("ic_lucide_library"),
     )
 
@@ -100,10 +113,10 @@ internal object ElovaireMediaItems {
         extras = CarMediaStyleExtras.songsExtras(),
     )
 
-    fun album(album: Album): MediaItem = browsable(
+    fun album(album: Album, language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         mediaId = ElovaireMediaIds.album(album.id),
-        title = album.title,
-        subtitle = album.artist,
+        title = localizedAlbumTitle(album.title, language),
+        subtitle = localizedArtistName(album.artist, language),
         artworkUri = localArtworkUri(album.artUri) ?: drawableUri("ic_lucide_disc_album"),
         mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
         extras = CarMediaStyleExtras.songsExtras(),
@@ -117,17 +130,17 @@ internal object ElovaireMediaItems {
         extras = CarMediaStyleExtras.songsExtras(),
     )
 
-    fun artist(name: String): MediaItem = browsable(
+    fun artist(name: String, language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         mediaId = ElovaireMediaIds.artist(name),
-        title = name.ifBlank { UNKNOWN_ARTIST },
+        title = localizedArtistName(name, language),
         artworkUri = drawableUri("ic_lucide_mic_vocal"),
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
         extras = CarMediaStyleExtras.songsExtras(),
     )
 
-    fun genre(name: String): MediaItem = browsable(
+    fun genre(name: String, language: AppLanguage = AppLanguage.English): MediaItem = browsable(
         mediaId = ElovaireMediaIds.genre(name),
-        title = name.ifBlank { UNKNOWN_GENRE },
+        title = localizedGenreName(name, language),
         artworkUri = drawableUri("ic_lucide_guitar"),
         mediaType = MediaMetadata.MEDIA_TYPE_GENRE,
         extras = CarMediaStyleExtras.songsExtras(),
@@ -137,25 +150,35 @@ internal object ElovaireMediaItems {
 
     fun song(song: Song): MediaItem = song(song, MediaMetadata.MEDIA_TYPE_MUSIC)
 
+    fun song(song: Song, language: AppLanguage): MediaItem = song(song, MediaMetadata.MEDIA_TYPE_MUSIC, language)
+
+    fun audiobookPart(song: Song, language: AppLanguage): MediaItem = song(song, MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER, language)
+
     fun playable(song: Song): MediaItem = if (song.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
         audiobookPart(song)
     } else {
         song(song)
     }
 
-    private fun song(song: Song, mediaType: Int): MediaItem = MediaItem.Builder()
+    fun playable(song: Song, language: AppLanguage): MediaItem = if (song.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
+        audiobookPart(song, language)
+    } else {
+        song(song, language)
+    }
+
+    private fun song(song: Song, mediaType: Int, language: AppLanguage = AppLanguage.English): MediaItem = MediaItem.Builder()
         .setMediaId(ElovaireMediaIds.song(song.id))
         .setUri(song.uri)
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(song.title)
-                .setArtist(song.artist)
-                .setAlbumTitle(song.album)
-                .setAlbumArtist(song.albumArtist ?: song.artist)
+                .setArtist(localizedArtistName(song.artist, language))
+                .setAlbumTitle(localizedAlbumTitle(song.album, language))
+                .setAlbumArtist(localizedArtistName(song.albumArtist ?: song.artist, language))
                 .setTrackNumber(song.trackNumber.takeIf { it > 0 })
                 .setDiscNumber(song.discNumber.takeIf { it > 0 })
                 .setReleaseYear(song.releaseYear)
-                .setGenre(song.genre.takeIf(String::isNotBlank))
+                .setGenre(song.genre.takeIf(String::isNotBlank)?.let { localizedGenreName(it, language) })
                 .setDurationMs(song.durationMs.takeIf { it > 0 })
                 .setArtworkUri(localArtworkUri(song.artUri) ?: drawableUri("ic_lucide_music"))
                 .setIsPlayable(true)
@@ -221,6 +244,4 @@ internal object ElovaireMediaItems {
             .build()
     }
 
-    private const val UNKNOWN_ARTIST = "Unknown Artist"
-    private const val UNKNOWN_GENRE = "Unknown Genre"
 }

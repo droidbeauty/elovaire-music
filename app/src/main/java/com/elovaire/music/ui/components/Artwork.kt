@@ -1,5 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.components
 
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.artworkPlaceholderLabel
+
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.annotation.DrawableRes
@@ -114,7 +117,7 @@ fun ArtworkImage(
                 ) {
                     Icon(
                         painter = painterResource(id = placeholderIconResId),
-                        contentDescription = title.ifBlank { "Artwork placeholder" },
+                        contentDescription = title.ifBlank { artworkPlaceholderLabel(LocalAppLanguage.current) },
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         modifier = Modifier.size(placeholderIconSize),
                     )

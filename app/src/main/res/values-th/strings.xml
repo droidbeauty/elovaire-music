@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">เล่นล่าสุด</string>
+    <string name="shortcut_albums">อัลบั้ม</string>
+    <string name="shortcut_playlists">เพลย์ลิสต์</string>
+    <string name="shortcut_search">ค้นหา</string>
+</resources>

@@ -1,4 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.pauseLabel
+import elovaire.music.droidbeauty.app.ui.i18n.playLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -404,7 +408,7 @@ private fun CompactNowPlayingBar(
                                         )
                                         Image(
                                             bitmap = artworkBitmap,
-                                            contentDescription = song.title,
+                                            contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .size(40.dp)
@@ -415,7 +419,7 @@ private fun CompactNowPlayingBar(
                                 } else {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_lucide_music),
-                                        contentDescription = song.title,
+                                        contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                         tint = contentColor.copy(alpha = 0.72f),
                                         modifier = Modifier.size(20.dp),
                                     )
@@ -427,7 +431,7 @@ private fun CompactNowPlayingBar(
                             verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                         ) {
                             Text(
-                                text = song.title,
+                                text = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 maxLines = 1,
                                 color = contentColor,
@@ -441,7 +445,7 @@ private fun CompactNowPlayingBar(
                                 ),
                             )
                             Text(
-                                text = song.artist,
+                                text = localizedArtistName(song.artist, LocalAppLanguage.current),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                 color = secondaryContentColor,
                                 maxLines = 1,
@@ -491,7 +495,7 @@ private fun CompactNowPlayingBar(
                                     painter = painterResource(
                                         id = if (playing) R.drawable.ic_lucide_pause else R.drawable.ic_lucide_play,
                                     ),
-                                    contentDescription = if (playing) "Pause" else "Play",
+                                    contentDescription = if (playing) pauseLabel(LocalAppLanguage.current) else playLabel(LocalAppLanguage.current),
                                     tint = contentColor,
                                     modifier = Modifier.size(22.dp),
                                 )
@@ -668,7 +672,7 @@ private fun NowPlayingBar(
                                 )
                                 Image(
                                     bitmap = artworkBitmap,
-                                    contentDescription = song.title,
+                                    contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -680,7 +684,7 @@ private fun NowPlayingBar(
                         } else {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_lucide_music),
-                                contentDescription = song.title,
+                                contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                 tint = controlIconTint.copy(alpha = 0.72f),
                                 modifier = Modifier.size(20.dp),
                             )
@@ -692,7 +696,7 @@ private fun NowPlayingBar(
                     verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
-                        text = song.title,
+                        text = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         color = resolvedPrimaryTextColor,
@@ -706,7 +710,7 @@ private fun NowPlayingBar(
                         ),
                     )
                     Text(
-                        text = song.artist,
+                        text = localizedArtistName(song.artist, LocalAppLanguage.current),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = resolvedSecondaryTextColor,
                         maxLines = 1,
@@ -786,7 +790,7 @@ private fun NowPlayingBar(
                         painter = painterResource(
                             id = if (playing) R.drawable.ic_lucide_pause else R.drawable.ic_lucide_play,
                         ),
-                        contentDescription = if (playing) "Pause" else "Play",
+                        contentDescription = if (playing) pauseLabel(LocalAppLanguage.current) else playLabel(LocalAppLanguage.current),
                         tint = controlIconTint,
                         modifier = Modifier.size(18.dp),
                     )

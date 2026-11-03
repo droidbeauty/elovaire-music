@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">최근 재생</string>
+    <string name="shortcut_albums">앨범</string>
+    <string name="shortcut_playlists">재생목록</string>
+    <string name="shortcut_search">검색</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Naposledy přehrané</string>
+    <string name="shortcut_albums">Alba</string>
+    <string name="shortcut_playlists">Playlisty</string>
+    <string name="shortcut_search">Hledat</string>
+</resources>

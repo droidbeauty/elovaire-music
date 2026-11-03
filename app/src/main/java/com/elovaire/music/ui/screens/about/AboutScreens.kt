@@ -79,6 +79,7 @@ import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedUpdateError
 import elovaire.music.droidbeauty.app.ui.i18n.aboutUpdateCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -549,7 +550,7 @@ internal fun UpdateAvailableDialog(
                     }
                     state.errorMessage?.let { errorMessage ->
                         Text(
-                            text = errorMessage,
+                            text = localizedUpdateError(errorMessage, language),
                             style = secondaryBodyTextStyle(),
                             color = MaterialTheme.colorScheme.error,
                         )

@@ -31,6 +31,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.tagAdditionalIssuesCopy
+import elovaire.music.droidbeauty.app.ui.i18n.localizedTagValidationError
+import elovaire.music.droidbeauty.app.ui.i18n.localizedTagSaveFailure
+import elovaire.music.droidbeauty.app.ui.i18n.localizedTagSaveStatus
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.screens.DetailListTopBar
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
@@ -104,7 +108,7 @@ internal fun AudiobookTagEditorScreen(
                     )
                 }
                 item {
-                    AudiobookTagEditorFeedback(state)
+                    AudiobookTagEditorFeedback(state, appLanguage)
                 }
             }
         }
@@ -218,40 +222,49 @@ private fun AudiobookPhysicalPartCard(
 }
 
 @Composable
-private fun AudiobookTagEditorFeedback(state: AudiobookTagEditorUiState) {
+private fun AudiobookTagEditorFeedback(state: AudiobookTagEditorUiState, language: AppLanguage) {
+    val issues = tagAdditionalIssuesCopy(language)
     Column(
         modifier = Modifier.padding(horizontal = 2.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         state.validationErrors.take(3).forEach { error ->
-            Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(localizedTagValidationError(error, language), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
         if (state.validationErrors.size > 3) {
             Text(
-                text = "+${state.validationErrors.size - 3} more validation issue(s)",
+                text = if (language == AppLanguage.English) additionalTagIssueCount(state.validationErrors.size - 3, "validation")
+                    else "${issues.validation}: ${state.validationErrors.size - 3}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
         }
         state.saveFailures.take(3).forEach { failure ->
             Text(
-                text = "${failure.fileName}: ${failure.reason}",
+                text = "${failure.fileName}: ${localizedTagSaveFailure(failure, language)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
         }
         if (state.saveFailures.size > 3) {
             Text(
-                text = "+${state.saveFailures.size - 3} more save issue(s)",
+                text = if (language == AppLanguage.English) additionalTagIssueCount(state.saveFailures.size - 3, "save")
+                    else "${issues.save}: ${state.saveFailures.size - 3}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
         }
         state.statusMessage?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val message = state.saveFailures.firstOrNull { failure -> failure.reason == it }
+                ?.let { failure -> localizedTagSaveFailure(failure, language) }
+                ?: localizedTagSaveStatus(it, state.saveFailures.size, language)
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
+
+internal fun additionalTagIssueCount(count: Int, kind: String): String =
+    "+$count more $kind ${if (count == 1) "issue" else "issues"}"
 
 private data class AudiobookTagEditorCopy(
     val editorTitle: String,

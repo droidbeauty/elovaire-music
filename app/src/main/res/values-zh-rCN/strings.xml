@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">最近播放</string>
+    <string name="shortcut_albums">专辑</string>
+    <string name="shortcut_playlists">播放列表</string>
+    <string name="shortcut_search">搜索</string>
+</resources>

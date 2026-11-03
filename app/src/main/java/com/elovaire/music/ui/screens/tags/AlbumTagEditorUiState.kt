@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
+import elovaire.music.droidbeauty.app.data.tags.TagEditFailureCause
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 
@@ -48,7 +49,7 @@ internal data class AlbumTagEditorUiState(
     val isSaving: Boolean = false,
     val canSave: Boolean = false,
     val hasUnsavedChanges: Boolean = false,
-    val validationErrors: List<String> = emptyList(),
+    val validationErrors: List<TagValidationIssue> = emptyList(),
     val saveFailures: List<TagEditFailureUi> = emptyList(),
     val statusMessage: String? = null,
     val platformAction: AlbumTagEditorPlatformAction? = null,
@@ -75,6 +76,7 @@ internal data class TagEditFailureUi(
     val songId: Long,
     val fileName: String,
     val reason: String,
+    val cause: TagEditFailureCause? = null,
 )
 
 internal fun Album.toTagEditorUiState(): AlbumTagEditorUiState {
@@ -159,22 +161,22 @@ private fun String.toTextEdit(original: String): TagFieldEdit<String> {
     }
 }
 
-private fun AlbumTagEditorUiState.computeValidationErrors(): List<String> {
-    val errors = mutableListOf<String>()
-    if (albumTitle.isBlank()) errors += "Album title cannot be empty"
-    if (albumArtist.isBlank()) errors += "Album artist cannot be empty"
+private fun AlbumTagEditorUiState.computeValidationErrors(): List<TagValidationIssue> {
+    val errors = mutableListOf<TagValidationIssue>()
+    if (albumTitle.isBlank()) errors += TagValidationIssue(TagValidationKind.AlbumTitle)
+    if (albumArtist.isBlank()) errors += TagValidationIssue(TagValidationKind.AlbumArtist)
     if (releaseYear.isNotBlank() && releaseYear.toIntOrNull() !in 1..9999) {
-        errors += "Release year must be between 1 and 9999"
+        errors += TagValidationIssue(TagValidationKind.ReleaseYear)
     }
     tracks.forEach { track ->
         if (track.trackNumber.toIntOrNull() !in 1..9999 || track.discNumber.toIntOrNull() !in 1..9999) {
-            errors += "${track.fileName}: track and disc numbers must be between 1 and 9999"
+            errors += TagValidationIssue(TagValidationKind.TrackNumbers, track.fileName)
         }
         if (track.title.isBlank()) {
-            errors += "${track.fileName}: track title cannot be empty"
+            errors += TagValidationIssue(TagValidationKind.TrackTitle, track.fileName)
         }
         if (track.artist.isBlank()) {
-            errors += "${track.fileName}: track artist cannot be empty"
+            errors += TagValidationIssue(TagValidationKind.TrackArtist, track.fileName)
         }
     }
     return errors

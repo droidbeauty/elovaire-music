@@ -79,6 +79,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookDescriptionCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookFinishedLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -180,7 +181,7 @@ private fun AudiobookMiniCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = book.author,
+                text = localizedAudiobookAuthor(book.author, LocalAppLanguage.current),
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
@@ -608,7 +609,7 @@ private fun AudiobookCollectionRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = book.author,
+                    text = localizedAudiobookAuthor(book.author, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                 )
@@ -686,7 +687,7 @@ private fun AudiobookGridCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = book.author,
+                text = localizedAudiobookAuthor(book.author, LocalAppLanguage.current),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
@@ -780,7 +781,7 @@ internal fun AudiobookDetailScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = book.author,
+                        text = localizedAudiobookAuthor(book.author, LocalAppLanguage.current),
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = elovaireScaledSp(ALBUM_HEADER_ARTIST_TEXT_SIZE_SP),
                             fontWeight = FontWeight.Medium,
@@ -904,7 +905,7 @@ internal fun AudiobookDetailScreen(
         }
         DetailListTopBar(
             title = book.title,
-            subtitle = book.author,
+            subtitle = localizedAudiobookAuthor(book.author, LocalAppLanguage.current),
             onBack = onBack,
             actions = listOf(
                 TopBarActionSpec(

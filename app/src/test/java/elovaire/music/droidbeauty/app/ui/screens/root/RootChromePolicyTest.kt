@@ -10,6 +10,17 @@ import org.junit.Test
 
 class RootChromePolicyTest {
     @Test
+    fun libraryNavigationFallbackUsesTheCorrectScreenName() {
+        assertEquals("Library", DefaultTopLevelDestinations.single { it.route == ALBUMS_ROUTE }.contentDescription)
+    }
+    @Test
+    fun playlistPickerTabsUseTheSelectedLanguage() {
+        assertEquals(listOf("Utwory", "Albumy", "Artyści"), PlaylistPickerTab.entries.map { it.label(AppLanguage.Polish) })
+        AppLanguage.entries.forEach { language ->
+            PlaylistPickerTab.entries.forEach { assertTrue(it.label(language).isNotBlank()) }
+        }
+    }
+    @Test
     fun upscalerIsRegisteredAsASettingsDetailScreen() {
         assertTrue(UPSCALER_ROUTE in RootRouteRegistry.registeredPatterns)
         assertEquals(1, ElovaireNavigationTransitions.depthOf(UPSCALER_ROUTE))
@@ -133,6 +144,8 @@ class RootChromePolicyTest {
         ) as SharedTopBarSpec.Unified
 
         assertEquals("Create playlist", playlistsSpec.supplementalActionContentDescription)
+        val polishSpec = rootSharedTopBarSpec(PLAYLISTS_ROUTE, true, AppLanguage.Polish, {}, {}) as SharedTopBarSpec.Unified
+        assertEquals("Utwórz playlistę", polishSpec.supplementalActionContentDescription)
         assertTrue(playlistsSpec.onSupplementalAction != null)
         assertEquals(null, homeSpec.supplementalActionContentDescription)
         assertEquals(null, homeSpec.onSupplementalAction)

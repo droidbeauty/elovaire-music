@@ -87,6 +87,8 @@ import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.equalizerStatusLabel
+import elovaire.music.droidbeauty.app.ui.i18n.equalizerCustomLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedEqualizerPreset
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.libraryScanStatusCopy
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -234,25 +236,23 @@ internal fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            SectionTitleRow(
-                                title = copy.theme,
-                                compact = true,
+                        SectionTitleRow(
+                            title = copy.theme,
+                            compact = true,
+                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            ThemeModeSegmentedPicker(
+                                selectedMode = themeMode,
+                                onModeSelected = onThemeModeSelected,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp),
                             )
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                ThemeModeSegmentedPicker(
-                                    selectedMode = themeMode,
-                                    onModeSelected = onThemeModeSelected,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 2.dp),
-                                )
-                            }
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             SectionTitleRow(
@@ -310,8 +310,8 @@ internal fun SettingsScreen(
                             title = "EQ",
                             subtitle = equalizerStatusLabel(
                                 language = appLanguage,
-                                presetName = eqSettings.matchingEqPresetName()
-                                    ?: "Custom".takeIf { EqValuePolicy.hasSignalAlteringEffects(eqSettings) },
+                                presetName = eqSettings.matchingEqPresetName()?.let { localizedEqualizerPreset(it, appLanguage) }
+                                    ?: equalizerCustomLabel(appLanguage).takeIf { EqValuePolicy.hasSignalAlteringEffects(eqSettings) },
                             ),
                             actionLabel = copy.equalizer,
                             actionIconResId = R.drawable.ic_lucide_sliders_vertical,
@@ -320,7 +320,7 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         SettingToggleRow(
                             title = copy.volumeNormalization,
                             subtitle = copy.volumeNormalizationSubtitle,
@@ -331,7 +331,7 @@ internal fun SettingsScreen(
                                 .padding(horizontal = 2.dp)
                                 .align(Alignment.CenterHorizontally),
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
                             title = copy.crossfadeTitle,
                             subtitle = crossfadeSummary(
@@ -344,14 +344,14 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
                             title = upscalerCopy.title,
                             subtitle = if (upscalerSettings.enabled) "${upscalerSettings.multiplier}× · ${upscalerCopy.subtitle}" else upscalerCopy.off,
                             onClick = onOpenUpscaler,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
                             title = audiobookCopy.title,
                             subtitle = audiobookCopy.subtitle,
@@ -370,7 +370,7 @@ internal fun SettingsScreen(
 
             item {
                 ModuleCard {
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SettingNavigationRow(
                             title = foldersCopy.title,
                             subtitle = foldersCopy.subtitle,
@@ -413,7 +413,7 @@ internal fun SettingsScreen(
             }
             item {
                 ModuleCard {
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SettingToggleRow(title = copy.onlineLyricsTitle, subtitle = copy.onlineLyricsSubtitle, enabled = onlineLyricsEnabled, onEnabledChanged = onOnlineLyricsChanged, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingActionRow(title = copy.checkForUpdatesTitle, subtitle = copy.checkForUpdatesSubtitle, actionLabel = updateActionLabel(updateState, appLanguage), actionIconResId = R.drawable.ic_lucide_refresh_cw, enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling, onAction = { if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingNavigationRow(title = privacyPolicyCopy(appLanguage).title, subtitle = privacyPolicySettingsSubtitle(appLanguage), onClick = onOpenPrivacyPolicy, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), testTag = "settings_privacy_policy")
@@ -1129,17 +1129,6 @@ internal fun SettingActionRow(
             }
         }
     }
-}
-
-private fun updateSubtitle(state: AppUpdateUiState): String = when {
-    state.isChecking -> "Checking for updates..."
-    state.isDownloading -> "Downloading update..."
-    state.isInstalling -> "Preparing update installation..."
-    state.installPermissionRequired -> "Allow installation from GitHub to continue"
-    state.availableRelease != null -> "Version ${state.availableRelease.versionName} is available"
-    state.errorMessage != null -> state.errorMessage
-    state.transientStatus != null -> "You are using the latest version"
-    else -> "Check GitHub Releases for a newer version"
 }
 
 private fun crossfadeSummary(

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Nesen atskaņots</string>
+    <string name="shortcut_albums">Albumi</string>
+    <string name="shortcut_playlists">Atskaņošanas saraksti</string>
+    <string name="shortcut_search">Meklēt</string>
+</resources>

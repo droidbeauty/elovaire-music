@@ -1,6 +1,4 @@
 package elovaire.music.droidbeauty.app.ui.screens
-import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,8 +24,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.CrossfadeSilencePolicy
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import kotlin.math.roundToInt
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.crossfadeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -41,7 +42,8 @@ internal fun CrossfadeScreen(
     onSilenceThresholdChanged: (Float) -> Unit,
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
-    val copy = crossfadeCopy(LocalAppLanguage.current)
+    val language = LocalAppLanguage.current
+    val copy = crossfadeCopy(language)
     val durationSeconds = durationMs.coerceIn(2_000L, 5_000L) / 1_000f
     val silenceStepCount = (
         (CrossfadeSilencePolicy.MAX_LEVEL_DB - CrossfadeSilencePolicy.MIN_LEVEL_DB) /
@@ -66,109 +68,109 @@ internal fun CrossfadeScreen(
                 .fillMaxSize()
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
-                start = 18.dp,
+                start = ElovaireSpacing.screenHorizontalPadding,
                 top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                end = 18.dp,
+                end = ElovaireSpacing.screenHorizontalPadding,
                 bottom = bottomPadding + 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.sectionVerticalGap),
         ) {
             item {
-                ModuleCard {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_squares_intersect),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(
-                                text = copy.fadeLength,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                            )
-                        }
-                        Text(
-                            text = copy.fadeLengthExplanation,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_squares_intersect),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                            modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = "${formatSeconds(durationSeconds)} seconds",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        SteppedSlider(
-                            selectedIndex = durationStep,
-                            stepCount = 7,
-                            onSelectedIndexChanged = { index ->
-                                onDurationChanged((2_000L + index * 500L).coerceIn(2_000L, 5_000L))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
+                            text = copy.fadeLength,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                            ),
                         )
                     }
+                    Text(
+                        text = copy.fadeLengthExplanation,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                    Text(
+                        text = if (language == AppLanguage.English) {
+                            "${formatSeconds(durationSeconds)} seconds"
+                        } else {
+                            "${formatSeconds(durationSeconds)}${audiobookSettingsCopy(language).seconds}"
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SteppedSlider(
+                        selectedIndex = durationStep,
+                        stepCount = 7,
+                        onSelectedIndexChanged = { index ->
+                            onDurationChanged((2_000L + index * 500L).coerceIn(2_000L, 5_000L))
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("crossfade_duration_slider"),
+                    )
                 }
             }
             item {
-                ModuleCard {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_audio_lines_x),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(
-                                text = copy.silenceDetection,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                            )
-                        }
-                        Text(
-                            text = copy.silenceDetectionExplanation,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_audio_lines_x),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                            modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = "${silenceDb.toInt()} dB",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        SteppedSlider(
-                            selectedIndex = silenceStep,
-                            stepCount = silenceStepCount,
-                            onSelectedIndexChanged = { index ->
-                                onSilenceThresholdChanged(
-                                    (CrossfadeSilencePolicy.MIN_LEVEL_DB + index * CrossfadeSilencePolicy.LEVEL_STEP_DB)
-                                        .coerceIn(
-                                            CrossfadeSilencePolicy.MIN_LEVEL_DB,
-                                            CrossfadeSilencePolicy.MAX_LEVEL_DB,
-                                        ),
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
+                            text = copy.silenceDetection,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                            ),
                         )
                     }
+                    Text(
+                        text = copy.silenceDetectionExplanation,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                    Text(
+                        text = "${silenceDb.toInt()} dB",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SteppedSlider(
+                        selectedIndex = silenceStep,
+                        stepCount = silenceStepCount,
+                        onSelectedIndexChanged = { index ->
+                            onSilenceThresholdChanged(
+                                (CrossfadeSilencePolicy.MIN_LEVEL_DB + index * CrossfadeSilencePolicy.LEVEL_STEP_DB)
+                                    .coerceIn(
+                                        CrossfadeSilencePolicy.MIN_LEVEL_DB,
+                                        CrossfadeSilencePolicy.MAX_LEVEL_DB,
+                                    ),
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("crossfade_silence_slider"),
+                    )
                 }
             }
         }

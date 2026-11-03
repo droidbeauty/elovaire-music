@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">آخری بار چلایا گیا</string>
+    <string name="shortcut_albums">البمز</string>
+    <string name="shortcut_playlists">پلے لسٹس</string>
+    <string name="shortcut_search">تلاش</string>
+</resources>

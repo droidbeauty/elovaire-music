@@ -802,9 +802,9 @@ internal fun homeCopy(language: AppLanguage): HomeUiCopy = when (language) {
     )
     AppLanguage.Latin -> HomeUiCopy(
         indexingTitle = "Bibliotheca indicatur",
-        indexingMessage = "Cantus et albumina hic apparebunt post indicem confectum",
+        indexingMessage = "Cantus et alba hic apparebunt post indicem confectum",
         emptyLibraryTitle = "Nulla musica inventa est",
-        emptyLibraryMessage = "Cantus et albumina hic apparebunt cum musicam in folder Music praeordinatum addideris",
+        emptyLibraryMessage = "Cantus et alba hic apparebunt cum musicam in folder Music praeordinatum addideris",
         noRecentAdditionsTitle = "Nullae recentes additiones",
         noRecentAdditionsMessage = "Albumina ad folder Music adde et novissima hic sponte apparebunt",
         recentlyPlayedSongsTitle = "Nuper acta",
@@ -1081,6 +1081,19 @@ internal fun localizedCountLabel(
     noun: String,
     language: AppLanguage,
 ): String {
+    if (language == AppLanguage.Bengali) {
+        val label = when (noun) {
+            "song" -> "গান"
+            "track" -> "ট্র্যাক"
+            "audiobook" -> "অডিওবুক"
+            "album" -> "অ্যালবাম"
+            "artist" -> "শিল্পী"
+            "genre" -> "ধরন"
+            "playlist" -> "প্লেলিস্ট"
+            else -> null
+        }
+        if (label != null) return "$count${if (noun == "artist") "জন" else "টি"} $label"
+    }
     if (noun == "playlist") {
         return localizedPlaylistCountLabel(count, language)
     }
@@ -1160,7 +1173,11 @@ internal fun localizedCountLabel(
             else -> noun to "${noun}e"
         }
         AppLanguage.ChineseSimplified -> when (noun) {
-            "audiobook" -> "有声书" to "有声书"
+            "song", "track" -> "首歌曲" to "首歌曲"
+            "audiobook" -> "本有声书" to "本有声书"
+            "album" -> "张专辑" to "张专辑"
+            "artist" -> "位艺术家" to "位艺术家"
+            "genre" -> "种曲风" to "种曲风"
             else -> noun to noun
         }
         AppLanguage.Croatian -> when (noun) {
@@ -1261,14 +1278,18 @@ internal fun localizedCountLabel(
             else -> noun to "${noun}i"
         }
         AppLanguage.Japanese -> when (noun) {
-            "audiobook" -> "オーディオブック" to "オーディオブック"
+            "song", "track" -> "曲" to "曲"
+            "audiobook" -> "冊のオーディオブック" to "冊のオーディオブック"
+            "album" -> "枚のアルバム" to "枚のアルバム"
+            "artist" -> "組のアーティスト" to "組のアーティスト"
+            "genre" -> "種類のジャンル" to "種類のジャンル"
             else -> noun to noun
         }
         AppLanguage.Latin -> when (noun) {
             "song" -> "cantus" to "cantus"
             "track" -> "cantus" to "cantus"
             "audiobook" -> "liber audio" to "libri audio"
-            "album" -> "album" to "albuma"
+            "album" -> "album" to "alba"
             "artist" -> "artifex" to "artifices"
             "genre" -> "genus" to "genera"
             else -> noun to noun
@@ -1367,7 +1388,11 @@ internal fun localizedCountLabel(
             else -> noun to noun
         }
         AppLanguage.Korean -> when (noun) {
-            "audiobook" -> "오디오북" to "오디오북"
+            "song", "track" -> "곡" to "곡"
+            "audiobook" -> "권의 오디오북" to "권의 오디오북"
+            "album" -> "개의 앨범" to "개의 앨범"
+            "artist" -> "명의 아티스트" to "명의 아티스트"
+            "genre" -> "개의 장르" to "개의 장르"
             else -> noun to noun
         }
         AppLanguage.Malay -> when (noun) {
@@ -1442,7 +1467,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         AppLanguage.Indonesian -> Triple("daftar putar", "daftar putar", "daftar putar")
         AppLanguage.Punjabi -> Triple("ਪਲੇਲਿਸਟ", "ਪਲੇਲਿਸਟਾਂ", "ਪਲੇਲਿਸਟਾਂ")
         AppLanguage.Albanian -> Triple("listë dëgjimi", "lista dëgjimi", "lista dëgjimi")
-        AppLanguage.ChineseSimplified -> Triple("播放列表", "播放列表", "播放列表")
+        AppLanguage.ChineseSimplified -> Triple("个播放列表", "个播放列表", "个播放列表")
         AppLanguage.Croatian -> Triple("playlista", "playliste", "playlista")
         AppLanguage.Czech -> Triple("playlist", "playlisty", "playlistů")
         AppLanguage.Danish -> Triple("afspilningsliste", "afspilningslister", "afspilningslister")
@@ -1455,8 +1480,8 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         AppLanguage.Hindi -> Triple("प्लेलिस्ट", "प्लेलिस्ट", "प्लेलिस्ट")
         AppLanguage.Hungarian -> Triple("lejátszási lista", "lejátszási lista", "lejátszási lista")
         AppLanguage.Italian -> Triple("playlist", "playlist", "playlist")
-        AppLanguage.Japanese -> Triple("プレイリスト", "プレイリスト", "プレイリスト")
-        AppLanguage.Korean -> Triple("재생목록", "재생목록", "재생목록")
+        AppLanguage.Japanese -> Triple("件のプレイリスト", "件のプレイリスト", "件のプレイリスト")
+        AppLanguage.Korean -> Triple("개의 재생목록", "개의 재생목록", "개의 재생목록")
         AppLanguage.Latin -> Triple("index cantuum", "indices cantuum", "indices cantuum")
         AppLanguage.Latvian -> Triple("atskaņošanas saraksts", "atskaņošanas saraksti", "atskaņošanas sarakstu")
         AppLanguage.Lithuanian -> Triple("grojaraštis", "grojaraščiai", "grojaraščių")
@@ -1492,6 +1517,7 @@ private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): Stri
         language in setOf(AppLanguage.Czech, AppLanguage.Slovak) && number in 2..4 -> forms.second
         language in setOf(AppLanguage.Czech, AppLanguage.Slovak) -> forms.third
         language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
+        language == AppLanguage.Latvian && last in 2..9 -> forms.second
         language == AppLanguage.Latvian && last == 1 -> forms.first
         language == AppLanguage.Lithuanian && (last == 0 || lastTwo in 11..19) -> forms.third
         language in setOf(
@@ -1650,6 +1676,7 @@ private fun localizedComplexCountLabel(
         language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
         language == AppLanguage.Lithuanian && lastTwo in 11..19 -> forms.third
         last == 1 && lastTwo != 11 -> forms.first
+        language == AppLanguage.Latvian && last in 2..9 -> forms.second
         last in 2..4 && lastTwo !in 12..14 -> forms.second
         language == AppLanguage.Lithuanian && last in 2..9 -> forms.second
         else -> forms.third

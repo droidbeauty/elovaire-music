@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.tags.TagEditApplyResult
 import elovaire.music.droidbeauty.app.data.tags.TagEditFailure
+import elovaire.music.droidbeauty.app.data.tags.TagEditFailureCause
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
 import elovaire.music.droidbeauty.app.testing.FakeAlbumTagEditor
 import elovaire.music.droidbeauty.app.testing.FakeLibraryReader
@@ -132,13 +133,14 @@ class AlbumTagEditorViewModelTest {
             editedFilePaths = emptyList(),
             editedSongs = listOf(first.copy(album = "New album")),
             artworkChanged = false,
-            failures = listOf(TagEditFailure(second.id, second.fileName, "Temporary failure")),
+            failures = listOf(TagEditFailure(second.id, second.fileName, "Temporary failure", TagEditFailureCause.TempWriteFailed)),
         )
 
         viewModel.onWritePermissionNotRequired(action.operationId)
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.canSave)
+        assertEquals(TagEditFailureCause.TempWriteFailed, viewModel.uiState.value.saveFailures.single().cause)
         assertEquals(TagFieldEdit.Value("New album"), viewModel.uiState.value.toAlbumTagEditRequest()?.albumTitle)
     }
 

@@ -304,6 +304,13 @@ import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.crossfadeToggleAccessibilityLabel
+import elovaire.music.droidbeauty.app.ui.i18n.songFavoriteAccessibilityLabel
+import elovaire.music.droidbeauty.app.ui.i18n.editLyricsAccessibilityLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAudioFormat
+import elovaire.music.droidbeauty.app.ui.i18n.localizedLyricsSaveError
 import elovaire.music.droidbeauty.app.ui.i18n.playbackNavigationAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.closeQueueAccessibilityLabel
 import elovaire.music.droidbeauty.app.ui.i18n.lyricsAccessibilityCopy
@@ -323,6 +330,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
+import elovaire.music.droidbeauty.app.ui.i18n.pauseLabel
 import elovaire.music.droidbeauty.app.ui.i18n.playingFromPrefix
 import elovaire.music.droidbeauty.app.ui.i18n.queueTitle
 import elovaire.music.droidbeauty.app.ui.i18n.repeatModeLabel
@@ -524,12 +532,13 @@ internal fun NowPlayingScreen(
     val displaySong = liveDisplaySong
     val language = LocalAppLanguage.current
     val playbackNavigation = remember(language) { playbackNavigationAccessibilityCopy(language) }
-    val playingFromText = remember(language, playerUiState.sourceLabel, currentSong?.album) {
+    val playingFromText = remember(language, playerUiState.sourceLabel, playerUiState.sourcePlaylistId, currentSong?.album, currentSong?.id) {
         val source = playerUiState.sourceLabel
             ?.takeIf { it.isNotBlank() }
-            ?: currentSong?.album?.takeIf { it.isNotBlank() }
+            ?: currentSong?.album?.takeIf { it.isNotBlank() }?.let { localizedAlbumTitle(it, language) }
             ?: localizedAllSongsSource(language)
-        "${playingFromPrefix(language)} $source"
+        val localizedSource = elovaire.music.droidbeauty.app.ui.i18n.localizedPlaybackSource(source, currentSong?.album, playerUiState.sourcePlaylistId, language)
+        "${playingFromPrefix(language)} ${elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(localizedSource, currentSong?.id, language)}"
     }
     var showLyricsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
@@ -976,7 +985,7 @@ internal fun NowPlayingScreen(
                                         val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
                                         ArtworkImage(
                                             uri = animatedSong.artUri,
-                                            title = animatedSong.title,
+                                            title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(animatedSong.title, animatedSong.id, language),
                                             modifier = Modifier
                                                 .width(animatedArtworkWidth)
                                                 .aspectRatio(1f),
@@ -1010,7 +1019,7 @@ internal fun NowPlayingScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             ExplicitTitleText(
-                                                title = currentSong.title,
+                                                title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(currentSong.title, currentSong.id, language),
                                                 isExplicit = currentSong.isExplicit,
                                                 style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP)),
                                                 color = contentColor,
@@ -1028,7 +1037,7 @@ internal fun NowPlayingScreen(
                                             )
                                         }
                                         Text(
-                                            text = currentSong.artist,
+                                            text = localizedArtistName(currentSong.artist, LocalAppLanguage.current),
                                             style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_ARTIST_TEXT_SIZE_SP)),
                                             color = secondaryContentColor,
                                             maxLines = 1,
@@ -1164,7 +1173,7 @@ internal fun NowPlayingScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     ExplicitTitleText(
-                                        title = animatedSong.title,
+                                        title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(animatedSong.title, animatedSong.id, language),
                                         isExplicit = animatedSong.isExplicit,
                                         style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP)),
                                         color = contentColor,
@@ -1182,7 +1191,7 @@ internal fun NowPlayingScreen(
                                     )
                                 }
                                 Text(
-                                    text = animatedSong.artist,
+                                    text = localizedArtistName(animatedSong.artist, LocalAppLanguage.current),
                                     style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_ARTIST_TEXT_SIZE_SP)),
                                     color = secondaryContentColor,
                                     maxLines = 1,
@@ -1297,7 +1306,7 @@ internal fun NowPlayingScreen(
                                         }
                                         PlayerTransportButton(
                                             iconResId = if (transportShowsPause) R.drawable.ic_elovaire_pause_filled else R.drawable.ic_lucide_play,
-                                            contentDescription = if (transportShowsPause) "Pause" else "Play",
+                                            contentDescription = if (transportShowsPause) pauseLabel(language) else playLabel(language),
                                             tint = contentColor,
                                             iconSize = 46.dp,
                                             onClick = onTogglePlayback,
@@ -1446,7 +1455,7 @@ internal fun NowPlayingScreen(
                 if (sharedArtworkBitmap != null) {
                     Image(
                         bitmap = sharedArtworkBitmap,
-                        contentDescription = currentSong.title,
+                        contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(currentSong.title, currentSong.id, language),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -1797,7 +1806,7 @@ private fun SongFileInfoPill(
                 modifier = Modifier.size(12.dp),
             )
             Text(
-                text = format.ifBlank { "AUDIO" },
+                text = localizedAudioFormat(format, LocalAppLanguage.current),
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontSize = elovaireScaledSp(11f),
                     fontWeight = FontWeight.Medium,
@@ -2073,7 +2082,7 @@ private fun QueueSheetFooter(
                 PlayerSecondaryActionButton(
                     iconResId = R.drawable.ic_lucide_send_to_back,
                     label = "",
-                    contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
+                    contentDescription = crossfadeToggleAccessibilityLabel(crossfadeEnabled, LocalAppLanguage.current),
                     iconSize = 20.dp,
                     tint = tint,
                     showBackground = crossfadeEnabled,
@@ -2726,7 +2735,7 @@ private fun QueueSongRow(
             ) {
                 ArtworkImage(
                     uri = song.artUri,
-                    title = song.album,
+                    title = localizedAlbumTitle(song.album, LocalAppLanguage.current),
                     modifier = Modifier.matchParentSize(),
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
@@ -2745,7 +2754,7 @@ private fun QueueSongRow(
                 verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 ExplicitTitleText(
-                    title = song.title,
+                    title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                     isExplicit = song.isExplicit,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
@@ -2756,7 +2765,7 @@ private fun QueueSongRow(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = song.artist,
+                    text = localizedArtistName(song.artist, LocalAppLanguage.current),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryTint.copy(alpha = 0.78f),
                     maxLines = 1,
@@ -3138,7 +3147,7 @@ internal fun FavoriteSongButton(
                 painter = painterResource(
                     id = if (favorite) R.drawable.ic_lucide_star_filled else R.drawable.ic_lucide_star,
                 ),
-                contentDescription = if (favorite) "Unlike song" else "Like song",
+                contentDescription = songFavoriteAccessibilityLabel(favorite, LocalAppLanguage.current),
                 tint = tint,
                 modifier = Modifier
                     .size(20.dp)
@@ -3304,7 +3313,7 @@ internal fun InlineFavoriteSongButton(
                 painter = painterResource(
                     id = if (favorite) R.drawable.ic_lucide_star_filled else R.drawable.ic_lucide_star,
                 ),
-                contentDescription = if (favorite) "Unlike song" else "Like song",
+                contentDescription = songFavoriteAccessibilityLabel(favorite, LocalAppLanguage.current),
                 tint = tint.copy(alpha = if (favorite) 1f else 0.82f),
                 modifier = Modifier
                     .size(18.dp)
@@ -3951,7 +3960,7 @@ internal fun LyricsOverlay(
                             modifier = Modifier.size(18.dp),
                         )
                         AnimatedContent(
-                            targetState = song?.let { it.title to it.artist },
+                            targetState = song?.let { elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(it.title, it.id, language) to it.artist },
                             modifier = Modifier.weight(1f),
                             transitionSpec = {
                                 (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard)) +
@@ -3978,7 +3987,7 @@ internal fun LyricsOverlay(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = metadata.second,
+                                    text = localizedArtistName(metadata.second, language),
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontSize = elovaireScaledSp(15f),
                                         fontWeight = FontWeight.Medium,
@@ -4002,7 +4011,7 @@ internal fun LyricsOverlay(
                             } else {
                                 R.drawable.ic_lucide_square_pen
                             },
-                            contentDescription = if (isEditingLyrics) copy.save else "Edit lyrics",
+                            contentDescription = if (isEditingLyrics) copy.save else editLyricsAccessibilityLabel(language),
                             tint = contentColor,
                             enabled = !isEditingLyrics || canSubmitLyricsEdit,
                             backgroundAlpha = 0f,
@@ -4072,7 +4081,7 @@ internal fun LyricsOverlay(
                                     onClearLyricsEditorError()
                                 },
                                 contentColor = contentColor,
-                                errorMessage = lyricsEditorUiState.errorMessage,
+                                errorMessage = lyricsEditorUiState.errorMessage?.let { localizedLyricsSaveError(it, language) },
                             )
                         } else when (val state = content.lyrics) {
                             LyricsUiState.Empty -> {
@@ -4306,7 +4315,7 @@ internal fun LyricsOverlay(
                                     painter = painterResource(
                                         id = if (playing) R.drawable.ic_lucide_pause else R.drawable.ic_lucide_play,
                                     ),
-                                    contentDescription = if (playing) "Pause" else "Play",
+                                    contentDescription = if (playing) pauseLabel(language) else playLabel(language),
                                     tint = contentColor,
                                     modifier = Modifier.size(18.dp),
                                 )

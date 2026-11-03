@@ -1,5 +1,9 @@
 package elovaire.music.droidbeauty.app.ui.screens.tags
 
+import elovaire.music.droidbeauty.app.ui.i18n.localizedTagValidationError
+import elovaire.music.droidbeauty.app.ui.i18n.localizedTagSaveFailure
+import elovaire.music.droidbeauty.app.ui.i18n.localizedTagSaveStatus
+
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import android.net.Uri
 import android.graphics.Bitmap
@@ -224,7 +228,7 @@ internal fun AlbumTagEditorScreen(
                                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                             state.saveFailures.forEach { failure ->
                                                 Text(
-                                                    text = "${failure.fileName}: ${failure.reason}",
+                                                    text = "${failure.fileName}: ${localizedTagSaveFailure(failure, appLanguage)}",
                                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                                 )
@@ -321,6 +325,7 @@ internal fun AlbumTagEditorScreen(
             if (album != null) {
                 AlbumTagEditorSaveAction(
                     label = rootUiCopy(appLanguage).save,
+                    language = appLanguage,
                     state = state,
                     onSave = {
                         if (state.canSave && !state.isSaving) {
@@ -543,6 +548,7 @@ private fun TagEditorTextField(
 @Composable
 private fun AlbumTagEditorSaveAction(
     label: String,
+    language: AppLanguage,
     state: AlbumTagEditorUiState,
     onSave: () -> Unit,
 ) {
@@ -558,7 +564,11 @@ private fun AlbumTagEditorSaveAction(
                 .padding(top = 12.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            (state.validationErrors.firstOrNull() ?: state.statusMessage?.takeIf(String::isNotBlank))?.let { error ->
+            (state.validationErrors.firstOrNull()?.let { localizedTagValidationError(it, language) }
+                ?: state.statusMessage?.takeIf(String::isNotBlank)?.let { status ->
+                    state.saveFailures.firstOrNull { it.reason == status }?.let { localizedTagSaveFailure(it, language) }
+                        ?: localizedTagSaveStatus(status, state.saveFailures.size, language)
+                })?.let { error ->
                 Text(
                     text = error,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),

@@ -92,8 +92,6 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "androidx.profileinstaller.ProfileInstallReceiver",
             "android.intent.action.INSTALL_PACKAGE",
             "android.settings.MANAGE_UNKNOWN_APP_SOURCES",
-            "android.appwidget.action.APPWIDGET_UPDATE",
-            "android.appwidget.provider",
         )
         forbiddenEntries.forEach { value ->
             if (value in text) {
@@ -175,6 +173,18 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
                 throw GradleException("Exported component $name must require $requiredPermission.")
             }
         }
+        WIDGET_PROVIDERS.forEach { (name, resource) ->
+            val receiver = exported[name] ?: throw GradleException("Widget provider is missing: $name")
+            val actions = receiver.getElementsByTagName("action").asElementSequence()
+                .map { it.androidAttribute(androidNamespace, "name") }.toSet()
+            val metadata = receiver.getElementsByTagName("meta-data").asElementSequence()
+                .firstOrNull { it.androidAttribute(androidNamespace, "name") == "android.appwidget.provider" }
+            if ("android.appwidget.action.APPWIDGET_UPDATE" !in actions ||
+                metadata?.androidAttribute(androidNamespace, "resource") != resource
+            ) {
+                throw GradleException("Widget provider has invalid launcher metadata: $name")
+            }
+        }
     }
 
     private fun Element.androidAttribute(namespace: String, name: String): String {
@@ -206,9 +216,21 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "${AppBuildConfig.Application.packageName}.MainActivity" to null,
             "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaLibraryService" to null,
             "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaButtonReceiver" to null,
+            "${AppBuildConfig.Application.packageName}.widget.CompactWidgetReceiver" to null,
+            "${AppBuildConfig.Application.packageName}.widget.ClassicWidgetReceiver" to null,
+            "${AppBuildConfig.Application.packageName}.widget.CoverWidgetReceiver" to null,
+            "${AppBuildConfig.Application.packageName}.widget.StudioWidgetReceiver" to null,
+            "${AppBuildConfig.Application.packageName}.widget.ControlsWidgetReceiver" to null,
             "androidx.glance.appwidget.GlanceRemoteViewsService" to "android.permission.BIND_REMOTEVIEWS",
             "androidx.media3.session.BluetoothValidationActivity" to "android.permission.BLUETOOTH_PRIVILEGED",
             "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
+        )
+        val WIDGET_PROVIDERS = mapOf(
+            "${AppBuildConfig.Application.packageName}.widget.CompactWidgetReceiver" to "@xml/widget_compact_info",
+            "${AppBuildConfig.Application.packageName}.widget.ClassicWidgetReceiver" to "@xml/widget_classic_info",
+            "${AppBuildConfig.Application.packageName}.widget.CoverWidgetReceiver" to "@xml/widget_cover_info",
+            "${AppBuildConfig.Application.packageName}.widget.StudioWidgetReceiver" to "@xml/widget_studio_info",
+            "${AppBuildConfig.Application.packageName}.widget.ControlsWidgetReceiver" to "@xml/widget_controls_info",
         )
     }
 }

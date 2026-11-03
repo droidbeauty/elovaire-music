@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Senast spelat</string>
+    <string name="shortcut_albums">Album</string>
+    <string name="shortcut_playlists">Spellistor</string>
+    <string name="shortcut_search">Sök</string>
+</resources>
