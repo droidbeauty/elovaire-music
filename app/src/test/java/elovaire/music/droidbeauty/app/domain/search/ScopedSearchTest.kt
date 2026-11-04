@@ -126,7 +126,7 @@ class ScopedSearchTest {
         val mixedAlbums = sameAlbum + song(id = 3L, title = "Three", album = "Other")
 
         assertEquals("Album", sameAlbum.playbackSourceLabel("Fallback"))
-        assertEquals("Search", mixedAlbums.playbackSourceLabel("Fallback"))
+        assertEquals(elovaire.music.droidbeauty.app.domain.model.SEARCH_PLAYBACK_SOURCE, mixedAlbums.playbackSourceLabel("Fallback"))
         assertEquals("Fallback", emptyList<Song>().playbackSourceLabel("Fallback"))
     }
 

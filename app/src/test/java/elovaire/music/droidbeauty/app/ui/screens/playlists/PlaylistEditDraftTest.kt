@@ -1,13 +1,27 @@
 package elovaire.music.droidbeauty.app.ui.screens.playlists
 
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.screens.PlaylistEditDraft
+import elovaire.music.droidbeauty.app.ui.screens.formatPlaylistDuration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaylistEditDraftTest {
+    @Test
+    fun playlistDurationUsesSelectedLanguageUnits() {
+        val duration = 3_720_000L
+        assertEquals("1h 2m", formatPlaylistDuration(duration, AppLanguage.English))
+        assertEquals("1 godz 2 min", formatPlaylistDuration(duration, AppLanguage.Polish))
+        assertEquals("1時間 2分", formatPlaylistDuration(duration, AppLanguage.Japanese))
+        assertEquals("1 ч 2 мин", formatPlaylistDuration(duration, AppLanguage.Russian))
+        assertEquals("1 گھنٹہ 2 منٹ", formatPlaylistDuration(duration, AppLanguage.Urdu))
+        assertEquals("2 گھنٹے", formatPlaylistDuration(7_200_000L, AppLanguage.Urdu))
+        AppLanguage.entries.forEach { assertTrue(formatPlaylistDuration(duration, it).isNotBlank()) }
+    }
+
     private val playlist = Playlist(id = 7L, name = "Interaction Test", songIds = listOf(1L, 2L, 3L))
 
     @Test

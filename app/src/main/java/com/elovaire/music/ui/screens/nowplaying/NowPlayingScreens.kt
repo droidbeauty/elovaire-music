@@ -331,7 +331,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
 import elovaire.music.droidbeauty.app.ui.i18n.pauseLabel
-import elovaire.music.droidbeauty.app.ui.i18n.playingFromPrefix
+import elovaire.music.droidbeauty.app.ui.i18n.playingFromText
 import elovaire.music.droidbeauty.app.ui.i18n.queueTitle
 import elovaire.music.droidbeauty.app.ui.i18n.repeatModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
@@ -538,7 +538,7 @@ internal fun NowPlayingScreen(
             ?: currentSong?.album?.takeIf { it.isNotBlank() }?.let { localizedAlbumTitle(it, language) }
             ?: localizedAllSongsSource(language)
         val localizedSource = elovaire.music.droidbeauty.app.ui.i18n.localizedPlaybackSource(source, currentSong?.album, playerUiState.sourcePlaylistId, language)
-        "${playingFromPrefix(language)} ${elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(localizedSource, currentSong?.id, language)}"
+        playingFromText(elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(localizedSource, currentSong?.id, language), language)
     }
     var showLyricsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
@@ -2927,7 +2927,7 @@ private fun AudiobookTransportButton(
             onClick = onClick,
         )
         Text(
-            text = "${seconds}s",
+            text = "$seconds${elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy(LocalAppLanguage.current).seconds}",
             style = MaterialTheme.typography.labelMedium,
             color = tint.copy(alpha = 0.84f),
         )

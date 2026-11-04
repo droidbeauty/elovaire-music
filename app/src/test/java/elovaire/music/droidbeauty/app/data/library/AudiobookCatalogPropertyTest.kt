@@ -3,11 +3,29 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class AudiobookCatalogPropertyTest {
+    @Test
+    fun scannerUnknownArtistIsDisplayedAsLocalizedUnknownAuthor() {
+        val input = song(1L, "Book", "Unknown Artist", "/books/book/part-1.m4b", 1)
+        val book = AudiobookCatalog.build(listOf(input)).single()
+
+        assertEquals("Unknown Artist", book.author)
+        assertEquals("Nieznany autor", localizedAudiobookAuthor(book.author, AppLanguage.Polish))
+        AppLanguage.entries.forEach { language ->
+            assertEquals(
+                localizedAudiobookAuthor("Unknown Author", language),
+                localizedAudiobookAuthor(book.author, language),
+            )
+        }
+        assertEquals(input, book.parts.single().song)
+    }
+
     @Test
     fun stableBookKeysAndIdsKeepTheirExistingSha256Encoding() {
         val songs = listOf(

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
@@ -35,8 +36,7 @@ import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.upscalerCopy
-import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
-import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.upscalerSetToDefault
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import kotlin.math.roundToInt
 
@@ -58,8 +58,8 @@ internal fun UpscalerScreen(
             contentPadding = PaddingValues(
                 start = ElovaireSpacing.screenHorizontalPadding,
                 end = ElovaireSpacing.screenHorizontalPadding,
-                top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
+                top = topBarOccupiedHeight() + 20.dp,
+                bottom = bottomPadding + navigationBarInsetDp() + 104.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.sectionVerticalGap),
         ) {
@@ -127,15 +127,17 @@ internal fun UpscalerScreen(
             title = copy.title,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
-            actions = listOf(TopBarActionSpec(
-                iconResId = R.drawable.ic_lucide_rotate_ccw,
-                contentDescription = uiPhrase(LocalAppLanguage.current, UiPhrase.Reset),
-                enabled = value != UpscalerSettings(),
-                onClick = { onSettingsChanged(UpscalerSettings()) },
-            )),
         )
         FastScrollbar(state = listState, topInset = topBarOccupiedHeight() + 8.dp,
-            bottomInset = bottomPadding + buttonNavigationScrollBoost())
+            bottomInset = bottomPadding + navigationBarInsetDp() + 104.dp)
+        SettingsActionPill(
+            text = upscalerSetToDefault(LocalAppLanguage.current),
+            iconResId = R.drawable.ic_lucide_rotate_ccw,
+            onClick = { onSettingsChanged(UpscalerSettings()) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
+        )
     }
 }
 

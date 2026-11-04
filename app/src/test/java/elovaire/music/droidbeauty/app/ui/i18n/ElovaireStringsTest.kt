@@ -1,15 +1,26 @@
 package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSortField
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
+import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.ui.screens.AlbumSortMode
 import elovaire.music.droidbeauty.app.ui.screens.SongSortMode
 import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
+import elovaire.music.droidbeauty.app.ui.screens.homeLayoutEditorCopy
+import elovaire.music.droidbeauty.app.ui.screens.homeLayoutTitle
+import elovaire.music.droidbeauty.app.ui.screens.homeLayoutSubtitle
+import elovaire.music.droidbeauty.app.ui.screens.localizedAboutDescription
+import elovaire.music.droidbeauty.app.ui.screens.localizedAboutTitle
+import elovaire.music.droidbeauty.app.ui.screens.localizedAboutLinkLabel
 import elovaire.music.droidbeauty.app.ui.screens.LYRICS_PERMISSION_DENIED_MESSAGE
 import elovaire.music.droidbeauty.app.ui.screens.LYRICS_POST_GRANT_FAILURE_MESSAGE
 import elovaire.music.droidbeauty.app.ui.screens.tags.TagValidationIssue
 import elovaire.music.droidbeauty.app.ui.screens.tags.TagValidationKind
 import elovaire.music.droidbeauty.app.ui.screens.tags.TagEditFailureUi
+import elovaire.music.droidbeauty.app.ui.screens.tags.tagEditorCopy
+import elovaire.music.droidbeauty.app.ui.screens.tags.audiobookTagEditorCopy
 import elovaire.music.droidbeauty.app.data.tags.TagEditFailureCause
 import elovaire.music.droidbeauty.app.data.tags.TagEditValidationFailure
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteFailure
@@ -21,6 +32,534 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ElovaireStringsTest {
+    @Test
+    fun latinFolderAndNetworkCopyDoesNotFallBackToEnglishTerms() {
+        val folders = libraryFoldersCopy(AppLanguage.Latin)
+        val network = networkSourcesCopy(AppLanguage.Latin)
+        assertEquals("Directoria bibliothecae", folders.title)
+        assertEquals("Adde directorium", folders.addFolder)
+        assertEquals("Elige directorium in hac machina", network.chooseFolderSubtitle)
+        assertFalse(network.domainOptional.contains("optional", ignoreCase = true))
+        assertFalse(rootUiCopy(AppLanguage.Latin).firstLaunchPermissionMessage.contains("folder", ignoreCase = true))
+    }
+
+    @Test
+    fun selectedCountsAgreeWithTheirNounAndNumber() {
+        assertEquals("1 album wybrany", localizedSelectedCount(1, "album", AppLanguage.Polish))
+        assertEquals("2 albumy wybrane", localizedSelectedCount(2, "album", AppLanguage.Polish))
+        assertEquals("5 albumów wybranych", localizedSelectedCount(5, "album", AppLanguage.Polish))
+        assertEquals("21 utworów wybranych", localizedSelectedCount(21, "song", AppLanguage.Polish))
+        assertEquals("22 utwory wybrane", localizedSelectedCount(22, "song", AppLanguage.Polish))
+        assertEquals("1 canción seleccionada", localizedSelectedCount(1, "song", AppLanguage.Spanish))
+        assertEquals("2 álbumes seleccionados", localizedSelectedCount(2, "album", AppLanguage.Spanish))
+        assertEquals("1 cançó seleccionada", localizedSelectedCount(1, "song", AppLanguage.Catalan))
+        assertEquals("1 album sélectionné", localizedSelectedCount(1, "album", AppLanguage.French))
+        assertEquals("1 brano selezionato", localizedSelectedCount(1, "song", AppLanguage.Italian))
+        assertEquals("1 album valt", localizedSelectedCount(1, "album", AppLanguage.Swedish))
+        assertEquals("1 skladba vybraná", localizedSelectedCount(1, "song", AppLanguage.Slovak))
+        assertEquals("5 albumov vybraných", localizedSelectedCount(5, "album", AppLanguage.Slovak))
+        assertEquals("Выбрано: 1 песня", localizedSelectedCount(1, "song", AppLanguage.Russian))
+        assertEquals("Vybráno: 5 alb", localizedSelectedCount(5, "album", AppLanguage.Czech))
+        assertEquals("21 alb", localizedCountLabel(21, "album", AppLanguage.Czech))
+        assertEquals("चयनित: 1 गाना", localizedSelectedCount(1, "song", AppLanguage.Hindi))
+        assertEquals("Selecție: 1 album", localizedSelectedCount(1, "album", AppLanguage.Romanian))
+        assertEquals("Selecție: 5 melodii", localizedSelectedCount(5, "song", AppLanguage.Romanian))
+        assertEquals("Избрано: 1 песен", localizedSelectedCount(1, "song", AppLanguage.Bulgarian))
+        assertEquals("1 τραγούδι επιλεγμένο", localizedSelectedCount(1, "song", AppLanguage.Greek))
+        assertEquals("Valittu: 2 albumia", localizedSelectedCount(2, "album", AppLanguage.Finnish))
+        assertEquals("1 album selectum", localizedSelectedCount(1, "album", AppLanguage.Latin))
+        assertEquals("2 alba selecta", localizedSelectedCount(2, "album", AppLanguage.Latin))
+        assertEquals("1 cantus selectus", localizedSelectedCount(1, "song", AppLanguage.Latin))
+        assertEquals("2 cantus selecti", localizedSelectedCount(2, "song", AppLanguage.Latin))
+        assertEquals("2 albums selected", localizedSelectedCount(2, "album", AppLanguage.English))
+        AppLanguage.entries.forEach { language ->
+            listOf(0, 1, 2, 5, 11, 21, 22).forEach { count ->
+                listOf("song", "album").forEach { noun ->
+                    val label = localizedSelectedCount(count, noun, language)
+                    assertTrue("Missing count for $language", label.contains(count.toString()))
+                    assertEquals(label.trim(), label)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun dynamicSettingsAndRepeatDescriptionsAreTranslatedForEveryLanguage() {
+        assertEquals("Audiobook settings", audiobookSettingsCopy(AppLanguage.English).title)
+        assertEquals("Powtórz utwór", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Polish))
+        assertEquals("Opakovat skladbu", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Czech))
+        assertEquals("Повторити трек", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Ukrainian))
+        assertEquals("Ponovi pjesmu", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Croatian))
+        assertEquals("Repetir canción", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Spanish))
+        assertEquals("Repetir faixa", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Portuguese))
+        AppLanguage.entries.forEach { language ->
+            BuiltInSmartPlaylistType.entries.forEach { type ->
+                val translated = smartPlaylistDescription(type, language)
+                assertTrue("Missing $type description for $language", translated.isNotBlank())
+                if (language == AppLanguage.English) {
+                    assertFalse("Final period in $type description", translated.endsWith('.') && !translated.endsWith("..."))
+                } else {
+                    assertFalse("English $type description for $language", translated == smartPlaylistDescription(type, AppLanguage.English))
+                }
+            }
+            listOf(false, true).forEach { compact ->
+                val translated = nowPlayingStyleDescription(language, compact)
+                assertTrue("Missing player style description for $language", translated.isNotBlank())
+                if (language == AppLanguage.English) {
+                    assertFalse("Final period in player style description", translated.endsWith('.') && !translated.endsWith("..."))
+                } else {
+                    assertFalse("English player style description for $language", translated == nowPlayingStyleDescription(AppLanguage.English, compact))
+                }
+            }
+            PlaybackRepeatMode.entries.forEach { mode ->
+                val translated = repeatModeLabel(mode, language)
+                assertTrue("Missing repeat mode for $language", translated.isNotBlank())
+                if (language != AppLanguage.English && mode != PlaybackRepeatMode.Off) {
+                    assertFalse("English repeat mode for $language", translated == repeatModeLabel(mode, AppLanguage.English))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun albanianPrivacyCopyIncludesThePurposesOfOnlineRequests() {
+        val onlineServices = privacyPolicyCopy(AppLanguage.Albanian).sections[2].body
+        listOf("LRCLIB", "YouTube Music", "Google Books", "tekste këngësh", "imazhe artistësh", "përshkrime librash audio")
+            .forEach { assertTrue("Missing $it", onlineServices.contains(it)) }
+        assertFalse(onlineServices.endsWith('.'))
+    }
+
+    @Test
+    fun onlinePrivacyTranslationsIdentifyTheTypesOfContentFetched() {
+        val terms = mapOf(
+            AppLanguage.Bulgarian to listOf("текстове на песни", "изображения на изпълнители", "описания на аудиокниги"),
+            AppLanguage.Catalan to listOf("lletres de cançons", "imatges d’artistes", "descripcions d’audiollibres"),
+            AppLanguage.Finnish to listOf("sanoitusten", "esittäjäkuvien", "äänikirjakuvausten"),
+            AppLanguage.Hindi to listOf("गीत के बोल", "कलाकार की तस्वीर", "ऑडियोबुक का विवरण"),
+            AppLanguage.Romanian to listOf("versuri", "imagini ale artiștilor", "descrieri ale audiocărților"),
+            AppLanguage.Slovenian to listOf("besedil skladb", "slik izvajalcev", "opisov zvočnih knjig"),
+        )
+        terms.forEach { (language, expected) ->
+            val body = privacyPolicyCopy(language).sections[2].body
+            expected.forEach { assertTrue("Missing $it for $language", body.contains(it)) }
+        }
+    }
+
+    @Test
+    fun artistTopTracksSubtitleUsesNaturalWordOrderAndAgreement() {
+        assertEquals("1 utwór, do którego najczęściej wracasz", artistTopTracksSubtitle(1, AppLanguage.Polish))
+        assertEquals("2 utwory, do których najczęściej wracasz", artistTopTracksSubtitle(2, AppLanguage.Polish))
+        assertEquals("1 Track, zu dem du am häufigsten zurückkehrst", artistTopTracksSubtitle(1, AppLanguage.German))
+        assertEquals("2 Tracks, zu denen du am häufigsten zurückkehrst", artistTopTracksSubtitle(2, AppLanguage.German))
+        assertEquals("よく聴き返す 2 曲", artistTopTracksSubtitle(2, AppLanguage.Japanese))
+        assertEquals("가장 자주 다시 듣는 2 곡", artistTopTracksSubtitle(2, AppLanguage.Korean))
+        assertEquals("最常重听的 2 首歌曲", artistTopTracksSubtitle(2, AppLanguage.ChineseSimplified))
+        assertEquals("1 pista a la que más vuelves", artistTopTracksSubtitle(1, AppLanguage.Spanish))
+        assertEquals("2 pistas a las que más vuelves", artistTopTracksSubtitle(2, AppLanguage.Spanish))
+        assertEquals("21 трек, к которому вы возвращаетесь чаще всего", artistTopTracksSubtitle(21, AppLanguage.Russian))
+        assertEquals("11 треков, к которым вы возвращаетесь чаще всего", artistTopTracksSubtitle(11, AppLanguage.Russian))
+        assertEquals("101 skladba, h kateri se najpogosteje vračate", artistTopTracksSubtitle(101, AppLanguage.Slovenian))
+        assertEquals("1 kappale, johon palaat useimmin", artistTopTracksSubtitle(1, AppLanguage.Finnish))
+        assertEquals("2 kappaletta, joihin palaat useimmin", artistTopTracksSubtitle(2, AppLanguage.Finnish))
+        assertEquals("1 melodie pe care o asculți cel mai des", artistTopTracksSubtitle(1, AppLanguage.Romanian))
+        assertEquals("2 melodii pe care le asculți cel mai des", artistTopTracksSubtitle(2, AppLanguage.Romanian))
+        assertEquals("1 szám, amelyhez a leggyakrabban tér vissza", artistTopTracksSubtitle(1, AppLanguage.Hungarian))
+        assertEquals("2 szám, amelyekhez a leggyakrabban tér vissza", artistTopTracksSubtitle(2, AppLanguage.Hungarian))
+        assertEquals("1 ट्रैक जिसे आप सबसे ज़्यादा सुनते हैं", artistTopTracksSubtitle(1, AppLanguage.Hindi))
+        assertEquals("2 ट्रैक जिन्हें आप सबसे ज़्यादा सुनते हैं", artistTopTracksSubtitle(2, AppLanguage.Hindi))
+        AppLanguage.entries.forEach { language ->
+            listOf(0, 1, 2, 5, 11, 21, 101).forEach { count ->
+                val subtitle = artistTopTracksSubtitle(count, language)
+                assertTrue("Missing count for $language", subtitle.contains(count.toString()))
+                assertTrue("Missing track label for $language", subtitle.contains(localizedCountLabel(count, "track", language)))
+                assertFalse("Unexpected outer whitespace for $language", subtitle != subtitle.trim())
+                if (language != AppLanguage.English) {
+                    assertFalse("English artist subtitle for $language", subtitle == artistTopTracksSubtitle(count, AppLanguage.English))
+                } else {
+                    assertFalse("Final period in artist subtitle", subtitle.endsWith('.'))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun standaloneLabelsHaveLocalizedCopyAndValidEnglishPunctuation() {
+        val labels: Map<String, (AppLanguage) -> String> = mapOf(
+            "edit lyrics" to ::editLyricsAccessibilityLabel,
+            "artwork placeholder" to ::artworkPlaceholderLabel,
+            "close queue" to ::closeQueueAccessibilityLabel,
+            "show song results" to ::showAllSongResultsLabel,
+            "playing from" to ::playingFromPrefix,
+            "all songs" to ::localizedAllSongsSource,
+            "search results" to ::localizedSearchResultsSource,
+            "privacy subtitle" to ::privacyPolicySettingsSubtitle,
+            "audiobook category" to ::audiobookPlaybackCategory,
+            "remove smart rule" to ::smartPlaylistRemoveRuleLabel,
+            "edit smart rules" to ::smartPlaylistEditRulesLabel,
+            "upscaler reset" to ::upscalerSetToDefault,
+            "bundled licenses" to ::bundledLicensesLabel,
+            "close artist info" to ::closeArtistInfoLabel,
+            "external audio" to ::externalAudioLabel,
+            "recent additions empty" to ::recentAdditionsEmptyMessage,
+            "volume normalization" to ::volumeNormalizationSubtitle,
+            "album of day" to ::albumOfDayTitle,
+        )
+        labels.forEach { (name, label) ->
+            val english = label(AppLanguage.English)
+            assertTrue("Empty English $name", english.isNotBlank())
+            assertFalse("Unexpected final period in $name", english.endsWith('.') && !english.endsWith("..."))
+            AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+                val translated = label(language)
+                assertTrue("Empty $name for $language", translated.isNotBlank())
+                assertFalse("English $name for $language", translated == english)
+            }
+        }
+    }
+
+    @Test
+    fun bundledChangelogEntriesAreLocalizedWithoutChangingUnknownReleaseNotes() {
+        val entries = listOf(
+            "UI tweaks in NAS configuration, tag editing system and settings layout",
+            "Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu",
+            "General bug fixes",
+        )
+        AppLanguage.entries.forEach { language ->
+            entries.forEach { entry ->
+                val translated = localizedChangelogItem(entry, language)
+                assertTrue(translated.isNotBlank())
+                if (language == AppLanguage.English) assertEquals(entry, translated) else assertFalse(translated == entry)
+            }
+            assertEquals("Unrecognized release note", localizedChangelogItem("Unrecognized release note", language))
+            assertTrue(localizedChangelogItem(entries[1], language).contains("11") || language == AppLanguage.Latin || language == AppLanguage.Bengali)
+            if (language != AppLanguage.English) {
+                val separator = if (language == AppLanguage.ChineseSimplified || language == AppLanguage.Japanese) "、" else ", "
+                val names = localizedChangelogItem(entries[1], language).substringAfter(": ").split(separator)
+                assertEquals("Missing language names for $language", 11, names.size)
+                assertTrue(names.all(String::isNotBlank))
+                assertEquals("Duplicate language names for $language", 11, names.distinct().size)
+                if (language in setOf(
+                        AppLanguage.Bengali, AppLanguage.Bulgarian, AppLanguage.ChineseSimplified,
+                        AppLanguage.Greek, AppLanguage.Hindi, AppLanguage.Japanese, AppLanguage.Korean,
+                        AppLanguage.Macedonian, AppLanguage.Punjabi, AppLanguage.Russian, AppLanguage.Serbian,
+                        AppLanguage.Thai, AppLanguage.Ukrainian, AppLanguage.Urdu,
+                    )
+                ) {
+                    names.forEach { name ->
+                        assertTrue("Untranslated language name for $language: $name", name.any { it.code > 127 })
+                    }
+                }
+            }
+        }
+        assertEquals("Ogólne poprawki błędów", localizedChangelogItem(entries[2], AppLanguage.Polish))
+        assertTrue(localizedChangelogItem(entries[1], AppLanguage.Polish).contains("albański", ignoreCase = true))
+    }
+
+    @Test
+    fun aboutDescriptionsAreLocalizedWithoutChangingUnknownEntries() {
+        val fallback = "English fallback description"
+        AppLanguage.entries.forEach { language ->
+            listOf("Droid Beauty", "Elovaire", "Resources").forEach { title ->
+                val localized = localizedAboutDescription(title, fallback, language)
+                assertTrue(localized.isNotBlank())
+                if (language != AppLanguage.English) assertFalse(localized == fallback)
+            }
+            assertEquals(fallback, localizedAboutDescription("Unrecognized resource", fallback, language))
+            if (language != AppLanguage.English) {
+                val resources = localizedAboutDescription("Resources", fallback, language)
+                assertTrue(bundledLicensesLabel(language).isNotBlank())
+                assertFalse(bundledLicensesLabel(language) == bundledLicensesLabel(AppLanguage.English))
+                listOf("Android/Kotlin", "Apache-2.0", "Lucide", "ISC/MIT", "Geist", "OFL-1.1", "jaudiotagger", "LGPL").forEach {
+                    assertTrue("Missing $it for $language", it in resources)
+                }
+                assertTrue(resources.contains(bundledLicensesLabel(language)))
+            }
+            assertTrue(localizedAboutTitle("Resources", language).isNotBlank())
+            assertTrue(localizedAboutLinkLabel("Website", language).isNotBlank())
+            assertTrue(localizedAboutLinkLabel("Play Store", language).isNotBlank())
+            assertTrue(localizedAboutTitle("Lucide icons", language).contains("Lucide"))
+            assertTrue(localizedAboutTitle("Geist font", language).contains("Geist"))
+            if (language != AppLanguage.English) assertFalse(localizedAboutTitle("Lucide icons", language) == "Lucide icons")
+            assertEquals("jaudiotagger", localizedAboutTitle("jaudiotagger", language))
+            if (language != AppLanguage.English) assertFalse(localizedAboutTitle("Resources", language) == "Resources")
+        }
+        assertEquals("Dopracowane widżety i motywy, które upiększą ekran główny Androida. Jestem również twórcą odtwarzacza muzyki, z którego teraz korzystasz", localizedAboutDescription("Droid Beauty", fallback, AppLanguage.Polish))
+    }
+
+    @Test
+    fun commonActionsAreNotLeftInEnglishForNonLatinScripts() {
+        val languages = listOf(
+            AppLanguage.Bengali, AppLanguage.Bulgarian, AppLanguage.ChineseSimplified,
+            AppLanguage.Greek, AppLanguage.Hindi, AppLanguage.Japanese, AppLanguage.Korean,
+            AppLanguage.Macedonian, AppLanguage.Punjabi, AppLanguage.Russian, AppLanguage.Serbian,
+            AppLanguage.Thai, AppLanguage.Ukrainian, AppLanguage.Urdu,
+        )
+        languages.forEach { language ->
+            UiPhrase.entries.forEach { phrase ->
+                val english = uiPhrase(AppLanguage.English, phrase)
+                assertFalse("$phrase remains English for $language", uiPhrase(language, phrase) == english)
+            }
+        }
+    }
+
+    @Test
+    fun homeLayoutEntryIsTranslatedInEverySupportedLanguage() {
+        AppLanguage.entries.forEach { language ->
+            val title = homeLayoutTitle(language)
+            val subtitle = homeLayoutSubtitle(language)
+            assertTrue(title.isNotBlank())
+            assertTrue(subtitle.isNotBlank())
+            if (language != AppLanguage.English) {
+                assertFalse(title == homeLayoutTitle(AppLanguage.English))
+                assertFalse(subtitle == homeLayoutSubtitle(AppLanguage.English))
+            }
+        }
+    }
+
+    @Test
+    fun concurrentTagEditErrorIsLocalized() {
+        AppLanguage.entries.forEach { language ->
+            val message = localizedTagSaveStatus("The song is already being edited.", 1, language)
+            assertTrue(message.isNotBlank())
+            if (language != AppLanguage.English) assertFalse(message == "The song is already being edited")
+        }
+        assertEquals("Utwór jest już edytowany", localizedTagSaveStatus("The song is already being edited.", 1, AppLanguage.Polish))
+    }
+
+    @Test
+    fun unavailableTagSourceLocationIsLocalized() {
+        AppLanguage.entries.forEach { language ->
+            val message = localizedTagSaveStatus("The file path is unavailable.", 1, language)
+            assertEquals(message, localizedTagSaveStatus("The song directory is unavailable.", 1, language))
+            assertTrue(message.isNotBlank())
+            if (language != AppLanguage.English) assertFalse(message == "The song file location is unavailable")
+        }
+        assertEquals("Lokalizacja pliku utworu jest niedostępna", localizedTagSaveStatus("The file path is unavailable.", 1, AppLanguage.Polish))
+    }
+
+    @Test
+    fun unwritableTagSourceErrorIsLocalized() {
+        AppLanguage.entries.forEach { language ->
+            val message = localizedTagSaveStatus("The song file is not writable.", 1, language)
+            assertTrue(message.isNotBlank())
+            if (language != AppLanguage.English) assertFalse(message == "The song file is not writable")
+        }
+        assertEquals("Nie można zapisać zmian w pliku utworu", localizedTagSaveStatus("The song file is not writable.", 1, AppLanguage.Polish))
+        val failure = TagEditFailureUi(1L, "song.mp3", "The song file is not writable.", TagEditFailureCause.CannotOpenOutput)
+        assertEquals("Nie można zapisać zmian w pliku utworu", localizedTagSaveFailure(failure, AppLanguage.Polish))
+    }
+
+    @Test
+    fun emptyTagSourceErrorIsLocalized() {
+        AppLanguage.entries.forEach { language ->
+            val message = localizedTagSaveStatus("The song file is empty.", 1, language)
+            assertTrue(message.isNotBlank())
+            if (language != AppLanguage.English) assertFalse(message == "The song file is empty")
+        }
+        assertEquals("Plik utworu jest pusty", localizedTagSaveStatus("The song file is empty.", 1, AppLanguage.Polish))
+        val failure = TagEditFailureUi(1L, "song.mp3", "The song file is empty.", TagEditFailureCause.CannotOpenInput)
+        assertEquals("Plik utworu jest pusty", localizedTagSaveFailure(failure, AppLanguage.Polish))
+    }
+
+    @Test
+    fun insufficientTagStorageIsLocalizedForBothStorageChecks() {
+        val temporary = "There is not enough temporary storage to edit this song safely."
+        val replacement = "There is not enough storage to replace this song safely."
+        AppLanguage.entries.forEach { language ->
+            val message = localizedTagSaveStatus(temporary, 1, language)
+            assertEquals(message, localizedTagSaveStatus(replacement, 1, language))
+            assertTrue(message.isNotBlank())
+            if (language != AppLanguage.English) assertFalse(message == "There is not enough free storage to edit this song safely")
+        }
+        assertEquals("Brakuje wolnego miejsca do bezpiecznej edycji utworu", localizedTagSaveStatus(temporary, 1, AppLanguage.Polish))
+        val failure = TagEditFailureUi(1L, "song.mp3", temporary, TagEditFailureCause.CannotOpenInput)
+        assertEquals("Brakuje wolnego miejsca do bezpiecznej edycji utworu", localizedTagSaveFailure(failure, AppLanguage.Polish))
+    }
+
+    @Test
+    fun greekSpatialEffectLabelsAreLocalized() {
+        assertEquals("Στερεοφωνικό εύρος", SpaciousnessMode.StereoWidth.displayLabel(AppLanguage.Greek))
+        assertEquals("Διασταύρωση καναλιών", SpaciousnessMode.CrossfeedDepth.displayLabel(AppLanguage.Greek))
+        assertEquals("Λιγότερη αντήχηση", uiPhrase(AppLanguage.Greek, UiPhrase.Dry))
+        assertEquals("Περισσότερη αντήχηση", uiPhrase(AppLanguage.Greek, UiPhrase.Wet))
+        assertEquals("Meno riverbero", uiPhrase(AppLanguage.Italian, UiPhrase.Dry))
+        assertEquals("Più riverbero", uiPhrase(AppLanguage.Italian, UiPhrase.Wet))
+        assertEquals("Διαδικτυακοί στίχοι", settingsCopy(AppLanguage.Greek).onlineLyricsTitle)
+        assertEquals("Διαχείριση λιστών αναπαραγωγής", settingsCopy(AppLanguage.Greek).managePlaylistsTitle)
+        assertEquals("Dozvuk", uiPhrase(AppLanguage.Slovak, UiPhrase.Reverb))
+        assertEquals("Reverberim", uiPhrase(AppLanguage.Albanian, UiPhrase.Reverb))
+        assertEquals("Reverberasi", uiPhrase(AppLanguage.Indonesian, UiPhrase.Reverb))
+    }
+
+    @Test
+    fun audiobookPartCountsUseLocalizedNumberForms() {
+        assertEquals("1 part", audiobookPartsCount(1, AppLanguage.English))
+        assertEquals("1 część", audiobookPartsCount(1, AppLanguage.Polish))
+        assertEquals("5 części", audiobookPartsCount(5, AppLanguage.Polish))
+        assertEquals("21 часть", audiobookPartsCount(21, AppLanguage.Russian))
+        assertEquals("12 частей", audiobookPartsCount(12, AppLanguage.Russian))
+        assertEquals("2টি অংশ", audiobookPartsCount(2, AppLanguage.Bengali))
+        assertEquals("101 del", audiobookPartsCount(101, AppLanguage.Slovenian))
+        assertEquals("102 dela", audiobookPartsCount(102, AppLanguage.Slovenian))
+        assertEquals("103 deli", audiobookPartsCount(103, AppLanguage.Slovenian))
+        assertEquals("105 delov", audiobookPartsCount(105, AppLanguage.Slovenian))
+        assertEquals("20 de părți", audiobookPartsCount(20, AppLanguage.Romanian))
+        assertEquals("101 părți", audiobookPartsCount(101, AppLanguage.Romanian))
+        AppLanguage.entries.forEach { assertTrue(audiobookPartsCount(2, it).isNotBlank()) }
+    }
+
+    @Test
+    fun availableReleaseCountsUseCorrectNumberForms() {
+        assertEquals("1 available release", availableReleasesLabel(1, AppLanguage.English))
+        assertEquals("5 dostępnych wydań", availableReleasesLabel(5, AppLanguage.Polish))
+        assertEquals("22 dostępne wydania", availableReleasesLabel(22, AppLanguage.Polish))
+        assertEquals("21 dostępnych wydań", availableReleasesLabel(21, AppLanguage.Polish))
+        assertEquals("102 izdaji na voljo", availableReleasesLabel(102, AppLanguage.Slovenian))
+        assertEquals("103 izdaje na voljo", availableReleasesLabel(103, AppLanguage.Slovenian))
+        assertEquals("21 доступный релиз", availableReleasesLabel(21, AppLanguage.Russian))
+        assertEquals("12 доступных релизов", availableReleasesLabel(12, AppLanguage.Russian))
+        assertEquals("1 Veröffentlichung verfügbar", availableReleasesLabel(1, AppLanguage.German))
+        assertEquals("21 galimas leidinys", availableReleasesLabel(21, AppLanguage.Lithuanian))
+        assertEquals("11 galimų leidinių", availableReleasesLabel(11, AppLanguage.Lithuanian))
+        assertEquals("20 de lansări disponibile", availableReleasesLabel(20, AppLanguage.Romanian))
+        assertEquals("1টি উপলভ্য সংস্করণ", availableReleasesLabel(1, AppLanguage.Bengali))
+        assertEquals("1 julkaisu saatavilla", availableReleasesLabel(1, AppLanguage.Finnish))
+        assertEquals("2件のリリース", availableReleasesLabel(2, AppLanguage.Japanese))
+        assertEquals("มี 2 รายการเผยแพร่", availableReleasesLabel(2, AppLanguage.Thai))
+        val polishForms = mapOf(
+            0 to "dostępnych wydań", 1 to "dostępne wydanie", 2 to "dostępne wydania",
+            4 to "dostępne wydania", 5 to "dostępnych wydań", 12 to "dostępnych wydań",
+            21 to "dostępnych wydań", 22 to "dostępne wydania", 112 to "dostępnych wydań",
+        )
+        polishForms.forEach { (count, suffix) ->
+            assertEquals("$count $suffix", availableReleasesLabel(count, AppLanguage.Polish))
+        }
+        AppLanguage.entries.forEach { language ->
+            polishForms.keys.forEach { count ->
+                assertTrue("Missing release count for $language and $count", availableReleasesLabel(count, language).contains(count.toString()))
+            }
+        }
+    }
+
+    @Test
+    fun searchEmptyResultsPutTheQueryInANaturalPosition() {
+        assertEquals("You might enjoy listening to these again", searchCopy(AppLanguage.English).suggestedAlbumsSubtitle)
+        assertEquals("Nie znaleziono w bibliotece wyników dla \"jazz\"", searchCopy(AppLanguage.Polish).noResultsMessage("jazz"))
+        assertEquals("当前离线媒体库中没有以下搜索的匹配结果： \"jazz\"", searchCopy(AppLanguage.ChineseSimplified).noResultsMessage("jazz"))
+        assertEquals("현재 오프라인 라이브러리에 다음 검색 결과가 없습니다: \"jazz\"", searchCopy(AppLanguage.Korean).noResultsMessage("jazz"))
+        assertEquals("In der Offline-Bibliothek wurden keine Ergebnisse gefunden für \"jazz\"", searchCopy(AppLanguage.German).noResultsMessage("jazz"))
+        assertEquals("Tiada hasil dalam pustaka luar talian untuk \"jazz\"", searchCopy(AppLanguage.Malay).noResultsMessage("jazz"))
+        assertEquals("অফলাইন লাইব্রেরিতে এই অনুসন্ধানের কোনো ফল নেই: \"jazz\"", searchCopy(AppLanguage.Bengali).noResultsMessage("jazz"))
+        assertEquals("آف لائن لائبریری میں اس تلاش کا کوئی نتیجہ نہیں: \"jazz\"", searchCopy(AppLanguage.Urdu).noResultsMessage("jazz"))
+        assertEquals("V offline knihovně zatím nejsou výsledky pro \"jazz\"", searchCopy(AppLanguage.Czech).noResultsMessage("jazz"))
+        assertEquals("V offline knižnici zatiaľ nie sú výsledky pre \"jazz\"", searchCopy(AppLanguage.Slovak).noResultsMessage("jazz"))
+        assertEquals("В офлайн-библиотеке пока нет результатов для \"jazz\"", searchCopy(AppLanguage.Russian).noResultsMessage("jazz"))
+        assertEquals("В офлайн-бібліотеці поки немає результатів для \"jazz\"", searchCopy(AppLanguage.Ukrainian).noResultsMessage("jazz"))
+        assertEquals("オフラインライブラリに次の検索結果はありません： \"jazz\"", searchCopy(AppLanguage.Japanese).noResultsMessage("jazz"))
+        assertEquals("No hay resultados en la biblioteca sin conexión para \"jazz\"", searchCopy(AppLanguage.Spanish).noResultsMessage("jazz"))
+        assertEquals("Não foram encontrados resultados na biblioteca offline para \"jazz\"", searchCopy(AppLanguage.Portuguese).noResultsMessage("jazz"))
+        assertEquals("लाइब्रेरी में इस खोज का कोई नतीजा नहीं मिला: \"jazz\"", searchCopy(AppLanguage.Hindi).noResultsMessage("jazz"))
+        assertEquals("ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਖੋਜ ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ: \"jazz\"", searchCopy(AppLanguage.Punjabi).noResultsMessage("jazz"))
+        AppLanguage.entries.forEach { language ->
+            val result = searchCopy(language).noResultsMessage("query-marker")
+            assertEquals("Query repeated or missing for $language", 1, Regex("query-marker").findAll(result).count())
+            assertEquals("Unexpected outer whitespace for $language", result.trim(), result)
+        }
+    }
+
+    @Test
+    fun majorUiCopyDoesNotLeaveEnglishSentencesInOtherLanguages() {
+        fun copies(language: AppLanguage): List<Any> = listOf(
+            rootUiCopy(language), homeCopy(language), searchCopy(language), settingsCopy(language),
+            upscalerCopy(language), aboutUpdateCopy(language), updateActionCopy(language),
+            libraryFoldersCopy(language), networkSourcesCopy(language), commonUiCopy(language),
+            audiobookCopy(language), audiobookUnavailableCopy(language), audiobookDescriptionCopy(language),
+            audiobookSettingsCopy(language), audiobookExtraCopy(language), smartPlaylistSettingsCopy(language),
+            playlistManagementCopy(language), crossfadeCopy(language), equalizerCopy(language),
+            artistInfoCopy(language), nowPlayingBarStyleCopy(language), carMediaCopy(language),
+            playlistAccessibilityCopy(language), settingsAccessibilityCopy(language),
+            playerControlAccessibilityCopy(language), mediaOptionsAccessibilityCopy(language),
+            lyricsAccessibilityCopy(language), navigationAccessibilityCopy(language),
+            playbackNavigationAccessibilityCopy(language), shuffleAccessibilityCopy(language),
+            viewModeAccessibilityCopy(language), sleepTimerCopy(language), tagAdditionalIssuesCopy(language),
+            playlistMainCopy(language), smartPlaylistOrderCopy(language), smartPlaylistInputCopy(language),
+            smartPlaylistValueCopy(language), smartPlaylistOtherRuleCopy(language), smartPlaylistTextRuleCopy(language),
+            smartPlaylistActionCopy(language), smartPlaylistMatchCopy(language), smartPlaylistEditorHeadingCopy(language),
+            smartPlaylistEmptyCopy(language), smartPlaylistDeleteCopy(language), smartPlaylistMissingCopy(language),
+            libraryScanStatusCopy(language),
+            homeLayoutEditorCopy(language),
+            tagEditorCopy(language), audiobookTagEditorCopy(language),
+        )
+        val english = copies(AppLanguage.English)
+        val untranslated = mutableListOf<String>()
+        AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+            copies(language).zip(english).forEach { (translated, source) ->
+                source.javaClass.declaredFields.filter { it.type == String::class.java }.forEach { field ->
+                    field.isAccessible = true
+                    val sourceText = field.get(source) as String
+                    val translatedText = field.get(translated) as String
+                    val nonLatinLanguage = language in setOf(
+                        AppLanguage.Bengali, AppLanguage.Bulgarian, AppLanguage.ChineseSimplified,
+                        AppLanguage.Greek, AppLanguage.Hindi, AppLanguage.Japanese, AppLanguage.Korean,
+                        AppLanguage.Macedonian, AppLanguage.Punjabi, AppLanguage.Russian, AppLanguage.Serbian,
+                        AppLanguage.Thai, AppLanguage.Ukrainian, AppLanguage.Urdu,
+                    )
+                    val commonEnglishLabel = sourceText in setOf(
+                        "Settings", "Search", "Songs", "Artists", "Library", "Shuffle", "Queue",
+                        "Favorites", "Playlists", "Save", "Delete", "Cancel", "Create", "Loading",
+                    )
+                    if (sourceText.trim().split(Regex("\\s+")).size >= 2 ||
+                        (nonLatinLanguage && sourceText.matches(Regex("[A-Za-z]{4,}"))) || commonEnglishLabel
+                    ) {
+                        val sharedTechnicalTerm = (sourceText == "HTTPS server" &&
+                            (language == AppLanguage.Bosnian || language == AppLanguage.Slovak)) ||
+                            (source.javaClass.simpleName == "RootUiCopy" && field.name == "appName")
+                        if (translatedText == sourceText && !sharedTechnicalTerm) {
+                            untranslated += "${source.javaClass.simpleName}.${field.name} ($language): $sourceText"
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue("English copy: ${untranslated.joinToString("; ")}", untranslated.isEmpty())
+    }
+
+    @Test
+    fun oversizedUpdateErrorsAreLocalized() {
+        AppLanguage.entries.forEach { language ->
+            val declared = localizedUpdateError("Update download is too large", language)
+            val streamed = localizedUpdateError("Update download exceeded its byte limit", language)
+            assertEquals(declared, streamed)
+            assertTrue(declared.isNotBlank())
+            if (language != AppLanguage.English) assertFalse(declared == "The update exceeds the allowed download size")
+        }
+        assertEquals("Rozmiar pobieranej aktualizacji przekracza dozwolony limit", localizedUpdateError("Update download is too large", AppLanguage.Polish))
+    }
+
+    @Test
+    fun playbackSourceUsesNaturalWordOrder() {
+        val generatedSource = elovaire.music.droidbeauty.app.domain.model.SEARCH_PLAYBACK_SOURCE
+        assertEquals("wyników wyszukiwania", localizedPlaybackSource(generatedSource, "Album", null, AppLanguage.Polish))
+        assertEquals("search results", localizedPlaybackSource(generatedSource, "Album", null, AppLanguage.English))
+        assertEquals(generatedSource, localizedPlaybackSource(generatedSource, "Album", 1L, AppLanguage.Polish))
+        assertEquals(generatedSource, localizedPlaybackSource(generatedSource, generatedSource, null, AppLanguage.Polish))
+        assertEquals("Album থেকে চলছে", playingFromText("Album", AppLanguage.Bengali))
+        assertEquals("Album से चल रहा है", playingFromText("Album", AppLanguage.Hindi))
+        assertEquals("Album ਤੋਂ ਚੱਲ ਰਿਹਾ ਹੈ", playingFromText("Album", AppLanguage.Punjabi))
+        assertEquals("Album سے چل رہا ہے", playingFromText("Album", AppLanguage.Urdu))
+        assertEquals("Playing from Album", playingFromText("Album", AppLanguage.English))
+        assertEquals("Odtwarzanie z wszystkich utworów", playingFromText(localizedAllSongsSource(AppLanguage.Polish), AppLanguage.Polish))
+        assertEquals("सभी गानों से चल रहा है", playingFromText(localizedAllSongsSource(AppLanguage.Hindi), AppLanguage.Hindi))
+        assertEquals("Wiedergabe aus allen Titeln", playingFromText(localizedAllSongsSource(AppLanguage.German), AppLanguage.German))
+        assertEquals("Odtwarzanie z wyników wyszukiwania", playingFromText(localizedSearchResultsSource(AppLanguage.Polish), AppLanguage.Polish))
+        AppLanguage.entries.forEach { assertTrue(localizedAllSongsSource(it).isNotBlank()) }
+        AppLanguage.entries.forEach { assertTrue(localizedSearchResultsSource(it).isNotBlank()) }
+    }
+
+    @Test
+    fun mostPlayedSmartPlaylistUsesKoreanCopy() {
+        assertEquals("가장 많이 재생한 곡", builtInSmartPlaylistTitle(BuiltInSmartPlaylistType.MostPlayed, AppLanguage.Korean))
+    }
+
     @Test
     fun bengaliCountsUsePeopleAndObjectClassifiers() {
         assertEquals("1জন শিল্পী", localizedCountLabel(1, "artist", AppLanguage.Bengali))
@@ -41,6 +580,13 @@ class ElovaireStringsTest {
     }
     @Test
     fun playbackSourceLocalizesOnlyTheAlbumFallback() {
+        val smartSource = elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + BuiltInSmartPlaylistType.MostPlayed.name
+        assertEquals("Najczęściej odtwarzane", localizedPlaybackSource(smartSource, "Album", null, AppLanguage.Polish))
+        assertEquals("Most played", localizedPlaybackSource(smartSource, "Album", null, AppLanguage.English))
+        assertEquals(smartSource, localizedPlaybackSource(smartSource, "Album", 4L, AppLanguage.Polish))
+        val bucket = elovaire.music.droidbeauty.app.domain.model.SONG_BUCKET_PLAYBACK_SOURCE_PREFIX + "T"
+        assertEquals("Utwory T", localizedPlaybackSource(bucket, "Album", null, AppLanguage.Polish))
+        assertEquals("Songs T", localizedPlaybackSource(bucket, "Album", null, AppLanguage.English))
         assertEquals("Nieznany album", localizedPlaybackSource("Unknown Album", "Unknown Album", null, AppLanguage.Polish))
         assertEquals("Unknown Album", localizedPlaybackSource("Unknown Album", "Unknown Album", 4L, AppLanguage.Polish))
         assertEquals("Unknown Album", localizedPlaybackSource("Unknown Album", "Another album", null, AppLanguage.Polish))
@@ -49,6 +595,17 @@ class ElovaireStringsTest {
             val localized = localizedPlaybackSource("Unknown Album", "Unknown Album", null, language)
             assertEquals(localizedAlbumTitle("Unknown Album", language), localized)
             assertEquals("Unknown Album", localizedPlaybackSource("Unknown Album", "Unknown Album", 4L, language))
+            val allSongs = elovaire.music.droidbeauty.app.domain.model.ALL_SONGS_PLAYBACK_SOURCE
+            val search = elovaire.music.droidbeauty.app.domain.model.SEARCH_PLAYBACK_SOURCE
+            assertEquals(localizedAllSongsSource(language), localizedPlaybackSource(allSongs, "Album", null, language))
+            assertEquals(localizedSearchResultsSource(language), localizedPlaybackSource(search, "Album", null, language))
+            assertEquals(localizedArtistName("Unknown Artist", language), localizedPlaybackSource(elovaire.music.droidbeauty.app.domain.model.UNKNOWN_ARTIST_PLAYBACK_SOURCE, "Album", null, language))
+            assertEquals(localizedGenreName("Unknown Genre", language), localizedPlaybackSource(elovaire.music.droidbeauty.app.domain.model.UNKNOWN_GENRE_PLAYBACK_SOURCE, "Album", null, language))
+            BuiltInSmartPlaylistType.entries.forEach { type ->
+                val generated = elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + type.name
+                assertEquals(builtInSmartPlaylistTitle(type, language), localizedPlaybackSource(generated, "Album", null, language))
+            }
+            assertEquals(search, localizedPlaybackSource(search, "Album", 4L, language))
             if (language != AppLanguage.English) assertFalse(localized == "Unknown Album")
         }
     }
@@ -174,10 +731,33 @@ class ElovaireStringsTest {
     }
     @Test
     fun searchResultLabelsUseLocalizedCountedNouns() {
+        val polish = searchCopy(AppLanguage.Polish)
+        assertEquals("1 pasujący artysta", polish.matchingArtists(1, AppLanguage.Polish))
+        assertEquals("2 pasujących artystów", polish.matchingArtists(2, AppLanguage.Polish))
+        assertEquals("22 pasujących artystów", polish.matchingArtists(22, AppLanguage.Polish))
+        assertEquals("2 pasujące albumy", polish.matchingAlbums(2, AppLanguage.Polish))
+        assertEquals("搜索结果：2 位艺术家", searchCopy(AppLanguage.ChineseSimplified).matchingArtists(2, AppLanguage.ChineseSimplified))
+        assertEquals("検索結果：2 曲", searchCopy(AppLanguage.Japanese).matchingSongs(2, AppLanguage.Japanese))
+        assertEquals("검색 결과: 2 개의 앨범", searchCopy(AppLanguage.Korean).matchingAlbums(2, AppLanguage.Korean))
+        assertEquals("Hasil: 2 artis", searchCopy(AppLanguage.Indonesian).matchingArtists(2, AppLanguage.Indonesian))
+        assertEquals("Hasil: 2 lagu", searchCopy(AppLanguage.Malay).matchingSongs(2, AppLanguage.Malay))
+        assertEquals("ผลการค้นหา: ศิลปิน 2 คน", searchCopy(AppLanguage.Thai).matchingArtists(2, AppLanguage.Thai))
+        assertEquals("ผลการค้นหา: 2 อัลบั้ม", searchCopy(AppLanguage.Thai).matchingAlbums(2, AppLanguage.Thai))
+        assertEquals("ผลการค้นหา: 2 เพลง", searchCopy(AppLanguage.Thai).matchingSongs(2, AppLanguage.Thai))
         assertEquals("Αποτελέσματα: 1 τραγούδι", searchCopy(AppLanguage.Greek).matchingSongs(1, AppLanguage.Greek))
         assertEquals("Αποτελέσματα: 2 τραγούδια", searchCopy(AppLanguage.Greek).matchingSongs(2, AppLanguage.Greek))
         assertEquals("Találatok: 2 dal", searchCopy(AppLanguage.Hungarian).matchingSongs(2, AppLanguage.Hungarian))
         assertEquals("Rezultate: 2 artistë", searchCopy(AppLanguage.Albanian).matchingArtists(2, AppLanguage.Albanian))
+    }
+
+    @Test
+    fun playlistCountsFollowHigherNumberBoundaries() {
+        assertEquals("100 de liste", localizedCountLabel(100, "playlist", AppLanguage.Romanian))
+        assertEquals("101 liste", localizedCountLabel(101, "playlist", AppLanguage.Romanian))
+        assertEquals("102 seznama predvajanja", localizedCountLabel(102, "playlist", AppLanguage.Slovenian))
+        assertEquals("104 seznami predvajanja", localizedCountLabel(104, "playlist", AppLanguage.Slovenian))
+        assertEquals("111 atskaņošanas sarakstu", localizedCountLabel(111, "playlist", AppLanguage.Latvian))
+        assertEquals("121 grojaraštis", localizedCountLabel(121, "playlist", AppLanguage.Lithuanian))
     }
     @Test
     fun bulgarianAndMacedonianSearchResultsUseCountedNouns() {
@@ -225,6 +805,7 @@ class ElovaireStringsTest {
         assertEquals("2 nalezení umělci", copy.matchingArtists(2, AppLanguage.Czech))
         assertEquals("1 nalezené album", copy.matchingAlbums(1, AppLanguage.Czech))
         assertEquals("2 nalezená alba", copy.matchingAlbums(2, AppLanguage.Czech))
+        assertEquals("5 nalezených alb", copy.matchingAlbums(5, AppLanguage.Czech))
         assertEquals("1 nalezená skladba", copy.matchingSongs(1, AppLanguage.Czech))
         assertEquals("5 nalezených skladeb", copy.matchingSongs(5, AppLanguage.Czech))
     }
@@ -304,6 +885,8 @@ class ElovaireStringsTest {
         assertEquals("5 najdenih skladb", copy.matchingSongs(5, AppLanguage.Slovenian))
         assertEquals("2 najdena albuma", copy.matchingAlbums(2, AppLanguage.Slovenian))
         assertEquals("3 najdeni izvajalci", copy.matchingArtists(3, AppLanguage.Slovenian))
+        assertEquals("102 najdeni skladbi", copy.matchingSongs(102, AppLanguage.Slovenian))
+        assertEquals("111 najdenih albumov", copy.matchingAlbums(111, AppLanguage.Slovenian))
     }
     @Test
     fun latvianCountsUsePluralExceptForZeroAndTeens() {
@@ -326,6 +909,7 @@ class ElovaireStringsTest {
     fun unknownAudiobookAuthorsAreLocalizedWithoutChangingRealNames() {
         AppLanguage.entries.forEach { language ->
             val unknown = localizedAudiobookAuthor("Unknown Author", language)
+            assertEquals(unknown, localizedAudiobookAuthor("Unknown Artist", language))
             assertFalse(unknown.isBlank())
             assertEquals(unknown, localizedAudiobookAuthor("", language))
             assertEquals("Jane Austen", localizedAudiobookAuthor("Jane Austen", language))
@@ -419,6 +1003,22 @@ class ElovaireStringsTest {
         AppLanguage.entries.forEach { language ->
             assertEquals(localizedArtistName("Unknown Artist", language), widgetCopy(language).unknownArtist)
             assertEquals(pauseLabel(language), widgetCopy(language).pause)
+        }
+    }
+
+    @Test
+    fun widgetControlLabelsAreAvailableInEveryLanguage() {
+        AppLanguage.entries.forEach { language ->
+            val copy = widgetCopy(language)
+            listOf(copy.play, copy.pause, copy.previous, copy.next, copy.unknownArtist, copy.externalAudio).forEach {
+                assertTrue("Empty widget label for $language", it.isNotBlank())
+            }
+            assertEquals(playLabel(language), copy.play)
+            assertEquals(pauseLabel(language), copy.pause)
+            if (language != AppLanguage.English) {
+                assertFalse("English previous label for $language", copy.previous == "Previous track")
+                assertFalse("English next label for $language", copy.next == "Next track")
+            }
         }
     }
     @Test
@@ -1233,16 +1833,67 @@ class ElovaireStringsTest {
             smartPlaylistEmptyCopy(AppLanguage.English),
             smartPlaylistDeleteCopy(AppLanguage.English),
             smartPlaylistMissingCopy(AppLanguage.English),
+            playlistAccessibilityCopy(AppLanguage.English),
+            settingsAccessibilityCopy(AppLanguage.English),
+            playerControlAccessibilityCopy(AppLanguage.English),
+            mediaOptionsAccessibilityCopy(AppLanguage.English),
+            lyricsAccessibilityCopy(AppLanguage.English),
+            navigationAccessibilityCopy(AppLanguage.English),
+            playbackNavigationAccessibilityCopy(AppLanguage.English),
+            shuffleAccessibilityCopy(AppLanguage.English),
+            viewModeAccessibilityCopy(AppLanguage.English),
+            carMediaCopy(AppLanguage.English),
+            sleepTimerCopy(AppLanguage.English),
+            tagAdditionalIssuesCopy(AppLanguage.English),
+            libraryFoldersCopy(AppLanguage.English),
+            networkSourcesCopy(AppLanguage.English),
+            commonUiCopy(AppLanguage.English),
+            playlistMainCopy(AppLanguage.English),
+            audiobookUnavailableCopy(AppLanguage.English),
+            audiobookDescriptionCopy(AppLanguage.English),
+            audiobookCopy(AppLanguage.English),
+            nowPlayingBarStyleCopy(AppLanguage.English),
+            smartPlaylistOrderCopy(AppLanguage.English),
+            smartPlaylistInputCopy(AppLanguage.English),
+            smartPlaylistValueCopy(AppLanguage.English),
+            smartPlaylistOtherRuleCopy(AppLanguage.English),
+            smartPlaylistTextRuleCopy(AppLanguage.English),
+            audiobookExtraCopy(AppLanguage.English),
+            audiobookSettingsCopy(AppLanguage.English),
+            smartPlaylistSettingsCopy(AppLanguage.English),
+            equalizerCopy(AppLanguage.English),
+            artistInfoCopy(AppLanguage.English),
+            smartPlaylistActionCopy(AppLanguage.English),
+            smartPlaylistMatchCopy(AppLanguage.English),
+            smartPlaylistEditorHeadingCopy(AppLanguage.English),
+            libraryScanStatusCopy(AppLanguage.English),
+            playlistManagementCopy(AppLanguage.English),
+            crossfadeCopy(AppLanguage.English),
+            homeLayoutEditorCopy(AppLanguage.English),
+            tagEditorCopy(AppLanguage.English), audiobookTagEditorCopy(AppLanguage.English),
         )
         val values = copies.flatMap { copy ->
             copy.javaClass.declaredFields.filter { it.type == String::class.java }.map { field ->
                 field.isAccessible = true
                 field.get(copy) as String
             }
-        } + privacyPolicyCopy(AppLanguage.English).sections.flatMap { listOf(it.title, it.body) }
+        } + privacyPolicyCopy(AppLanguage.English).sections.flatMap { listOf(it.title, it.body) } +
+            UiPhrase.entries.map { uiPhrase(AppLanguage.English, it) } +
+            MiscPhrase.entries.map { miscPhrase(AppLanguage.English, it) } + listOf(
+            localizedTagSaveStatus("The song file is empty.", 1, AppLanguage.English),
+            localizedTagSaveStatus("The song file is not writable.", 1, AppLanguage.English),
+            localizedTagSaveStatus("The file path is unavailable.", 1, AppLanguage.English),
+            localizedTagSaveStatus("The song is already being edited.", 1, AppLanguage.English),
+            localizedTagSaveStatus("There is not enough temporary storage to edit this song safely.", 1, AppLanguage.English),
+            localizedUpdateError("Update download is too large", AppLanguage.English),
+            homeLayoutTitle(AppLanguage.English),
+            homeLayoutSubtitle(AppLanguage.English),
+            droidBeautyDescription(AppLanguage.English),
+        )
         val sentenceBoundary = Regex("(?<!\\.)\\.(?!\\.)\\s+(?=[A-Z])")
         values.forEach { value ->
-            assertFalse("Unexpected final period: $value", value.endsWith('.') && !value.endsWith("..."))
+            val text = value.trimEnd()
+            assertFalse("Unexpected final period: $value", text.endsWith('.') && !text.endsWith("..."))
             assertFalse("More than one sentence separator: $value", sentenceBoundary.findAll(value).count() > 1)
         }
     }
@@ -1503,6 +2154,32 @@ class ElovaireStringsTest {
         }
     }
     @Test
+    fun privacyTranslationsRetainTheSharedServiceAndSecurityDetails() {
+        val english = privacyPolicyCopy(AppLanguage.English).sections
+        AppLanguage.entries.forEach { language ->
+            val sections = privacyPolicyCopy(language).sections
+            assertEquals("Section count for $language", english.size, sections.size)
+            sections.zip(english).forEach { (section, source) ->
+                assertTrue("Empty privacy section for $language", section.title.isNotBlank() && section.body.isNotBlank())
+                if (language != AppLanguage.English) {
+                    assertFalse("English privacy heading for $language", section.title == source.title)
+                    assertFalse("English privacy body for $language", section.body == source.body)
+                }
+            }
+            listOf("LRCLIB", "YouTube Music", "Google Books").forEach {
+                assertTrue("Missing $it for $language", sections[2].body.contains(it))
+            }
+            listOf("SMB", "WebDAV").forEach {
+                assertTrue("Missing $it for $language", sections[4].body.contains(it))
+            }
+            listOf("GitHub", "APK", "IP").forEach {
+                assertTrue("Missing $it for $language", sections[6].body.contains(it))
+            }
+            assertTrue("Missing source link for $language", sections[7].body.contains("github.com/droidbeauty/elovaire-music"))
+        }
+    }
+
+    @Test
     fun privacySectionsHaveNoFinalFullStopInAnyLanguage() {
         AppLanguage.entries.forEach { language ->
             privacyPolicyCopy(language).sections.forEach { section ->
@@ -1738,6 +2415,31 @@ class ElovaireStringsTest {
                 org.junit.Assert.assertTrue("Missing $phrase in $language", hasUiPhraseTranslation(language, phrase))
             }
         }
+    }
+
+    @Test
+    fun miscellaneousPhrasesAreTranslatedForEveryLanguage() {
+        MiscPhrase.entries.forEach { phrase ->
+            val english = miscPhrase(AppLanguage.English, phrase)
+            AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+                val translated = miscPhrase(language, phrase)
+                assertTrue("Missing $phrase in $language", translated.isNotBlank())
+                assertFalse("English $phrase in $language", translated == english)
+            }
+        }
+    }
+
+    @Test
+    fun sharedSentencePhrasesAreNotLeftInEnglish() {
+        val untranslated = mutableListOf<String>()
+        UiPhrase.entries.forEach { phrase ->
+            val english = uiPhrase(AppLanguage.English, phrase)
+            if (english.trim().split(Regex("\\s+")).size < 2) return@forEach
+            AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+                if (uiPhrase(language, phrase) == english) untranslated += "$phrase ($language): $english"
+            }
+        }
+        assertTrue("English phrases: ${untranslated.joinToString("; ")}", untranslated.isEmpty())
     }
 
     @Test

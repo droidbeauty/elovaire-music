@@ -32,6 +32,7 @@ class ShortcutResourcesTest {
             val resources = context.createConfigurationContext(configuration).resources
             resourceIds.forEach { id -> assertFalse("$tag has an empty shortcut", resources.getString(id).isBlank()) }
             assertFalse("$tag falls back to English", resources.getString(R.string.shortcut_last_played) == "Last played")
+            assertFalse("$tag has an English playlist shortcut", resources.getString(R.string.shortcut_playlists) == "Playlists")
         }
     }
 }

@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 import elovaire.music.droidbeauty.app.ui.i18n.localizedTagValidationError
 import elovaire.music.droidbeauty.app.ui.i18n.localizedTagSaveFailure
 import elovaire.music.droidbeauty.app.ui.i18n.localizedTagSaveStatus
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import android.net.Uri
@@ -200,14 +202,14 @@ internal fun AlbumTagEditorScreen(
                                         verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                                     ) {
                                         Text(
-                                            text = state.albumTitle.ifBlank { album.title },
+                                            text = localizedAlbumTitle(state.albumTitle.ifBlank { album.title }, appLanguage),
                                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                                             color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                         Text(
-                                            text = state.albumArtist.ifBlank { album.artist },
+                                            text = localizedArtistName(state.albumArtist.ifBlank { album.artist }, appLanguage),
                                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                             maxLines = 2,
@@ -300,6 +302,7 @@ internal fun AlbumTagEditorScreen(
                                     index = index,
                                     track = track,
                                     copy = copy,
+                                    appLanguage = appLanguage,
                                     expanded = expandedTrackId == track.songId,
                                     enabled = !state.isSaving,
                                     onToggle = {
@@ -371,6 +374,7 @@ private fun EditableTrackCard(
     index: Int,
     track: EditableTrackTagState,
     copy: AlbumTagEditorCopy,
+    appLanguage: AppLanguage,
     expanded: Boolean,
     enabled: Boolean,
     onToggle: () -> Unit,
@@ -435,7 +439,7 @@ private fun EditableTrackCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = track.artist.ifBlank { track.originalArtist },
+                        text = localizedArtistName(track.artist.ifBlank { track.originalArtist }, appLanguage),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         maxLines = 1,
@@ -724,7 +728,7 @@ private fun rememberPreviewBitmap(
 
 private const val TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX = 256
 
-private data class AlbumTagEditorCopy(
+internal data class AlbumTagEditorCopy(
     val editorTitle: String,
     val albumNotFound: String,
     val albumSection: String,
@@ -742,7 +746,7 @@ private data class AlbumTagEditorCopy(
     val discNumber: String,
 )
 
-private fun tagEditorCopy(language: AppLanguage): AlbumTagEditorCopy {
+internal fun tagEditorCopy(language: AppLanguage): AlbumTagEditorCopy {
     return when (language) {
         AppLanguage.Albanian -> AlbumTagEditorCopy("Redakto etiketat", "Albumi nuk u gjet", "Etiketat e albumit", "Titulli i albumit", "Artisti i albumit", "Viti i publikimit", "Zhanri", "Ndrysho kopertinën", "Prek për të zgjedhur një kopertinë të re", "Këngët", "Pista", "Titulli i këngës", "Artisti i këngës", "Numri i pistës", "Numri i diskut")
         AppLanguage.Estonian -> AlbumTagEditorCopy("Muuda silte", "Albumit ei leitud", "Albumi sildid", "Albumi pealkiri", "Albumi esitaja", "Ilmumisaasta", "Žanr", "Muuda kaanepilti", "Uue kaanepildi valimiseks puuduta", "Lood", "Lugu", "Loo pealkiri", "Loo esitaja", "Loo number", "Plaadi number")

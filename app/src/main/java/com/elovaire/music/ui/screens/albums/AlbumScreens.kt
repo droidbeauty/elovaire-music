@@ -316,6 +316,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedSelectedCount
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
@@ -841,7 +842,7 @@ internal fun AlbumScreen(
     PlaylistSelectionDialog(
         visible = showPlaylistPicker && selectionModeActive,
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
-        subtitle = "${localizedCountLabel(selectedSongs.size, "song", language)} ${miscPhrase(language, MiscPhrase.Selected)}",
+        subtitle = localizedSelectedCount(selectedSongs.size, "song", language),
         playlists = playlists.filterNot { it.isSystem },
         playlistSongsById = playlistSongsById,
         onDismiss = { showPlaylistPicker = false },

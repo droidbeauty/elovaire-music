@@ -19,6 +19,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 import elovaire.music.droidbeauty.app.ui.i18n.localizedGenreName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
@@ -171,9 +172,9 @@ internal object ElovaireMediaItems {
         .setUri(song.uri)
         .setMediaMetadata(
             MediaMetadata.Builder()
-                .setTitle(song.title)
+                .setTitle(localizedExternalAudioText(song.title, song.id, language))
                 .setArtist(localizedArtistName(song.artist, language))
-                .setAlbumTitle(localizedAlbumTitle(song.album, language))
+                .setAlbumTitle(localizedExternalAudioText(localizedAlbumTitle(song.album, language), song.id, language))
                 .setAlbumArtist(localizedArtistName(song.albumArtist ?: song.artist, language))
                 .setTrackNumber(song.trackNumber.takeIf { it > 0 })
                 .setDiscNumber(song.discNumber.takeIf { it > 0 })

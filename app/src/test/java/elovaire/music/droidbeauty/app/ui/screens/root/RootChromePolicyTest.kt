@@ -146,6 +146,13 @@ class RootChromePolicyTest {
         assertEquals("Create playlist", playlistsSpec.supplementalActionContentDescription)
         val polishSpec = rootSharedTopBarSpec(PLAYLISTS_ROUTE, true, AppLanguage.Polish, {}, {}) as SharedTopBarSpec.Unified
         assertEquals("Utwórz playlistę", polishSpec.supplementalActionContentDescription)
+        AppLanguage.entries.forEach { language ->
+            val spec = rootSharedTopBarSpec(PLAYLISTS_ROUTE, true, language, {}, {}) as SharedTopBarSpec.Unified
+            assertTrue("Missing playlist action label for $language", !spec.supplementalActionContentDescription.isNullOrBlank())
+            if (language != AppLanguage.English) {
+                assertTrue("English playlist action label for $language", spec.supplementalActionContentDescription != "Create playlist")
+            }
+        }
         assertTrue(playlistsSpec.onSupplementalAction != null)
         assertEquals(null, homeSpec.supplementalActionContentDescription)
         assertEquals(null, homeSpec.onSupplementalAction)

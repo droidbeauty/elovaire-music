@@ -74,12 +74,13 @@ internal fun SmartPlaylistDetailRouteHost(
                 routeActions.playback.playSongQueue(
                     song = first,
                     queue = queue,
-                    sourceLabel = smart.name,
+                    sourceLabel = smart.builtInType?.let { elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + it.name } ?: smart.name,
                 )
             }
         },
         onSongSelected = { song, queue, smart ->
-            routeActions.playback.playSongQueue(song, queue, sourceLabel = smart.name)
+            val source = smart.builtInType?.let { elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + it.name } ?: smart.name
+            routeActions.playback.playSongQueue(song, queue, sourceLabel = source)
         },
         onToggleFavorite = routeActions.playlists::toggleFavorite,
     )
@@ -164,7 +165,6 @@ internal fun PlaylistDetailRouteHost(
                 queue = queue,
                 sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
                     fallbackAlbum = song.album,
-                    language = state.appState.appLanguage,
                 ),
                 sourcePlaylistId = playlist?.id,
             )

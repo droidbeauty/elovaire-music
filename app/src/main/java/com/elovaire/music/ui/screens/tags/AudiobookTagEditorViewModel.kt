@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 
 import android.app.RecoverableSecurityException
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -221,7 +222,8 @@ internal class AudiobookTagEditorViewModel(
                         ).recalculateFlags()
                     }
                 } else {
-                    finishFailure(throwable.message ?: "Unable to save audiobook tags")
+                    Log.w("AudiobookTagEditor", "Unable to save audiobook tags", throwable)
+                    finishFailure("Unable to save audiobook tags")
                 }
             }
     }

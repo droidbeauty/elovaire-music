@@ -168,7 +168,7 @@ internal fun LibraryFoldersScreen(
                     .ensureSingleItemRubberBand(listState),
                 contentPadding = PaddingValues(
                     start = 18.dp,
-                    top = topBarOccupiedHeight() + 60.dp,
+                    top = topBarOccupiedHeight() + 80.dp,
                     end = 18.dp,
                     bottom = bottomPadding + buttonNavigationScrollBoost() + 104.dp,
                 ),
@@ -289,7 +289,7 @@ internal fun LibraryFoldersScreen(
                 enter = fadeIn(animationSpec = motionSpecs.fadeIn()),
                 exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
             ) {
-                AddFolderPill(
+                SettingsActionPill(
                     text = networkCopy.addSource,
                     onClick = { showSourceChooser = true },
                 )
@@ -300,11 +300,11 @@ internal fun LibraryFoldersScreen(
                     .fillMaxWidth()
                     .padding(
                         start = 18.dp,
-                        top = topBarOccupiedHeight(),
+                        top = topBarOccupiedHeight() + 20.dp,
                         end = 18.dp,
                     )
                     .height(60.dp),
-                contentAlignment = Alignment.Center,
+                contentAlignment = Alignment.TopCenter,
             ) {
                 Text(
                     text = copy.removalSafety.trimEnd('.'),
@@ -383,10 +383,11 @@ internal fun LibraryFoldersScreen(
 }
 
 @Composable
-private fun AddFolderPill(
+internal fun SettingsActionPill(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    @DrawableRes iconResId: Int = R.drawable.ic_lucide_plus,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     Row(
@@ -407,7 +408,7 @@ private fun AddFolderPill(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(id = R.drawable.ic_lucide_plus),
+            painter = painterResource(id = iconResId),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(16.dp),

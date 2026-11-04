@@ -34,6 +34,44 @@ class AlbumTagEditorComposeTest {
     private val device = UiDevice.getInstance(instrumentation)
 
     @Test
+    fun unknownMetadataIsLocalizedForDisplayWithoutChangingEditorValues() {
+        val original = testAlbum()
+        val album = original.copy(
+            title = "Unknown Album",
+            artist = "Unknown Artist",
+            songs = original.songs.map { it.copy(album = "Unknown Album", artist = "Unknown Artist") },
+        )
+        val state = album.toTagEditorUiState()
+        val scenario = ActivityScenario.launch(PlaylistTestActivity::class.java)
+        try {
+            scenario.onActivity { activity ->
+                activity.setContent {
+                    ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                        AlbumTagEditorScreen(
+                            state = state,
+                            appLanguage = AppLanguage.Polish,
+                            onBack = {}, onSave = {}, onPickCoverArt = {},
+                            onAlbumTitleChange = {}, onAlbumArtistChange = {},
+                            onReleaseYearChange = {}, onGenreChange = {},
+                            onTrackTitleChange = { _, _ -> }, onTrackArtistChange = { _, _ -> },
+                            onTrackNumberChange = { _, _ -> }, onDiscNumberChange = { _, _ -> },
+                        )
+                    }
+                }
+            }
+            node(By.text("Nieznany album"))
+            node(By.text("Nieznany wykonawca"))
+            val row = scrollTo(By.res("album_tag_editor_track_1"))
+            assertTrue(row.findObject(By.text("Nieznany wykonawca")) != null)
+            assertEquals("Unknown Album", state.albumTitle)
+            assertEquals("Unknown Artist", state.albumArtist)
+            assertEquals("Unknown Artist", state.tracks.first().artist)
+        } finally {
+            scenario.close()
+        }
+    }
+
+    @Test
     fun trackEditsSurviveCollapsingAndSaveStaysReachableWithKeyboard() {
         val state = mutableStateOf(testAlbum().toTagEditorUiState())
         val theme = mutableStateOf(ThemeMode.Dark)

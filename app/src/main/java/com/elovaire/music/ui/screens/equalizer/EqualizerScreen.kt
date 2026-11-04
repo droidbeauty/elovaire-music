@@ -181,7 +181,7 @@ internal fun EqualizerScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = ElovaireSpacing.screenHorizontalPadding,
-                top = sharedTopBarOccupiedHeight() + 20.dp,
+                top = topBarOccupiedHeight() + 20.dp,
                 end = ElovaireSpacing.screenHorizontalPadding,
                 bottom = navigationBarInsetDp() + 20.dp,
             ),

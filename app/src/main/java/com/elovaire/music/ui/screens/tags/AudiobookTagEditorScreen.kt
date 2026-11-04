@@ -266,7 +266,7 @@ private fun AudiobookTagEditorFeedback(state: AudiobookTagEditorUiState, languag
 internal fun additionalTagIssueCount(count: Int, kind: String): String =
     "+$count more $kind ${if (count == 1) "issue" else "issues"}"
 
-private data class AudiobookTagEditorCopy(
+internal data class AudiobookTagEditorCopy(
     val editorTitle: String,
     val notFound: String,
     val bookSection: String,
@@ -284,7 +284,7 @@ private data class AudiobookTagEditorCopy(
     val save: String,
 )
 
-private fun audiobookTagEditorCopy(language: AppLanguage): AudiobookTagEditorCopy = when (language) {
+internal fun audiobookTagEditorCopy(language: AppLanguage): AudiobookTagEditorCopy = when (language) {
     AppLanguage.Albanian -> AudiobookTagEditorCopy("Redakto librin audio", "Libri audio nuk u gjet", "Informacion mbi librin", "Titulli i librit", "Autori", "Përshkrimi", "Viti i publikimit", "Zhanri", "Prek kopertinën për ta ndryshuar", "Pjesët", "Titulli i pjesës", "Artisti i pjesës", "Numri i pjesës", "Numri i diskut", "Ruaj")
     AppLanguage.Estonian -> AudiobookTagEditorCopy("Muuda audioraamatut", "Audioraamatut ei leitud", "Raamatu teave", "Raamatu pealkiri", "Autor", "Kirjeldus", "Ilmumisaasta", "Žanr", "Kaanepildi muutmiseks puuduta seda", "Osad", "Osa pealkiri", "Osa esitaja", "Osa number", "Plaadi number", "Salvesta")
     AppLanguage.Greek -> AudiobookTagEditorCopy("Επεξεργασία ηχητικού βιβλίου", "Το ηχητικό βιβλίο δεν βρέθηκε", "Πληροφορίες βιβλίου", "Τίτλος βιβλίου", "Συγγραφέας", "Περιγραφή", "Έτος κυκλοφορίας", "Είδος", "Πατήστε το εξώφυλλο για αλλαγή", "Μέρη", "Τίτλος μέρους", "Καλλιτέχνης μέρους", "Αριθμός μέρους", "Αριθμός δίσκου", "Αποθήκευση")

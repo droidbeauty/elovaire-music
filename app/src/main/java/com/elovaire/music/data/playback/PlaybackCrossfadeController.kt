@@ -63,6 +63,7 @@ internal class PlaybackCrossfadeController(
     private val onPromote: (outgoing: ExoPlayer, incoming: ExoPlayer) -> Unit,
     private val onFailed: () -> Unit,
     private val clock: AppClock = AndroidAppClock,
+    private val language: () -> elovaire.music.droidbeauty.app.domain.model.AppLanguage = { elovaire.music.droidbeauty.app.domain.model.AppLanguage.English },
 ) {
     var state: CrossfadeState = CrossfadeState.Idle
         private set
@@ -368,13 +369,13 @@ internal class PlaybackCrossfadeController(
             secondary.shuffleModeEnabled = outgoingPlayer.shuffleModeEnabled
             try {
                 secondary.setMediaItems(
-                    queue.map(Song::toPlaybackMediaItem),
+                    queue.map { it.toPlaybackMediaItem(language()) },
                     nextQueueIndex,
                     transitionPlan.incomingMixInMs,
                 )
             } catch (_: RuntimeException) {
                 try {
-                    secondary.setMediaItems(queue.map(Song::toPlaybackMediaItem), nextQueueIndex, 0L)
+                    secondary.setMediaItems(queue.map { it.toPlaybackMediaItem(language()) }, nextQueueIndex, 0L)
                 } catch (_: RuntimeException) {
                     fail("secondary_media_item_setup_failure")
                     return

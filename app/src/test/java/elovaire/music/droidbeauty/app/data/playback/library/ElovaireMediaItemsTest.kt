@@ -3,7 +3,10 @@ package elovaire.music.droidbeauty.app.data.playback.library
 import android.net.TestUri
 import androidx.media3.common.MediaMetadata
 import elovaire.music.droidbeauty.app.data.playback.toPlaybackMediaItem
+import elovaire.music.droidbeauty.app.data.playback.localizedNotificationArtist
+import elovaire.music.droidbeauty.app.data.playback.localizedNotificationTitle
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,6 +14,25 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ElovaireMediaItemsTest {
+    @Test
+    fun playbackMetadataLocalizesFallbacksWithoutChangingPlaybackIdentity() {
+        val song = testSong().copy(artist = "Unknown Artist", albumArtist = null, album = "Unknown Album", genre = "Unknown Genre")
+        val english = song.toPlaybackMediaItem()
+        val polish = song.toPlaybackMediaItem(AppLanguage.Polish)
+        assertEquals(english.mediaId, polish.mediaId)
+        assertEquals(english.localConfiguration?.uri, polish.localConfiguration?.uri)
+        assertEquals("Nieznany wykonawca", polish.mediaMetadata.artist)
+        assertEquals("Nieznany wykonawca", polish.mediaMetadata.albumArtist)
+        assertEquals("Nieznany album", polish.mediaMetadata.albumTitle)
+        assertEquals("Nieznany gatunek", polish.mediaMetadata.genre)
+        assertEquals("Unknown Artist", song.artist)
+        val external = testSong().copy(id = -8_000_000_000_000L, title = "External audio", album = "External audio")
+        assertEquals("Zewnętrzny plik audio", external.toPlaybackMediaItem(AppLanguage.Polish).mediaMetadata.title)
+        assertEquals("External audio", testSong().copy(title = "External audio").toPlaybackMediaItem(AppLanguage.Polish).mediaMetadata.title)
+        assertEquals("Nieznany wykonawca", localizedNotificationArtist(song, AppLanguage.Polish))
+        assertEquals("Zewnętrzny plik audio", localizedNotificationTitle(external, AppLanguage.Polish))
+        assertEquals("External audio", localizedNotificationTitle(testSong().copy(title = "External audio"), AppLanguage.Polish))
+    }
     @Test
     fun parse_acceptsPlaybackMediaItemIdsForControllerInterop() {
         assertEquals(ElovaireMediaId.Song(42L), ElovaireMediaIds.parse("42"))

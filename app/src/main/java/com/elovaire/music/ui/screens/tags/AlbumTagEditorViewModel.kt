@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 
 import android.app.RecoverableSecurityException
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -390,9 +391,10 @@ internal class AlbumTagEditorViewModel(
                     ),
                 )
             } else {
+                Log.w("AlbumTagEditor", "Unable to save tags", throwable)
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    statusMessage = throwable.message ?: "Unable to save tags",
+                    statusMessage = "Unable to save tags",
                     platformAction = null,
                 ).recalculateFlags()
             }

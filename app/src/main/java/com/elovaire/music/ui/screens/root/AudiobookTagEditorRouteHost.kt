@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.app.Activity
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +18,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.platform.ContentIo
+import elovaire.music.droidbeauty.app.platform.ContentIoException
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
@@ -27,6 +29,7 @@ import elovaire.music.droidbeauty.app.ui.screens.tags.AudiobookTagEditorSaveOutc
 import elovaire.music.droidbeauty.app.ui.screens.tags.AudiobookTagEditorScreen
 import elovaire.music.droidbeauty.app.ui.screens.tags.AudiobookTagEditorViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -169,7 +172,9 @@ private fun firstAudiobookSafWriteProblem(context: android.content.Context, uris
         .filterIsInstance<MediaWriteTarget.SafDocument>()
         .mapNotNull { target ->
             runCatching { contentIo.requireSafWriteAccess(target.uri) }.exceptionOrNull()?.let { failure ->
-                AudiobookSafWriteProblem(target.uri, failure.message ?: "The selected document provider does not allow tag editing")
+                if (failure is CancellationException) throw failure
+                if (failure !is ContentIoException) Log.w("AudiobookTagEditor", "Unable to check document write access", failure)
+                AudiobookSafWriteProblem(target.uri, safWriteErrorMessage(failure))
             }
         }
         .firstOrNull()

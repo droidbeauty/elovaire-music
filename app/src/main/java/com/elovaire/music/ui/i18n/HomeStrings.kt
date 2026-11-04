@@ -411,7 +411,7 @@ private fun firstLaunchPermissionMessage(language: AppLanguage): String = when (
     AppLanguage.Hungarian -> "Az app alapértelmezés szerint a Music mappát olvassa be, hogy zenét találjon az eszközön"
     AppLanguage.Italian -> "L’app scansiona per impostazione predefinita la cartella Music per trovare musica sul dispositivo"
     AppLanguage.Japanese -> "アプリは既定で Music フォルダをスキャンし、端末上の音楽を探します"
-    AppLanguage.Latin -> "App folder Music per defaltum scrutatur ut musicam in machina inveniat"
+    AppLanguage.Latin -> "Nisi aliter statuis, applicatio directorium Music scrutatur ut musicam in machina inveniat"
     AppLanguage.Latvian -> "Lietotne pēc noklusējuma skenē mapi Music, lai ierīcē atrastu mūziku"
     AppLanguage.Lithuanian -> "Programa pagal numatymą skenuoja Music aplanką, kad rastų muziką įrenginyje"
     AppLanguage.Macedonian -> "Апликацијата стандардно ја скенира папката Music за да најде музика на уредот"
@@ -476,20 +476,104 @@ private fun firstLaunchPermissionButton(language: AppLanguage): String = when (l
 }
 
 internal fun availableReleasesLabel(count: Int, language: AppLanguage): String {
-    val copy = rootUiCopy(language)
-    return "$count ${copy.availableReleasesSuffix}"
+    if (language == AppLanguage.Thai) return "มี $count รายการเผยแพร่"
+    val lastTwo = count % 100
+    val lastDigit = count % 10
+    val slavicFew = lastDigit in 2..4 && lastTwo !in 12..14
+    val suffix = when (language) {
+        AppLanguage.English -> if (count == 1) "available release" else "available releases"
+        AppLanguage.Albanian -> if (count == 1) "publikim i disponueshëm" else "publikime të disponueshme"
+        AppLanguage.Bulgarian -> if (count == 1) "налично издание" else "налични издания"
+        AppLanguage.Catalan -> if (count == 1) "publicació disponible" else "publicacions disponibles"
+        AppLanguage.Danish -> if (count == 1) "tilgængelig udgivelse" else "tilgængelige udgivelser"
+        AppLanguage.Dutch -> if (count == 1) "uitgave beschikbaar" else "uitgaven beschikbaar"
+        AppLanguage.Estonian -> if (count == 1) "väljaanne saadaval" else "väljaannet saadaval"
+        AppLanguage.Finnish -> if (count == 1) "julkaisu saatavilla" else "julkaisua saatavilla"
+        AppLanguage.French -> if (count == 1) "publication disponible" else "publications disponibles"
+        AppLanguage.German -> if (count == 1) "Veröffentlichung verfügbar" else "Veröffentlichungen verfügbar"
+        AppLanguage.Greek -> if (count == 1) "διαθέσιμη κυκλοφορία" else "διαθέσιμες κυκλοφορίες"
+        AppLanguage.Italian -> if (count == 1) "pubblicazione disponibile" else "pubblicazioni disponibili"
+        AppLanguage.Latin -> if (count == 1) "editio praesto" else "editiones praesto"
+        AppLanguage.Latvian -> when {
+            lastTwo in 11..19 || lastDigit == 0 -> "pieejamu izdevumu"
+            lastDigit == 1 -> "pieejams izdevums"
+            else -> "pieejami izdevumi"
+        }
+        AppLanguage.Lithuanian -> when {
+            lastTwo in 11..19 || lastDigit == 0 -> "galimų leidinių"
+            lastDigit == 1 -> "galimas leidinys"
+            else -> "galimi leidiniai"
+        }
+        AppLanguage.Macedonian -> if (count == 1) "достапно издание" else "достапни изданија"
+        AppLanguage.Norwegian -> if (count == 1) "utgivelse tilgjengelig" else "utgivelser tilgjengelig"
+        AppLanguage.Portuguese -> if (count == 1) "edição disponível" else "edições disponíveis"
+        AppLanguage.Punjabi -> if (count == 1) "ਉਪਲਬਧ ਰਿਲੀਜ਼" else "ਉਪਲਬਧ ਰਿਲੀਜ਼ਾਂ"
+        AppLanguage.Romanian -> when {
+            count == 1 -> "lansare disponibilă"
+            lastTwo == 0 || lastTwo >= 20 -> "de lansări disponibile"
+            else -> "lansări disponibile"
+        }
+        AppLanguage.Spanish -> if (count == 1) "lanzamiento disponible" else "lanzamientos disponibles"
+        AppLanguage.Swedish -> if (count == 1) "utgåva tillgänglig" else "utgåvor tillgängliga"
+        AppLanguage.Polish -> when {
+            count == 1 -> "dostępne wydanie"
+            slavicFew -> "dostępne wydania"
+            else -> "dostępnych wydań"
+        }
+        AppLanguage.Czech -> when (count) {
+            1 -> "dostupné vydání"
+            in 2..4 -> "dostupná vydání"
+            else -> "dostupných vydání"
+        }
+        AppLanguage.Slovak -> when (count) {
+            1 -> "dostupné vydanie"
+            in 2..4 -> "dostupné vydania"
+            else -> "dostupných vydaní"
+        }
+        AppLanguage.Slovenian -> when (lastTwo) {
+            1 -> "izdaja na voljo"
+            2 -> "izdaji na voljo"
+            3, 4 -> "izdaje na voljo"
+            else -> "izdaj na voljo"
+        }
+        AppLanguage.Russian -> when {
+            lastDigit == 1 && lastTwo != 11 -> "доступный релиз"
+            slavicFew -> "доступных релиза"
+            else -> "доступных релизов"
+        }
+        AppLanguage.Ukrainian -> when {
+            lastDigit == 1 && lastTwo != 11 -> "доступний реліз"
+            slavicFew -> "доступні релізи"
+            else -> "доступних релізів"
+        }
+        AppLanguage.Bosnian, AppLanguage.Croatian -> when {
+            lastDigit == 1 && lastTwo != 11 -> "dostupno izdanje"
+            slavicFew -> "dostupna izdanja"
+            else -> "dostupnih izdanja"
+        }
+        AppLanguage.Serbian -> when {
+            lastDigit == 1 && lastTwo != 11 -> "доступно издање"
+            slavicFew -> "доступна издања"
+            else -> "доступних издања"
+        }
+        else -> rootUiCopy(language).availableReleasesSuffix
+    }
+    return when (language) {
+        AppLanguage.Bengali, AppLanguage.ChineseSimplified, AppLanguage.Japanese, AppLanguage.Korean -> "$count$suffix"
+        else -> "$count $suffix"
+    }
 }
 
 internal fun repeatModeLabel(repeatMode: PlaybackRepeatMode, language: AppLanguage): String {
     val labels = when (language) {
         AppLanguage.Albanian -> Triple("Renditja", "Përsërit një", "Përsërit të gjitha")
         AppLanguage.Bengali -> Triple("ক্রম", "একটি পুনরাবৃত্তি", "সব পুনরাবৃত্তি")
-        AppLanguage.Bosnian -> Triple("Redoslijed", "Ponovi jednu", "Ponovi sve")
-        AppLanguage.Bulgarian -> Triple("Ред", "Повтори една", "Повтори всички")
+        AppLanguage.Bosnian -> Triple("Redoslijed", "Ponovi pjesmu", "Ponovi sve")
+        AppLanguage.Bulgarian -> Triple("Ред", "Повтори песента", "Повтори всички")
         AppLanguage.Catalan -> Triple("Ordre", "Repeteix-ne una", "Repeteix-les totes")
         AppLanguage.ChineseSimplified -> Triple("顺序播放", "单曲循环", "全部循环")
-        AppLanguage.Croatian -> Triple("Redoslijed", "Ponovi jednu", "Ponovi sve")
-        AppLanguage.Czech -> Triple("Pořadí", "Opakovat jednu", "Opakovat vše")
+        AppLanguage.Croatian -> Triple("Redoslijed", "Ponovi pjesmu", "Ponovi sve")
+        AppLanguage.Czech -> Triple("Pořadí", "Opakovat skladbu", "Opakovat vše")
         AppLanguage.Danish -> Triple("Rækkefølge", "Gentag én", "Gentag alle")
         AppLanguage.Dutch -> Triple("Volgorde", "Herhaal één", "Herhaal alles")
         AppLanguage.English -> Triple("Order", "Repeat one", "Repeat all")
@@ -501,27 +585,27 @@ internal fun repeatModeLabel(repeatMode: PlaybackRepeatMode, language: AppLangua
         AppLanguage.Hindi -> Triple("क्रम", "एक दोहराएँ", "सभी दोहराएँ")
         AppLanguage.Hungarian -> Triple("Sorrend", "Egy ismétlése", "Összes ismétlése")
         AppLanguage.Indonesian -> Triple("Urutan", "Ulangi satu", "Ulangi semua")
-        AppLanguage.Italian -> Triple("Ordine", "Ripeti uno", "Ripeti tutto")
+        AppLanguage.Italian -> Triple("Ordine", "Ripeti un brano", "Ripeti tutto")
         AppLanguage.Japanese -> Triple("順番", "1曲リピート", "全曲リピート")
         AppLanguage.Korean -> Triple("순서", "한 곡 반복", "전체 반복")
         AppLanguage.Latin -> Triple("Ordo", "Unum repete", "Omnia repete")
         AppLanguage.Latvian -> Triple("Secība", "Atkārtot vienu", "Atkārtot visu")
         AppLanguage.Lithuanian -> Triple("Tvarka", "Kartoti vieną", "Kartoti viską")
-        AppLanguage.Macedonian -> Triple("Редослед", "Повтори една", "Повтори сè")
+        AppLanguage.Macedonian -> Triple("Редослед", "Повтори ја песната", "Повтори сè")
         AppLanguage.Malay -> Triple("Turutan", "Ulang satu", "Ulang semua")
         AppLanguage.Norwegian -> Triple("Rekkefølge", "Gjenta én", "Gjenta alle")
-        AppLanguage.Polish -> Triple("Kolejność", "Powtórz jeden", "Powtórz wszystko")
-        AppLanguage.Portuguese -> Triple("Ordem", "Repetir uma", "Repetir tudo")
+        AppLanguage.Polish -> Triple("Kolejność", "Powtórz utwór", "Powtórz wszystko")
+        AppLanguage.Portuguese -> Triple("Ordem", "Repetir faixa", "Repetir tudo")
         AppLanguage.Punjabi -> Triple("ਕ੍ਰਮ", "ਇੱਕ ਦੁਹਰਾਓ", "ਸਭ ਦੁਹਰਾਓ")
         AppLanguage.Romanian -> Triple("Ordine", "Repetă una", "Repetă toate")
-        AppLanguage.Russian -> Triple("Порядок", "Повторить один", "Повторить всё")
-        AppLanguage.Serbian -> Triple("Редослед", "Понови једну", "Понови све")
-        AppLanguage.Slovak -> Triple("Poradie", "Opakovať jednu", "Opakovať všetko")
-        AppLanguage.Slovenian -> Triple("Vrstni red", "Ponovi eno", "Ponovi vse")
-        AppLanguage.Spanish -> Triple("Orden", "Repetir una", "Repetir todo")
+        AppLanguage.Russian -> Triple("Порядок", "Повторить трек", "Повторить всё")
+        AppLanguage.Serbian -> Triple("Редослед", "Понови песму", "Понови све")
+        AppLanguage.Slovak -> Triple("Poradie", "Opakovať skladbu", "Opakovať všetko")
+        AppLanguage.Slovenian -> Triple("Vrstni red", "Ponovi skladbo", "Ponovi vse")
+        AppLanguage.Spanish -> Triple("Orden", "Repetir canción", "Repetir todo")
         AppLanguage.Swedish -> Triple("Ordning", "Upprepa en", "Upprepa alla")
         AppLanguage.Thai -> Triple("ลำดับ", "เล่นซ้ำหนึ่งเพลง", "เล่นซ้ำทั้งหมด")
-        AppLanguage.Ukrainian -> Triple("Порядок", "Повторити один", "Повторити все")
+        AppLanguage.Ukrainian -> Triple("Порядок", "Повторити трек", "Повторити все")
         AppLanguage.Urdu -> Triple("ترتیب", "ایک کو دہرائیں", "سب دہرائیں")
     }
     return when (repeatMode) {
@@ -1584,7 +1668,7 @@ private fun localizedComplexCountLabel(
         AppLanguage.Czech -> when (noun) {
             "song", "track" -> Triple("skladba", "skladby", "skladeb")
             "audiobook" -> Triple("audiokniha", "audioknihy", "audioknih")
-            "album" -> Triple("album", "alba", "albumů")
+            "album" -> Triple("album", "alba", "alb")
             "artist" -> Triple("umělec", "umělci", "umělců")
             "genre" -> Triple("žánr", "žánry", "žánrů")
             else -> return null

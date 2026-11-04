@@ -47,7 +47,6 @@ internal fun rememberRootActionRuntime(
     )
     val playbackActions = rememberRootPlaybackActions(
         playbackManager = playback,
-        appLanguage = appState.appLanguage,
         songsByAlbumId = derivedState.songsByAlbumId,
         albumsById = derivedState.albumsById,
         openNowPlaying = uiRuntime.playerLayerController::requestOpen,

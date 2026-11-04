@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.sumDurationMs
 
@@ -129,19 +130,43 @@ internal fun playlistArtworkPreviewSongs(
 
 private const val PREVIEW_SONG_LIMIT = 4
 
-internal fun formatPlaylistDuration(durationMs: Long): String {
+internal fun formatPlaylistDuration(durationMs: Long, language: AppLanguage): String {
     val hours = durationMs / 3_600_000
     val minutes = (durationMs % 3_600_000) / 60_000
+    val (hourUnit, minuteUnit) = when (language) {
+        AppLanguage.Bengali -> "ঘ" to "মি"
+        AppLanguage.Bulgarian, AppLanguage.Macedonian, AppLanguage.Russian, AppLanguage.Serbian -> "ч" to "мин"
+        AppLanguage.ChineseSimplified -> "小时" to "分钟"
+        AppLanguage.Finnish -> "t" to "min"
+        AppLanguage.Greek -> "ώ" to "λεπ"
+        AppLanguage.Hindi -> "घं" to "मि"
+        AppLanguage.Japanese -> "時間" to "分"
+        AppLanguage.Korean -> "시간" to "분"
+        AppLanguage.Lithuanian -> "val" to "min"
+        AppLanguage.Polish -> "godz" to "min"
+        AppLanguage.Punjabi -> "ਘੰ" to "ਮਿੰ"
+        AppLanguage.Thai -> "ชม" to "นาที"
+        AppLanguage.Ukrainian -> "год" to "хв"
+        AppLanguage.Urdu -> (if (hours == 1L) "گھنٹہ" else "گھنٹے") to "منٹ"
+        AppLanguage.English -> "h" to "m"
+        else -> "h" to "min"
+    }
+    val unitSeparator = when (language) {
+        AppLanguage.English, AppLanguage.ChineseSimplified, AppLanguage.Japanese, AppLanguage.Korean -> ""
+        else -> " "
+    }
     return when {
         hours > 0L -> buildString {
             append(hours)
-            append('h')
+            append(unitSeparator)
+            append(hourUnit)
             if (minutes > 0L) {
                 append(' ')
                 append(minutes)
-                append('m')
+                append(unitSeparator)
+                append(minuteUnit)
             }
         }
-        else -> "${minutes}m"
+        else -> "$minutes$unitSeparator$minuteUnit"
     }
 }

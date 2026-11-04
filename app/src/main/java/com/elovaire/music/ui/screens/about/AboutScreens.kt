@@ -123,7 +123,7 @@ internal fun ChangelogScreen(
                 .fillMaxSize()
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
-                top = topBarOccupiedHeight() + 24.dp,
+                top = topBarOccupiedHeight() + 20.dp,
                 bottom = navigationBarInsetDp() + 24.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -319,6 +319,7 @@ internal fun ChangelogReleaseContent(
     pointedEntries: Boolean = false,
 ) {
     val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
+    val language = LocalAppLanguage.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -348,7 +349,7 @@ internal fun ChangelogReleaseContent(
                         )
                     }
                     Text(
-                        text = change,
+                        text = remember(change, language) { elovaire.music.droidbeauty.app.ui.i18n.localizedChangelogItem(change, language) },
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = FontWeight.Medium,
@@ -399,7 +400,7 @@ internal fun AboutScreen(
             contentPadding = PaddingValues(
                 start = 18.dp,
                 end = 18.dp,
-                top = detailTopBarOccupiedHeight() + ElovaireSpacing.topBarToFirstContentGap,
+                top = topBarOccupiedHeight() + 20.dp,
                 bottom = bottomPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -868,6 +869,7 @@ private fun AboutEntryLogo(
     size: Dp = 60.dp,
 ) {
     val context = LocalContext.current
+    val logoDescription = localizedAboutTitle(title, LocalAppLanguage.current)
     val resourceTracker = LocalBackendResourceTracker.current
     val drawableRes = remember(context, logoUri, title) {
         if (title == "Droid Beauty") {
@@ -924,7 +926,7 @@ private fun AboutEntryLogo(
             drawableRes != null -> {
                 Image(
                     painter = painterResource(id = drawableRes),
-                    contentDescription = title,
+                    contentDescription = logoDescription,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
@@ -933,7 +935,7 @@ private fun AboutEntryLogo(
             logoBitmap != null -> {
                 Image(
                     bitmap = logoBitmap!!,
-                    contentDescription = title,
+                    contentDescription = logoDescription,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
@@ -942,14 +944,14 @@ private fun AboutEntryLogo(
             else -> if (uri?.scheme == "http" || uri?.scheme == "https") {
                 Icon(
                     painter = painterResource(id = aboutIconForUrl(uri.toString())),
-                    contentDescription = title,
+                    contentDescription = logoDescription,
                     tint = readableMutedIconColor(),
                     modifier = Modifier.size(size * 0.38f),
                 )
             } else {
                 ArtworkImage(
                     uri = uri,
-                    title = title,
+                    title = logoDescription,
                     modifier = Modifier.fillMaxSize(),
                     cornerRadius = size / 2,
                     requestedSizePx = 160,
@@ -1177,12 +1179,13 @@ private fun aboutIconForUrl(url: String): Int {
     }
 }
 
-private fun localizedAboutTitle(
+internal fun localizedAboutTitle(
     title: String,
     language: AppLanguage,
 ): String = when (title) {
     "Droid Beauty" -> title
     "Elovaire" -> title
+    "Lucide icons", "Geist font" -> elovaire.music.droidbeauty.app.ui.i18n.localizedResourceTitle(title, language)
     "Resources" -> when (language) {
         AppLanguage.Bulgarian -> "Ресурси"
         AppLanguage.Albanian -> "Burimet"
@@ -1229,54 +1232,12 @@ private fun localizedAboutTitle(
     else -> title
 }
 
-private fun localizedAboutDescription(
+internal fun localizedAboutDescription(
     title: String,
     description: String,
     language: AppLanguage,
 ): String = when (title) {
-    "Droid Beauty" -> when (language) {
-        AppLanguage.Bulgarian -> "Минималистични приложения и изживявания за по-красив Android"
-        AppLanguage.Albanian -> "Aplikacione dhe përvoja minimaliste për një Android më të bukur"
-        AppLanguage.Danish -> "Minimalistiske apps og oplevelser til et smukkere Android"
-        AppLanguage.Dutch -> "Minimalistisch ontworpen apps en ervaringen voor een mooier Android"
-        AppLanguage.Estonian -> "Minimalistlikud rakendused ja elamused kaunima Androidi jaoks"
-        AppLanguage.Greek -> "Μινιμαλιστικές εφαρμογές και εμπειρίες για ένα ομορφότερο Android"
-        AppLanguage.Hindi -> "अधिक सुंदर Android के लिए न्यूनतम डिज़ाइन वाले ऐप और अनुभव"
-        AppLanguage.Hungarian -> "Letisztult alkalmazások és élmények egy szebb Androidért"
-        AppLanguage.Latin -> "Applicationes simpliciter formatae ad Android pulchrius"
-        AppLanguage.Latvian -> "Minimālistiskas lietotnes un pieredze skaistākam Android"
-        AppLanguage.Lithuanian -> "Minimalistinės programėlės ir patirtys gražesniam Android"
-        AppLanguage.Macedonian -> "Минималистички апликации и искуства за поубав Android"
-        AppLanguage.Norwegian -> "Minimalistiske apper og opplevelser for et vakrere Android"
-        AppLanguage.Serbian -> "Минималистичке апликације и искуства за лепши Android"
-        AppLanguage.Swedish -> "Minimalistiska appar och upplevelser för ett vackrare Android"
-        AppLanguage.Thai -> "แอปและประสบการณ์ดีไซน์เรียบง่ายเพื่อ Android ที่สวยงามยิ่งขึ้น"
-        AppLanguage.Catalan -> "Aplicacions i experiències minimalistes per a un Android més bonic"
-        AppLanguage.Finnish -> "Minimalistisia sovelluksia ja elämyksiä kauniimpaan Androidiin"
-        AppLanguage.Romanian -> "Aplicații și experiențe minimaliste pentru un Android mai frumos"
-        AppLanguage.Slovenian -> "Minimalistično oblikovane aplikacije in izkušnje za lepši Android"
-        AppLanguage.Bosnian -> "Minimalistički dizajnirane aplikacije i iskustva za ljepši Android"
-        AppLanguage.Indonesian -> "Aplikasi dan pengalaman berdesain minimalis untuk Android yang lebih indah"
-        AppLanguage.Punjabi -> "ਹੋਰ ਸੁੰਦਰ Android ਲਈ ਸਾਦਗੀ ਨਾਲ ਬਣਾਈਆਂ ਐਪਾਂ ਅਤੇ ਤਜਰਬੇ"
-        AppLanguage.Polish -> "Minimalnie zaprojektowane aplikacje i doświadczenia dla piękniejszego Androida"
-        AppLanguage.ChineseSimplified -> "以极简设计打造更美好的 Android 应用与体验"
-        AppLanguage.Croatian -> "Minimalno dizajnirane aplikacije i iskustva za ljepši Android"
-        AppLanguage.Czech -> "Minimalisticky navržené aplikace a zážitky pro krásnější Android"
-        AppLanguage.French -> "Des applications et expériences au design minimal pour embellir Android"
-        AppLanguage.German -> "Minimal gestaltete Apps und Erlebnisse für ein schöneres Android"
-        AppLanguage.Italian -> "App ed esperienze dal design minimale per rendere Android più bello"
-        AppLanguage.Japanese -> "Android をより美しくする、ミニマルに設計されたアプリと体験"
-        AppLanguage.Korean -> "더 아름다운 Android를 위한 미니멀한 앱과 경험"
-        AppLanguage.Malay -> "Aplikasi dan pengalaman berreka bentuk minimal untuk Android yang lebih indah"
-        AppLanguage.Portuguese -> "Apps e experiências de design minimal para tornar o Android mais bonito"
-        AppLanguage.Russian -> "Минималистичные приложения и впечатления для более красивого Android"
-        AppLanguage.Slovak -> "Minimalisticky navrhnuté aplikácie a zážitky pre krajší Android"
-        AppLanguage.Spanish -> "Apps y experiencias de diseño minimalista para hacer Android más bello"
-        AppLanguage.Ukrainian -> "Мінімалістично створені застосунки й враження для красивішого Android"
-        AppLanguage.Bengali -> "আরও সুন্দর Android-এর জন্য ন্যূনতম নকশার অ্যাপ ও অভিজ্ঞতা"
-        AppLanguage.Urdu -> "زیادہ خوبصورت Android کے لیے کم سے کم انداز میں ڈیزائن کردہ ایپس اور تجربات"
-        AppLanguage.English -> description
-    }
+    "Droid Beauty" -> if (language == AppLanguage.English) description else elovaire.music.droidbeauty.app.ui.i18n.droidBeautyDescription(language)
     "Elovaire" -> when (language) {
         AppLanguage.Bulgarian -> "Елегантен офлайн плейър за вашата локална музика"
         AppLanguage.Albanian -> "Një luajtës elegant jashtë linje për muzikën tënde lokale"
@@ -1362,11 +1323,14 @@ private fun localizedAboutDescription(
         AppLanguage.Bengali -> "Elovaire তৈরিতে সহায়ক প্রকল্প, টুল এবং লাইব্রেরি"
         AppLanguage.Urdu -> "وہ منصوبے، اوزار اور لائبریریاں جو Elovaire بنانے میں مدد کرتی ہیں"
         AppLanguage.English -> description
+    }.let { summary ->
+        if (language == AppLanguage.English) summary else
+            "$summary\n\nAndroid/Kotlin (Apache-2.0) · Lucide (ISC/MIT) · Geist (OFL-1.1) · jaudiotagger (LGPL)\n${elovaire.music.droidbeauty.app.ui.i18n.bundledLicensesLabel(language)}"
     }
     else -> description
 }
 
-private fun localizedAboutLinkLabel(
+internal fun localizedAboutLinkLabel(
     label: String,
     language: AppLanguage,
 ): String = when (label.lowercase()) {

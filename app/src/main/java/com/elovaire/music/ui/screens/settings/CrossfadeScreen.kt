@@ -28,6 +28,7 @@ import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import kotlin.math.roundToInt
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.appLocale
 import elovaire.music.droidbeauty.app.ui.i18n.crossfadeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -69,7 +70,7 @@ internal fun CrossfadeScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = ElovaireSpacing.screenHorizontalPadding,
-                top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
+                top = topBarOccupiedHeight() + 20.dp,
                 end = ElovaireSpacing.screenHorizontalPadding,
                 bottom = bottomPadding + 20.dp,
             ),
@@ -104,9 +105,9 @@ internal fun CrossfadeScreen(
                     )
                     Text(
                         text = if (language == AppLanguage.English) {
-                            "${formatSeconds(durationSeconds)} seconds"
+                            "${formatCrossfadeSeconds(durationSeconds, language)} seconds"
                         } else {
-                            "${formatSeconds(durationSeconds)}${audiobookSettingsCopy(language).seconds}"
+                            "${formatCrossfadeSeconds(durationSeconds, language)}${audiobookSettingsCopy(language).seconds}"
                         },
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center,
@@ -203,6 +204,8 @@ private fun BoxWithCrossfadeTopBar(
     }
 }
 
-private fun formatSeconds(value: Float): String {
-    return if (value % 1f == 0f) value.toInt().toString() else value.toString()
-}
+internal fun formatCrossfadeSeconds(value: Float, language: AppLanguage): String =
+    java.text.NumberFormat.getNumberInstance(language.appLocale()).apply {
+        maximumFractionDigits = 3
+        isGroupingUsed = false
+    }.format(value)

@@ -30,6 +30,8 @@ internal data class SearchUiCopy(
     fun matchingArtists(count: Int, language: AppLanguage): String = if (language == AppLanguage.Polish) {
         val adjective = if (count == 1) "pasujący" else "pasujących"
         "$count $adjective ${localizedCountLabel(count, "artist", language).substringAfter(' ')}"
+    } else if (language in labeledSearchCountLanguages) {
+        localizedSearchCount(count, "artist", language)
     } else if (language == AppLanguage.Latvian) {
         latvianMatchingCount(count, "artist")
     } else if (language == AppLanguage.Slovenian) {
@@ -81,6 +83,7 @@ internal data class SearchUiCopy(
 
     private fun matchingItems(count: Int, noun: String, suffix: String, language: AppLanguage): String {
         if (language == AppLanguage.English && count == 1) return "1 matching $noun result"
+        if (language in labeledSearchCountLanguages) return localizedSearchCount(count, noun, language)
         if (language == AppLanguage.Latvian) return latvianMatchingCount(count, noun)
         if (language == AppLanguage.Slovenian) return slovenianMatchingCount(count, noun)
         if (language == AppLanguage.French) return frenchMatchingCount(count, noun)
@@ -110,6 +113,32 @@ internal data class SearchUiCopy(
         }
         return "$count $adjective ${localizedCountLabel(count, noun, language).substringAfter(' ')}"
     }
+}
+
+private val labeledSearchCountLanguages = setOf(
+    AppLanguage.ChineseSimplified, AppLanguage.Japanese, AppLanguage.Korean,
+    AppLanguage.Indonesian, AppLanguage.Malay, AppLanguage.Thai,
+)
+
+private fun localizedSearchCount(count: Int, noun: String, language: AppLanguage): String {
+    if (language == AppLanguage.Thai) {
+        val counted = when (noun) {
+            "artist" -> "ศิลปิน $count คน"
+            "album" -> "$count อัลบั้ม"
+            "song" -> "$count เพลง"
+            else -> error("Unsupported noun")
+        }
+        return "ผลการค้นหา: $counted"
+    }
+    val label = when (language) {
+        AppLanguage.ChineseSimplified -> "搜索结果"
+        AppLanguage.Japanese -> "検索結果"
+        AppLanguage.Korean -> "검색 결과"
+        AppLanguage.Indonesian, AppLanguage.Malay -> "Hasil"
+        else -> error("Unsupported language")
+    }
+    val separator = if (language == AppLanguage.ChineseSimplified || language == AppLanguage.Japanese) "：" else ": "
+    return "$label$separator${localizedCountLabel(count, noun, language)}"
 }
 
 private fun frenchMatchingCount(count: Int, noun: String): String =
@@ -275,7 +304,7 @@ private fun latvianMatchingCount(count: Int, noun: String): String {
 }
 
 internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
-    AppLanguage.Hindi -> SearchUiCopy("कलाकार, एल्बम और बहुत कुछ", "खोज साफ़ करें", "अभी तक कुछ नहीं खोजा", "गाने और एल्बम खोजने पर नतीजे यहाँ दिखेंगे", "सुझाए गए एल्बम", "शायद आप इन्हें फिर सुनना चाहें", "हाल की खोजें", "इतिहास साफ़ करें", "कोई नतीजा नहीं", "लाइब्रेरी में इसके लिए कोई नतीजा नहीं मिला", "", "मिलते कलाकार", "मिलते एल्बम", "मिलते गाने")
+    AppLanguage.Hindi -> SearchUiCopy("कलाकार, एल्बम और बहुत कुछ", "खोज साफ़ करें", "अभी तक कुछ नहीं खोजा", "गाने और एल्बम खोजने पर नतीजे यहाँ दिखेंगे", "सुझाए गए एल्बम", "शायद आप इन्हें फिर सुनना चाहें", "हाल की खोजें", "इतिहास साफ़ करें", "कोई नतीजा नहीं", "लाइब्रेरी में इस खोज का कोई नतीजा नहीं मिला:", "", "मिलते कलाकार", "मिलते एल्बम", "मिलते गाने")
     AppLanguage.Latin -> SearchUiCopy("Artifices, alba et alia", "Quaestionem dele", "Nihil adhuc quaesitum", "Eventus hic apparebunt cum cantus et alba quaeres", "Alba proposita", "Fortasse ea iterum audire velis", "Quaestiones recentes", "Historiam dele", "Nulli eventus", "Nihil in bibliotheca respondet", "", "artifices inventi", "alba inventa", "cantus inventi")
     AppLanguage.Latvian -> SearchUiCopy("Izpildītāji, albumi un cits", "Notīrīt meklēšanu", "Vēl nekas nav meklēts", "Meklējot dziesmas un albumus, rezultāti parādīsies šeit", "Ieteiktie albumi", "Varbūt vēlies tos noklausīties vēlreiz", "Nesen meklētais", "Notīrīt vēsturi", "Nav rezultātu", "Bibliotēkā nav rezultātu vaicājumam", "", "atbilstoši izpildītāji", "atbilstoši albumi", "atbilstošas dziesmas")
     AppLanguage.Lithuanian -> SearchUiCopy("Atlikėjai, albumai ir daugiau", "Išvalyti paiešką", "Dar nieko neieškota", "Ieškant dainų ir albumų rezultatai bus rodomi čia", "Siūlomi albumai", "Galbūt norėsite jų paklausyti dar kartą", "Naujausios paieškos", "Išvalyti istoriją", "Rezultatų nėra", "Bibliotekoje nerasta rezultatų pagal", "", "atitinkančių atlikėjų", "atitinkančių albumų", "atitinkančių dainų")
@@ -296,26 +325,26 @@ internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
     AppLanguage.Slovenian -> SearchUiCopy("Izvajalci, albumi in več", "Počisti iskanje", "Še ni iskanj", "Rezultati bodo prikazani med iskanjem skladb in albumov", "Predlagani albumi", "Morda jih želite znova poslušati", "Nedavna iskanja", "Počisti zgodovino", "Ni rezultatov", "V knjižnici ni rezultatov za", "", "najdenih izvajalcev", "najdenih albumov", "najdenih skladb")
     AppLanguage.Bosnian -> SearchUiCopy("Izvođači, albumi i više", "Obriši pretragu", "Još nema pretraga", "Rezultati će se pojaviti kada počnete tražiti pjesme i albume", "Predloženi albumi", "Možda ih poželite ponovo poslušati", "Nedavne pretrage", "Obriši historiju", "Nema rezultata", "U biblioteci nema rezultata za", "", "pronađenih izvođača", "pronađenih albuma", "pronađenih pjesama")
     AppLanguage.Indonesian -> SearchUiCopy("Artis, album, dan lainnya", "Hapus pencarian", "Belum ada pencarian", "Hasil akan muncul saat Anda mencari lagu dan album", "Album yang disarankan", "Mungkin Anda ingin mendengarkannya lagi", "Pencarian terbaru", "Hapus riwayat", "Tidak ada hasil", "Tidak ada hasil di pustaka untuk", "", "artis cocok", "album cocok", "lagu cocok")
-    AppLanguage.Punjabi -> SearchUiCopy("ਕਲਾਕਾਰ, ਐਲਬਮਾਂ ਅਤੇ ਹੋਰ", "ਖੋਜ ਸਾਫ਼ ਕਰੋ", "ਹਾਲੇ ਕੋਈ ਖੋਜ ਨਹੀਂ", "ਗੀਤਾਂ ਅਤੇ ਐਲਬਮਾਂ ਦੀ ਖੋਜ ਕਰਨ ਉੱਤੇ ਨਤੀਜੇ ਇੱਥੇ ਦਿਖਣਗੇ", "ਸੁਝਾਈਆਂ ਐਲਬਮਾਂ", "ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਦੁਬਾਰਾ ਸੁਣਨਾ ਚਾਹ ਸਕਦੇ ਹੋ", "ਹਾਲੀਆ ਖੋਜਾਂ", "ਇਤਿਹਾਸ ਸਾਫ਼ ਕਰੋ", "ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ", "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ", "", "ਮਿਲਦੇ ਕਲਾਕਾਰ", "ਮਿਲਦੀਆਂ ਐਲਬਮਾਂ", "ਮਿਲਦੇ ਗੀਤ")
+    AppLanguage.Punjabi -> SearchUiCopy("ਕਲਾਕਾਰ, ਐਲਬਮਾਂ ਅਤੇ ਹੋਰ", "ਖੋਜ ਸਾਫ਼ ਕਰੋ", "ਹਾਲੇ ਕੋਈ ਖੋਜ ਨਹੀਂ", "ਗੀਤਾਂ ਅਤੇ ਐਲਬਮਾਂ ਦੀ ਖੋਜ ਕਰਨ ਉੱਤੇ ਨਤੀਜੇ ਇੱਥੇ ਦਿਖਣਗੇ", "ਸੁਝਾਈਆਂ ਐਲਬਮਾਂ", "ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਦੁਬਾਰਾ ਸੁਣਨਾ ਚਾਹ ਸਕਦੇ ਹੋ", "ਹਾਲੀਆ ਖੋਜਾਂ", "ਇਤਿਹਾਸ ਸਾਫ਼ ਕਰੋ", "ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ", "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਖੋਜ ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ:", "", "ਮਿਲਦੇ ਕਲਾਕਾਰ", "ਮਿਲਦੀਆਂ ਐਲਬਮਾਂ", "ਮਿਲਦੇ ਗੀਤ")
     AppLanguage.Albanian -> SearchUiCopy("Artistë, albume dhe më shumë", "Pastro kërkimin", "Ende asnjë kërkim", "Rezultatet do të shfaqen kur të kërkosh këngë dhe albume", "Albume të sugjeruara", "Mund të dëshirosh t’i dëgjosh përsëri", "Kërkimet e fundit", "Pastro historikun", "Nuk u gjet asnjë rezultat", "Nuk ka përputhje në bibliotekë për", "", "artistë të gjetur", "albume të gjetura", "këngë të gjetura")
     AppLanguage.Serbian -> SearchUiCopy("Извођачи, албуми и друго", "Обриши претрагу", "Још нема претрага", "Резултати ће се појавити када претражиш песме и албуме", "Предложени албуми", "Можда ћеш желети да их поново послушаш", "Недавне претраге", "Обриши историју", "Нема резултата", "Нема подударања у библиотеци за", "", "пронађених извођача", "пронађених албума", "пронађених песама")
-    AppLanguage.Polish -> SearchUiCopy("Artyści, albumy i więcej", "Wyczyść wyszukiwanie", "Jeszcze nic nie wyszukano", "Więcej wyników pojawi się podczas wyszukiwania utworów i albumów", "Sugerowane albumy", "Warto do nich wrócić", "Ostatnio wyszukiwane", "Wyczyść historię", "Brak wyników", "Nic w obecnej bibliotece offline nie pasuje do", "jeszcze", "pasujących artystów", "pasujących albumów", "pasujących utworów")
-    AppLanguage.ChineseSimplified -> SearchUiCopy("艺人、专辑等", "清除搜索", "还没有搜索", "搜索歌曲和专辑时会显示更多结果", "推荐专辑", "你可能会想再听听", "最近搜索", "清除历史", "没有结果", "当前离线媒体库中没有匹配", "", "个匹配艺人", "个匹配专辑", "个匹配歌曲")
-    AppLanguage.Czech -> SearchUiCopy("Umělci, alba a další", "Vymazat hledání", "Zatím nic nehledáno", "Další výsledky se zobrazí při hledání skladeb a alb", "Navržená alba", "Možná se k nim chcete vrátit", "Nedávno hledané", "Vymazat historii", "Žádné výsledky", "V aktuální offline knihovně se nic neshoduje s", "zatím", "odpovídajících umělců", "odpovídajících alb", "odpovídajících skladeb")
+    AppLanguage.Polish -> SearchUiCopy("Artyści, albumy i więcej", "Wyczyść wyszukiwanie", "Jeszcze nic nie wyszukano", "Więcej wyników pojawi się podczas wyszukiwania utworów i albumów", "Sugerowane albumy", "Warto do nich wrócić", "Ostatnio wyszukiwane", "Wyczyść historię", "Brak wyników", "Nie znaleziono w bibliotece wyników dla", "", "pasujących artystów", "pasujących albumów", "pasujących utworów")
+    AppLanguage.ChineseSimplified -> SearchUiCopy("艺人、专辑等", "清除搜索", "还没有搜索", "搜索歌曲和专辑时会显示更多结果", "推荐专辑", "你可能会想再听听", "最近搜索", "清除历史", "没有结果", "当前离线媒体库中没有以下搜索的匹配结果：", "", "个匹配艺人", "个匹配专辑", "个匹配歌曲")
+    AppLanguage.Czech -> SearchUiCopy("Umělci, alba a další", "Vymazat hledání", "Zatím nic nehledáno", "Další výsledky se zobrazí při hledání skladeb a alb", "Navržená alba", "Možná se k nim chcete vrátit", "Nedávno hledané", "Vymazat historii", "Žádné výsledky", "V offline knihovně zatím nejsou výsledky pro", "", "odpovídajících umělců", "odpovídajících alb", "odpovídajících skladeb")
     AppLanguage.French -> SearchUiCopy("Artistes, albums et plus", "Effacer la recherche", "Aucune recherche pour l’instant", "Plus de résultats apparaîtront pendant la recherche de morceaux et d’albums", "Albums suggérés", "Vous devriez peut-être les réécouter", "Recherches récentes", "Effacer l’historique", "Aucun résultat", "Rien dans la bibliothèque hors ligne actuelle ne correspond à", "pour l’instant", "artistes correspondants", "albums correspondants", "morceaux correspondants")
-    AppLanguage.German -> SearchUiCopy("Künstler, Alben und mehr", "Suche löschen", "Noch nichts gesucht", "Weitere Ergebnisse erscheinen, wenn du nach Songs und Alben suchst", "Vorgeschlagene Alben", "Diese solltest du vielleicht wieder hören", "Zuletzt gesucht", "Verlauf löschen", "Keine Ergebnisse", "In der aktuellen Offline-Bibliothek passt nichts zu", "bisher", "passende Künstler", "passende Alben", "passende Songs")
+    AppLanguage.German -> SearchUiCopy("Künstler, Alben und mehr", "Suche löschen", "Noch nichts gesucht", "Weitere Ergebnisse erscheinen, wenn du nach Songs und Alben suchst", "Vorgeschlagene Alben", "Diese solltest du vielleicht wieder hören", "Zuletzt gesucht", "Verlauf löschen", "Keine Ergebnisse", "In der Offline-Bibliothek wurden keine Ergebnisse gefunden für", "", "passende Künstler", "passende Alben", "passende Songs")
     AppLanguage.Italian -> SearchUiCopy("Artisti, album e altro", "Cancella ricerca", "Nessuna ricerca ancora", "Altri risultati appariranno mentre cerchi brani e album", "Album suggeriti", "Potresti volerli riascoltare", "Ricerche recenti", "Cancella cronologia", "Nessun risultato", "Nella libreria offline attuale non corrisponde nulla a", "ancora", "artisti corrispondenti", "album corrispondenti", "brani corrispondenti")
-    AppLanguage.Japanese -> SearchUiCopy("アーティスト、アルバムなど", "検索をクリア", "まだ検索していません", "曲やアルバムを検索すると、さらに結果が表示されます", "おすすめアルバム", "また聴きたくなるかもしれません", "最近の検索", "履歴を消去", "結果なし", "現在のオフラインライブラリに一致するものはありません:", "", "件の一致するアーティスト", "件の一致するアルバム", "件の一致する曲")
-    AppLanguage.Spanish -> SearchUiCopy("Artistas, álbumes y más", "Borrar búsqueda", "Aún no has buscado nada", "Aparecerán más resultados al buscar canciones y álbumes", "Álbumes sugeridos", "Quizá quieras volver a escucharlos", "Búsquedas recientes", "Borrar historial", "Sin resultados", "Nada en la biblioteca sin conexión actual coincide con", "todavía", "artistas coincidentes", "álbumes coincidentes", "canciones coincidentes")
-    AppLanguage.Portuguese -> SearchUiCopy("Artistas, álbuns e mais", "Limpar pesquisa", "Ainda nada pesquisado", "Mais resultados aparecerão ao pesquisar músicas e álbuns", "Álbuns sugeridos", "Talvez queira revisitá-los", "Pesquisas recentes", "Limpar histórico", "Sem resultados", "Nada na biblioteca offline atual corresponde a", "ainda", "artistas correspondentes", "álbuns correspondentes", "músicas correspondentes")
-    AppLanguage.Russian -> SearchUiCopy("Исполнители, альбомы и другое", "Очистить поиск", "Пока ничего не искали", "Больше результатов появится при поиске песен и альбомов", "Предложенные альбомы", "Возможно, стоит вернуться к ним", "Недавние поиски", "Очистить историю", "Нет результатов", "В текущей офлайн-библиотеке ничего не найдено для", "пока", "подходящих исполнителей", "подходящих альбомов", "подходящих песен")
-    AppLanguage.Ukrainian -> SearchUiCopy("Виконавці, альбоми тощо", "Очистити пошук", "Поки нічого не шукали", "Більше результатів з’явиться під час пошуку пісень і альбомів", "Запропоновані альбоми", "Можливо, варто повернутися до них", "Нещодавні пошуки", "Очистити історію", "Немає результатів", "У поточній офлайн-бібліотеці нічого не збігається з", "поки", "відповідних виконавців", "відповідних альбомів", "відповідних пісень")
-    AppLanguage.Slovak -> SearchUiCopy("Interpreti, albumy a ďalšie", "Vymazať hľadanie", "Zatiaľ nič nehľadané", "Ďalšie výsledky sa zobrazia počas hľadania skladieb a albumov", "Navrhované albumy", "Možno sa k nim budete chcieť vrátiť", "Nedávno hľadané", "Vymazať históriu", "Žiadne výsledky", "V aktuálnej offline knižnici sa nič nezhoduje s", "zatiaľ", "zodpovedajúcich interpretov", "zodpovedajúcich albumov", "zodpovedajúcich skladieb")
-    AppLanguage.Korean -> SearchUiCopy("아티스트, 앨범 등", "검색 지우기", "아직 검색한 내용이 없습니다", "곡과 앨범을 검색하면 더 많은 결과가 여기에 표시됩니다", "추천 앨범", "다시 들어보고 싶을지도 모릅니다", "최근 검색", "기록 지우기", "결과 없음", "현재 오프라인 라이브러리에서 다음과 일치하는 항목이 없습니다", "", "개의 일치하는 아티스트", "개의 일치하는 앨범", "개의 일치하는 곡")
-    AppLanguage.Malay -> SearchUiCopy("Artis, album dan banyak lagi", "Kosongkan carian", "Belum ada carian", "Lebih banyak hasil akan muncul di sini apabila anda mencari lagu dan album", "Album disyorkan", "Anda mungkin mahu kembali mendengarnya", "Carian terkini", "Kosongkan sejarah", "Tiada hasil", "Tiada apa-apa dalam pustaka luar talian semasa yang sepadan dengan", "lagi", "artis sepadan", "album sepadan", "lagu sepadan")
-    AppLanguage.Bengali -> SearchUiCopy("শিল্পী, অ্যালবাম এবং আরও", "সার্চ মুছুন", "এখনও কিছু খোঁজা হয়নি", "গান ও অ্যালবাম খুঁজলে আরও ফল এখানে দেখা যাবে", "প্রস্তাবিত অ্যালবাম", "সম্ভবত এগুলোতে আবার ফিরতে চাইবেন", "সাম্প্রতিক অনুসন্ধান", "ইতিহাস মুছুন", "কোনো ফল নেই", "বর্তমান অফলাইন লাইব্রেরিতে এর সাথে মেলে এমন কিছু নেই", "এখনও", "মিল থাকা শিল্পী", "মিল থাকা অ্যালবাম", "মিল থাকা গান")
-    AppLanguage.Urdu -> SearchUiCopy("آرٹسٹس، البمز اور مزید", "تلاش صاف کریں", "ابھی تک کچھ تلاش نہیں کیا گیا", "گانے اور البمز تلاش کرتے وقت مزید نتائج یہاں دکھائی دیں گے", "تجویز کردہ البمز", "شاید آپ دوبارہ انہیں سننا چاہیں", "حالیہ تلاشیں", "تاریخ صاف کریں", "کوئی نتیجہ نہیں", "موجودہ آف لائن لائبریری میں اس سے ملتا کچھ نہیں", "ابھی", "مطابق آرٹسٹس", "مطابق البمز", "مطابق گانے")
-    AppLanguage.English -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You should probably revisit these", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
+    AppLanguage.Japanese -> SearchUiCopy("アーティスト、アルバムなど", "検索をクリア", "まだ検索していません", "曲やアルバムを検索すると、さらに結果が表示されます", "おすすめアルバム", "また聴きたくなるかもしれません", "最近の検索", "履歴を消去", "結果なし", "オフラインライブラリに次の検索結果はありません：", "", "件の一致するアーティスト", "件の一致するアルバム", "件の一致する曲")
+    AppLanguage.Spanish -> SearchUiCopy("Artistas, álbumes y más", "Borrar búsqueda", "Aún no has buscado nada", "Aparecerán más resultados al buscar canciones y álbumes", "Álbumes sugeridos", "Quizá quieras volver a escucharlos", "Búsquedas recientes", "Borrar historial", "Sin resultados", "No hay resultados en la biblioteca sin conexión para", "", "artistas coincidentes", "álbumes coincidentes", "canciones coincidentes")
+    AppLanguage.Portuguese -> SearchUiCopy("Artistas, álbuns e mais", "Limpar pesquisa", "Ainda nada pesquisado", "Mais resultados aparecerão ao pesquisar músicas e álbuns", "Álbuns sugeridos", "Talvez queira revisitá-los", "Pesquisas recentes", "Limpar histórico", "Sem resultados", "Não foram encontrados resultados na biblioteca offline para", "", "artistas correspondentes", "álbuns correspondentes", "músicas correspondentes")
+    AppLanguage.Russian -> SearchUiCopy("Исполнители, альбомы и другое", "Очистить поиск", "Пока ничего не искали", "Больше результатов появится при поиске песен и альбомов", "Предложенные альбомы", "Возможно, стоит вернуться к ним", "Недавние поиски", "Очистить историю", "Нет результатов", "В офлайн-библиотеке пока нет результатов для", "", "подходящих исполнителей", "подходящих альбомов", "подходящих песен")
+    AppLanguage.Ukrainian -> SearchUiCopy("Виконавці, альбоми тощо", "Очистити пошук", "Поки нічого не шукали", "Більше результатів з’явиться під час пошуку пісень і альбомів", "Запропоновані альбоми", "Можливо, варто повернутися до них", "Нещодавні пошуки", "Очистити історію", "Немає результатів", "В офлайн-бібліотеці поки немає результатів для", "", "відповідних виконавців", "відповідних альбомів", "відповідних пісень")
+    AppLanguage.Slovak -> SearchUiCopy("Interpreti, albumy a ďalšie", "Vymazať hľadanie", "Zatiaľ nič nehľadané", "Ďalšie výsledky sa zobrazia počas hľadania skladieb a albumov", "Navrhované albumy", "Možno sa k nim budete chcieť vrátiť", "Nedávno hľadané", "Vymazať históriu", "Žiadne výsledky", "V offline knižnici zatiaľ nie sú výsledky pre", "", "zodpovedajúcich interpretov", "zodpovedajúcich albumov", "zodpovedajúcich skladieb")
+    AppLanguage.Korean -> SearchUiCopy("아티스트, 앨범 등", "검색 지우기", "아직 검색한 내용이 없습니다", "곡과 앨범을 검색하면 더 많은 결과가 여기에 표시됩니다", "추천 앨범", "다시 들어보고 싶을지도 모릅니다", "최근 검색", "기록 지우기", "결과 없음", "현재 오프라인 라이브러리에 다음 검색 결과가 없습니다:", "", "개의 일치하는 아티스트", "개의 일치하는 앨범", "개의 일치하는 곡")
+    AppLanguage.Malay -> SearchUiCopy("Artis, album dan banyak lagi", "Kosongkan carian", "Belum ada carian", "Lebih banyak hasil akan muncul di sini apabila anda mencari lagu dan album", "Album disyorkan", "Anda mungkin mahu kembali mendengarnya", "Carian terkini", "Kosongkan sejarah", "Tiada hasil", "Tiada hasil dalam pustaka luar talian untuk", "", "artis sepadan", "album sepadan", "lagu sepadan")
+    AppLanguage.Bengali -> SearchUiCopy("শিল্পী, অ্যালবাম এবং আরও", "সার্চ মুছুন", "এখনও কিছু খোঁজা হয়নি", "গান ও অ্যালবাম খুঁজলে আরও ফল এখানে দেখা যাবে", "প্রস্তাবিত অ্যালবাম", "সম্ভবত এগুলোতে আবার ফিরতে চাইবেন", "সাম্প্রতিক অনুসন্ধান", "ইতিহাস মুছুন", "কোনো ফল নেই", "অফলাইন লাইব্রেরিতে এই অনুসন্ধানের কোনো ফল নেই:", "", "মিল থাকা শিল্পী", "মিল থাকা অ্যালবাম", "মিল থাকা গান")
+    AppLanguage.Urdu -> SearchUiCopy("آرٹسٹس، البمز اور مزید", "تلاش صاف کریں", "ابھی تک کچھ تلاش نہیں کیا گیا", "گانے اور البمز تلاش کرتے وقت مزید نتائج یہاں دکھائی دیں گے", "تجویز کردہ البمز", "شاید آپ دوبارہ انہیں سننا چاہیں", "حالیہ تلاشیں", "تاریخ صاف کریں", "کوئی نتیجہ نہیں", "آف لائن لائبریری میں اس تلاش کا کوئی نتیجہ نہیں:", "", "مطابق آرٹسٹس", "مطابق البمز", "مطابق گانے")
+    AppLanguage.English -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You might enjoy listening to these again", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
 }
 
 internal fun searchSortModeLabel(

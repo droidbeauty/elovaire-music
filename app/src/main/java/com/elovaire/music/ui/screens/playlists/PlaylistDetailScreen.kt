@@ -342,7 +342,7 @@ internal fun PlaylistDetailScreen(
                                                     fontWeight = FontWeight.Medium,
                                                 ),
                                             ) {
-                                                append(formatPlaylistDuration(playlistDurationMs))
+                                                append(formatPlaylistDuration(playlistDurationMs, language))
                                             }
                                         },
                                         style = MaterialTheme.typography.titleLarge.copy(

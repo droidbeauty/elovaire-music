@@ -1137,11 +1137,7 @@ private fun crossfadeSummary(
     language: AppLanguage,
 ): String {
     val durationSeconds = durationMs.coerceIn(2_000L, 5_000L) / 1_000f
-    val formattedDuration = if (durationSeconds % 1f == 0f) {
-        durationSeconds.toInt().toString()
-    } else {
-        durationSeconds.toString()
-    }
+    val formattedDuration = formatCrossfadeSeconds(durationSeconds, language)
     val silence = silenceThresholdDb.toInt()
     return when (language) {
         AppLanguage.Albanian -> "$formattedDuration s kalim gradual · heshtje $silence dB"

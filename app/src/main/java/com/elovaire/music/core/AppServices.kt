@@ -226,6 +226,7 @@ internal class AppServices(
         scope = playbackScope,
         audiobookProgressRepository = userDataStore,
         audiobookPlaybackSpeedPreferences = preferenceStore.audiobookPlaybackSpeed,
+        appLanguage = preferenceStore.appLanguage,
         onAudiobookPlaybackSpeedChanged = preferenceStore::setAudiobookPlaybackSpeed,
         audioProcessorsProvider = playbackEffectsController::audioProcessors,
         hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,

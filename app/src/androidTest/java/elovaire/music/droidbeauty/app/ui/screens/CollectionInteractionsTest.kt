@@ -33,6 +33,10 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedPlaylistCreateError
+import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -52,6 +56,31 @@ class CollectionInteractionsTest {
             fileName = "$id.mp3", albumId = id, durationMs = 180_000L, trackNumber = 1,
             discNumber = 1, dateAddedSeconds = id, uri = Uri.parse("content://collection-fixture/$id"), artUri = null,
         )
+    }
+
+    @Test
+    fun playlistCreationExceptionDisplaysLocalizedFailure() {
+        rule.setContent {
+            CompositionLocalProvider(LocalAppLanguage provides AppLanguage.Polish) {
+                ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                    PlaylistCreateFullScreenLayer(
+                        visible = true,
+                        surfaceId = "failure-test",
+                        onDismiss = {},
+                        onCreatePlaylist = {
+                            CompletableDeferred<PlaylistMutationResult>().apply {
+                                completeExceptionally(IllegalStateException())
+                            }
+                        },
+                        onCreated = {},
+                    )
+                }
+            }
+        }
+        rule.onNode(hasSetTextAction()).performTextInput("Test playlist")
+        rule.onNodeWithText(rootUiCopy(AppLanguage.Polish).createPlaylistButton).performClick()
+        rule.onNodeWithText(localizedPlaylistCreateError("User-data operation failed.", AppLanguage.Polish))
+            .assertIsDisplayed()
     }
 
     @Test
@@ -78,6 +107,32 @@ class CollectionInteractionsTest {
         }
         rule.onNodeWithText("Album 01").performClick()
         rule.runOnIdle { assertEquals(1, opened) }
+    }
+
+    @Test
+    fun recentlyAddedSelectionUsesPolishPluralInPlaylistDialog() {
+        rule.setContent {
+            CompositionLocalProvider(LocalAppLanguage provides AppLanguage.Polish) {
+                ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                    RecentlyAddedAlbumsScreen(
+                        albums = songs.take(5).map(::album), playlists = emptyList(),
+                        playlistSongsById = songs.associateBy(Song::id), favoriteSongIds = emptySet(),
+                        bottomPadding = 0.dp, onBack = {}, onAlbumSelected = { _, _ -> }, onAddAlbumToQueue = {},
+                        onAddAlbumToPlaylist = { _, _ -> CompletableDeferred(PlaylistMutationResult.InvalidInput) },
+                        onCreatePlaylist = { CompletableDeferred(PlaylistMutationResult.InvalidInput) },
+                        onSetAlbumFavorite = { _, _ -> }, onDeleteAlbumFromDevice = {},
+                    )
+                }
+            }
+        }
+        rule.onNodeWithText("Album 01").performTouchInput { longClick() }
+        (1..4).forEach { index ->
+            rule.onNode(hasScrollToIndexAction()).performScrollToIndex(index)
+            rule.onNodeWithText("Album ${(index + 1).toString().padStart(2, '0')}").performClick()
+        }
+        rule.onNodeWithText(uiPhrase(AppLanguage.Polish, UiPhrase.AddToPlaylist)).performClick()
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.onNodeWithText("5 albumów wybranych • 5 utworów", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test

@@ -51,7 +51,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.audiobookPlaybackCategory
 import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistDescription
 import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
-import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -85,68 +84,64 @@ internal fun AudiobookSettingsScreen(
                 end = 18.dp,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(52.dp),
         ) {
             item {
-                ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SettingsFeatureHeader(title = audiobookPlaybackCategory(LocalAppLanguage.current), iconResId = R.drawable.ic_lucide_book_audio)
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
-                                    Text(extraCopy.speed, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                                    Text(extraCopy.speedSubtitle, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                                }
-                                Text("${(playbackSpeed.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f}", style = MaterialTheme.typography.titleMedium)
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    SettingsFeatureHeader(title = audiobookPlaybackCategory(LocalAppLanguage.current), iconResId = R.drawable.ic_lucide_book_audio)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+                                Text(extraCopy.speed, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+                                Text(extraCopy.speedSubtitle, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                             }
-                            SteppedSlider(
-                                selectedIndex = ((playbackSpeed * 4).roundToInt() - 2).coerceIn(0, 6),
-                                stepCount = 7,
-                                onSelectedIndexChanged = { onPlaybackSpeedChanged((it + 2) / 4f) },
-                                modifier = Modifier.testTag("audiobook_speed_slider").semantics {
-                                    contentDescription = extraCopy.speed
-                                    progressBarRangeInfo = ProgressBarRangeInfo(playbackSpeed.coerceIn(0.5f, 2f), 0.5f..2f, 5)
-                                    setProgress { value -> onPlaybackSpeedChanged((value.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f); true }
-                                },
-                            )
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("0.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("2×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            Text("${(playbackSpeed.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f}", style = MaterialTheme.typography.titleMedium)
                         }
-                        AudiobookSeekSettingRow(
-                            title = copy.rewindAmount,
-                            subtitle = "${settings.rewindSeconds}${copy.seconds}",
-                            value = settings.rewindSeconds,
-                            onValueChanged = onRewindChanged,
+                        SteppedSlider(
+                            selectedIndex = ((playbackSpeed * 4).roundToInt() - 2).coerceIn(0, 6),
+                            stepCount = 7,
+                            onSelectedIndexChanged = { onPlaybackSpeedChanged((it + 2) / 4f) },
+                            modifier = Modifier.testTag("audiobook_speed_slider").semantics {
+                                contentDescription = extraCopy.speed
+                                progressBarRangeInfo = ProgressBarRangeInfo(playbackSpeed.coerceIn(0.5f, 2f), 0.5f..2f, 5)
+                                setProgress { value -> onPlaybackSpeedChanged((value.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f); true }
+                            },
                         )
-                        AudiobookSeekSettingRow(
-                            title = copy.forwardAmount,
-                            subtitle = "${settings.forwardSeconds}${copy.seconds}",
-                            value = settings.forwardSeconds,
-                            onValueChanged = onForwardChanged,
-                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("0.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("2×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
+                    AudiobookSeekSettingRow(
+                        title = copy.rewindAmount,
+                        subtitle = "${settings.rewindSeconds}${copy.seconds}",
+                        value = settings.rewindSeconds,
+                        onValueChanged = onRewindChanged,
+                    )
+                    AudiobookSeekSettingRow(
+                        title = copy.forwardAmount,
+                        subtitle = "${settings.forwardSeconds}${copy.seconds}",
+                        value = settings.forwardSeconds,
+                        onValueChanged = onForwardChanged,
+                    )
                 }
             }
             item {
-                ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SettingToggleRow(
-                            title = copy.resumePlayback,
-                            subtitle = copy.resumePlaybackSubtitle,
-                            enabled = settings.resumePlayback,
-                            onEnabledChanged = onResumePlaybackChanged,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        SettingToggleRow(
-                            title = extraCopy.rewind,
-                            subtitle = extraCopy.rewindSubtitle,
-                            enabled = settings.rewindOnResume,
-                            onEnabledChanged = onRewindOnResumeChanged,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    SettingToggleRow(
+                        title = copy.resumePlayback,
+                        subtitle = copy.resumePlaybackSubtitle,
+                        enabled = settings.resumePlayback,
+                        onEnabledChanged = onResumePlaybackChanged,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                    )
+                    SettingToggleRow(
+                        title = extraCopy.rewind,
+                        subtitle = extraCopy.rewindSubtitle,
+                        enabled = settings.rewindOnResume,
+                        onEnabledChanged = onRewindOnResumeChanged,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                    )
                 }
             }
         }
@@ -265,7 +260,7 @@ internal fun SmartPlaylistSettingsScreen(
             modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = ElovaireSpacing.screenHorizontalPadding,
-                top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
+                top = topBarOccupiedHeight() + 20.dp,
                 end = ElovaireSpacing.screenHorizontalPadding,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),

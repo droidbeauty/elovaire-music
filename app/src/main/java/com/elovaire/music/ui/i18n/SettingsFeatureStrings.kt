@@ -144,7 +144,7 @@ internal fun audiobookSettingsCopy(language: AppLanguage): AudiobookSettingsCopy
     AppLanguage.Swedish -> AudiobookSettingsCopy("Inställningar för ljudböcker", "Anpassa uppspelning av ljudböcker", "Bakåt", "Framåt", "s", "Återuppta uppspelning av ljudböcker", "Fortsätt från den senast sparade positionen")
     AppLanguage.Danish -> AudiobookSettingsCopy("Indstillinger for lydbøger", "Tilpas afspilning af lydbøger", "Tilbage", "Frem", "s", "Genoptag afspilning af lydbøger", "Fortsæt fra den senest gemte position")
     AppLanguage.Norwegian -> AudiobookSettingsCopy("Innstillinger for lydbøker", "Tilpass avspilling av lydbøker", "Tilbake", "Frem", "s", "Fortsett avspilling av lydbøker", "Fortsett fra sist lagrede posisjon")
-    AppLanguage.English -> AudiobookSettingsCopy("Audiobooks settings", "Customize audiobook playback", "Rewind amount", "Forward amount", "s", "Resume audiobook playback", "Continue from the last saved position")
+    AppLanguage.English -> AudiobookSettingsCopy("Audiobook settings", "Customize audiobook playback", "Rewind amount", "Forward amount", "s", "Resume audiobook playback", "Continue from the last saved position")
 }
 
 internal data class SmartPlaylistSettingsCopy(

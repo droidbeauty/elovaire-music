@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.media3.exoplayer.ExoPlayer
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
 internal class PlaybackPlayerSwitcher(
     private val createPlayer: (Boolean) -> ExoPlayer,
@@ -11,6 +12,7 @@ internal class PlaybackPlayerSwitcher(
     private val onPlayerReplaced: (ExoPlayer) -> Unit,
     private val applyPreferredAudioDevice: (Boolean) -> Unit,
     private val targetPlayerOutputGain: () -> Float,
+    private val language: () -> AppLanguage = { AppLanguage.English },
 ) {
     fun switchPlayerAudioPath(
         currentPlayer: ExoPlayer,
@@ -31,7 +33,7 @@ internal class PlaybackPlayerSwitcher(
             replacement.playbackParameters = playbackSnapshot.playbackParameters
             if (queueSnapshot.isNotEmpty()) {
                 replacement.setMediaItems(
-                    queueSnapshot.map(Song::toPlaybackMediaItem),
+                    queueSnapshot.map { it.toPlaybackMediaItem(language()) },
                     playbackSnapshot.currentIndex.coerceIn(0, queueSnapshot.lastIndex),
                     playbackSnapshot.positionMs,
                 )

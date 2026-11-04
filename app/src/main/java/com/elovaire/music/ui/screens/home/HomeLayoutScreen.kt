@@ -173,9 +173,9 @@ internal fun homeLayoutSubtitle(language: AppLanguage): String = when (language)
     AppLanguage.English -> "Adjust how the main screen looks"
 }
 
-private data class HomeLayoutEditorCopy(val hint: String, val lastPlayed: String, val fixed: String, val up: String, val down: String, val reorder: String)
+internal data class HomeLayoutEditorCopy(val hint: String, val lastPlayed: String, val fixed: String, val up: String, val down: String, val reorder: String)
 
-private fun homeLayoutEditorCopy(language: AppLanguage): HomeLayoutEditorCopy = when (language) {
+internal fun homeLayoutEditorCopy(language: AppLanguage): HomeLayoutEditorCopy = when (language) {
     AppLanguage.Estonian -> HomeLayoutEditorCopy("Hoia jaotist all ja lohista selle järjestuse muutmiseks", "Viimati esitatud", "Fikseeritud asukoht", "Liiguta üles", "Liiguta alla", "Muuda järjestust")
     AppLanguage.Greek -> HomeLayoutEditorCopy("Κρατήστε πατημένη μια ενότητα και σύρετέ την για αλλαγή σειράς", "Τελευταία αναπαραγωγή", "Σταθερή θέση", "Μετακίνηση πάνω", "Μετακίνηση κάτω", "Αλλαγή σειράς")
     AppLanguage.Hindi -> HomeLayoutEditorCopy("क्रम बदलने के लिए किसी अनुभाग को दबाकर खींचें", "पिछली बार चलाया गया", "निश्चित स्थान", "ऊपर ले जाएँ", "नीचे ले जाएँ", "क्रम बदलें")

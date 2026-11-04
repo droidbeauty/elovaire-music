@@ -25,6 +25,21 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ElovaireMediaTreeSearchInstrumentedTest {
     @Test
+    fun playbackQueueLocalizesUnknownArtistAndGenreLabels() {
+        val track = song(1L, "Track", "Unknown Artist").copy(genre = "Unknown Genre")
+        val tree = ElovaireMediaTree(
+            libraryRepository = FakeLibraryReader(songs = listOf(track)),
+            preferenceStore = FakeUserDataReader(UserDataSnapshot()),
+            language = { AppLanguage.Polish },
+        )
+        val artistSource = tree.resolvePlayableQueue(ElovaireMediaIds.artist("Unknown Artist"))?.sourceLabel.orEmpty()
+        val genreSource = tree.resolvePlayableQueue(ElovaireMediaIds.genre("Unknown Genre"))?.sourceLabel.orEmpty()
+        assertEquals("Nieznany wykonawca", elovaire.music.droidbeauty.app.ui.i18n.localizedPlaybackSource(artistSource, track.album, null, AppLanguage.Polish))
+        assertEquals("Nieznany gatunek", elovaire.music.droidbeauty.app.ui.i18n.localizedPlaybackSource(genreSource, track.album, null, AppLanguage.Polish))
+        assertEquals("Unknown Artist", elovaire.music.droidbeauty.app.ui.i18n.localizedPlaybackSource(artistSource, track.album, null, AppLanguage.English))
+    }
+
+    @Test
     fun browserSongMetadataTracksLanguageAcrossBrowseAndSearch() {
         var language = AppLanguage.English
         val track = song(1L, "Track", "Unknown Artist").copy(album = "Unknown Album", genre = "Unknown Genre")
@@ -56,6 +71,21 @@ class ElovaireMediaTreeSearchInstrumentedTest {
         assertEquals(polish.mediaMetadata.artist, ElovaireMediaItems.playable(track, AppLanguage.Polish).mediaMetadata.artist)
     }
     @Test
+    fun externalAudioFallbackIsLocalizedWithoutChangingLibraryTitles() {
+        val external = song(-8_000_000_000_000L, "External audio", "Unknown Artist").copy(album = "External audio")
+        val localized = ElovaireMediaItems.song(external, AppLanguage.Polish)
+        assertEquals("Zewnętrzny plik audio", localized.mediaMetadata.title.toString())
+        assertEquals("Zewnętrzny plik audio", localized.mediaMetadata.albumTitle.toString())
+        AppLanguage.entries.forEach { language ->
+            val item = ElovaireMediaItems.song(external, language)
+            assertEquals(elovaire.music.droidbeauty.app.ui.i18n.externalAudioLabel(language), item.mediaMetadata.title.toString())
+            assertEquals(item.mediaMetadata.title, item.mediaMetadata.albumTitle)
+        }
+        val librarySong = external.copy(id = 1L)
+        assertEquals("External audio", ElovaireMediaItems.song(librarySong, AppLanguage.Polish).mediaMetadata.title.toString())
+        assertEquals("External audio", external.title)
+    }
+    @Test
     fun albumFallbacksAreLocalizedWithoutChangingMediaIdentity() {
         val album = Album(7L, "Unknown Album", "Unknown Artist", null, 0, 0L, emptyList())
         val english = ElovaireMediaItems.album(album)
@@ -73,6 +103,9 @@ class ElovaireMediaTreeSearchInstrumentedTest {
         assertEquals(english.mediaId, polish.mediaId)
         assertEquals("Nieznany autor", polish.mediaMetadata.subtitle.toString())
         assertEquals("Unknown Author", book.author)
+        val scannerFallback = book.copy(author = "Unknown Artist")
+        assertEquals("Nieznany autor", ElovaireMediaItems.audiobook(scannerFallback, AppLanguage.Polish).mediaMetadata.subtitle.toString())
+        assertEquals("Unknown Artist", scannerFallback.author)
     }
     @Test
     fun unknownArtistAndGenreLabelsAreLocalizedWithoutChangingMediaIds() {
@@ -126,8 +159,12 @@ class ElovaireMediaTreeSearchInstrumentedTest {
         assertEquals("Ulubione", polish[ElovaireMediaId.Favorites.value])
         assertEquals("Ostatnio dodane", polish[ElovaireMediaId.RecentlyAdded.value])
         assertEquals(polish[ElovaireMediaId.Songs.value], tree.item(ElovaireMediaId.Songs.value)?.mediaMetadata?.title.toString())
-        assertEquals("Utwory", tree.resolvePlayableQueue(ElovaireMediaId.Songs.value)?.sourceLabel)
-        assertEquals("Ostatnio dodane", tree.resolvePlayableQueue(ElovaireMediaId.RecentlyAdded.value)?.sourceLabel)
+        fun sourceLabel(id: String, selectedLanguage: AppLanguage): String =
+            elovaire.music.droidbeauty.app.ui.i18n.localizedPlaybackSource(tree.resolvePlayableQueue(id)?.sourceLabel.orEmpty(), "Album", null, selectedLanguage)
+        assertEquals("wszystkich utworów", sourceLabel(ElovaireMediaId.Songs.value, AppLanguage.Polish))
+        assertEquals("Ostatnio dodane", sourceLabel(ElovaireMediaId.RecentlyAdded.value, AppLanguage.Polish))
+        assertEquals("Utwory T", sourceLabel(ElovaireMediaId.Bucket("songs", "T").value, AppLanguage.Polish))
+        assertEquals("Songs T", sourceLabel(ElovaireMediaId.Bucket("songs", "T").value, AppLanguage.English))
     }
     @Test
     fun pagedSearchUsesTheSameOrderedProjectionAsLimitedSearch() {

@@ -105,24 +105,29 @@ internal fun ManagePlaylistsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        LazyColumn(
-            state = listState,
-            overscrollEffect = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .ensureSingleItemRubberBand(listState),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = topBarOccupiedHeight() + 16.dp,
-                end = 18.dp,
-                bottom = bottomPadding + navigationBarInsetDp() + 98.dp,
-            ),
-        ) {
-            if (userPlaylists.isEmpty()) {
-                item {
-                    ManagePlaylistsEmptyState(copy)
-                }
-            } else {
+        if (userPlaylists.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topBarOccupiedHeight(), bottom = navigationBarInsetDp()),
+                contentAlignment = Alignment.Center,
+            ) {
+                ManagePlaylistsEmptyState(copy)
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                overscrollEffect = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .ensureSingleItemRubberBand(listState),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = topBarOccupiedHeight() + 20.dp,
+                    end = 18.dp,
+                    bottom = bottomPadding + navigationBarInsetDp() + 98.dp,
+                ),
+            ) {
                 itemsIndexed(
                     items = userPlaylists,
                     key = { _, playlist -> playlist.id },
@@ -130,6 +135,7 @@ internal fun ManagePlaylistsScreen(
                 ) { index, playlist ->
                     ManagePlaylistRow(
                         playlist = playlist,
+                        topPadding = if (index == 0) 0.dp else 10.dp,
                         preview = buildPlaylistPreview(playlist.songIds, songsById),
                         appLanguage = appLanguage,
                         exportContentDescription = copy.exportAction,
@@ -183,9 +189,7 @@ internal fun ManagePlaylistsScreen(
 @Composable
 private fun ManagePlaylistsEmptyState(copy: PlaylistManagementCopy) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 14.dp, bottom = 10.dp),
+        modifier = Modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -235,6 +239,7 @@ private fun PlaylistManagementActionBar(
 @Composable
 private fun ManagePlaylistRow(
     playlist: Playlist,
+    topPadding: Dp,
     preview: PlaylistPreview,
     appLanguage: AppLanguage,
     exportContentDescription: String,
@@ -243,7 +248,7 @@ private fun ManagePlaylistRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .padding(top = topPadding, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {

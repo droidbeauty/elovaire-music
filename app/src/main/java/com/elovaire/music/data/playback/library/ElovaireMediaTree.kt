@@ -14,10 +14,11 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.data.playback.AudiobookPlaybackContext
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
-import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
-import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
-import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
-import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
+import elovaire.music.droidbeauty.app.domain.model.UNKNOWN_ARTIST_PLAYBACK_SOURCE
+import elovaire.music.droidbeauty.app.domain.model.UNKNOWN_GENRE_PLAYBACK_SOURCE
+import elovaire.music.droidbeauty.app.domain.model.ALL_SONGS_PLAYBACK_SOURCE
+import elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX
+import elovaire.music.droidbeauty.app.domain.model.SONG_BUCKET_PLAYBACK_SOURCE_PREFIX
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.SearchableAudiobook
@@ -276,9 +277,9 @@ internal class ElovaireMediaTree(
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty()) return null
         return when (parsed) {
-            ElovaireMediaId.Songs -> snapshot.songsByTitle().toQueue(commonUiCopy(language()).songs)
-            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().toQueue(builtInSmartPlaylistTitle(BuiltInSmartPlaylistType.Favorites, language()))
-            ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().toQueue(miscPhrase(language(), MiscPhrase.RecentlyAdded))
+            ElovaireMediaId.Songs -> snapshot.songsByTitle().toQueue(ALL_SONGS_PLAYBACK_SOURCE)
+            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().toQueue(SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + BuiltInSmartPlaylistType.Favorites.name)
+            ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().toQueue(SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + BuiltInSmartPlaylistType.RecentlyAdded.name)
             is ElovaireMediaId.Song -> {
                 val song = snapshot.playableSong(parsed.songId) ?: return null
                 if (song.mediaKind == AudioMediaKind.Audiobook) {
@@ -310,12 +311,12 @@ internal class ElovaireMediaTree(
             is ElovaireMediaId.Artist -> {
                 val artist = ElovaireMediaIds.decodeName(parsed.encodedName)
                 snapshot.songsForArtistInContext(artist)
-                    .toQueue(artist)
+                    .toQueue(if (artist == "Unknown Artist") UNKNOWN_ARTIST_PLAYBACK_SOURCE else artist)
             }
             is ElovaireMediaId.Genre -> {
                 val genre = ElovaireMediaIds.decodeName(parsed.encodedName)
                 snapshot.songsForGenreInContext(genre)
-                    .toQueue(genre)
+                    .toQueue(if (genre == "Unknown Genre") UNKNOWN_GENRE_PLAYBACK_SOURCE else genre)
             }
             is ElovaireMediaId.Playlist -> {
                 val playlist = snapshot.playlist(parsed.playlistId) ?: return null
@@ -529,7 +530,7 @@ internal class ElovaireMediaTree(
             null -> null
         } ?: snapshot.album(recentSong.albumId)
             ?.let { album -> ResolvedPlayableQueue(recentSong, album.songs, album.title, null) }
-            ?: ResolvedPlayableQueue(recentSong, snapshot.songsByTitle(), commonUiCopy(language()).songs, null)
+            ?: ResolvedPlayableQueue(recentSong, snapshot.songsByTitle(), ALL_SONGS_PLAYBACK_SOURCE, null)
     }
 
     private fun snapshot(): MediaTreeSnapshot {
@@ -596,7 +597,7 @@ internal class ElovaireMediaTree(
         snapshot: MediaTreeSnapshot,
     ): ResolvedPlayableQueue? {
         return when (id.parent) {
-            BUCKET_PARENT_SONGS -> snapshot.songsForBucket(id.key).toQueue("Songs ${id.key}")
+            BUCKET_PARENT_SONGS -> snapshot.songsForBucket(id.key).toQueue(SONG_BUCKET_PLAYBACK_SOURCE_PREFIX + id.key)
             else -> null
         }
     }
@@ -635,9 +636,9 @@ internal class ElovaireMediaTree(
     }
 
     private fun defaultQueue(snapshot: MediaTreeSnapshot): ResolvedPlayableQueue? {
-        return snapshot.favoriteSongsByTitle().toQueue(builtInSmartPlaylistTitle(BuiltInSmartPlaylistType.Favorites, language()))
-            ?: snapshot.recentlyAddedSongs().toQueue(miscPhrase(language(), MiscPhrase.RecentlyAdded))
-            ?: snapshot.songsByTitle().toQueue(commonUiCopy(language()).songs)
+        return snapshot.favoriteSongsByTitle().toQueue(SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + BuiltInSmartPlaylistType.Favorites.name)
+            ?: snapshot.recentlyAddedSongs().toQueue(SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX + BuiltInSmartPlaylistType.RecentlyAdded.name)
+            ?: snapshot.songsByTitle().toQueue(ALL_SONGS_PLAYBACK_SOURCE)
     }
 
     private fun audiobookQueue(book: Audiobook, startSong: Song?): ResolvedPlayableQueue? {

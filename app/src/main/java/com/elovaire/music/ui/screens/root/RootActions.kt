@@ -14,7 +14,7 @@ import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
-import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
+import elovaire.music.droidbeauty.app.domain.model.ALL_SONGS_PLAYBACK_SOURCE
 
 internal fun audiobookResumeTarget(
     songs: List<Song>,
@@ -37,7 +37,6 @@ internal fun audiobookResumeTarget(
 
 internal class RootPlaybackActions internal constructor(
     private val playbackManager: NowPlayingPlayback,
-    private val languageProvider: () -> AppLanguage,
     private val songsByAlbumIdProvider: () -> Map<Long, List<Song>>,
     private val albumsByIdProvider: () -> Map<Long, Album>,
     private val openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
@@ -103,7 +102,6 @@ internal class RootPlaybackActions internal constructor(
             collection = queue,
             sourceLabel = sourceLabel ?: queue.playbackSourceLabel(
                 fallbackAlbum = song.album,
-                language = languageProvider(),
             ),
             sourcePlaylistId = sourcePlaylistId,
         )
@@ -116,7 +114,7 @@ internal class RootPlaybackActions internal constructor(
         playbackManager.playSong(
             song = song,
             collection = queue,
-            sourceLabel = localizedAllSongsSource(languageProvider()),
+            sourceLabel = ALL_SONGS_PLAYBACK_SOURCE,
         )
     }
 
@@ -217,15 +215,13 @@ internal class RootPlaylistActions internal constructor(
 @Composable
 internal fun rememberRootPlaybackActions(
     playbackManager: NowPlayingPlayback,
-    appLanguage: AppLanguage,
     songsByAlbumId: Map<Long, List<Song>>,
     albumsById: Map<Long, Album>,
     openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ): RootPlaybackActions {
-    return remember(playbackManager, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
+    return remember(playbackManager, songsByAlbumId, albumsById, openNowPlaying) {
         RootPlaybackActions(
             playbackManager = playbackManager,
-            languageProvider = { appLanguage },
             songsByAlbumIdProvider = { songsByAlbumId },
             albumsByIdProvider = { albumsById },
             openNowPlaying = openNowPlaying,
@@ -243,11 +239,10 @@ internal fun rememberRootPlaylistActions(
 
 internal fun List<Song>.playbackSourceLabel(
     fallbackAlbum: String,
-    language: AppLanguage,
 ): String {
     val distinctAlbums = asSequence().map { it.album }.filter { it.isNotBlank() }.distinct().toList()
     return when {
         distinctAlbums.size == 1 -> distinctAlbums.first()
-        else -> localizedAllSongsSource(language)
+        else -> ALL_SONGS_PLAYBACK_SOURCE
     }.ifBlank { fallbackAlbum }
 }

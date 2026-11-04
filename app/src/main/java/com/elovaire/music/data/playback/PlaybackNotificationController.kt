@@ -19,10 +19,21 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
+
+internal fun localizedNotificationTitle(song: Song?, language: AppLanguage): String =
+    song?.let { localizedExternalAudioText(it.title, it.id, language) }.orEmpty()
+
+internal fun localizedNotificationArtist(song: Song?, language: AppLanguage): String =
+    song?.artist?.let { if (it == "Unknown Artist") localizedArtistName(it, language) else it }.orEmpty()
 
 internal fun shouldKeepPlaybackServiceForeground(
     ongoing: Boolean,
@@ -39,6 +50,7 @@ internal class PlaybackNotificationController(
     private val context: Context,
     private val playbackManager: PlaybackManager,
     private val scope: CoroutineScope,
+    private val language: StateFlow<AppLanguage>,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
 ) {
     private val notificationJobs = mutableListOf<Job>()
@@ -110,6 +122,11 @@ internal class PlaybackNotificationController(
 
     private fun startNotificationCollectorsIfNeeded() {
         if (notificationJobs.any { it.isActive }) return
+        notificationJobs += scope.launch {
+            language.collect {
+                if (notificationsEnabled) notificationManager.invalidate()
+            }
+        }
         notificationJobs += scope.launch {
             playbackManager.manualPlaybackStartVersion.collect { version ->
                 if (version == lastManualPlaybackStartVersion) return@collect
@@ -227,7 +244,7 @@ internal class PlaybackNotificationController(
 
     private inner class NotificationDescriptionAdapter : PlayerNotificationManager.MediaDescriptionAdapter {
         override fun getCurrentContentTitle(player: Player): CharSequence {
-            return playbackManager.state.value.currentSong?.title.orEmpty()
+            return localizedNotificationTitle(playbackManager.state.value.currentSong, language.value)
         }
 
         override fun createCurrentContentIntent(player: Player): PendingIntent {
@@ -244,7 +261,7 @@ internal class PlaybackNotificationController(
         }
 
         override fun getCurrentContentText(player: Player): CharSequence {
-            return playbackManager.state.value.currentSong?.artist.orEmpty()
+            return localizedNotificationArtist(playbackManager.state.value.currentSong, language.value)
         }
 
         override fun getCurrentLargeIcon(

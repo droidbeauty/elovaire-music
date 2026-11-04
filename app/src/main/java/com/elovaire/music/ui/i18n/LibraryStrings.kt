@@ -21,6 +21,62 @@ internal enum class MiscPhrase {
     AddSongs,
 }
 
+internal fun localizedSelectedCount(count: Int, noun: String, language: AppLanguage): String {
+    val counted = localizedCountLabel(count, noun, language)
+    when (language) {
+        AppLanguage.Albanian, AppLanguage.Bengali, AppLanguage.Bosnian, AppLanguage.ChineseSimplified,
+        AppLanguage.Croatian, AppLanguage.Czech, AppLanguage.Danish, AppLanguage.Dutch, AppLanguage.Estonian,
+        AppLanguage.Finnish, AppLanguage.Hungarian, AppLanguage.Indonesian, AppLanguage.Latvian,
+        AppLanguage.Lithuanian, AppLanguage.Macedonian, AppLanguage.Malay, AppLanguage.Norwegian,
+        AppLanguage.Russian, AppLanguage.Serbian, AppLanguage.Slovenian, AppLanguage.Ukrainian, AppLanguage.Urdu -> {
+            val label = miscPhrase(language, MiscPhrase.Selected).replaceFirstChar { it.titlecase() }
+            return "$label: $counted"
+        }
+        else -> Unit
+    }
+    if (language == AppLanguage.Bulgarian) return "Избрано: $counted"
+    if (language == AppLanguage.Hindi) return "चयनित: $counted"
+    if (language == AppLanguage.Punjabi) return "ਚੋਣ: $counted"
+    if (language == AppLanguage.Romanian) return "Selecție: $counted"
+    val feminine = noun == "song" || noun == "track"
+    val selected = when (language) {
+        AppLanguage.Polish -> when {
+            count == 1 -> "wybrany"
+            count % 10 in 2..4 && count % 100 !in 12..14 -> "wybrane"
+            else -> "wybranych"
+        }
+        AppLanguage.French -> if (noun == "track") {
+            if (count == 1) "sélectionnée" else "sélectionnées"
+        } else if (count == 1) "sélectionné" else "sélectionnés"
+        AppLanguage.Italian -> if (noun == "track") {
+            if (count == 1) "selezionata" else "selezionate"
+        } else if (count == 1) "selezionato" else "selezionati"
+        AppLanguage.Spanish -> if (feminine) {
+            if (count == 1) "seleccionada" else "seleccionadas"
+        } else if (count == 1) "seleccionado" else "seleccionados"
+        AppLanguage.Portuguese -> if (feminine) {
+            if (count == 1) "selecionada" else "selecionadas"
+        } else if (count == 1) "selecionado" else "selecionados"
+        AppLanguage.Catalan -> if (feminine) {
+            if (count == 1) "seleccionada" else "seleccionades"
+        } else if (count == 1) "seleccionat" else "seleccionats"
+        AppLanguage.Swedish -> if (count == 1) {
+            if (noun == "album" || noun == "track") "valt" else "vald"
+        } else "valda"
+        AppLanguage.Slovak -> when {
+            count == 1 -> if (feminine) "vybraná" else "vybraný"
+            count in 2..4 -> "vybrané"
+            else -> "vybraných"
+        }
+        AppLanguage.Greek -> if (count == 1) "επιλεγμένο" else "επιλεγμένα"
+        AppLanguage.Latin -> if (noun == "album") {
+            if (count == 1) "selectum" else "selecta"
+        } else if (count == 1) "selectus" else "selecti"
+        else -> miscPhrase(language, MiscPhrase.Selected)
+    }
+    return "$counted $selected"
+}
+
 internal fun miscPhrase(language: AppLanguage, phrase: MiscPhrase): String = when (language) {
     AppLanguage.Bulgarian -> when (phrase) {
         MiscPhrase.RecentlyAdded -> "Наскоро добавени"
@@ -588,8 +644,22 @@ internal fun localizedAlbumTitle(title: String, language: AppLanguage): String {
     }
 }
 
-internal fun localizedPlaybackSource(source: String, album: String?, playlistId: Long?, language: AppLanguage): String =
-    if (playlistId == null && source == album) localizedAlbumTitle(source, language) else source
+internal fun localizedPlaybackSource(source: String, album: String?, playlistId: Long?, language: AppLanguage): String = when {
+    playlistId != null || source == album -> if (playlistId == null) localizedAlbumTitle(source, language) else source
+    source == elovaire.music.droidbeauty.app.domain.model.ALL_SONGS_PLAYBACK_SOURCE -> localizedAllSongsSource(language)
+    source == elovaire.music.droidbeauty.app.domain.model.SEARCH_PLAYBACK_SOURCE -> localizedSearchResultsSource(language)
+    source == elovaire.music.droidbeauty.app.domain.model.UNKNOWN_ARTIST_PLAYBACK_SOURCE -> localizedArtistName("Unknown Artist", language)
+    source == elovaire.music.droidbeauty.app.domain.model.UNKNOWN_GENRE_PLAYBACK_SOURCE -> localizedGenreName("Unknown Genre", language)
+    source.startsWith(elovaire.music.droidbeauty.app.domain.model.SONG_BUCKET_PLAYBACK_SOURCE_PREFIX) ->
+        "${commonUiCopy(language).songs} ${source.removePrefix(elovaire.music.droidbeauty.app.domain.model.SONG_BUCKET_PLAYBACK_SOURCE_PREFIX)}"
+    source.startsWith(elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX) -> {
+        val type = source.removePrefix(elovaire.music.droidbeauty.app.domain.model.SMART_PLAYLIST_PLAYBACK_SOURCE_PREFIX)
+        elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType.entries
+            .firstOrNull { it.name == type }
+            ?.let { builtInSmartPlaylistTitle(it, language) } ?: source
+    }
+    else -> source
+}
 
 internal fun localizedArtistName(name: String, language: AppLanguage): String {
     if (!name.isBlank() && name != "Unknown Artist") return name
@@ -702,9 +772,9 @@ internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language)
     AppLanguage.Danish -> CommonUiCopy("Hjem", "Bibliotek", "Playlister", "Søg", "Velkommen", "Sange", "Albummer", "Kunstnere", "Genrer", "Lys", "Mørk", "System", "i dit bibliotek", "i alt", "fundet", "Din musik, raffineret til en elegant oplevelse")
     AppLanguage.Dutch -> CommonUiCopy("Home", "Bibliotheek", "Afspeellijsten", "Zoeken", "Welkom", "Nummers", "Albums", "Artiesten", "Genres", "Licht", "Donker", "Systeem", "in je bibliotheek", "in totaal", "gevonden", "Jouw muziek, verfijnd tot een elegante ervaring")
     AppLanguage.Estonian -> CommonUiCopy("Avaleht", "Teek", "Esitusloendid", "Otsi", "Tere tulemast", "Lood", "Albumid", "Artistid", "Žanrid", "Hele", "Tume", "Süsteem", "sinu teegis", "kokku", "leitud", "Sinu muusika, viimistletud elegantseks elamuseks")
-    AppLanguage.French -> CommonUiCopy("Accueil", "Bibliothèque", "Playlists", "Recherche", "Bienvenue", "Morceaux", "Albums", "Artistes", "Genres", "Clair", "Sombre", "Système", "dans votre bibliothèque", "au total", "trouvés", "Votre musique, affinée en une expérience élégante")
-    AppLanguage.German -> CommonUiCopy("Start", "Bibliothek", "Playlists", "Suche", "Willkommen", "Titel", "Alben", "Künstler", "Genres", "Hell", "Dunkel", "System", "in deiner Bibliothek", "insgesamt", "gefunden", "Deine Musik, veredelt zu einem eleganten Erlebnis")
-    AppLanguage.Greek -> CommonUiCopy("Αρχική", "Βιβλιοθήκη", "Playlists", "Αναζήτηση", "Καλώς ήρθατε", "Τραγούδια", "Άλμπουμ", "Καλλιτέχνες", "Είδη", "Φωτεινό", "Σκούρο", "Σύστημα", "στη βιβλιοθήκη σας", "συνολικά", "βρέθηκαν", "Η μουσική σας, εκλεπτυσμένη σε μια κομψή εμπειρία")
+    AppLanguage.French -> CommonUiCopy("Accueil", "Bibliothèque", "Listes de lecture", "Recherche", "Bienvenue", "Morceaux", "Albums", "Artistes", "Genres", "Clair", "Sombre", "Système", "dans votre bibliothèque", "au total", "trouvés", "Votre musique, affinée en une expérience élégante")
+    AppLanguage.German -> CommonUiCopy("Start", "Bibliothek", "Wiedergabelisten", "Suche", "Willkommen", "Titel", "Alben", "Künstler", "Genres", "Hell", "Dunkel", "System", "in deiner Bibliothek", "insgesamt", "gefunden", "Deine Musik, veredelt zu einem eleganten Erlebnis")
+    AppLanguage.Greek -> CommonUiCopy("Αρχική", "Βιβλιοθήκη", "Λίστες αναπαραγωγής", "Αναζήτηση", "Καλώς ήρθατε", "Τραγούδια", "Άλμπουμ", "Καλλιτέχνες", "Είδη", "Φωτεινό", "Σκούρο", "Σύστημα", "στη βιβλιοθήκη σας", "συνολικά", "βρέθηκαν", "Η μουσική σας, εκλεπτυσμένη σε μια κομψή εμπειρία")
     AppLanguage.Hindi -> CommonUiCopy("होम", "लाइब्रेरी", "प्लेलिस्ट", "खोजें", "स्वागत है", "गाने", "एल्बम", "कलाकार", "शैलियाँ", "लाइट", "डार्क", "सिस्टम", "आपकी लाइब्रेरी में", "कुल", "मिले", "आपका संगीत, एक सुरुचिपूर्ण अनुभव में निखरा हुआ")
     AppLanguage.Hungarian -> CommonUiCopy("Kezdőlap", "Könyvtár", "Lejátszási listák", "Keresés", "Üdvözöljük", "Dalok", "Albumok", "Előadók", "Műfajok", "Világos", "Sötét", "Rendszer", "a könyvtáradban", "összesen", "találat", "A zenéd, kifinomítva elegáns élménnyé")
     AppLanguage.Italian -> CommonUiCopy("Home", "Libreria", "Playlist", "Cerca", "Benvenuto", "Brani", "Album", "Artisti", "Generi", "Chiaro", "Scuro", "Sistema", "nella tua libreria", "in totale", "trovati", "La tua musica, rifinita in un'esperienza elegante")
@@ -714,10 +784,10 @@ internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language)
     AppLanguage.Lithuanian -> CommonUiCopy("Pradžia", "Biblioteka", "Grojaraščiai", "Paieška", "Sveiki", "Dainos", "Albumai", "Atlikėjai", "Žanrai", "Šviesi", "Tamsi", "Sistema", "jūsų bibliotekoje", "iš viso", "rasta", "Tavo muzika, ištobulinta į elegantišką patirtį")
     AppLanguage.Macedonian -> CommonUiCopy("Почетна", "Библиотека", "Плејлисти", "Пребарај", "Добредојдовте", "Песни", "Албуми", "Артисти", "Жанрови", "Светла", "Темна", "Систем", "во вашата библиотека", "вкупно", "пронајдени", "Вашата музика, префинета во елегантно доживување")
     AppLanguage.Norwegian -> CommonUiCopy("Hjem", "Bibliotek", "Spillelister", "Søk", "Velkommen", "Sanger", "Album", "Artister", "Sjangre", "Lys", "Mørk", "System", "i biblioteket ditt", "totalt", "funnet", "Musikken din, raffinert til en elegant opplevelse")
-    AppLanguage.Portuguese -> CommonUiCopy("Início", "Biblioteca", "Playlists", "Pesquisar", "Bem-vindo", "Músicas", "Álbuns", "Artistas", "Géneros", "Claro", "Escuro", "Sistema", "na sua biblioteca", "no total", "encontrados", "A sua música, refinada numa experiência elegante")
+    AppLanguage.Portuguese -> CommonUiCopy("Início", "Biblioteca", "Listas de reprodução", "Pesquisar", "Bem-vindo", "Músicas", "Álbuns", "Artistas", "Géneros", "Claro", "Escuro", "Sistema", "na sua biblioteca", "no total", "encontrados", "A sua música, refinada numa experiência elegante")
     AppLanguage.Russian -> CommonUiCopy("Главная", "Библиотека", "Плейлисты", "Поиск", "Добро пожаловать", "Песни", "Альбомы", "Исполнители", "Жанры", "Светлая", "Тёмная", "Система", "в вашей библиотеке", "всего", "найдено", "Ваша музыка, отточенная до элегантного опыта")
     AppLanguage.Serbian -> CommonUiCopy("Почетна", "Библиотека", "Плејлисте", "Претрага", "Добро дошли", "Песме", "Албуми", "Извођачи", "Жанрови", "Светла", "Тамна", "Систем", "у вашој библиотеци", "укупно", "пронађено", "Ваша музика, префињена у елегантно искуство")
-    AppLanguage.Spanish -> CommonUiCopy("Inicio", "Biblioteca", "Playlists", "Buscar", "Bienvenido", "Canciones", "Álbumes", "Artistas", "Géneros", "Claro", "Oscuro", "Sistema", "en tu biblioteca", "en total", "encontrados", "Tu música, refinada en una experiencia elegante")
+    AppLanguage.Spanish -> CommonUiCopy("Inicio", "Biblioteca", "Listas de reproducción", "Buscar", "Bienvenido", "Canciones", "Álbumes", "Artistas", "Géneros", "Claro", "Oscuro", "Sistema", "en tu biblioteca", "en total", "encontrados", "Tu música, refinada en una experiencia elegante")
     AppLanguage.Swedish -> CommonUiCopy("Hem", "Bibliotek", "Spellistor", "Sök", "Välkommen", "Låtar", "Album", "Artister", "Genrer", "Ljust", "Mörkt", "System", "i ditt bibliotek", "totalt", "hittade", "Din musik, förädlad till en elegant upplevelse")
     AppLanguage.Thai -> CommonUiCopy("หน้าแรก", "คลังเพลง", "เพลย์ลิสต์", "ค้นหา", "ยินดีต้อนรับ", "เพลง", "อัลบั้ม", "ศิลปิน", "แนวเพลง", "สว่าง", "มืด", "ระบบ", "ในคลังของคุณ", "ทั้งหมด", "พบ", "เพลงของคุณ ถูกขัดเกลาให้เป็นประสบการณ์อันสง่างาม")
     AppLanguage.Ukrainian -> CommonUiCopy("Головна", "Бібліотека", "Плейлисти", "Пошук", "Ласкаво просимо", "Пісні", "Альбоми", "Виконавці", "Жанри", "Світла", "Темна", "Система", "у вашій бібліотеці", "усього", "знайдено", "Ваша музика, відточена до елегантного досвіду")

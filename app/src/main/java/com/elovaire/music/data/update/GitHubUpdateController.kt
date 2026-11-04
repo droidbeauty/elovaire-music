@@ -4,6 +4,7 @@ import elovaire.music.droidbeauty.app.platform.readWithProgress
 
 import android.content.Context
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
 import android.net.TrafficStats
 import android.net.Uri
@@ -21,6 +22,7 @@ import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -41,6 +43,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 internal class GitHubUpdateController(
@@ -150,7 +153,7 @@ internal class GitHubUpdateController(
                 it.copy(
                     availableRelease = release.takeIf { shouldShow },
                     isChecking = false,
-                    errorMessage = result.exceptionOrNull()?.let(::userMessage),
+                    errorMessage = result.exceptionOrNull()?.let { updateUserMessage(it, "Unable to check for updates") },
                     transientStatus = if (force && release == null && result.isSuccess) {
                         AppUpdateTransientStatus.UpToDate
                     } else null,
@@ -185,7 +188,7 @@ internal class GitHubUpdateController(
                 _uiState.update { it.copy(isDownloading = true, isInstalling = false, installPermissionRequired = false, downloadProgress = 0f, errorMessage = null) }
                 runCatching { withContext(Dispatchers.IO) { downloadReleaseApk(release) } }.getOrElse { failure ->
                     if (failure is CancellationException) throw failure
-                    reportFailure(failure)
+                    reportFailure(failure, "Update download failed")
                     return@launch
                 }
             }
@@ -309,7 +312,7 @@ internal class GitHubUpdateController(
         if (result.isSuccess) return true
         file.delete()
         pendingInstallApk = null
-        reportFailure(result.exceptionOrNull() ?: IllegalStateException("Downloaded update is invalid"))
+        reportFailure(result.exceptionOrNull() ?: IllegalStateException("Downloaded update is invalid"), "Unable to verify update")
         return false
     }
 
@@ -377,7 +380,7 @@ internal class GitHubUpdateController(
             appContext.startActivity(intent)
             true
         }.getOrDefault(false)
-        if (!opened) reportFailure(IllegalStateException("Unable to open install permission settings"))
+        if (!opened) reportFailure(IllegalStateException("Unable to open install permission settings"), "Unable to open install permission settings")
         return false
     }
 
@@ -407,7 +410,7 @@ internal class GitHubUpdateController(
                 .commit()
         }
         if (!persisted) {
-            reportFailure(IllegalStateException("Unable to persist update installer handoff"))
+            reportFailure(IllegalStateException("Unable to persist update installer handoff"), "Unable to persist update installer handoff")
             return false
         }
         val result = runCatching {
@@ -420,7 +423,7 @@ internal class GitHubUpdateController(
         }
         result.exceptionOrNull()?.let {
             clearPersistedHandoff()
-            reportFailure(it)
+            reportFailure(it, "The update was not installed")
             return false
         }
         installHandoff = handoff
@@ -536,7 +539,7 @@ internal class GitHubUpdateController(
             .apply()
     }
 
-    private fun reportFailure(failure: Throwable) {
+    private fun reportFailure(failure: Throwable, fallback: String) {
         _uiState.update {
             it.copy(
                 isChecking = false,
@@ -545,7 +548,7 @@ internal class GitHubUpdateController(
                 installPermissionRequired = false,
                 downloadProgress = null,
                 installState = AppUpdateInstallState.None,
-                errorMessage = userMessage(failure),
+                errorMessage = updateUserMessage(failure, fallback),
             )
         }
     }
@@ -560,8 +563,6 @@ internal class GitHubUpdateController(
     }
 
     private fun updatesDirectory(): File = File(appContext.filesDir, "updates")
-
-    private fun userMessage(failure: Throwable): String = failure.message ?: "Unable to check for updates"
 
     private data class InstallHandoff(
         val fileName: String,
@@ -583,6 +584,17 @@ internal class GitHubUpdateController(
         const val KEY_HANDOFF_SIZE = "expected_size_bytes"
         const val KEY_HANDOFF_TIMESTAMP = "timestamp_ms"
         const val INSTALL_HANDOFF_MAX_AGE_MS = 24L * 60L * 60L * 1_000L
+    }
+}
+
+internal fun updateUserMessage(failure: Throwable, fallback: String): String {
+    if (failure is IOException || failure is JSONException || failure is SecurityException || failure is ActivityNotFoundException) return fallback
+    return when (failure.message) {
+        "HTTP request URL is not allowed" -> "Update source is invalid"
+        "Too many HTTPS redirects" -> "Too many update redirects"
+        "Redirect has no location" -> "Update source redirect is invalid"
+        "Unsupported HTTP connection", "HTTP response is too large", "Unable to resolve HTTPS request", null -> fallback
+        else -> failure.message ?: fallback
     }
 }
 

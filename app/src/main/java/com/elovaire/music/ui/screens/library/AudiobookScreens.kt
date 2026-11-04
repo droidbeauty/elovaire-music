@@ -77,6 +77,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.audiobookUnavailableCopy
 import elovaire.music.droidbeauty.app.ui.i18n.viewModeAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookPartsCount
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookDescriptionCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookFinishedLabel
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
@@ -191,7 +192,7 @@ private fun AudiobookMiniCard(
                 text = if (book.parts.size == 1) {
                     formatDuration(book.durationMs)
                 } else {
-                    "${book.parts.size} ${copy.parts}  •  ${formatDuration(book.durationMs)}"
+                    "${audiobookPartsCount(book.parts.size, LocalAppLanguage.current)}  •  ${formatDuration(book.durationMs)}"
                 },
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
@@ -614,7 +615,7 @@ private fun AudiobookCollectionRow(
                     color = readableSecondaryTextColor(),
                 )
                 Text(
-                    text = "${book.parts.size} ${audiobookCopy(LocalAppLanguage.current).parts}  •  ${formatDuration(book.durationMs)}",
+                    text = "${audiobookPartsCount(book.parts.size, LocalAppLanguage.current)}  •  ${formatDuration(book.durationMs)}",
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                 )

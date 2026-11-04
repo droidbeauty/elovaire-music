@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
 import elovaire.music.droidbeauty.app.data.library.LibrarySongDuplicateResolver
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
 internal interface PlaybackQueueRuntime {
     val player: Player
@@ -30,6 +31,7 @@ internal interface PlaybackQueueRuntime {
 internal class PlaybackQueueController(
     private val runtime: PlaybackQueueRuntime,
     private val queueMetadataRefresher: PlaybackQueueMetadataRefresher,
+    private val language: () -> AppLanguage = { AppLanguage.English },
 ) {
     private var queueBackedByLibrary = false
 
@@ -52,7 +54,7 @@ internal class PlaybackQueueController(
         allowStrictModeDiskReads {
             // MediaSession metadata publication may synchronously ask MediaProvider to validate artwork URI grants.
             player.setMediaItems(
-                songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem),
+                songs.mapTo(ArrayList(songs.size)) { it.toPlaybackMediaItem(language()) },
                 safeStartIndex,
                 startPositionMs.coerceAtLeast(0L),
             )
@@ -151,7 +153,7 @@ internal class PlaybackQueueController(
         val player = runtime.player
         allowStrictModeDiskReads {
             // MediaSession metadata publication may synchronously ask MediaProvider to validate artwork URI grants.
-            player.addMediaItem(song.toPlaybackMediaItem())
+            player.addMediaItem(song.toPlaybackMediaItem(language()))
         }
         runtime.publishState(state.copy(queue = existingQueue + song))
         runtime.updateState()
@@ -285,7 +287,7 @@ internal class PlaybackQueueController(
                 index < player.mediaItemCount &&
                 !(playbackActive && index == currentIndex)
             ) {
-                player.replaceMediaItem(index, refreshedSong.toPlaybackMediaItem())
+                player.replaceMediaItem(index, refreshedSong.toPlaybackMediaItem(language()))
             }
         }
         val previousCurrentSong = state.queue.getOrNull(currentIndex)
@@ -330,7 +332,7 @@ internal class PlaybackQueueController(
                 newIndex < player.mediaItemCount &&
                 !(shouldKeepPlaying && !currentWasRemoved && oldIndex == oldCurrentIndex)
             ) {
-                player.replaceMediaItem(newIndex, refreshedSong.toPlaybackMediaItem())
+                player.replaceMediaItem(newIndex, refreshedSong.toPlaybackMediaItem(language()))
             }
         }
 

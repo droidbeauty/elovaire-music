@@ -50,6 +50,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedSelectedCount
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.recentAdditionsEmptyMessage
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
@@ -278,7 +279,7 @@ internal fun RecentlyAddedAlbumsScreen(
         visible = showPlaylistPicker && selectionModeActive,
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
         subtitle = if (selectedAlbums.size == 1) localizedAlbumTitle(selectedAlbums.first().title, language) else {
-            "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedSongs.size, "song", language)}"
+            "${localizedSelectedCount(selectedAlbums.size, "album", language)} • ${localizedCountLabel(selectedSongs.size, "song", language)}"
         },
         playlists = playlists.filterNot(Playlist::isSystem),
         playlistSongsById = playlistSongsById,

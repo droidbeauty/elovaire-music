@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.app.Activity
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +17,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.platform.ContentIo
+import elovaire.music.droidbeauty.app.platform.ContentIoException
+import elovaire.music.droidbeauty.app.platform.ContentIoFailureKind
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
@@ -26,6 +29,7 @@ import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorSaveOutcome
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -219,11 +223,20 @@ private fun firstSafWriteProblem(
             runCatching { contentIo.requireSafWriteAccess(target.uri) }
                 .exceptionOrNull()
                 ?.let { failure ->
+                    if (failure is CancellationException) throw failure
+                    if (failure !is ContentIoException) Log.w("AlbumTagEditor", "Unable to check document write access", failure)
                     SafWriteProblem(
                         uri = target.uri,
-                        message = failure.message ?: "The selected document provider does not allow tag editing",
+                        message = safWriteErrorMessage(failure),
                     )
                 }
         }
         .firstOrNull()
+}
+
+internal fun safWriteErrorMessage(failure: Throwable): String = when ((failure as? ContentIoException)?.kind) {
+    ContentIoFailureKind.PermissionRequired -> "The selected document has no persisted write permission."
+    ContentIoFailureKind.MalformedProviderContract -> "Unable to query document write capability."
+    ContentIoFailureKind.UnsupportedWriteCapability -> "The selected document provider does not support writing this file."
+    else -> "The selected document provider does not allow tag editing"
 }

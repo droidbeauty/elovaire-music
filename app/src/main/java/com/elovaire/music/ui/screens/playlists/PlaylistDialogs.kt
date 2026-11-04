@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import android.util.Log
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
@@ -385,7 +386,8 @@ internal fun PlaylistCreateFullScreenLayer(
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                errorMessage = failure.localizedMessage
+                Log.w("PlaylistCreation", "Unable to create playlist", failure)
+                errorMessage = "User-data operation failed."
             } finally {
                 isCreating = false
             }
@@ -1032,7 +1034,7 @@ internal fun PlaylistPickerRow(
                             }
                             append("  •  ")
                             withStyle(SpanStyle(color = readableSecondaryTextColor().copy(alpha = 0.82f))) {
-                                append(formatPlaylistDuration(durationMs))
+                                append(formatPlaylistDuration(durationMs, language))
                             }
                         },
                         style = secondaryBodyTextStyle().copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),

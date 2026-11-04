@@ -66,7 +66,7 @@ internal fun NowPlayingBarStyleScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
-                top = topBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
+                top = topBarOccupiedHeight() + 20.dp,
                 end = 18.dp,
                 bottom = bottomPadding + 20.dp,
             ),

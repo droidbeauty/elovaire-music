@@ -19,7 +19,7 @@
     -->
     <entry
         title="Droid Beauty"
-        description="Beautifully designed widgets and themes for Android to make your homescreen stunning. I'm also the creator of this music player app you're using right now"
+        description="Beautifully designed Android widgets and themes to make your home screen stand out. I also created the music player you’re using right now"
         logoUrl="@drawable/droid_beauty_logo"
         >
         <link
@@ -41,7 +41,7 @@
 
     <section
         title="Resources"
-        description="Elovaire uses Apache-2.0 Android and Kotlin components, Lucide icons (ISC/MIT), Geist fonts (OFL-1.1), and jaudiotagger (LGPL). Full license texts are bundled with the app.">
+        description="Elovaire uses Apache-2.0 Android and Kotlin components, Lucide icons (ISC/MIT), Geist fonts (OFL-1.1), and jaudiotagger (LGPL). Full license texts are bundled with the app">
         <entry
             title="Android Developer"
             logoUrl="https://github.com/android.png?size=256">

@@ -2,8 +2,58 @@ package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
+internal fun audiobookPartsCount(count: Int, language: AppLanguage): String {
+    val lastTwo = count % 100
+    val lastDigit = count % 10
+    val slavicOne = lastDigit == 1 && lastTwo != 11
+    val slavicFew = lastDigit in 2..4 && lastTwo !in 12..14
+    val part = when (language) {
+        AppLanguage.Albanian -> "pjesë"
+        AppLanguage.Bengali -> return "${count}টি অংশ"
+        AppLanguage.Bosnian, AppLanguage.Croatian -> when { slavicOne -> "dio"; slavicFew -> "dijela"; else -> "dijelova" }
+        AppLanguage.Bulgarian -> if (count == 1) "част" else "части"
+        AppLanguage.Catalan -> if (count == 1) "part" else "parts"
+        AppLanguage.ChineseSimplified -> return "${count}个部分"
+        AppLanguage.Czech -> when (count) { 1 -> "část"; in 2..4 -> "části"; else -> "částí" }
+        AppLanguage.Danish -> if (count == 1) "del" else "dele"
+        AppLanguage.Dutch -> if (count == 1) "deel" else "delen"
+        AppLanguage.English -> if (count == 1) "part" else "parts"
+        AppLanguage.Estonian -> "osa"
+        AppLanguage.Finnish -> if (count == 1) "osa" else "osaa"
+        AppLanguage.French -> if (count == 1) "partie" else "parties"
+        AppLanguage.German -> if (count == 1) "Teil" else "Teile"
+        AppLanguage.Greek -> if (count == 1) "μέρος" else "μέρη"
+        AppLanguage.Hindi -> "भाग"
+        AppLanguage.Hungarian -> "rész"
+        AppLanguage.Indonesian -> "bagian"
+        AppLanguage.Italian -> if (count == 1) "parte" else "parti"
+        AppLanguage.Japanese -> return "${count}パート"
+        AppLanguage.Korean -> return "부분 ${count}개"
+        AppLanguage.Latin -> if (count == 1) "pars" else "partes"
+        AppLanguage.Latvian -> when { lastTwo in 11..19 || lastDigit == 0 -> "daļu"; lastDigit == 1 -> "daļa"; else -> "daļas" }
+        AppLanguage.Lithuanian -> when { lastTwo in 11..19 || lastDigit == 0 -> "dalių"; lastDigit == 1 -> "dalis"; else -> "dalys" }
+        AppLanguage.Macedonian -> if (count == 1) "дел" else "делови"
+        AppLanguage.Malay -> "bahagian"
+        AppLanguage.Norwegian -> if (count == 1) "del" else "deler"
+        AppLanguage.Polish -> if (count == 1) "część" else "części"
+        AppLanguage.Portuguese -> if (count == 1) "parte" else "partes"
+        AppLanguage.Punjabi -> "ਭਾਗ"
+        AppLanguage.Romanian -> when { count == 1 -> "parte"; lastTwo == 0 || lastTwo >= 20 -> "de părți"; else -> "părți" }
+        AppLanguage.Russian -> when { slavicOne -> "часть"; slavicFew -> "части"; else -> "частей" }
+        AppLanguage.Serbian -> when { slavicOne -> "део"; slavicFew -> "дела"; else -> "делова" }
+        AppLanguage.Slovak -> when (count) { 1 -> "časť"; in 2..4 -> "časti"; else -> "častí" }
+        AppLanguage.Slovenian -> when (lastTwo) { 1 -> "del"; 2 -> "dela"; 3, 4 -> "deli"; else -> "delov" }
+        AppLanguage.Spanish -> if (count == 1) "parte" else "partes"
+        AppLanguage.Swedish -> if (count == 1) "del" else "delar"
+        AppLanguage.Thai -> return "$count ส่วน"
+        AppLanguage.Ukrainian -> when { slavicOne -> "частина"; slavicFew -> "частини"; else -> "частин" }
+        AppLanguage.Urdu -> if (count == 1) "حصہ" else "حصے"
+    }
+    return "$count $part"
+}
+
 internal fun localizedAudiobookAuthor(author: String, language: AppLanguage): String {
-    if (author.isNotBlank() && author != "Unknown Author") return author
+    if (author.isNotBlank() && author != "Unknown Author" && author != "Unknown Artist") return author
     return when (language) {
         AppLanguage.Albanian -> "Autor i panjohur"
         AppLanguage.Bengali -> "অজানা লেখক"

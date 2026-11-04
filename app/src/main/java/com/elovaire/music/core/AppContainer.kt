@@ -125,6 +125,7 @@ class AppContainer internal constructor(
             context = applicationContext,
             playbackManager = services.playbackManager,
             scope = appScope,
+            language = services.preferenceStore.appLanguage,
             resourceTracker = backendDiagnostics.resources,
         )
     }

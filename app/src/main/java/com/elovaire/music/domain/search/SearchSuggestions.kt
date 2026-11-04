@@ -109,7 +109,7 @@ internal fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {
     var albumName: String? = null
     forEach { song ->
         val candidate = song.album.takeIf(String::isNotBlank) ?: return@forEach
-        if (albumName != null && albumName != candidate) return "Search"
+        if (albumName != null && albumName != candidate) return elovaire.music.droidbeauty.app.domain.model.SEARCH_PLAYBACK_SOURCE
         albumName = candidate
     }
     return albumName ?: fallbackAlbum

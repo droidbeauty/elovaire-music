@@ -43,6 +43,11 @@ import elovaire.music.droidbeauty.app.data.library.AudiobookCatalog
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.localizedAlbumTitle
+import elovaire.music.droidbeauty.app.ui.i18n.localizedArtistName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedGenreName
+import elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -185,6 +190,7 @@ internal class PlaybackManager internal constructor(
     scope: CoroutineScope,
     private val audiobookProgressRepository: AudiobookProgressRepository = AudiobookProgressStore(context),
     private val audiobookPlaybackSpeedPreferences: StateFlow<Float> = MutableStateFlow(1f),
+    private val appLanguage: StateFlow<AppLanguage> = MutableStateFlow(AppLanguage.English),
     private val onAudiobookPlaybackSpeedChanged: (Float) -> Unit = {},
     audioProcessorsProvider: () -> Array<AudioProcessor> = { emptyArray() },
     hasSignalAlteringEffects: () -> Boolean = { false },
@@ -324,6 +330,7 @@ internal class PlaybackManager internal constructor(
         onPromote = { outgoing, incoming -> promoteCrossfadePlayer(outgoing, incoming) },
         onFailed = { scheduleStatePublish() },
         clock = clock,
+        language = { appLanguage.value },
     )
     private val sleepTimerController = PlaybackSleepTimerController(
         scope = scope,
@@ -727,6 +734,7 @@ internal class PlaybackManager internal constructor(
         },
         applyPreferredAudioDevice = ::applyPreferredAudioDeviceIfNeeded,
         targetPlayerOutputGain = ::targetPlayerOutputGain,
+        language = { appLanguage.value },
     )
     private val queueController = PlaybackQueueController(
         runtime = object : PlaybackQueueRuntime {
@@ -772,6 +780,7 @@ internal class PlaybackManager internal constructor(
             }
         },
         queueMetadataRefresher = queueMetadataRefresher,
+        language = { appLanguage.value },
     )
 
     init {
@@ -870,7 +879,7 @@ internal class PlaybackManager internal constructor(
         val index = currentIndex.coerceIn(songs.indices)
         allowStrictModeDiskReads {
             player.setMediaItems(
-                songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem),
+                songs.mapTo(ArrayList(songs.size)) { it.toPlaybackMediaItem(appLanguage.value) },
                 index,
                 persisted.positionMs.coerceAtLeast(0L),
             )
@@ -2152,7 +2161,7 @@ internal class PlaybackManager internal constructor(
         scope.launch {
             if (!isCurrentPlaybackOperation(operationRevision)) return@launch
             val mediaItems = snapshot.queue.mapTo(ArrayList(snapshot.queue.size)) { song ->
-                song.toPlaybackMediaItem()
+                song.toPlaybackMediaItem(appLanguage.value)
             }
             player.setMediaItems(mediaItems, recoverIndex, recoverPosition)
             player.shuffleModeEnabled = snapshot.shuffleEnabled && snapshot.queue.none { it.mediaKind == AudioMediaKind.Audiobook }
@@ -2631,21 +2640,21 @@ internal data class AudioPathDecisionKey(
     val outputCapabilitySignature: Int,
 )
 
-internal fun Song.toPlaybackMediaItem(): MediaItem {
+internal fun Song.toPlaybackMediaItem(language: AppLanguage = AppLanguage.English): MediaItem {
     return MediaItem.Builder()
         .setMediaId(id.toString())
         .setUri(uri)
         .setMimeType(inferPlaybackMimeType())
         .setMediaMetadata(
             MediaMetadata.Builder()
-                .setTitle(title)
-                .setArtist(artist)
-                .setAlbumTitle(album)
-                .setAlbumArtist(albumArtist ?: artist)
+                .setTitle(localizedExternalAudioText(title, id, language))
+                .setArtist(if (artist == "Unknown Artist") localizedArtistName(artist, language) else artist)
+                .setAlbumTitle(localizedExternalAudioText(if (album == "Unknown Album") localizedAlbumTitle(album, language) else album, id, language))
+                .setAlbumArtist((albumArtist ?: artist).let { if (it == "Unknown Artist") localizedArtistName(it, language) else it })
                 .setTrackNumber(trackNumber.takeIf { it > 0 })
                 .setDiscNumber(discNumber.takeIf { it > 0 })
                 .setReleaseYear(releaseYear)
-                .setGenre(genre.takeIf(String::isNotBlank))
+                .setGenre(genre.takeIf(String::isNotBlank)?.let { if (it == "Unknown Genre") localizedGenreName(it, language) else it })
                 .setDurationMs(durationMs.takeIf { it > 0 })
                 .setArtworkUri(artUri)
                 .setIsPlayable(true)

@@ -332,6 +332,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedSelectedCount
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
@@ -914,7 +915,7 @@ private fun LastPlayedPlaylistModule(
         val metaItems = remember(songs, totalDurationMs, language) {
             listOf(
                 localizedCountLabel(songs.size, "track", language),
-                formatPlaylistDuration(totalDurationMs),
+                formatPlaylistDuration(totalDurationMs, language),
             )
         }
         val playBackground = rememberArtworkPaletteAccent(artworkSong?.artUri).value ?: MaterialTheme.colorScheme.primary
@@ -1506,7 +1507,7 @@ private fun AlbumCollectionContent(
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
         subtitle = when (selectedAlbums.size) {
             1 -> localizedAlbumTitle(selectedAlbums.first().title, language)
-            else -> "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedAlbumSongs.size, "song", language)}"
+            else -> "${localizedSelectedCount(selectedAlbums.size, "album", language)} • ${localizedCountLabel(selectedAlbumSongs.size, "song", language)}"
         },
         playlists = playlists.filterNot { it.isSystem },
         playlistSongsById = playlistSongsById,
@@ -3175,8 +3176,8 @@ internal fun ArtistAlbumGallery(
 @Composable
 internal fun FavoriteAlbumsModule(
     albums: List<Album>,
-    title: String = "Your favorite albums",
-    subtitle: String = "Music you come back to frequently",
+    title: String,
+    subtitle: String,
     iconResId: Int = R.drawable.ic_lucide_star,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
