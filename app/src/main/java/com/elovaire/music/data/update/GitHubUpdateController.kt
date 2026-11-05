@@ -589,12 +589,20 @@ internal class GitHubUpdateController(
 
 internal fun updateUserMessage(failure: Throwable, fallback: String): String {
     if (failure is IOException || failure is JSONException || failure is SecurityException || failure is ActivityNotFoundException) return fallback
-    return when (failure.message) {
+    return when (val message = failure.message) {
         "HTTP request URL is not allowed" -> "Update source is invalid"
         "Too many HTTPS redirects" -> "Too many update redirects"
         "Redirect has no location" -> "Update source redirect is invalid"
-        "Unsupported HTTP connection", "HTTP response is too large", "Unable to resolve HTTPS request", null -> fallback
-        else -> failure.message ?: fallback
+        "Update download is too large", "Update download exceeded its byte limit",
+        "The staged update is no longer available", "Allow installing updates from this source first",
+        "Update download failed", "Downloaded update is incomplete", "Update verification failed",
+        "Unable to verify update", "Downloaded update targets another app", "Downloaded update version is invalid",
+        "Downloaded update is not newer", "Downloaded update is not a valid app", "Downloaded update is invalid",
+        "Unable to check for updates", "GitHub update check failed", "Update source is invalid",
+        "Update asset name is invalid", "Too many update redirects", "Update source redirect is invalid",
+        "Unable to open install permission settings", "Unable to persist update installer handoff",
+        "Downloaded update is signed by an unknown certificate", "The update was not installed" -> message
+        else -> fallback
     }
 }
 

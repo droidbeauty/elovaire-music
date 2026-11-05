@@ -25,7 +25,6 @@ internal fun preampLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Italian -> "Preamplificazione"
     AppLanguage.Japanese -> "プリアンプ"
     AppLanguage.Korean -> "프리앰프"
-    AppLanguage.Latin -> "Praeamplificatio"
     AppLanguage.Latvian -> "Priekšpastiprinājums"
     AppLanguage.Lithuanian -> "Pirminis stiprinimas"
     AppLanguage.Macedonian -> "Предзасилување"
@@ -82,7 +81,6 @@ internal fun equalizerCopy(language: AppLanguage): EqualizerCopy = when (languag
     AppLanguage.Italian -> EqualizerCopy("Preimpostazioni", "Salva", "Nome preimpostazione", "Le tue preimpostazioni", "Sostituisci", "Questo nome è già in uso; il salvataggio sostituirà la preimpostazione")
     AppLanguage.Japanese -> EqualizerCopy("プリセット", "プリセットを保存", "プリセット名", "自分のプリセット", "置き換える", "この名前は使用中です。保存すると既存のプリセットが置き換わります")
     AppLanguage.Korean -> EqualizerCopy("프리셋", "프리셋 저장", "프리셋 이름", "내 프리셋", "교체", "이미 사용 중인 이름입니다. 저장하면 기존 프리셋이 교체됩니다")
-    AppLanguage.Latin -> EqualizerCopy("Praefinitiones", "Serva", "Nomen praefinitionis", "Praefinitiones tuae", "Substitue", "Hoc nomen iam in usu est; servando praefinitionem priorem substitues")
     AppLanguage.Latvian -> EqualizerCopy("Priekšiestatījumi", "Saglabāt", "Priekšiestatījuma nosaukums", "Jūsu priekšiestatījumi", "Aizstāt", "Šis nosaukums jau tiek izmantots; saglabājot tiks aizstāts iepriekšējais priekšiestatījums")
     AppLanguage.Lithuanian -> EqualizerCopy("Išankstiniai nustatymai", "Išsaugoti", "Nustatymo pavadinimas", "Jūsų nustatymai", "Pakeisti", "Šis pavadinimas jau naudojamas; išsaugojus ankstesnis nustatymas bus pakeistas")
     AppLanguage.Malay -> EqualizerCopy("Pratetap", "Simpan pratetap", "Nama pratetap", "Pratetap anda", "Ganti", "Nama ini sudah digunakan; menyimpan akan menggantikan pratetap itu")

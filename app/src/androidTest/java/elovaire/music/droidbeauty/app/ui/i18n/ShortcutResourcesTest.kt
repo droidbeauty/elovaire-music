@@ -22,7 +22,7 @@ class ShortcutResourcesTest {
         )
         val tags = listOf(
             "sq", "bs", "bg", "ca", "fi", "ro", "sl", "id", "pa", "zh-CN", "hr", "cs",
-            "da", "nl", "bn", "et", "fr", "de", "el", "hi", "hu", "it", "ja", "ko", "la",
+            "da", "nl", "bn", "et", "fr", "de", "el", "hi", "hu", "it", "ja", "ko",
             "lv", "lt", "ms", "mk", "nb", "pl", "pt", "ru", "sk", "sr", "es", "sv", "th", "uk", "ur",
         )
         tags.forEach { tag ->

@@ -9,7 +9,6 @@ internal fun audiobookPlaybackCategory(language: AppLanguage): String = when (la
     AppLanguage.Estonian -> "Esitamine"
     AppLanguage.Greek -> "Αναπαραγωγή"
     AppLanguage.Hungarian -> "Lejátszás"
-    AppLanguage.Latin -> "Auditio"
     AppLanguage.Latvian -> "Atskaņošana"
     AppLanguage.Lithuanian -> "Atkūrimas"
     AppLanguage.Malay -> "Main semula"
@@ -53,7 +52,6 @@ internal fun audiobookExtraCopy(language: AppLanguage): AudiobookExtraCopy = whe
     AppLanguage.Estonian -> AudiobookExtraCopy("Esituskiirus", "Muuda audioraamatu ettelugemise kiirust", "Keri jätkamisel tagasi", "Raamatu jätkamisel mine valitud aja võrra tagasi")
     AppLanguage.Greek -> AudiobookExtraCopy("Ταχύτητα αναπαραγωγής", "Προσαρμόστε την ταχύτητα αφήγησης", "Πίσω κατά τη συνέχιση", "Κατά τη συνέχιση του βιβλίου επιστρέψτε κατά τον επιλεγμένο χρόνο")
     AppLanguage.Hungarian -> AudiobookExtraCopy("Lejátszási sebesség", "Állítsd be a narráció sebességét", "Visszatekerés folytatáskor", "A könyv folytatásakor lépj vissza a beállított idővel")
-    AppLanguage.Latin -> AudiobookExtraCopy("Celeritas auditionis", "Celeritatem narrationis compone", "Recede cum continuas", "Cum librum continuas, tempore electo recede")
     AppLanguage.Latvian -> AudiobookExtraCopy("Atskaņošanas ātrums", "Pielāgo audiogrāmatas lasījuma ātrumu", "Attīt, atsākot klausīšanos", "Atsākot grāmatu, atgriezies par izvēlēto laiku")
     AppLanguage.Lithuanian -> AudiobookExtraCopy("Atkūrimo greitis", "Koreguok garsinės knygos skaitymo greitį", "Atsuk tęsiant", "Tęsdamas knygą grįžk pasirinktu laiku atgal")
     AppLanguage.Malay -> AudiobookExtraCopy("Kelajuan main balik", "Laraskan kelajuan narasi buku audio", "Undur apabila menyambung", "Undur mengikut tempoh yang ditetapkan apabila menyambung buku")
@@ -107,7 +105,6 @@ internal fun audiobookSettingsCopy(language: AppLanguage): AudiobookSettingsCopy
     AppLanguage.Estonian -> AudiobookSettingsCopy("Audioraamatute seaded", "Kohanda audioraamatute esitamist", "Tagasikerimise aeg", "Edasikerimise aeg", "s", "Jätka audioraamatu esitamist", "Jätka viimati salvestatud kohast")
     AppLanguage.Greek -> AudiobookSettingsCopy("Ρυθμίσεις ηχητικών βιβλίων", "Προσαρμόστε την αναπαραγωγή ηχητικών βιβλίων", "Χρόνος προς τα πίσω", "Χρόνος προς τα εμπρός", "δ", "Συνέχιση ηχητικού βιβλίου", "Συνεχίστε από την τελευταία αποθηκευμένη θέση")
     AppLanguage.Hungarian -> AudiobookSettingsCopy("Hangoskönyv-beállítások", "Szabd testre a hangoskönyvek lejátszását", "Visszaugrás ideje", "Előreugrás ideje", "mp", "Hangoskönyv folytatása", "Folytatás az utoljára mentett helyről")
-    AppLanguage.Latin -> AudiobookSettingsCopy("Optiones librorum audibilium", "Auditionem librorum compone", "Tempus retrorsum", "Tempus prorsum", "s", "Auditionem libri continua", "A loco novissime servato continua")
     AppLanguage.Latvian -> AudiobookSettingsCopy("Audiogrāmatu iestatījumi", "Pielāgo audiogrāmatu atskaņošanu", "Attīšanas laiks", "Pārtīšanas laiks", "s", "Turpināt audiogrāmatu", "Turpini no pēdējās saglabātās vietas")
     AppLanguage.Lithuanian -> AudiobookSettingsCopy("Garsinių knygų nustatymai", "Tinkink garsinių knygų atkūrimą", "Atsukimo trukmė", "Prasukimo trukmė", "s", "Tęsti garsinę knygą", "Tęsk nuo paskutinės išsaugotos vietos")
     AppLanguage.Malay -> AudiobookSettingsCopy("Tetapan buku audio", "Sesuaikan main balik buku audio", "Tempoh undur", "Tempoh maju", "s", "Sambung main buku audio", "Teruskan dari kedudukan terakhir yang disimpan")
@@ -159,7 +156,6 @@ internal fun smartPlaylistSettingsCopy(language: AppLanguage): SmartPlaylistSett
     AppLanguage.Estonian -> SmartPlaylistSettingsCopy("Nutikad esitusloendid", "Kohanda nutikate esitusloendite käitumist", "Saadaolevad miksid", "Lugude ülempiir miksis", "Vali, mitu lugu iga nutikas miks võib näidata")
     AppLanguage.Greek -> SmartPlaylistSettingsCopy("Έξυπνες λίστες", "Προσαρμόστε τη συμπεριφορά των έξυπνων λιστών", "Διαθέσιμες μίξεις", "Μέγιστος αριθμός τραγουδιών ανά μίξη", "Επιλέξτε πόσα τραγούδια μπορεί να εμφανίζει κάθε μίξη")
     AppLanguage.Hungarian -> SmartPlaylistSettingsCopy("Intelligens lejátszási listák", "Állítsd be az intelligens listák működését", "Elérhető mixek", "Dalok maximális száma mixenként", "Válaszd ki, hány dalt jeleníthet meg egy mix")
-    AppLanguage.Latin -> SmartPlaylistSettingsCopy("Indices intellegentes", "Mores indicum intellegentium compone", "Mixturae praesto", "Numerus maximus cantuum", "Elige quot cantus quaeque mixtura monstrare possit")
     AppLanguage.Latvian -> SmartPlaylistSettingsCopy("Viedie atskaņošanas saraksti", "Pielāgo viedo sarakstu darbību", "Pieejamie miksi", "Maksimālais dziesmu skaits miksā", "Izvēlies, cik dziesmu katrs viedais mikss var rādīt")
     AppLanguage.Lithuanian -> SmartPlaylistSettingsCopy("Išmanieji grojaraščiai", "Pritaikyk išmaniųjų grojaraščių veikimą", "Galimi rinkiniai", "Didžiausias dainų skaičius rinkinyje", "Pasirink, kiek dainų gali rodyti kiekvienas išmanusis rinkinys")
     AppLanguage.Malay -> SmartPlaylistSettingsCopy("Senarai main pintar", "Laraskan cara senarai main pintar berfungsi", "Campuran tersedia", "Lagu maksimum setiap campuran", "Pilih bilangan lagu yang boleh dipaparkan oleh setiap campuran")
@@ -202,47 +198,46 @@ internal fun smartPlaylistSettingsCopy(language: AppLanguage): SmartPlaylistSett
 @Suppress("CyclomaticComplexMethod")
 internal fun smartPlaylistDescription(type: BuiltInSmartPlaylistType, language: AppLanguage): String = when (type) {
     BuiltInSmartPlaylistType.RecentlyAdded -> when (language) {
-        AppLanguage.Bulgarian -> "Наскоро добавени песни и албуми в библиотеката"
-        AppLanguage.Catalan -> "Cançons i àlbums afegits recentment a la biblioteca"
-        AppLanguage.Finnish -> "Äskettäin kirjastoon lisätyt kappaleet ja albumit"
-        AppLanguage.Romanian -> "Melodii și albume adăugate recent în bibliotecă"
-        AppLanguage.Slovenian -> "Nedavno dodane skladbe in albumi v knjižnici"
-        AppLanguage.Bosnian -> "Pjesme i albumi nedavno dodani u biblioteku"
-        AppLanguage.Indonesian -> "Lagu dan album yang baru ditambahkan ke pustaka"
-        AppLanguage.Punjabi -> "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਹਾਲ ਹੀ ਵਿੱਚ ਜੋੜੇ ਗੀਤ ਅਤੇ ਐਲਬਮਾਂ"
-        AppLanguage.Albanian -> "Këngët dhe albumet e shtuara së fundmi në bibliotekën tënde"
-        AppLanguage.Bengali -> "তোমার লাইব্রেরিতে সম্প্রতি যোগ করা গান ও অ্যালবাম"
-        AppLanguage.ChineseSimplified -> "最近添加到媒体库的歌曲和专辑"
-        AppLanguage.Croatian -> "Pjesme i albumi nedavno dodani u tvoju biblioteku"
-        AppLanguage.Czech -> "Skladby a alba nedávno přidaná do tvé knihovny"
-        AppLanguage.Danish -> "Sange og albummer, der for nylig er føjet til dit bibliotek"
-        AppLanguage.Dutch -> "Nummers en albums die onlangs aan je bibliotheek zijn toegevoegd"
-        AppLanguage.English -> "Songs and albums added to your library recently"
-        AppLanguage.Estonian -> "Hiljuti sinu teeki lisatud laulud ja albumid"
-        AppLanguage.French -> "Les morceaux et albums récemment ajoutés à votre bibliothèque"
-        AppLanguage.German -> "Zuletzt zu deiner Bibliothek hinzugefügte Songs und Alben"
-        AppLanguage.Greek -> "Τραγούδια και άλμπουμ που προστέθηκαν πρόσφατα στη βιβλιοθήκη σου"
-        AppLanguage.Hindi -> "आपकी लाइब्रेरी में हाल ही में जोड़े गए गाने और एल्बम"
-        AppLanguage.Hungarian -> "A nemrég hozzáadott dalok és albumok a könyvtáradban"
-        AppLanguage.Italian -> "Brani e album aggiunti di recente alla tua libreria"
-        AppLanguage.Japanese -> "ライブラリに最近追加された曲とアルバム"
-        AppLanguage.Korean -> "라이브러리에 최근 추가된 노래와 앨범"
-        AppLanguage.Latin -> "Carmina et alba nuper bibliothecae tuae addita"
-        AppLanguage.Latvian -> "Dziesmas un albumi, kas nesen pievienoti tavai bibliotēkai"
-        AppLanguage.Lithuanian -> "Neseniai į tavo biblioteką įtrauktos dainos ir albumai"
-        AppLanguage.Macedonian -> "Песни и албуми неодамна додадени во твојата библиотека"
-        AppLanguage.Malay -> "Lagu dan album yang baru ditambahkan ke pustaka anda"
-        AppLanguage.Norwegian -> "Sanger og album som nylig ble lagt til i biblioteket ditt"
-        AppLanguage.Polish -> "Utwory i albumy niedawno dodane do Twojej biblioteki"
-        AppLanguage.Portuguese -> "Músicas e álbuns adicionados recentemente à sua biblioteca"
-        AppLanguage.Russian -> "Песни и альбомы, недавно добавленные в вашу медиатеку"
-        AppLanguage.Serbian -> "Песме и албуми недавно додати у твоју библиотеку"
-        AppLanguage.Slovak -> "Skladby a albumy nedávno pridané do tvojej knižnice"
-        AppLanguage.Spanish -> "Canciones y álbumes añadidos recientemente a tu biblioteca"
-        AppLanguage.Swedish -> "Låtar och album som nyligen lagts till i ditt bibliotek"
-        AppLanguage.Thai -> "เพลงและอัลบั้มที่เพิ่มลงในคลังของคุณเมื่อไม่นานมานี้"
-        AppLanguage.Ukrainian -> "Пісні й альбоми, нещодавно додані до вашої бібліотеки"
-        AppLanguage.Urdu -> "آپ کی لائبریری میں حال ہی میں شامل کیے گئے گانے اور البمز"
+        AppLanguage.Bulgarian -> "Песни, добавени наскоро в библиотеката"
+        AppLanguage.Catalan -> "Cançons afegides recentment a la biblioteca"
+        AppLanguage.Finnish -> "Äskettäin kirjastoon lisätyt kappaleet"
+        AppLanguage.Romanian -> "Melodii adăugate recent în bibliotecă"
+        AppLanguage.Slovenian -> "Skladbe, nedavno dodane v knjižnico"
+        AppLanguage.Bosnian -> "Pjesme nedavno dodane u biblioteku"
+        AppLanguage.Indonesian -> "Lagu yang baru ditambahkan ke pustaka"
+        AppLanguage.Punjabi -> "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਹਾਲ ਹੀ ਵਿੱਚ ਜੋੜੇ ਗੀਤ"
+        AppLanguage.Albanian -> "Këngët e shtuara së fundmi në bibliotekën tënde"
+        AppLanguage.Bengali -> "তোমার লাইব্রেরিতে সম্প্রতি যোগ করা গান"
+        AppLanguage.ChineseSimplified -> "最近添加到媒体库的歌曲"
+        AppLanguage.Croatian -> "Pjesme nedavno dodane u tvoju biblioteku"
+        AppLanguage.Czech -> "Skladby nedávno přidané do tvé knihovny"
+        AppLanguage.Danish -> "Sange, der for nylig er føjet til dit bibliotek"
+        AppLanguage.Dutch -> "Nummers die onlangs aan je bibliotheek zijn toegevoegd"
+        AppLanguage.English -> "Songs added to your library recently"
+        AppLanguage.Estonian -> "Hiljuti sinu teeki lisatud laulud"
+        AppLanguage.French -> "Les morceaux récemment ajoutés à votre bibliothèque"
+        AppLanguage.German -> "Zuletzt zu deiner Bibliothek hinzugefügte Songs"
+        AppLanguage.Greek -> "Τραγούδια που προστέθηκαν πρόσφατα στη βιβλιοθήκη σου"
+        AppLanguage.Hindi -> "आपकी लाइब्रेरी में हाल ही में जोड़े गए गाने"
+        AppLanguage.Hungarian -> "A nemrég hozzáadott dalok a könyvtáradban"
+        AppLanguage.Italian -> "Brani aggiunti di recente alla tua libreria"
+        AppLanguage.Japanese -> "ライブラリに最近追加された曲"
+        AppLanguage.Korean -> "라이브러리에 최근 추가된 노래"
+        AppLanguage.Latvian -> "Dziesmas, kas nesen pievienotas tavai bibliotēkai"
+        AppLanguage.Lithuanian -> "Neseniai į tavo biblioteką įtrauktos dainos"
+        AppLanguage.Macedonian -> "Песни неодамна додадени во твојата библиотека"
+        AppLanguage.Malay -> "Lagu yang baru ditambahkan ke pustaka anda"
+        AppLanguage.Norwegian -> "Sanger som nylig ble lagt til i biblioteket ditt"
+        AppLanguage.Polish -> "Utwory niedawno dodane do Twojej biblioteki"
+        AppLanguage.Portuguese -> "Músicas adicionadas recentemente à sua biblioteca"
+        AppLanguage.Russian -> "Песни, недавно добавленные в вашу медиатеку"
+        AppLanguage.Serbian -> "Песме недавно додате у твоју библиотеку"
+        AppLanguage.Slovak -> "Skladby nedávno pridané do tvojej knižnice"
+        AppLanguage.Spanish -> "Canciones añadidas recientemente a tu biblioteca"
+        AppLanguage.Swedish -> "Låtar som nyligen lagts till i ditt bibliotek"
+        AppLanguage.Thai -> "เพลงที่เพิ่มลงในคลังของคุณเมื่อไม่นานมานี้"
+        AppLanguage.Ukrainian -> "Пісні, нещодавно додані до вашої бібліотеки"
+        AppLanguage.Urdu -> "آپ کی لائبریری میں حال ہی میں شامل کیے گئے گانے"
     }
     BuiltInSmartPlaylistType.MostPlayed -> when (language) {
         AppLanguage.Bulgarian -> "Песните, които слушате най-често"
@@ -270,7 +265,6 @@ internal fun smartPlaylistDescription(type: BuiltInSmartPlaylistType, language: 
         AppLanguage.Italian -> "I brani che ascolti più spesso"
         AppLanguage.Japanese -> "最もよく再生する曲"
         AppLanguage.Korean -> "가장 자주 다시 듣는 노래"
-        AppLanguage.Latin -> "Carmina quae saepissime audis"
         AppLanguage.Latvian -> "Dziesmas, kuras tu klausies visbiežāk"
         AppLanguage.Lithuanian -> "Dainos, kurių dažniausiai klausaisi"
         AppLanguage.Macedonian -> "Песните што најчесто ги слушаш"
@@ -313,7 +307,6 @@ internal fun smartPlaylistDescription(type: BuiltInSmartPlaylistType, language: 
         AppLanguage.Italian -> "I brani che hai segnato come preferiti"
         AppLanguage.Japanese -> "お気に入りに登録した曲"
         AppLanguage.Korean -> "즐겨찾기로 표시한 노래"
-        AppLanguage.Latin -> "Carmina quae dilecta signasti"
         AppLanguage.Latvian -> "Dziesmas, kuras atzīmēji kā iecienītās"
         AppLanguage.Lithuanian -> "Dainos, kurias pažymėjai kaip mėgstamas"
         AppLanguage.Macedonian -> "Песните што ги означи како омилени"

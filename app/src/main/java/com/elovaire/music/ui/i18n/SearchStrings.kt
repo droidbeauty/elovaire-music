@@ -66,8 +66,6 @@ internal data class SearchUiCopy(
         estonianMatchingCount(count, "artist")
     } else if (language == AppLanguage.Lithuanian) {
         lithuanianMatchingCount(count, "artist")
-    } else if (language == AppLanguage.Latin) {
-        latinMatchingCount(count, "artist")
     } else if (language == AppLanguage.Hindi || language == AppLanguage.Punjabi || language == AppLanguage.Urdu) {
         southAsianMatchingCount(count, "artist", language)
     } else if (language == AppLanguage.Bengali) {
@@ -101,7 +99,6 @@ internal data class SearchUiCopy(
         if (language == AppLanguage.Greek || language == AppLanguage.Hungarian || language == AppLanguage.Albanian) return labeledMatchingCount(count, noun, language)
         if (language == AppLanguage.Estonian) return estonianMatchingCount(count, noun)
         if (language == AppLanguage.Lithuanian) return lithuanianMatchingCount(count, noun)
-        if (language == AppLanguage.Latin) return latinMatchingCount(count, noun)
         if (language == AppLanguage.Hindi || language == AppLanguage.Punjabi || language == AppLanguage.Urdu) return southAsianMatchingCount(count, noun, language)
         if (language == AppLanguage.Bengali) return bengaliMatchingCount(count, noun)
         if (language in setOf(AppLanguage.Spanish, AppLanguage.Portuguese, AppLanguage.Italian)) return romanceMatchingCount(count, noun, language)
@@ -252,16 +249,6 @@ private fun estonianMatchingCount(count: Int, noun: String): String {
 private fun lithuanianMatchingCount(count: Int, noun: String): String =
     "Rasta: ${localizedCountLabel(count, noun, AppLanguage.Lithuanian)}"
 
-private fun latinMatchingCount(count: Int, noun: String): String {
-    val adjective = when {
-        noun == "album" && count == 1 -> "inventum"
-        noun == "album" -> "inventa"
-        count == 1 -> "inventus"
-        else -> "inventi"
-    }
-    return "${localizedCountLabel(count, noun, AppLanguage.Latin)} $adjective"
-}
-
 private fun southAsianMatchingCount(count: Int, noun: String, language: AppLanguage): String {
     val label = when (language) {
         AppLanguage.Hindi -> "नतीजे"
@@ -305,7 +292,6 @@ private fun latvianMatchingCount(count: Int, noun: String): String {
 
 internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
     AppLanguage.Hindi -> SearchUiCopy("कलाकार, एल्बम और बहुत कुछ", "खोज साफ़ करें", "अभी तक कुछ नहीं खोजा", "गाने और एल्बम खोजने पर नतीजे यहाँ दिखेंगे", "सुझाए गए एल्बम", "शायद आप इन्हें फिर सुनना चाहें", "हाल की खोजें", "इतिहास साफ़ करें", "कोई नतीजा नहीं", "लाइब्रेरी में इस खोज का कोई नतीजा नहीं मिला:", "", "मिलते कलाकार", "मिलते एल्बम", "मिलते गाने")
-    AppLanguage.Latin -> SearchUiCopy("Artifices, alba et alia", "Quaestionem dele", "Nihil adhuc quaesitum", "Eventus hic apparebunt cum cantus et alba quaeres", "Alba proposita", "Fortasse ea iterum audire velis", "Quaestiones recentes", "Historiam dele", "Nulli eventus", "Nihil in bibliotheca respondet", "", "artifices inventi", "alba inventa", "cantus inventi")
     AppLanguage.Latvian -> SearchUiCopy("Izpildītāji, albumi un cits", "Notīrīt meklēšanu", "Vēl nekas nav meklēts", "Meklējot dziesmas un albumus, rezultāti parādīsies šeit", "Ieteiktie albumi", "Varbūt vēlies tos noklausīties vēlreiz", "Nesen meklētais", "Notīrīt vēsturi", "Nav rezultātu", "Bibliotēkā nav rezultātu vaicājumam", "", "atbilstoši izpildītāji", "atbilstoši albumi", "atbilstošas dziesmas")
     AppLanguage.Lithuanian -> SearchUiCopy("Atlikėjai, albumai ir daugiau", "Išvalyti paiešką", "Dar nieko neieškota", "Ieškant dainų ir albumų rezultatai bus rodomi čia", "Siūlomi albumai", "Galbūt norėsite jų paklausyti dar kartą", "Naujausios paieškos", "Išvalyti istoriją", "Rezultatų nėra", "Bibliotekoje nerasta rezultatų pagal", "", "atitinkančių atlikėjų", "atitinkančių albumų", "atitinkančių dainų")
     AppLanguage.Thai -> SearchUiCopy("ศิลปิน อัลบั้ม และอื่น ๆ", "ล้างการค้นหา", "ยังไม่มีการค้นหา", "ผลลัพธ์จะแสดงที่นี่เมื่อค้นหาเพลงและอัลบั้ม", "อัลบั้มแนะนำ", "คุณอาจอยากกลับไปฟังอีกครั้ง", "การค้นหาล่าสุด", "ล้างประวัติ", "ไม่พบผลลัพธ์", "ไม่พบผลลัพธ์ในคลังสำหรับ", "", "ศิลปินที่ตรงกัน", "อัลบั้มที่ตรงกัน", "เพลงที่ตรงกัน")
@@ -378,7 +364,6 @@ internal fun recentAdditionsEmptyMessage(language: AppLanguage): String = when (
     AppLanguage.Italian -> "Aggiungi musica al dispositivo per visualizzarla qui"
     AppLanguage.Japanese -> "端末に音楽を追加するとここに表示されます"
     AppLanguage.Korean -> "기기에 음악을 추가하면 여기에 표시됩니다"
-    AppLanguage.Latin -> "Musicam ad machinam adde ut hic appareat"
     AppLanguage.Latvian -> "Pievieno ierīcei mūziku, lai to šeit redzētu"
     AppLanguage.Lithuanian -> "Pridėkite muzikos prie įrenginio, kad ji būtų rodoma čia"
     AppLanguage.Macedonian -> "Додајте музика на уредот за да се прикаже тука"
@@ -462,7 +447,6 @@ internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCo
     AppLanguage.Italian -> NowPlayingBarStyleCopy("Stile della barra di riproduzione", "Personalizza il modulo di riproduzione", "Fluttuante", "Compatto")
     AppLanguage.Japanese -> NowPlayingBarStyleCopy("再生バーのスタイル", "再生モジュールをカスタマイズ", "フローティング", "コンパクト")
     AppLanguage.Korean -> NowPlayingBarStyleCopy("재생 바 스타일", "재생 모듈 맞춤설정", "플로팅", "컴팩트")
-    AppLanguage.Latin -> NowPlayingBarStyleCopy("Stylus vectis lusionis", "Modulum lusionis customiza", "Fluitans", "Compactus")
     AppLanguage.Latvian -> NowPlayingBarStyleCopy("Atskaņošanas joslas stils", "Pielāgo atskaņošanas moduli", "Peldošs", "Kompakts")
     AppLanguage.Lithuanian -> NowPlayingBarStyleCopy("Atkūrimo juostos stilius", "Pritaikykite atkūrimo modulį", "Slankusis", "Kompaktiškas")
     AppLanguage.Macedonian -> NowPlayingBarStyleCopy("Стил на лентата за репродукција", "Приспособете го модулот за репродукција", "Пловечки", "Компактен")
@@ -507,7 +491,6 @@ internal fun nowPlayingStyleDescription(language: AppLanguage, compact: Boolean)
     AppLanguage.Italian -> if (compact) "Un lettore da bordo a bordo direttamente sopra la barra di navigazione" else "Un lettore fluttuante sopra la barra di navigazione"
     AppLanguage.Japanese -> if (compact) "ナビゲーションバーのすぐ上に表示する全幅プレーヤー" else "ナビゲーションバーの上に浮かぶプレーヤー"
     AppLanguage.Korean -> if (compact) "내비게이션 바 바로 위에 표시되는 전체 너비 플레이어" else "내비게이션 바 위에 떠 있는 플레이어"
-    AppLanguage.Latin -> if (compact) "Lusor per totam latitudinem directe supra vectem navigationis" else "Lusor fluitans supra vectem navigationis"
     AppLanguage.Latvian -> if (compact) "No malas līdz malai tieši virs navigācijas joslas" else "Peldošs atskaņotājs virs navigācijas joslas"
     AppLanguage.Lithuanian -> if (compact) "Per visą plotį iškart virš naršymo juostos" else "Slankusis grotuvas virš naršymo juostos"
     AppLanguage.Macedonian -> if (compact) "Плеер од раб до раб директно над лентата за навигација" else "Пловечки плеер над лентата за навигација"

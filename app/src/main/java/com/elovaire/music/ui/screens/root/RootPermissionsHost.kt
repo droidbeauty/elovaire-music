@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -32,12 +33,15 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
+import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 
 @Composable
@@ -76,16 +80,19 @@ internal fun FirstLaunchPermissionLoadingScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        if (!showLoading) {
-            UnifiedTopBar(
-                title = "Elovaire",
-                showSettings = false,
-                onOpenMenu = onRequestPermission,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth(),
-            )
-        }
+        Text(
+            text = "ELOVAIRE",
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 40.dp),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 2.sp,
+            ),
+            color = MaterialTheme.colorScheme.onBackground,
+        )
         ElovaireAnimatedVisibility(
             visible = true,
             modifier = Modifier.align(Alignment.Center),
@@ -148,8 +155,8 @@ internal fun FirstLaunchPermissionLoadingScreen(
                     Text(
                         text = copy.firstLaunchPermissionMessage,
                         modifier = Modifier.widthIn(max = 380.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
+                        style = secondaryBodyTextStyle(),
+                        color = readableSecondaryTextColor(),
                         textAlign = TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(22.dp))

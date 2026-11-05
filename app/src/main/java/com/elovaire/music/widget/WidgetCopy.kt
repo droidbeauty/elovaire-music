@@ -41,7 +41,6 @@ internal fun widgetCopy(language: AppLanguage): WidgetCopy {
         AppLanguage.Italian -> listOf("Brano precedente", "Brano successivo")
         AppLanguage.Japanese -> listOf("前の曲", "次の曲")
         AppLanguage.Korean -> listOf("이전 곡", "다음 곡")
-        AppLanguage.Latin -> listOf("Carmen prius", "Carmen proximum")
         AppLanguage.Latvian -> listOf("Iepriekšējā dziesma", "Nākamā dziesma")
         AppLanguage.Lithuanian -> listOf("Ankstesnis kūrinys", "Kitas kūrinys")
         AppLanguage.Malay -> listOf("Lagu sebelumnya", "Lagu seterusnya")

@@ -26,7 +26,6 @@ internal fun crossfadeToggleAccessibilityLabel(enabled: Boolean, language: AppLa
         AppLanguage.Italian -> "Attiva dissolvenza incrociata" to "Disattiva dissolvenza incrociata"
         AppLanguage.Japanese -> "クロスフェードを有効にする" to "クロスフェードを無効にする"
         AppLanguage.Korean -> "크로스페이드 켜기" to "크로스페이드 끄기"
-        AppLanguage.Latin -> "Transitum levem activa" to "Transitum levem deactiva"
         AppLanguage.Latvian -> "Ieslēgt laidenu pāreju" to "Izslēgt laidenu pāreju"
         AppLanguage.Lithuanian -> "Įjungti sklandų perėjimą" to "Išjungti sklandų perėjimą"
         AppLanguage.Macedonian -> "Вклучи претопување" to "Исклучи претопување"
@@ -73,7 +72,6 @@ internal fun songFavoriteAccessibilityLabel(favorite: Boolean, language: AppLang
         AppLanguage.Italian -> "Aggiungi brano ai preferiti" to "Rimuovi brano dai preferiti"
         AppLanguage.Japanese -> "曲をお気に入りに追加" to "曲をお気に入りから削除"
         AppLanguage.Korean -> "노래를 즐겨찾기에 추가" to "노래를 즐겨찾기에서 제거"
-        AppLanguage.Latin -> "Cantum in favoritis adde" to "Cantum e favoritis remove"
         AppLanguage.Latvian -> "Pievienot dziesmu izlasei" to "Noņemt dziesmu no izlases"
         AppLanguage.Lithuanian -> "Pridėti dainą prie mėgstamiausių" to "Pašalinti dainą iš mėgstamiausių"
         AppLanguage.Macedonian -> "Додај песна во омилени" to "Отстрани песна од омилени"
@@ -119,7 +117,6 @@ internal fun editLyricsAccessibilityLabel(language: AppLanguage): String = when 
     AppLanguage.Italian -> "Modifica testo"
     AppLanguage.Japanese -> "歌詞を編集"
     AppLanguage.Korean -> "가사 편집"
-    AppLanguage.Latin -> "Verba cantus muta"
     AppLanguage.Latvian -> "Rediģēt dziesmas vārdus"
     AppLanguage.Lithuanian -> "Redaguoti dainos žodžius"
     AppLanguage.Macedonian -> "Уреди текст на песната"
@@ -163,7 +160,6 @@ internal fun artworkPlaceholderLabel(language: AppLanguage): String = when (lang
     AppLanguage.Italian -> "Immagine segnaposto della copertina"
     AppLanguage.Japanese -> "ジャケットの代替画像"
     AppLanguage.Korean -> "앨범 표지 대체 이미지"
-    AppLanguage.Latin -> "Imago vicaria operculi"
     AppLanguage.Latvian -> "Vāka attēla vietturis"
     AppLanguage.Lithuanian -> "Viršelio vietaženklis"
     AppLanguage.Macedonian -> "Заменска слика за насловна"
@@ -209,7 +205,6 @@ internal fun playlistAccessibilityCopy(language: AppLanguage): PlaylistAccessibi
     AppLanguage.Italian -> PlaylistAccessibilityCopy("Conferma i brani aggiunti", "Cambia l’ordine del brano")
     AppLanguage.Japanese -> PlaylistAccessibilityCopy("追加した曲を確定", "曲の順序を変更")
     AppLanguage.Korean -> PlaylistAccessibilityCopy("추가한 노래 확인", "노래 순서 변경")
-    AppLanguage.Latin -> PlaylistAccessibilityCopy("Cantus additos confirma", "Ordinem cantus muta")
     AppLanguage.Latvian -> PlaylistAccessibilityCopy("Apstiprināt pievienotās dziesmas", "Mainīt dziesmas secību")
     AppLanguage.Lithuanian -> PlaylistAccessibilityCopy("Patvirtinti pridėtas dainas", "Pakeisti dainos vietą")
     AppLanguage.Macedonian -> PlaylistAccessibilityCopy("Потврди ги додадените песни", "Промени го редоследот на песната")
@@ -255,7 +250,6 @@ internal fun settingsAccessibilityCopy(language: AppLanguage): SettingsAccessibi
     AppLanguage.Italian -> SettingsAccessibilityCopy("Chiudi selezione lingua", "Testo più piccolo", "Testo più grande")
     AppLanguage.Japanese -> SettingsAccessibilityCopy("言語選択を閉じる", "小さい文字", "大きい文字")
     AppLanguage.Korean -> SettingsAccessibilityCopy("언어 선택 닫기", "작은 글씨", "큰 글씨")
-    AppLanguage.Latin -> SettingsAccessibilityCopy("Electionem linguae claude", "Textus minor", "Textus maior")
     AppLanguage.Latvian -> SettingsAccessibilityCopy("Aizvērt valodas izvēli", "Mazāks teksts", "Lielāks teksts")
     AppLanguage.Lithuanian -> SettingsAccessibilityCopy("Uždaryti kalbos pasirinkimą", "Mažesnis tekstas", "Didesnis tekstas")
     AppLanguage.Macedonian -> SettingsAccessibilityCopy("Затвори избор на јазик", "Помал текст", "Поголем текст")
@@ -301,7 +295,6 @@ internal fun playerControlAccessibilityCopy(language: AppLanguage): PlayerContro
     AppLanguage.Italian -> PlayerControlAccessibilityCopy("Riduci", "Reimposta timer", "Audio disattivato", "Volume massimo")
     AppLanguage.Japanese -> PlayerControlAccessibilityCopy("最小化", "タイマーをリセット", "消音", "最大音量")
     AppLanguage.Korean -> PlayerControlAccessibilityCopy("최소화", "타이머 초기화", "음소거", "최대 음량")
-    AppLanguage.Latin -> PlayerControlAccessibilityCopy("Minime redde", "Temporizatorem restitue", "Sonus mutus", "Sonus maximus")
     AppLanguage.Latvian -> PlayerControlAccessibilityCopy("Minimizēt", "Atiestatīt taimeri", "Skaņa izslēgta", "Maksimālais skaļums")
     AppLanguage.Lithuanian -> PlayerControlAccessibilityCopy("Sumažinti", "Nustatyti laikmatį iš naujo", "Garsas nutildytas", "Didžiausias garsumas")
     AppLanguage.Macedonian -> PlayerControlAccessibilityCopy("Намали приказ", "Ресетирај тајмер", "Звукот е исклучен", "Максимална јачина")
@@ -347,7 +340,6 @@ internal fun mediaOptionsAccessibilityCopy(language: AppLanguage): MediaOptionsA
     AppLanguage.Italian -> MediaOptionsAccessibilityCopy("Opzioni del brano in coda", "Opzioni album", "Opzioni brano")
     AppLanguage.Japanese -> MediaOptionsAccessibilityCopy("キュー内の曲のオプション", "アルバムのオプション", "曲のオプション")
     AppLanguage.Korean -> MediaOptionsAccessibilityCopy("대기열 노래 옵션", "앨범 옵션", "노래 옵션")
-    AppLanguage.Latin -> MediaOptionsAccessibilityCopy("Optiones cantus in ordine", "Optiones albi", "Optiones cantus")
     AppLanguage.Latvian -> MediaOptionsAccessibilityCopy("Rindā esošās dziesmas opcijas", "Albuma opcijas", "Dziesmas opcijas")
     AppLanguage.Lithuanian -> MediaOptionsAccessibilityCopy("Eilėje esančios dainos parinktys", "Albumo parinktys", "Dainos parinktys")
     AppLanguage.Macedonian -> MediaOptionsAccessibilityCopy("Опции за песната во редицата", "Опции за албумот", "Опции за песната")
@@ -393,7 +385,6 @@ internal fun lyricsAccessibilityCopy(language: AppLanguage): LyricsAccessibility
     AppLanguage.Italian -> LyricsAccessibilityCopy("Testo", "Aggiungi testo")
     AppLanguage.Japanese -> LyricsAccessibilityCopy("歌詞", "歌詞を追加")
     AppLanguage.Korean -> LyricsAccessibilityCopy("가사", "가사 추가")
-    AppLanguage.Latin -> LyricsAccessibilityCopy("Verba cantus", "Verba cantus adde")
     AppLanguage.Latvian -> LyricsAccessibilityCopy("Dziesmas vārdi", "Pievienot dziesmas vārdus")
     AppLanguage.Lithuanian -> LyricsAccessibilityCopy("Dainos žodžiai", "Pridėti dainos žodžius")
     AppLanguage.Macedonian -> LyricsAccessibilityCopy("Текст на песна", "Додај текст на песна")
@@ -437,7 +428,6 @@ internal fun closeQueueAccessibilityLabel(language: AppLanguage): String = when 
     AppLanguage.Italian -> "Chiudi la coda"
     AppLanguage.Japanese -> "再生キューを閉じる"
     AppLanguage.Korean -> "재생 대기열 닫기"
-    AppLanguage.Latin -> "Ordinem claude"
     AppLanguage.Latvian -> "Aizvērt atskaņošanas rindu"
     AppLanguage.Lithuanian -> "Uždaryti atkūrimo eilę"
     AppLanguage.Macedonian -> "Затвори редица за репродукција"
@@ -483,7 +473,6 @@ internal fun navigationAccessibilityCopy(language: AppLanguage): NavigationAcces
     AppLanguage.Italian -> NavigationAccessibilityCopy("Indietro", "Menu")
     AppLanguage.Japanese -> NavigationAccessibilityCopy("戻る", "メニュー")
     AppLanguage.Korean -> NavigationAccessibilityCopy("뒤로", "메뉴")
-    AppLanguage.Latin -> NavigationAccessibilityCopy("Redi", "Index")
     AppLanguage.Latvian -> NavigationAccessibilityCopy("Atpakaļ", "Izvēlne")
     AppLanguage.Lithuanian -> NavigationAccessibilityCopy("Atgal", "Meniu")
     AppLanguage.Macedonian -> NavigationAccessibilityCopy("Назад", "Мени")
@@ -534,7 +523,6 @@ internal fun playbackNavigationAccessibilityCopy(language: AppLanguage): Playbac
     AppLanguage.Italian -> PlaybackNavigationAccessibilityCopy("Precedente", "Successivo", "Indietro", "Avanti")
     AppLanguage.Japanese -> PlaybackNavigationAccessibilityCopy("前へ", "次へ", "巻き戻す", "早送り")
     AppLanguage.Korean -> PlaybackNavigationAccessibilityCopy("이전", "다음", "되감기", "빨리 감기")
-    AppLanguage.Latin -> PlaybackNavigationAccessibilityCopy("Praecedens", "Sequens", "Retro cede", "Progredere")
     AppLanguage.Latvian -> PlaybackNavigationAccessibilityCopy("Iepriekšējais", "Nākamais", "Attīt", "Pārtīt uz priekšu")
     AppLanguage.Lithuanian -> PlaybackNavigationAccessibilityCopy("Ankstesnis", "Kitas", "Atsukti", "Prasukti pirmyn")
     AppLanguage.Macedonian -> PlaybackNavigationAccessibilityCopy("Претходно", "Следно", "Премотај назад", "Премотај напред")
@@ -580,7 +568,6 @@ internal fun shuffleAccessibilityCopy(language: AppLanguage): ShuffleAccessibili
     AppLanguage.Italian -> ShuffleAccessibilityCopy("Riproduci playlist in ordine casuale", "Riproduci artista in ordine casuale")
     AppLanguage.Japanese -> ShuffleAccessibilityCopy("プレイリストをシャッフル", "アーティストの曲をシャッフル")
     AppLanguage.Korean -> ShuffleAccessibilityCopy("플레이리스트 무작위 재생", "아티스트 곡 무작위 재생")
-    AppLanguage.Latin -> ShuffleAccessibilityCopy("Indicem ordine fortuito redde", "Cantus artificis ordine fortuito redde")
     AppLanguage.Latvian -> ShuffleAccessibilityCopy("Atskaņot sarakstu jauktā secībā", "Atskaņot izpildītāja dziesmas jauktā secībā")
     AppLanguage.Lithuanian -> ShuffleAccessibilityCopy("Maišyti grojaraštį", "Maišyti atlikėjo dainas")
     AppLanguage.Macedonian -> ShuffleAccessibilityCopy("Мешај плејлиста", "Мешај песни од изведувачот")
@@ -624,7 +611,6 @@ internal fun showAllSongResultsLabel(language: AppLanguage): String = when (lang
     AppLanguage.Italian -> "Mostra tutti i brani trovati"
     AppLanguage.Japanese -> "曲の検索結果をすべて表示"
     AppLanguage.Korean -> "모든 곡 검색 결과 표시"
-    AppLanguage.Latin -> "Omnes cantus inventos monstra"
     AppLanguage.Latvian -> "Rādīt visus dziesmu rezultātus"
     AppLanguage.Lithuanian -> "Rodyti visus dainų rezultatus"
     AppLanguage.Macedonian -> "Прикажи ги сите резултати за песни"
@@ -670,7 +656,6 @@ internal fun viewModeAccessibilityCopy(language: AppLanguage): ViewModeAccessibi
     AppLanguage.Italian -> ViewModeAccessibilityCopy("Elenco", "Elenco compatto", "Griglia", "Griglia fitta")
     AppLanguage.Japanese -> ViewModeAccessibilityCopy("リスト", "コンパクトリスト", "グリッド", "高密度グリッド")
     AppLanguage.Korean -> ViewModeAccessibilityCopy("목록", "간단한 목록", "격자", "촘촘한 격자")
-    AppLanguage.Latin -> ViewModeAccessibilityCopy("Index", "Index compactus", "Cancellus", "Cancellus densus")
     AppLanguage.Latvian -> ViewModeAccessibilityCopy("Saraksts", "Kompakts saraksts", "Režģis", "Blīvs režģis")
     AppLanguage.Lithuanian -> ViewModeAccessibilityCopy("Sąrašas", "Glaustas sąrašas", "Tinklelis", "Tankus tinklelis")
     AppLanguage.Macedonian -> ViewModeAccessibilityCopy("Листа", "Компактна листа", "Мрежа", "Густа мрежа")

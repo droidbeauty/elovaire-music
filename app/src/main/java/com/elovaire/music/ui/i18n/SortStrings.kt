@@ -32,7 +32,6 @@ private fun sortNames(language: AppLanguage): SortNames = when (language) {
     AppLanguage.Italian -> SortNames("Titolo del brano", "Nome artista", "Album", "Titolo dell’album")
     AppLanguage.Japanese -> SortNames("曲名", "アーティスト名", "アルバム", "アルバム名")
     AppLanguage.Korean -> SortNames("곡 이름", "아티스트 이름", "앨범", "앨범 이름")
-    AppLanguage.Latin -> SortNames("Nomen cantus", "Nomen artificis", "Album", "Nomen albi")
     AppLanguage.Latvian -> SortNames("Dziesmas nosaukums", "Izpildītāja vārds", "Albums", "Albuma nosaukums")
     AppLanguage.Lithuanian -> SortNames("Dainos pavadinimas", "Atlikėjo vardas", "Albumas", "Albumo pavadinimas")
     AppLanguage.Macedonian -> SortNames("Име на песна", "Име на изведувач", "Албум", "Име на албум")

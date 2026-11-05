@@ -8,6 +8,8 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.ui.screens.AlbumSortMode
 import elovaire.music.droidbeauty.app.ui.screens.SongSortMode
 import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
+import elovaire.music.droidbeauty.app.ui.screens.formatCrossfadeSeconds
+import elovaire.music.droidbeauty.app.ui.screens.formatAudiobookSpeed
 import elovaire.music.droidbeauty.app.ui.screens.homeLayoutEditorCopy
 import elovaire.music.droidbeauty.app.ui.screens.homeLayoutTitle
 import elovaire.music.droidbeauty.app.ui.screens.homeLayoutSubtitle
@@ -33,14 +35,31 @@ import org.junit.Test
 
 class ElovaireStringsTest {
     @Test
-    fun latinFolderAndNetworkCopyDoesNotFallBackToEnglishTerms() {
-        val folders = libraryFoldersCopy(AppLanguage.Latin)
-        val network = networkSourcesCopy(AppLanguage.Latin)
-        assertEquals("Directoria bibliothecae", folders.title)
-        assertEquals("Adde directorium", folders.addFolder)
-        assertEquals("Elige directorium in hac machina", network.chooseFolderSubtitle)
-        assertFalse(network.domainOptional.contains("optional", ignoreCase = true))
-        assertFalse(rootUiCopy(AppLanguage.Latin).firstLaunchPermissionMessage.contains("folder", ignoreCase = true))
+    fun crossfadeDurationFollowsSelectedLanguageNumberFormat() {
+        assertEquals("2.5", formatCrossfadeSeconds(2.5f, AppLanguage.English))
+        assertEquals("2,5", formatCrossfadeSeconds(2.5f, AppLanguage.Polish))
+        assertEquals("3", formatCrossfadeSeconds(3f, AppLanguage.Polish))
+        assertEquals("2,125", formatCrossfadeSeconds(2.125f, AppLanguage.Polish))
+        AppLanguage.entries.forEach { language ->
+            val formatted = formatCrossfadeSeconds(2.5f, language)
+            val parsed = requireNotNull(java.text.NumberFormat.getNumberInstance(language.appLocale()).parse(formatted))
+            assertEquals("Incorrect duration for $language", 2.5, parsed.toDouble(), 0.001)
+        }
+    }
+
+    @Test
+    fun audiobookSpeedFollowsSelectedLanguageNumberFormat() {
+        assertEquals("1.0", formatAudiobookSpeed(1f, AppLanguage.English))
+        assertEquals("0.75", formatAudiobookSpeed(0.75f, AppLanguage.English))
+        assertEquals("1,0", formatAudiobookSpeed(1f, AppLanguage.Polish))
+        assertEquals("1,25", formatAudiobookSpeed(1.25f, AppLanguage.Polish))
+        assertEquals("2", formatAudiobookSpeed(2f, AppLanguage.English, showDecimalForWhole = false))
+        AppLanguage.entries.forEach { language ->
+            val parsed = requireNotNull(java.text.NumberFormat.getNumberInstance(language.appLocale()).parse(formatAudiobookSpeed(1.75f, language)))
+            assertEquals("Incorrect speed for $language", 1.75, parsed.toDouble(), 0.001)
+            val end = requireNotNull(java.text.NumberFormat.getNumberInstance(language.appLocale()).parse(formatAudiobookSpeed(2f, language, showDecimalForWhole = false)))
+            assertEquals("Incorrect speed endpoint for $language", 2.0, end.toDouble(), 0.001)
+        }
     }
 
     @Test
@@ -67,10 +86,6 @@ class ElovaireStringsTest {
         assertEquals("Избрано: 1 песен", localizedSelectedCount(1, "song", AppLanguage.Bulgarian))
         assertEquals("1 τραγούδι επιλεγμένο", localizedSelectedCount(1, "song", AppLanguage.Greek))
         assertEquals("Valittu: 2 albumia", localizedSelectedCount(2, "album", AppLanguage.Finnish))
-        assertEquals("1 album selectum", localizedSelectedCount(1, "album", AppLanguage.Latin))
-        assertEquals("2 alba selecta", localizedSelectedCount(2, "album", AppLanguage.Latin))
-        assertEquals("1 cantus selectus", localizedSelectedCount(1, "song", AppLanguage.Latin))
-        assertEquals("2 cantus selecti", localizedSelectedCount(2, "song", AppLanguage.Latin))
         assertEquals("2 albums selected", localizedSelectedCount(2, "album", AppLanguage.English))
         AppLanguage.entries.forEach { language ->
             listOf(0, 1, 2, 5, 11, 21, 22).forEach { count ->
@@ -86,6 +101,8 @@ class ElovaireStringsTest {
     @Test
     fun dynamicSettingsAndRepeatDescriptionsAreTranslatedForEveryLanguage() {
         assertEquals("Audiobook settings", audiobookSettingsCopy(AppLanguage.English).title)
+        assertEquals("Songs added to your library recently", smartPlaylistDescription(BuiltInSmartPlaylistType.RecentlyAdded, AppLanguage.English))
+        assertEquals("Utwory niedawno dodane do Twojej biblioteki", smartPlaylistDescription(BuiltInSmartPlaylistType.RecentlyAdded, AppLanguage.Polish))
         assertEquals("Powtórz utwór", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Polish))
         assertEquals("Opakovat skladbu", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Czech))
         assertEquals("Повторити трек", repeatModeLabel(PlaybackRepeatMode.One, AppLanguage.Ukrainian))
@@ -138,11 +155,41 @@ class ElovaireStringsTest {
             AppLanguage.Hindi to listOf("गीत के बोल", "कलाकार की तस्वीर", "ऑडियोबुक का विवरण"),
             AppLanguage.Romanian to listOf("versuri", "imagini ale artiștilor", "descrieri ale audiocărților"),
             AppLanguage.Slovenian to listOf("besedil skladb", "slik izvajalcev", "opisov zvočnih knjig"),
+            AppLanguage.Slovak to listOf("texty", "obrázky interpretov", "opisy audiokníh", "zabránite týmto požiadavkám"),
         )
         terms.forEach { (language, expected) ->
             val body = privacyPolicyCopy(language).sections[2].body
             expected.forEach { assertTrue("Missing $it for $language", body.contains(it)) }
         }
+    }
+
+    @Test
+    fun privacySettingsSubtitleIdentifiesTheAppInEveryLanguage() {
+        AppLanguage.entries.forEach { language ->
+            assertTrue("Missing app name for $language", privacyPolicySettingsSubtitle(language).contains("Elovaire"))
+        }
+        assertTrue(privacyPolicySettingsSubtitle(AppLanguage.Hungarian).startsWith("Hogyan kezeli az Elovaire"))
+    }
+
+    @Test
+    fun normalizationSubtitlesDescribeBothSongsAndFileMetadata() {
+        val expected = mapOf(
+            AppLanguage.Bulgarian to listOf("песните", "метаданните на файла"),
+            AppLanguage.Catalan to listOf("cançons", "metadades del fitxer"),
+            AppLanguage.Romanian to listOf("melodii", "metadatele fișierului"),
+            AppLanguage.Slovenian to listOf("skladbami", "metapodatki datoteke"),
+            AppLanguage.Bosnian to listOf("pjesama", "metapodaci datoteke"),
+        )
+        expected.forEach { (language, terms) ->
+            terms.forEach { assertTrue("Missing $it for $language", volumeNormalizationSubtitle(language).contains(it)) }
+        }
+    }
+
+    @Test
+    fun slovakPrivacyCopyDescribesNotificationAndUpdatePermissions() {
+        val permissions = privacyPolicyCopy(AppLanguage.Slovak).sections[4].body
+        assertTrue(permissions.contains("povolenie zobrazovať upozornenia na prehrávanie"))
+        assertTrue(permissions.contains("inštalovať aktualizácie z GitHubu"))
     }
 
     @Test
@@ -222,6 +269,7 @@ class ElovaireStringsTest {
             "UI tweaks in NAS configuration, tag editing system and settings layout",
             "Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu",
             "General bug fixes",
+            "UI tweaks on the initial setup splash screen",
         )
         AppLanguage.entries.forEach { language ->
             entries.forEach { entry ->
@@ -230,7 +278,7 @@ class ElovaireStringsTest {
                 if (language == AppLanguage.English) assertEquals(entry, translated) else assertFalse(translated == entry)
             }
             assertEquals("Unrecognized release note", localizedChangelogItem("Unrecognized release note", language))
-            assertTrue(localizedChangelogItem(entries[1], language).contains("11") || language == AppLanguage.Latin || language == AppLanguage.Bengali)
+            assertTrue(localizedChangelogItem(entries[1], language).contains("11") || language == AppLanguage.Bengali)
             if (language != AppLanguage.English) {
                 val separator = if (language == AppLanguage.ChineseSimplified || language == AppLanguage.Japanese) "、" else ", "
                 val names = localizedChangelogItem(entries[1], language).substringAfter(": ").split(separator)
@@ -251,6 +299,8 @@ class ElovaireStringsTest {
             }
         }
         assertEquals("Ogólne poprawki błędów", localizedChangelogItem(entries[2], AppLanguage.Polish))
+        assertEquals("Poprawki wyglądu ekranu konfiguracji początkowej", localizedChangelogItem(entries[3], AppLanguage.Polish))
+        assertEquals("初期設定画面のデザインを調整", localizedChangelogItem(entries[3], AppLanguage.Japanese))
         assertTrue(localizedChangelogItem(entries[1], AppLanguage.Polish).contains("albański", ignoreCase = true))
     }
 
@@ -497,6 +547,11 @@ class ElovaireStringsTest {
                     field.isAccessible = true
                     val sourceText = field.get(source) as String
                     val translatedText = field.get(translated) as String
+                    if (sourceText.isNotBlank() && translatedText.isBlank() &&
+                        !(source is SearchUiCopy && field.name == "noResultsSuffix")
+                    ) {
+                        untranslated += "${source.javaClass.simpleName}.${field.name} ($language): empty"
+                    }
                     val nonLatinLanguage = language in setOf(
                         AppLanguage.Bengali, AppLanguage.Bulgarian, AppLanguage.ChineseSimplified,
                         AppLanguage.Greek, AppLanguage.Hindi, AppLanguage.Japanese, AppLanguage.Korean,
@@ -624,13 +679,7 @@ class ElovaireStringsTest {
         assertEquals("External audio", localizedExternalAudioText("External audio", -7_000_000_000_000L, AppLanguage.Polish))
     }
     @Test
-    fun latinAlbumAndSearchResultsUseCorrectDeclension() {
-        val copy = searchCopy(AppLanguage.Latin)
-        assertEquals("1 album inventum", copy.matchingAlbums(1, AppLanguage.Latin))
-        assertEquals("2 alba inventa", copy.matchingAlbums(2, AppLanguage.Latin))
-        assertEquals("1 artifex inventus", copy.matchingArtists(1, AppLanguage.Latin))
-        assertEquals("2 artifices inventi", copy.matchingArtists(2, AppLanguage.Latin))
-        assertTrue(homeCopy(AppLanguage.Latin).emptyLibraryMessage.contains("et alba"))
+    fun bosnianAlbumCountsUseCorrectDeclension() {
         assertEquals("2 albuma", localizedCountLabel(2, "album", AppLanguage.Bosnian))
         assertEquals("5 albuma", localizedCountLabel(5, "album", AppLanguage.Bosnian))
     }
@@ -2087,6 +2136,10 @@ class ElovaireStringsTest {
             if (language != AppLanguage.English) assertFalse(copy.title == english.title)
         }
         assertEquals("Tytuł zawiera", smartPlaylistTextRuleCopy(AppLanguage.Polish).title)
+        assertEquals("Esittäjän nimi sisältää", smartPlaylistTextRuleCopy(AppLanguage.Finnish).artist)
+        assertEquals("Albumo pavadinime yra", smartPlaylistTextRuleCopy(AppLanguage.Lithuanian).album)
+        assertEquals("Le nom de l’artiste contient", smartPlaylistTextRuleCopy(AppLanguage.French).artist)
+        assertEquals("Názov albumu obsahuje", smartPlaylistTextRuleCopy(AppLanguage.Slovak).album)
     }
 
     @Test
@@ -2405,6 +2458,25 @@ class ElovaireStringsTest {
             assertFalse(copy.renamePlaylistTitle == source.renamePlaylistTitle)
             assertFalse(copy.noLyrics == source.noLyrics)
             assertFalse(copy.savePlaylistChanges == source.savePlaylistChanges)
+        }
+    }
+
+    @Test
+    fun firstLaunchMessageExplainsThatMusicFolderIsTheDefault() {
+        val defaultTerms = mapOf(
+            AppLanguage.Bulgarian to "по подразбиране",
+            AppLanguage.Catalan to "per defecte",
+            AppLanguage.Finnish to "oletusarvoisesti",
+            AppLanguage.Romanian to "în mod implicit",
+            AppLanguage.Slovenian to "privzeto",
+            AppLanguage.Bosnian to "prema zadanim postavkama",
+            AppLanguage.Indonesian to "default",
+            AppLanguage.Punjabi to "ਮੂਲ ਰੂਪ ਵਿੱਚ",
+        )
+        defaultTerms.forEach { (language, term) ->
+            val message = rootUiCopy(language).firstLaunchPermissionMessage
+            assertTrue("Missing default qualifier in $language", message.contains(term, ignoreCase = true))
+            assertTrue("Missing Music folder in $language", message.contains("Music"))
         }
     }
 

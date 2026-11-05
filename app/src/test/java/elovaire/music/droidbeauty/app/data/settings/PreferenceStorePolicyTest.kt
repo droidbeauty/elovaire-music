@@ -1,9 +1,19 @@
 package elovaire.music.droidbeauty.app.data.settings
 
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class PreferenceStorePolicyTest {
+    @Test
+    fun removedLanguageFallsBackToDeviceLanguageWithoutChangingValidSelections() {
+        assertFalse(AppLanguage.entries.any { it.name == "Latin" })
+        assertEquals(AppLanguage.Polish, resolveSavedAppLanguage("Latin") { AppLanguage.Polish })
+        assertEquals(AppLanguage.English, resolveSavedAppLanguage("Latin") { AppLanguage.English })
+        assertEquals(AppLanguage.French, resolveSavedAppLanguage("French") { AppLanguage.English })
+    }
+
     @Test
     fun incrementPlayCount_neverOverflowsOrPersistsNegativeCounts() {
         assertEquals(1, incrementPlayCount(null))

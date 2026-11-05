@@ -35,7 +35,6 @@ internal fun pauseLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Italian -> "Pausa"
     AppLanguage.Japanese -> "一時停止"
     AppLanguage.Korean -> "일시정지"
-    AppLanguage.Latin -> "Intermitte"
     AppLanguage.Latvian -> "Pauze"
     AppLanguage.Lithuanian -> "Pristabdyti"
     AppLanguage.Malay -> "Jeda"
@@ -90,7 +89,6 @@ internal fun playingFromPrefix(language: AppLanguage): String = when (language) 
     AppLanguage.Hindi -> "चल रहा है"
     AppLanguage.Hungarian -> "Lejátszás innen:"
     AppLanguage.Japanese -> "再生元"
-    AppLanguage.Latin -> "Canitur ex"
     AppLanguage.Macedonian -> "Се репродуцира од"
     AppLanguage.Serbian -> "Репродукује се из"
     AppLanguage.Thai -> "กำลังเล่นจาก"
@@ -120,7 +118,6 @@ internal fun localizedAllSongsSource(language: AppLanguage): String = when (lang
     AppLanguage.Italian -> "tutti i brani"
     AppLanguage.Japanese -> "すべての曲"
     AppLanguage.Korean -> "모든 곡"
-    AppLanguage.Latin -> "omnibus canticis"
     AppLanguage.Latvian -> "visām dziesmām"
     AppLanguage.Lithuanian -> "visų dainų"
     AppLanguage.Macedonian -> "сите песни"
@@ -164,7 +161,6 @@ internal fun localizedSearchResultsSource(language: AppLanguage): String = when 
     AppLanguage.Italian -> "risultati di ricerca"
     AppLanguage.Japanese -> "検索結果"
     AppLanguage.Korean -> "검색 결과"
-    AppLanguage.Latin -> "eventibus quaestionis"
     AppLanguage.Latvian -> "meklēšanas rezultātiem"
     AppLanguage.Lithuanian -> "paieškos rezultatų"
     AppLanguage.Macedonian -> "резултатите од пребарувањето"
@@ -227,7 +223,6 @@ internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language:
         AppLanguage.Greek -> "Πιο συχνά παιγμένα"
         AppLanguage.Hindi -> "सबसे ज़्यादा चलाए गए"
         AppLanguage.Hungarian -> "Legtöbbször lejátszott"
-        AppLanguage.Latin -> "Saepissime canita"
         AppLanguage.Latvian -> "Visbiežāk atskaņotās"
         AppLanguage.Lithuanian -> "Dažniausiai klausomos"
         AppLanguage.Malay -> "Paling kerap dimainkan"
@@ -270,7 +265,6 @@ internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language:
         AppLanguage.Greek -> "Αγαπημένα"
         AppLanguage.Hindi -> "पसंदीदा"
         AppLanguage.Hungarian -> "Kedvencek"
-        AppLanguage.Latin -> "Dilecta"
         AppLanguage.Latvian -> "Izlase"
         AppLanguage.Lithuanian -> "Mėgstamiausi"
         AppLanguage.Malay -> "Kegemaran"
@@ -318,7 +312,6 @@ internal fun artistTopTracksSubtitle(count: Int, language: AppLanguage): String 
         AppLanguage.Greek -> return "$tracks ${if (count == 1) "στο οποίο" else "στα οποία"} επιστρέφετε πιο συχνά"
         AppLanguage.Hindi -> if (count == 1) "जिसे आप सबसे ज़्यादा सुनते हैं" else "जिन्हें आप सबसे ज़्यादा सुनते हैं"
         AppLanguage.Hungarian -> return "$tracks, ${if (count == 1) "amelyhez" else "amelyekhez"} a leggyakrabban tér vissza"
-        AppLanguage.Latin -> if (count == 1) "ad quem saepissime redis" else "ad quos saepissime redis"
         AppLanguage.Latvian -> return "$tracks, ${if (slavicSingular) "pie kura" else "pie kuriem"} atgriežaties visbiežāk"
         AppLanguage.Lithuanian -> return "$tracks, ${if (count % 10 == 1 && count % 100 !in 11..19) "prie kurio" else "prie kurių"} grįžtate dažniausiai"
         AppLanguage.Malay -> "yang paling kerap anda kembali dengar"
@@ -334,14 +327,14 @@ internal fun artistTopTracksSubtitle(count: Int, language: AppLanguage): String 
 }
 
 internal fun privacyPolicySettingsSubtitle(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Научете как приложението защитава данните ви"
-    AppLanguage.Catalan -> "Descobreix com l’aplicació protegeix les teves dades"
-    AppLanguage.Finnish -> "Lue, miten sovellus suojaa tietojasi"
-    AppLanguage.Romanian -> "Află cum îți protejează aplicația datele"
-    AppLanguage.Slovenian -> "Preberite, kako aplikacija varuje vaše podatke"
-    AppLanguage.Bosnian -> "Saznajte kako aplikacija štiti vaše podatke"
-    AppLanguage.Indonesian -> "Pelajari cara aplikasi melindungi data Anda"
-    AppLanguage.Punjabi -> "ਜਾਣੋ ਐਪ ਤੁਹਾਡੇ ਡੇਟਾ ਦੀ ਸੁਰੱਖਿਆ ਕਿਵੇਂ ਕਰਦੀ ਹੈ"
+    AppLanguage.Bulgarian -> "Как Elovaire обработва файлове, разрешения, мрежови заявки и данни на приложението"
+    AppLanguage.Catalan -> "Com Elovaire gestiona fitxers, permisos, sol·licituds de xarxa i dades de l’aplicació"
+    AppLanguage.Finnish -> "Miten Elovaire käsittelee tiedostoja, käyttöoikeuksia, verkkopyyntöjä ja sovellustietoja"
+    AppLanguage.Romanian -> "Cum gestionează Elovaire fișierele, permisiunile, solicitările de rețea și datele aplicației"
+    AppLanguage.Slovenian -> "Kako Elovaire obravnava datoteke, dovoljenja, omrežne zahteve in podatke aplikacije"
+    AppLanguage.Bosnian -> "Kako Elovaire obrađuje datoteke, dozvole, mrežne zahtjeve i podatke aplikacije"
+    AppLanguage.Indonesian -> "Cara Elovaire menangani berkas, izin, permintaan jaringan, dan data aplikasi"
+    AppLanguage.Punjabi -> "Elovaire ਫਾਈਲਾਂ, ਇਜਾਜ਼ਤਾਂ, ਨੈੱਟਵਰਕ ਬੇਨਤੀਆਂ ਅਤੇ ਐਪ ਡੇਟਾ ਨੂੰ ਕਿਵੇਂ ਸੰਭਾਲਦਾ ਹੈ"
     AppLanguage.Albanian -> "Si i trajton Elovaire skedarët, lejet, kërkesat e rrjetit dhe të dhënat e aplikacionit"
     AppLanguage.Bengali -> "Elovaire কীভাবে ফাইল, অনুমতি, নেটওয়ার্ক অনুরোধ ও অ্যাপ ডেটা পরিচালনা করে"
     AppLanguage.Croatian -> "Kako Elovaire upravlja datotekama, dozvolama, mrežnim zahtjevima i podacima aplikacije"
@@ -363,8 +356,7 @@ internal fun privacyPolicySettingsSubtitle(language: AppLanguage): String = when
     AppLanguage.Thai -> "Elovaire จัดการไฟล์ สิทธิ์ คำขอเครือข่าย และข้อมูลแอปอย่างไร"
     AppLanguage.Greek -> "Πώς το Elovaire διαχειρίζεται αρχεία, άδειες, αιτήματα δικτύου και δεδομένα εφαρμογής"
     AppLanguage.Hindi -> "Elovaire फ़ाइलों, अनुमतियों, नेटवर्क अनुरोधों और ऐप डेटा को कैसे संभालता है"
-    AppLanguage.Hungarian -> "Az Elovaire fájlok, engedélyek, hálózati kérések és alkalmazásadatok kezelése"
-    AppLanguage.Latin -> "Quomodo Elovaire fasciculos, licentias, petitiones retis et data applicationis tractat"
+    AppLanguage.Hungarian -> "Hogyan kezeli az Elovaire a fájlokat, engedélyeket, hálózati kéréseket és alkalmazásadatokat"
     AppLanguage.Latvian -> "Kā Elovaire apstrādā failus, atļaujas, tīkla pieprasījumus un lietotnes datus"
     AppLanguage.Lithuanian -> "Kaip Elovaire tvarko failus, leidimus, tinklo užklausas ir programos duomenis"
     AppLanguage.Malay -> "Cara Elovaire mengendalikan fail, kebenaran, permintaan rangkaian dan data aplikasi"
@@ -403,7 +395,6 @@ internal fun discLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Italian -> "Disco"
     AppLanguage.Japanese -> "ディスク"
     AppLanguage.Korean -> "디스크"
-    AppLanguage.Latin -> "Discus"
     AppLanguage.Latvian -> "Disks"
     AppLanguage.Lithuanian -> "Diskas"
     AppLanguage.Malay -> "Cakera"
@@ -445,7 +436,6 @@ internal fun equalizerCustomLabel(language: AppLanguage): String = when (languag
     AppLanguage.Italian -> "Personalizzato"
     AppLanguage.Japanese -> "カスタム"
     AppLanguage.Korean -> "사용자 설정"
-    AppLanguage.Latin -> "Personale"
     AppLanguage.Latvian -> "Pielāgots"
     AppLanguage.Lithuanian -> "Pasirinktinis"
     AppLanguage.Macedonian -> "Приспособено"
@@ -497,7 +487,6 @@ internal fun localizedEqualizerPreset(name: String, language: AppLanguage): Stri
         AppLanguage.Italian -> listOf("Elettronica", "Classica", "Acustica", "Voce")
         AppLanguage.Japanese -> listOf("エレクトロニック", "クラシック", "アコースティック", "ボーカル")
         AppLanguage.Korean -> listOf("일렉트로닉", "클래식", "어쿠스틱", "보컬")
-        AppLanguage.Latin -> listOf("Electronica", "Classica", "Acustica", "Vox")
         AppLanguage.Latvian -> listOf("Elektroniskā", "Klasiskā", "Akustiskā", "Vokāls")
         AppLanguage.Lithuanian -> listOf("Elektroninė", "Klasikinė", "Akustinė", "Vokalas")
         AppLanguage.Macedonian -> listOf("Електронска", "Класична", "Акустична", "Вокали")
@@ -577,7 +566,6 @@ internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): S
         AppLanguage.Italian -> "Impostato su $presetName"
         AppLanguage.Japanese -> "$presetName に設定"
         AppLanguage.Korean -> "$presetName(으)로 설정됨"
-        AppLanguage.Latin -> "Ad $presetName positum"
         AppLanguage.Latvian -> "Iestatīts uz $presetName"
         AppLanguage.Lithuanian -> "Nustatyta į $presetName"
         AppLanguage.Malay -> "Ditetapkan kepada $presetName"
@@ -620,7 +608,6 @@ internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): S
         AppLanguage.Italian -> "Attualmente disattivato"
         AppLanguage.Japanese -> "現在オフ"
         AppLanguage.Korean -> "현재 꺼짐"
-        AppLanguage.Latin -> "Nunc exstinctum"
         AppLanguage.Latvian -> "Pašlaik izslēgts"
         AppLanguage.Lithuanian -> "Šiuo metu išjungta"
         AppLanguage.Malay -> "Dimatikan sekarang"
@@ -676,7 +663,6 @@ internal fun queueTitle(language: AppLanguage): String = when (language) {
     AppLanguage.Hindi -> "कतार"
     AppLanguage.Hungarian -> "Sor"
     AppLanguage.Japanese -> "キュー"
-    AppLanguage.Latin -> "Ordo"
     AppLanguage.Macedonian -> "Редица"
     AppLanguage.Serbian -> "Ред"
     AppLanguage.Thai -> "คิว"
@@ -718,7 +704,6 @@ internal fun sleepTimerCopy(language: AppLanguage): SleepTimerCopy = when (langu
     AppLanguage.Italian -> SleepTimerCopy("Timer di spegnimento", "Disattivato", "Fine del brano", "Conferma", "Chiudi timer")
     AppLanguage.Japanese -> SleepTimerCopy("スリープタイマー", "オフ", "曲の終了時", "確認", "スリープタイマーを閉じる", "分")
     AppLanguage.Korean -> SleepTimerCopy("취침 타이머", "꺼짐", "곡이 끝날 때", "확인", "취침 타이머 닫기", "분")
-    AppLanguage.Latin -> SleepTimerCopy("Temporarium somni", "Exstinctum", "Fine cantus", "Confirma", "Temporarium claude")
     AppLanguage.Latvian -> SleepTimerCopy("Miega taimeris", "Izslēgts", "Dziesmas beigās", "Apstiprināt", "Aizvērt miega taimeri")
     AppLanguage.Lithuanian -> SleepTimerCopy("Miego laikmatis", "Išjungta", "Dainos pabaigoje", "Patvirtinti", "Uždaryti miego laikmatį")
     AppLanguage.Malay -> SleepTimerCopy("Pemasa tidur", "Mati", "Akhir lagu", "Sahkan", "Tutup pemasa tidur")
@@ -763,7 +748,6 @@ internal fun playLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "Lejátszás"
     AppLanguage.Italian -> "Riproduci"
     AppLanguage.Japanese -> "再生"
-    AppLanguage.Latin -> "Cane"
     AppLanguage.Latvian -> "Atskaņot"
     AppLanguage.Lithuanian -> "Leisti"
     AppLanguage.Macedonian -> "Пушти"

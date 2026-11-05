@@ -27,7 +27,6 @@ internal fun smartPlaylistActionCopy(language: AppLanguage): SmartPlaylistAction
     AppLanguage.Italian -> SmartPlaylistActionCopy("Riproduci casualmente la playlist intelligente", "Elimina playlist intelligente")
     AppLanguage.Japanese -> SmartPlaylistActionCopy("スマートプレイリストをシャッフル", "スマートプレイリストを削除")
     AppLanguage.Korean -> SmartPlaylistActionCopy("스마트 재생목록 셔플", "스마트 재생목록 삭제")
-    AppLanguage.Latin -> SmartPlaylistActionCopy("Indicem callidum misce", "Indicem callidum dele")
     AppLanguage.Latvian -> SmartPlaylistActionCopy("Atskaņot viedo sarakstu jauktā secībā", "Dzēst viedo atskaņošanas sarakstu")
     AppLanguage.Lithuanian -> SmartPlaylistActionCopy("Maišyti išmanųjį grojaraštį", "Ištrinti išmanųjį grojaraštį")
     AppLanguage.Macedonian -> SmartPlaylistActionCopy("Измешај паметна плејлиста", "Избриши паметна плејлиста")
@@ -73,7 +72,6 @@ internal fun smartPlaylistMatchCopy(language: AppLanguage): SmartPlaylistMatchCo
     AppLanguage.Italian -> SmartPlaylistMatchCopy("Corrispondenza", "Rispetta tutte le regole", "Rispetta almeno una regola", "Aggiungi regola")
     AppLanguage.Japanese -> SmartPlaylistMatchCopy("一致条件", "すべてのルールに一致", "いずれかのルールに一致", "ルールを追加")
     AppLanguage.Korean -> SmartPlaylistMatchCopy("일치 방식", "모든 규칙과 일치", "하나 이상의 규칙과 일치", "규칙 추가")
-    AppLanguage.Latin -> SmartPlaylistMatchCopy("Modus congruentiae", "Omnibus regulis congruat", "Saltem uni regulae congruat", "Regulam adde")
     AppLanguage.Latvian -> SmartPlaylistMatchCopy("Atbilstības veids", "Atbilst visiem noteikumiem", "Atbilst vismaz vienam noteikumam", "Pievienot noteikumu")
     AppLanguage.Lithuanian -> SmartPlaylistMatchCopy("Atitikties būdas", "Atitikti visas taisykles", "Atitikti bent vieną taisyklę", "Pridėti taisyklę")
     AppLanguage.Macedonian -> SmartPlaylistMatchCopy("Начин на совпаѓање", "Да одговараат сите правила", "Да одговара кое било правило", "Додај правило")
@@ -117,7 +115,6 @@ internal fun smartPlaylistRemoveRuleLabel(language: AppLanguage): String = when 
     AppLanguage.Italian -> "Rimuovi regola"
     AppLanguage.Japanese -> "ルールを削除"
     AppLanguage.Korean -> "규칙 삭제"
-    AppLanguage.Latin -> "Regulam remove"
     AppLanguage.Latvian -> "Noņemt noteikumu"
     AppLanguage.Lithuanian -> "Pašalinti taisyklę"
     AppLanguage.Macedonian -> "Отстрани правило"
@@ -163,7 +160,6 @@ internal fun smartPlaylistEditorHeadingCopy(language: AppLanguage): SmartPlaylis
     AppLanguage.Italian -> SmartPlaylistEditorHeadingCopy("Nuova playlist intelligente", "Modifica playlist intelligente", "Salva playlist intelligente")
     AppLanguage.Japanese -> SmartPlaylistEditorHeadingCopy("新しいスマートプレイリスト", "スマートプレイリストを編集", "スマートプレイリストを保存")
     AppLanguage.Korean -> SmartPlaylistEditorHeadingCopy("새 스마트 재생목록", "스마트 재생목록 수정", "스마트 재생목록 저장")
-    AppLanguage.Latin -> SmartPlaylistEditorHeadingCopy("Novus index callidus", "Indicem callidum emenda", "Indicem callidum serva")
     AppLanguage.Latvian -> SmartPlaylistEditorHeadingCopy("Jauns viedais atskaņošanas saraksts", "Rediģēt viedo atskaņošanas sarakstu", "Saglabāt viedo atskaņošanas sarakstu")
     AppLanguage.Lithuanian -> SmartPlaylistEditorHeadingCopy("Naujas išmanusis grojaraštis", "Redaguoti išmanųjį grojaraštį", "Išsaugoti išmanųjį grojaraštį")
     AppLanguage.Macedonian -> SmartPlaylistEditorHeadingCopy("Нова паметна плејлиста", "Уреди паметна плејлиста", "Зачувај паметна плејлиста")
@@ -207,7 +203,6 @@ internal fun smartPlaylistEditRulesLabel(language: AppLanguage): String = when (
     AppLanguage.Italian -> "Modifica regole"
     AppLanguage.Japanese -> "ルールを編集"
     AppLanguage.Korean -> "규칙 수정"
-    AppLanguage.Latin -> "Regulas emenda"
     AppLanguage.Latvian -> "Rediģēt noteikumus"
     AppLanguage.Lithuanian -> "Redaguoti taisykles"
     AppLanguage.Macedonian -> "Уреди правила"
@@ -252,7 +247,6 @@ internal fun smartPlaylistPreviewLabel(language: AppLanguage, count: Int): Strin
         AppLanguage.Italian -> "Anteprima"
         AppLanguage.Japanese -> "プレビュー"
         AppLanguage.Korean -> "미리보기"
-        AppLanguage.Latin -> "Praevisio"
         AppLanguage.Latvian -> "Priekšskatījums"
         AppLanguage.Lithuanian -> "Peržiūra"
         AppLanguage.Macedonian -> "Преглед"
@@ -302,7 +296,6 @@ internal fun smartPlaylistMissingCopy(language: AppLanguage): SmartPlaylistMissi
     AppLanguage.Italian -> SmartPlaylistMissingCopy("Playlist intelligente", "Playlist intelligente non trovata")
     AppLanguage.Japanese -> SmartPlaylistMissingCopy("スマートプレイリスト", "スマートプレイリストが見つかりません")
     AppLanguage.Korean -> SmartPlaylistMissingCopy("스마트 재생목록", "스마트 재생목록을 찾을 수 없습니다")
-    AppLanguage.Latin -> SmartPlaylistMissingCopy("Index callidus", "Index callidus non inventus est")
     AppLanguage.Latvian -> SmartPlaylistMissingCopy("Viedais atskaņošanas saraksts", "Viedais atskaņošanas saraksts nav atrasts")
     AppLanguage.Lithuanian -> SmartPlaylistMissingCopy("Išmanusis grojaraštis", "Išmanusis grojaraštis nerastas")
     AppLanguage.Macedonian -> SmartPlaylistMissingCopy("Паметна плејлиста", "Паметната плејлиста не е пронајдена")
@@ -348,7 +341,6 @@ internal fun smartPlaylistDeleteCopy(language: AppLanguage): SmartPlaylistDelete
     AppLanguage.Italian -> SmartPlaylistDeleteCopy("Eliminare la playlist intelligente?", "Verranno rimosse solo le regole salvate")
     AppLanguage.Japanese -> SmartPlaylistDeleteCopy("スマートプレイリストを削除しますか？", "保存したルールのみが削除されます")
     AppLanguage.Korean -> SmartPlaylistDeleteCopy("스마트 재생목록을 삭제할까요?", "저장된 규칙만 삭제됩니다")
-    AppLanguage.Latin -> SmartPlaylistDeleteCopy("Indicem callidum delere?", "Hac actione regulae servatae tantum removentur")
     AppLanguage.Latvian -> SmartPlaylistDeleteCopy("Dzēst viedo atskaņošanas sarakstu?", "Tiks noņemti tikai saglabātie noteikumi")
     AppLanguage.Lithuanian -> SmartPlaylistDeleteCopy("Ištrinti išmanųjį grojaraštį?", "Bus pašalintos tik išsaugotos taisyklės")
     AppLanguage.Macedonian -> SmartPlaylistDeleteCopy("Да се избрише паметната плејлиста?", "Со ова се отстрануваат само зачуваните правила")
@@ -392,7 +384,6 @@ internal fun smartPlaylistEmptyCopy(language: AppLanguage): SmartPlaylistEmptyCo
     AppLanguage.Italian -> SmartPlaylistEmptyCopy("Nessun brano corrisponde a queste regole", "Prova a modificare i filtri o ad aggiornare la libreria")
     AppLanguage.Japanese -> SmartPlaylistEmptyCopy("このルールに一致する曲はありません", "フィルタを変更するか、ライブラリを更新してください")
     AppLanguage.Korean -> SmartPlaylistEmptyCopy("이 규칙에 맞는 노래가 없습니다", "필터를 변경하거나 라이브러리를 새로고침해 보세요")
-    AppLanguage.Latin -> SmartPlaylistEmptyCopy("Nulli cantus his regulis respondent", "Filtra muta aut bibliothecam renova")
     AppLanguage.Latvian -> SmartPlaylistEmptyCopy("Šiem noteikumiem neatbilst neviena dziesma", "Maini filtrus vai atsvaidzini bibliotēku")
     AppLanguage.Lithuanian -> SmartPlaylistEmptyCopy("Šių taisyklių neatitinka nė viena daina", "Pabandykite pakeisti filtrus arba atnaujinti biblioteką")
     AppLanguage.Macedonian -> SmartPlaylistEmptyCopy("Ниту една песна не одговара на овие правила", "Променете ги филтрите или освежете ја библиотеката")

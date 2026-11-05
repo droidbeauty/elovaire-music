@@ -29,7 +29,6 @@ internal fun externalAudioLabel(language: AppLanguage): String = when (language)
     AppLanguage.Italian -> "Audio esterno"
     AppLanguage.Japanese -> "外部オーディオ"
     AppLanguage.Korean -> "외부 오디오"
-    AppLanguage.Latin -> "Audio externum"
     AppLanguage.Latvian -> "Ārējs audio"
     AppLanguage.Lithuanian -> "Išorinis garso įrašas"
     AppLanguage.Macedonian -> "Надворешно аудио"

@@ -94,7 +94,6 @@ private val uiPhraseTranslations = mapOf(
     AppLanguage.Hungarian to mapOf(UiPhrase.About to "Névjegy", UiPhrase.AddToPlaylist to "Hozzáadás lejátszási listához", UiPhrase.AddToQueue to "Hozzáadás a sorhoz", UiPhrase.GoToAlbum to "Ugrás az albumhoz", UiPhrase.DeleteFromLibrary to "Törlés a könyvtárból", UiPhrase.DeleteAlbum to "Album törlése", UiPhrase.Delete to "Törlés", UiPhrase.Rename to "Átnevezés", UiPhrase.RemoveFromList to "Eltávolítás a listából", UiPhrase.NewPlaylist to "Új lejátszási lista", UiPhrase.Cancel to "Mégse", UiPhrase.Create to "Létrehozás", UiPhrase.Reset to "Visszaállítás", UiPhrase.Dry to "Száraz", UiPhrase.Wet to "Nedves", UiPhrase.Off to "Ki", UiPhrase.Reverb to "Visszhang", UiPhrase.ToneShaping to "Hangformálás", UiPhrase.Bass to "Basszus", UiPhrase.Midrange to "Közép", UiPhrase.Treble to "Magas", UiPhrase.EffectStrength to "Effekt erőssége"),
     AppLanguage.Italian to mapOf(UiPhrase.About to "Informazioni", UiPhrase.AddToPlaylist to "Aggiungi alla playlist", UiPhrase.AddToQueue to "Aggiungi alla coda", UiPhrase.GoToAlbum to "Vai all'album", UiPhrase.DeleteFromLibrary to "Elimina dalla libreria", UiPhrase.DeleteAlbum to "Elimina album", UiPhrase.Delete to "Elimina", UiPhrase.Rename to "Rinomina", UiPhrase.RemoveFromList to "Rimuovi dalla lista", UiPhrase.NewPlaylist to "Nuova playlist", UiPhrase.Cancel to "Annulla", UiPhrase.Create to "Crea", UiPhrase.Reset to "Ripristina", UiPhrase.Dry to "Meno riverbero", UiPhrase.Wet to "Più riverbero", UiPhrase.Off to "Disattivato", UiPhrase.Reverb to "Riverbero", UiPhrase.ToneShaping to "Modellazione tono", UiPhrase.Bass to "Bassi", UiPhrase.Midrange to "Medi", UiPhrase.Treble to "Alti", UiPhrase.EffectStrength to "Intensità effetto"),
     AppLanguage.Japanese to mapOf(UiPhrase.About to "情報", UiPhrase.AddToPlaylist to "プレイリストに追加", UiPhrase.AddToQueue to "キューに追加", UiPhrase.GoToAlbum to "アルバムへ移動", UiPhrase.DeleteFromLibrary to "ライブラリから削除", UiPhrase.DeleteAlbum to "アルバムを削除", UiPhrase.Delete to "削除", UiPhrase.Rename to "名前を変更", UiPhrase.RemoveFromList to "リストから削除", UiPhrase.NewPlaylist to "新しいプレイリスト", UiPhrase.Cancel to "キャンセル", UiPhrase.Create to "作成", UiPhrase.Reset to "リセット", UiPhrase.Dry to "ドライ", UiPhrase.Wet to "ウェット", UiPhrase.Off to "オフ", UiPhrase.Reverb to "リバーブ", UiPhrase.ToneShaping to "音色調整", UiPhrase.Bass to "低音", UiPhrase.Midrange to "中域", UiPhrase.Treble to "高音", UiPhrase.EffectStrength to "エフェクト強度"),
-    AppLanguage.Latin to mapOf(UiPhrase.About to "De app", UiPhrase.AddToPlaylist to "Ad indicem adde", UiPhrase.AddToQueue to "Ad ordinem adde", UiPhrase.GoToAlbum to "I ad album", UiPhrase.DeleteFromLibrary to "E bibliotheca dele", UiPhrase.DeleteAlbum to "Album dele", UiPhrase.Delete to "Dele", UiPhrase.Rename to "Renomina", UiPhrase.RemoveFromList to "E indice remove", UiPhrase.NewPlaylist to "Novus index", UiPhrase.Cancel to "Rescinde", UiPhrase.Create to "Crea", UiPhrase.Reset to "Restitue", UiPhrase.Dry to "Siccus", UiPhrase.Wet to "Humidus", UiPhrase.Off to "Exstinctum", UiPhrase.Reverb to "Reverberatio", UiPhrase.ToneShaping to "Formatio toni", UiPhrase.Bass to "Bassus", UiPhrase.Midrange to "Media", UiPhrase.Treble to "Acuti", UiPhrase.EffectStrength to "Vis effectus"),
     AppLanguage.Latvian to mapOf(UiPhrase.About to "Par", UiPhrase.AddToPlaylist to "Pievienot atskaņošanas sarakstam", UiPhrase.AddToQueue to "Pievienot rindai", UiPhrase.GoToAlbum to "Atvērt albumu", UiPhrase.DeleteFromLibrary to "Dzēst no bibliotēkas", UiPhrase.DeleteAlbum to "Dzēst albumu", UiPhrase.Delete to "Dzēst", UiPhrase.Rename to "Pārdēvēt", UiPhrase.RemoveFromList to "Noņemt no saraksta", UiPhrase.NewPlaylist to "Jauns saraksts", UiPhrase.Cancel to "Atcelt", UiPhrase.Create to "Izveidot", UiPhrase.Reset to "Atiestatīt", UiPhrase.Dry to "Sauss", UiPhrase.Wet to "Mitrs", UiPhrase.Off to "Izslēgts", UiPhrase.Reverb to "Atbalss", UiPhrase.ToneShaping to "Toņa veidošana", UiPhrase.Bass to "Bass", UiPhrase.Midrange to "Vidējās", UiPhrase.Treble to "Augšas", UiPhrase.EffectStrength to "Efekta stiprums"),
     AppLanguage.Lithuanian to mapOf(UiPhrase.About to "Apie", UiPhrase.AddToPlaylist to "Pridėti į grojaraštį", UiPhrase.AddToQueue to "Pridėti į eilę", UiPhrase.GoToAlbum to "Eiti į albumą", UiPhrase.DeleteFromLibrary to "Ištrinti iš bibliotekos", UiPhrase.DeleteAlbum to "Ištrinti albumą", UiPhrase.Delete to "Ištrinti", UiPhrase.Rename to "Pervadinti", UiPhrase.RemoveFromList to "Pašalinti iš sąrašo", UiPhrase.NewPlaylist to "Naujas grojaraštis", UiPhrase.Cancel to "Atšaukti", UiPhrase.Create to "Sukurti", UiPhrase.Reset to "Atstatyti", UiPhrase.Dry to "Sausas", UiPhrase.Wet to "Šlapias", UiPhrase.Off to "Išjungta", UiPhrase.Reverb to "Aidas", UiPhrase.ToneShaping to "Tono formavimas", UiPhrase.Bass to "Bosai", UiPhrase.Midrange to "Viduriai", UiPhrase.Treble to "Aukšti", UiPhrase.EffectStrength to "Efekto stiprumas"),
     AppLanguage.Macedonian to mapOf(UiPhrase.About to "За апликацијата", UiPhrase.AddToPlaylist to "Додај во плејлиста", UiPhrase.AddToQueue to "Додај во редица", UiPhrase.GoToAlbum to "Оди на албум", UiPhrase.DeleteFromLibrary to "Избриши од библиотека", UiPhrase.DeleteAlbum to "Избриши албум", UiPhrase.Delete to "Избриши", UiPhrase.Rename to "Преименувај", UiPhrase.RemoveFromList to "Отстрани од листа", UiPhrase.NewPlaylist to "Нова плејлиста", UiPhrase.Cancel to "Откажи", UiPhrase.Create to "Креирај", UiPhrase.Reset to "Ресетирај", UiPhrase.Dry to "Суво", UiPhrase.Wet to "Влажно", UiPhrase.Off to "Исклучено", UiPhrase.Reverb to "Реверб", UiPhrase.ToneShaping to "Обликување тон", UiPhrase.Bass to "Бас", UiPhrase.Midrange to "Средни", UiPhrase.Treble to "Високи", UiPhrase.EffectStrength to "Сила на ефект"),
@@ -128,7 +127,6 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.French -> "Largeur stéréo"
             AppLanguage.Spanish -> "Amplitud estéreo"
             AppLanguage.Italian -> "Ampiezza stereo"
-            AppLanguage.Latin -> "Latitudo stereo"
             AppLanguage.Portuguese -> "Largura estéreo"
             AppLanguage.Dutch -> "Stereo-breedte"
             AppLanguage.Swedish -> "Stereobredd"
@@ -171,7 +169,6 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.French -> "Crossfeed"
             AppLanguage.Spanish -> "Crossfeed"
             AppLanguage.Italian -> "Crossfeed"
-            AppLanguage.Latin -> "Canales mixti"
             AppLanguage.Portuguese -> "Crossfeed"
             AppLanguage.Dutch -> "Crossfeed"
             AppLanguage.Swedish -> "Crossfeed"
@@ -214,7 +211,6 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.French -> "Pièce"
             AppLanguage.Spanish -> "Sala"
             AppLanguage.Italian -> "Stanza"
-            AppLanguage.Latin -> "Camera"
             AppLanguage.Portuguese -> "Sala"
             AppLanguage.Dutch -> "Ruimte"
             AppLanguage.Swedish -> "Rum"
@@ -257,7 +253,6 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.French -> "Philharmonie"
             AppLanguage.Spanish -> "Filarmónica"
             AppLanguage.Italian -> "Filarmonica"
-            AppLanguage.Latin -> "Philharmonia"
             AppLanguage.Portuguese -> "Filarmônica"
             AppLanguage.Dutch -> "Filharmonie"
             AppLanguage.Swedish -> "Filharmoni"
@@ -300,7 +295,6 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.French -> "Espace Haas"
             AppLanguage.Spanish -> "Espacio Haas"
             AppLanguage.Italian -> "Spazio Haas"
-            AppLanguage.Latin -> "Spatium Haas"
             AppLanguage.Portuguese -> "Espaço Haas"
             AppLanguage.Dutch -> "Haas-ruimte"
             AppLanguage.Swedish -> "Haas-rymd"
@@ -343,7 +337,6 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.French -> "Air harmonique"
             AppLanguage.Spanish -> "Aire armónico"
             AppLanguage.Italian -> "Aria armonica"
-            AppLanguage.Latin -> "Aer harmonicus"
             AppLanguage.Portuguese -> "Ar harmônico"
             AppLanguage.Dutch -> "Harmonische lucht"
             AppLanguage.Swedish -> "Harmonisk luft"

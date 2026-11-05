@@ -69,9 +69,6 @@ internal fun localizedSelectedCount(count: Int, noun: String, language: AppLangu
             else -> "vybraných"
         }
         AppLanguage.Greek -> if (count == 1) "επιλεγμένο" else "επιλεγμένα"
-        AppLanguage.Latin -> if (noun == "album") {
-            if (count == 1) "selectum" else "selecta"
-        } else if (count == 1) "selectus" else "selecti"
         else -> miscPhrase(language, MiscPhrase.Selected)
     }
     return "$counted $selected"
@@ -331,17 +328,6 @@ internal fun miscPhrase(language: AppLanguage, phrase: MiscPhrase): String = whe
         MiscPhrase.ChooseSongs -> "曲を選択"
         MiscPhrase.AddSongs -> "曲を追加"
     }
-    AppLanguage.Latin -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nuper addita"
-        MiscPhrase.WhatsNew -> "Quid novi?"
-        MiscPhrase.NoSongsYet -> "Nulli cantus adhuc"
-        MiscPhrase.AddSongsViaEdit -> "Cantus hic adde tangendo bullam emendandi"
-        MiscPhrase.NothingInHere -> "Nihil hic est"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tange bullam \"+\" ut novam indicem crees"
-        MiscPhrase.Selected -> "selecta"
-        MiscPhrase.ChooseSongs -> "Elige cantus"
-        MiscPhrase.AddSongs -> "Adde cantus"
-    }
     AppLanguage.Latvian -> when (phrase) {
         MiscPhrase.RecentlyAdded -> "Nesen pievienots"
         MiscPhrase.WhatsNew -> "Kas jauns?"
@@ -575,7 +561,6 @@ internal fun localizedAudioFormat(format: String, language: AppLanguage): String
         AppLanguage.Italian -> "AUDIO"
         AppLanguage.Japanese -> "音声"
         AppLanguage.Korean -> "오디오"
-        AppLanguage.Latin -> "SONUS"
         AppLanguage.Latvian -> "AUDIO"
         AppLanguage.Lithuanian -> "GARSAS"
         AppLanguage.Macedonian -> "АУДИО"
@@ -622,7 +607,6 @@ internal fun localizedAlbumTitle(title: String, language: AppLanguage): String {
         AppLanguage.Italian -> "Album sconosciuto"
         AppLanguage.Japanese -> "不明なアルバム"
         AppLanguage.Korean -> "알 수 없는 앨범"
-        AppLanguage.Latin -> "Album ignotum"
         AppLanguage.Latvian -> "Nezināms albums"
         AppLanguage.Lithuanian -> "Nežinomas albumas"
         AppLanguage.Macedonian -> "Непознат албум"
@@ -686,7 +670,6 @@ internal fun localizedArtistName(name: String, language: AppLanguage): String {
         AppLanguage.Italian -> "Artista sconosciuto"
         AppLanguage.Japanese -> "不明なアーティスト"
         AppLanguage.Korean -> "알 수 없는 아티스트"
-        AppLanguage.Latin -> "Artifex ignotus"
         AppLanguage.Latvian -> "Nezināms izpildītājs"
         AppLanguage.Lithuanian -> "Nežinomas atlikėjas"
         AppLanguage.Macedonian -> "Непознат изведувач"
@@ -731,7 +714,6 @@ internal fun unknownGenreLabel(language: AppLanguage): String = when (language) 
     AppLanguage.Italian -> "Genere sconosciuto"
     AppLanguage.Japanese -> "不明なジャンル"
     AppLanguage.Korean -> "알 수 없는 장르"
-    AppLanguage.Latin -> "Genus ignotum"
     AppLanguage.Latvian -> "Nezināms žanrs"
     AppLanguage.Lithuanian -> "Nežinomas žanras"
     AppLanguage.Macedonian -> "Непознат жанр"
@@ -779,7 +761,6 @@ internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language)
     AppLanguage.Hungarian -> CommonUiCopy("Kezdőlap", "Könyvtár", "Lejátszási listák", "Keresés", "Üdvözöljük", "Dalok", "Albumok", "Előadók", "Műfajok", "Világos", "Sötét", "Rendszer", "a könyvtáradban", "összesen", "találat", "A zenéd, kifinomítva elegáns élménnyé")
     AppLanguage.Italian -> CommonUiCopy("Home", "Libreria", "Playlist", "Cerca", "Benvenuto", "Brani", "Album", "Artisti", "Generi", "Chiaro", "Scuro", "Sistema", "nella tua libreria", "in totale", "trovati", "La tua musica, rifinita in un'esperienza elegante")
     AppLanguage.Japanese -> CommonUiCopy("ホーム", "ライブラリ", "プレイリスト", "検索", "ようこそ", "曲", "アルバム", "アーティスト", "ジャンル", "ライト", "ダーク", "システム", "ライブラリ内", "合計", "見つかりました", "あなたの音楽を、洗練された体験へ")
-    AppLanguage.Latin -> CommonUiCopy("Domus", "Bibliotheca", "Indices", "Quaere", "Salve", "Cantus", "Albumina", "Artifices", "Genera", "Clarus", "Obscurus", "Systema", "in bibliotheca tua", "omnino", "inventa", "Musica tua, in experientiam elegantem expolita")
     AppLanguage.Latvian -> CommonUiCopy("Sākums", "Bibliotēka", "Atskaņošanas saraksti", "Meklēt", "Laipni lūdzam", "Dziesmas", "Albumi", "Mākslinieki", "Žanri", "Gaišs", "Tumšs", "Sistēma", "tavā bibliotēkā", "kopā", "atrasts", "Tava mūzika, izsmalcināta elegantā pieredzē")
     AppLanguage.Lithuanian -> CommonUiCopy("Pradžia", "Biblioteka", "Grojaraščiai", "Paieška", "Sveiki", "Dainos", "Albumai", "Atlikėjai", "Žanrai", "Šviesi", "Tamsi", "Sistema", "jūsų bibliotekoje", "iš viso", "rasta", "Tavo muzika, ištobulinta į elegantišką patirtį")
     AppLanguage.Macedonian -> CommonUiCopy("Почетна", "Библиотека", "Плејлисти", "Пребарај", "Добредојдовте", "Песни", "Албуми", "Артисти", "Жанрови", "Светла", "Темна", "Систем", "во вашата библиотека", "вкупно", "пронајдени", "Вашата музика, префинета во елегантно доживување")
@@ -833,7 +814,6 @@ private fun smartMixesLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "Okos mixek"
     AppLanguage.Italian -> "Mix smart"
     AppLanguage.Japanese -> "スマートミックス"
-    AppLanguage.Latin -> "Mixturae callidae"
     AppLanguage.Latvian -> "Viedie miksi"
     AppLanguage.Lithuanian -> "Išmanūs miksai"
     AppLanguage.Macedonian -> "Паметни миксови"
@@ -877,7 +857,6 @@ private fun autoUpdatingLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "Automatikusan frissül"
     AppLanguage.Italian -> "Si aggiorna automaticamente"
     AppLanguage.Japanese -> "自動更新"
-    AppLanguage.Latin -> "Sponte renovatur"
     AppLanguage.Latvian -> "Atjauninās automātiski"
     AppLanguage.Lithuanian -> "Atnaujinama automatiškai"
     AppLanguage.Macedonian -> "Се ажурира автоматски"
@@ -934,7 +913,6 @@ private fun sortedByLabel(language: AppLanguage, field: String): String = when (
     AppLanguage.Hungarian -> "Rendezés: $field"
     AppLanguage.Italian -> "Ordinato per: $field"
     AppLanguage.Japanese -> "並び替え: $field"
-    AppLanguage.Latin -> "Ordinem secundum: $field"
     AppLanguage.Latvian -> "Kārtots pēc: $field"
     AppLanguage.Lithuanian -> "Rikiuojama pagal: $field"
     AppLanguage.Macedonian -> "Сортирано според: $field"
@@ -968,7 +946,6 @@ private fun titleName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "cím"
     AppLanguage.Italian -> "titolo"
     AppLanguage.Japanese -> "タイトル"
-    AppLanguage.Latin -> "titulum"
     AppLanguage.Latvian -> "nosaukuma"
     AppLanguage.Lithuanian -> "pavadinimą"
     AppLanguage.Macedonian -> "наслов"
@@ -1012,7 +989,6 @@ private fun artistName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "előadó"
     AppLanguage.Italian -> "artista"
     AppLanguage.Japanese -> "アーティスト"
-    AppLanguage.Latin -> "artificem"
     AppLanguage.Latvian -> "izpildītāja"
     AppLanguage.Lithuanian -> "atlikėją"
     AppLanguage.Macedonian -> "изведувач"
@@ -1063,7 +1039,6 @@ private fun albumName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "album"
     AppLanguage.Italian -> "album"
     AppLanguage.Japanese -> "アルバム"
-    AppLanguage.Latin -> "album"
     AppLanguage.Latvian -> "albuma"
     AppLanguage.Lithuanian -> "albumą"
     AppLanguage.Macedonian -> "албум"
@@ -1107,7 +1082,6 @@ private fun genreName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "műfaj"
     AppLanguage.Italian -> "genere"
     AppLanguage.Japanese -> "ジャンル"
-    AppLanguage.Latin -> "genus"
     AppLanguage.Latvian -> "žanra"
     AppLanguage.Lithuanian -> "žanrą"
     AppLanguage.Macedonian -> "жанр"
@@ -1144,7 +1118,6 @@ private fun durationName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "időtartam"
     AppLanguage.Italian -> "durata"
     AppLanguage.Japanese -> "再生時間"
-    AppLanguage.Latin -> "durationem"
     AppLanguage.Latvian -> "ilguma"
     AppLanguage.Lithuanian -> "trukmę"
     AppLanguage.Macedonian -> "времетраење"
@@ -1188,7 +1161,6 @@ private fun dateAddedName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "hozzáadás dátuma"
     AppLanguage.Italian -> "data di aggiunta"
     AppLanguage.Japanese -> "追加日"
-    AppLanguage.Latin -> "diem additionis"
     AppLanguage.Latvian -> "pievienošanas datuma"
     AppLanguage.Lithuanian -> "pridėjimo datą"
     AppLanguage.Macedonian -> "датум на додавање"
@@ -1232,7 +1204,6 @@ private fun playCountName(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "lejátszások száma"
     AppLanguage.Italian -> "numero di riproduzioni"
     AppLanguage.Japanese -> "再生回数"
-    AppLanguage.Latin -> "numerum auditionum"
     AppLanguage.Latvian -> "atskaņošanas skaita"
     AppLanguage.Lithuanian -> "atkūrimų skaičių"
     AppLanguage.Macedonian -> "број на репродукции"
@@ -1286,7 +1257,6 @@ private fun randomOrderLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Hungarian -> "Véletlen sorrend"
     AppLanguage.Italian -> "Ordine casuale"
     AppLanguage.Japanese -> "ランダム順"
-    AppLanguage.Latin -> "Ordo fortuitus"
     AppLanguage.Latvian -> "Nejauša secība"
     AppLanguage.Lithuanian -> "Atsitiktinė tvarka"
     AppLanguage.Macedonian -> "Случаен редослед"

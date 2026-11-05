@@ -141,7 +141,6 @@ enum class AppLanguage(
     Italian("Italian", "Italiano"),
     Japanese("Japanese", "日本語"),
     Korean("Korean", "한국어"),
-    Latin("Latin", "Latina"),
     Latvian("Latvian", "Latviešu"),
     Lithuanian("Lithuanian", "Lietuvių"),
     Malay("Malay", "Bahasa Melayu"),

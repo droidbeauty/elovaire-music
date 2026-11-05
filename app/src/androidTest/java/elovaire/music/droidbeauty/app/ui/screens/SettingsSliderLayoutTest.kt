@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.data.playback.CrossfadeSilencePolicy
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
@@ -61,6 +62,35 @@ class SettingsSliderLayoutTest {
             assertEquals(5_000L, duration)
             assertEquals(CrossfadeSilencePolicy.MIN_LEVEL_DB, threshold, 0.01f)
         }
+    }
+
+    @Test
+    fun crossfadeDurationUsesSelectedLanguageDecimalSeparator() {
+        rule.setContent {
+            CompositionLocalProvider(LocalAppLanguage provides AppLanguage.Polish) {
+                ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                    CrossfadeScreen(2_500L, -80f, 0.dp, {}, {}, {})
+                }
+            }
+        }
+        rule.onNodeWithText("2,5s").assertIsDisplayed()
+    }
+
+    @Test
+    fun audiobookSpeedUsesSelectedLanguageDecimalSeparator() {
+        rule.setContent {
+            CompositionLocalProvider(LocalAppLanguage provides AppLanguage.Polish) {
+                ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                    AudiobookSettingsScreen(
+                        settings = AudiobookSettings(), playbackSpeed = 0.75f, bottomPadding = 0.dp,
+                        onBack = {}, onRewindChanged = {}, onForwardChanged = {},
+                        onResumePlaybackChanged = {}, onPlaybackSpeedChanged = {}, onRewindOnResumeChanged = {},
+                    )
+                }
+            }
+        }
+        rule.onNodeWithText("0,75").assertIsDisplayed()
+        rule.onNodeWithText("0,5×").assertIsDisplayed()
     }
 
     @Test

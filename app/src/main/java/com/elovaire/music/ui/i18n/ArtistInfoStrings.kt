@@ -25,7 +25,6 @@ internal fun closeArtistInfoLabel(language: AppLanguage): String = when (languag
     AppLanguage.Italian -> "Chiudi le informazioni sull’artista"
     AppLanguage.Japanese -> "アーティスト情報を閉じる"
     AppLanguage.Korean -> "아티스트 정보 닫기"
-    AppLanguage.Latin -> "Informationes de artifice claude"
     AppLanguage.Latvian -> "Aizvērt informāciju par mākslinieku"
     AppLanguage.Lithuanian -> "Uždaryti atlikėjo informaciją"
     AppLanguage.Macedonian -> "Затвори информации за изведувачот"
@@ -79,7 +78,6 @@ internal fun artistInfoCopy(language: AppLanguage): ArtistInfoCopy = when (langu
     AppLanguage.Italian -> ArtistInfoCopy("Informazioni sull’artista", "Discografia", "Caricamento della discografia…", "Discografia non disponibile", "Data di uscita")
     AppLanguage.Japanese -> ArtistInfoCopy("アーティスト情報", "ディスコグラフィー", "ディスコグラフィーを読み込み中…", "ディスコグラフィーを取得できません", "リリース日")
     AppLanguage.Korean -> ArtistInfoCopy("아티스트 정보", "디스코그래피", "디스코그래피를 불러오는 중…", "디스코그래피를 사용할 수 없습니다", "발매일")
-    AppLanguage.Latin -> ArtistInfoCopy("De artifice", "Discographia", "Discographia oneratur…", "Discographia praesto non est", "Dies editionis")
     AppLanguage.Latvian -> ArtistInfoCopy("Informācija par mākslinieku", "Diskogrāfija", "Ielādē diskogrāfiju…", "Diskogrāfija nav pieejama", "Izdošanas datums")
     AppLanguage.Lithuanian -> ArtistInfoCopy("Atlikėjo informacija", "Diskografija", "Įkeliama diskografija…", "Diskografija nepasiekiama", "Išleidimo data")
     AppLanguage.Macedonian -> ArtistInfoCopy("Информации за изведувачот", "Дискографија", "Се вчитува дискографијата…", "Дискографијата не е достапна", "Датум на издавање")

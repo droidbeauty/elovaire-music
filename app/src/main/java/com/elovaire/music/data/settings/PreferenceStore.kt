@@ -55,6 +55,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.coroutines.EmptyCoroutineContext
 
+internal fun resolveSavedAppLanguage(saved: String?, deviceLanguage: () -> AppLanguage): AppLanguage =
+    AppLanguage.entries.firstOrNull { it.name == saved } ?: deviceLanguage()
+
 @Suppress("TooManyFunctions")
 class PreferenceStore internal constructor(
     context: Context,
@@ -934,9 +937,7 @@ class PreferenceStore internal constructor(
     }
 
     private fun loadAppLanguage(): AppLanguage {
-        val savedLanguage = preferences.getString(KEY_APP_LANGUAGE, null)
-            ?.let { saved -> AppLanguage.entries.firstOrNull { it.name == saved } }
-        return savedLanguage ?: resolveDeviceLanguage()
+        return resolveSavedAppLanguage(preferences.getString(KEY_APP_LANGUAGE, null), ::resolveDeviceLanguage)
     }
 
     private fun resolveDeviceLanguage(): AppLanguage {
@@ -962,7 +963,6 @@ class PreferenceStore internal constructor(
             "it" -> AppLanguage.Italian
             "ja" -> AppLanguage.Japanese
             "ko" -> AppLanguage.Korean
-            "la" -> AppLanguage.Latin
             "lv" -> AppLanguage.Latvian
             "lt" -> AppLanguage.Lithuanian
             "ms" -> AppLanguage.Malay

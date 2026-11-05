@@ -4,12 +4,14 @@ import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import java.util.Locale
 
 private const val UI_CHANGES = "UI tweaks in NAS configuration, tag editing system and settings layout"
+private const val SETUP_CHANGES = "UI tweaks on the initial setup splash screen"
 private const val NEW_LANGUAGES = "Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu"
 private const val BUG_FIXES = "General bug fixes"
 
 private data class ChangelogCopy(val ui: String, val languages: String, val fixes: String)
 
 internal fun localizedChangelogItem(item: String, language: AppLanguage): String {
+    if (item == SETUP_CHANGES) return localizedSetupChangelogItem(language)
     if (language == AppLanguage.English || (item != UI_CHANGES && item != NEW_LANGUAGES && item != BUG_FIXES)) return item
     val copy = when (language) {
         AppLanguage.Albanian -> ChangelogCopy("Përmirësime të pamjes së konfigurimit NAS, redaktimit të etiketave dhe cilësimeve", "U shtua mbështetja për 11 gjuhë të reja", "Rregullime të përgjithshme të gabimeve")
@@ -34,7 +36,6 @@ internal fun localizedChangelogItem(item: String, language: AppLanguage): String
         AppLanguage.Italian -> ChangelogCopy("Ritocchi all’interfaccia di configurazione NAS, modifica dei tag e impostazioni", "Aggiunto il supporto per 11 nuove lingue", "Correzioni generali di errori")
         AppLanguage.Japanese -> ChangelogCopy("NAS 設定、タグ編集、設定画面のレイアウトを調整", "新たに11言語に対応", "全般的な不具合を修正")
         AppLanguage.Korean -> ChangelogCopy("NAS 설정, 태그 편집 및 설정 화면 레이아웃 개선", "새로운 언어 11개 지원 추가", "일반 버그 수정")
-        AppLanguage.Latin -> ChangelogCopy("Forma configurationis NAS, mutationis notarum et dispositionis optionum emendata", "Auxilium undecim linguis novis additum", "Errores generales correcti")
         AppLanguage.Latvian -> ChangelogCopy("NAS konfigurācijas, tagu rediģēšanas un iestatījumu izkārtojuma uzlabojumi", "Pievienots atbalsts 11 jaunām valodām", "Vispārīgi kļūdu labojumi")
         AppLanguage.Lithuanian -> ChangelogCopy("Patobulinta NAS konfigūracijos, žymų redagavimo ir nustatymų išvaizda", "Pridėtas 11 naujų kalbų palaikymas", "Bendri klaidų taisymai")
         AppLanguage.Macedonian -> ChangelogCopy("Подобрувања на изгледот на NAS поставките, уредувањето ознаки и поставките", "Додадена е поддршка за 11 нови јазици", "Општи поправки на грешки")
@@ -60,15 +61,54 @@ internal fun localizedChangelogItem(item: String, language: AppLanguage): String
         else -> {
             val locale = language.appLocale()
             val separator = if (language == AppLanguage.Japanese || language == AppLanguage.ChineseSimplified) "、" else ", "
-            val names = if (language == AppLanguage.Latin) {
-                "Albanica, Bosniaca, Bulgarica, Catalana, Finnica, Indonesiaca, Dacoromanica, Serbica, Slovenica, Pangiabica, Urdica"
-            } else {
-                listOf("sq", "bs", "bg", "ca", "fi", "id", "ro", "sr", "sl", "pa", "ur")
-                    .joinToString(separator) { Locale.forLanguageTag(it).getDisplayLanguage(locale) }
-            }
+            val names = listOf("sq", "bs", "bg", "ca", "fi", "id", "ro", "sr", "sl", "pa", "ur")
+                .joinToString(separator) { Locale.forLanguageTag(it).getDisplayLanguage(locale) }
             "${copy.languages}: $names"
         }
     }
+}
+
+private fun localizedSetupChangelogItem(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Përmirësime të pamjes së ekranit të konfigurimit fillestar"
+    AppLanguage.Bengali -> "প্রাথমিক সেটআপ স্ক্রিনের চেহারায় পরিবর্তন"
+    AppLanguage.Bosnian -> "Dorade izgleda početnog ekrana za postavljanje"
+    AppLanguage.Bulgarian -> "Промени във външния вид на екрана за първоначална настройка"
+    AppLanguage.Catalan -> "Retocs de la pantalla de configuració inicial"
+    AppLanguage.ChineseSimplified -> "调整初始设置界面的外观"
+    AppLanguage.Croatian -> "Dorade izgleda početnog zaslona za postavljanje"
+    AppLanguage.Czech -> "Úpravy vzhledu obrazovky úvodního nastavení"
+    AppLanguage.Danish -> "Justeringer af skærmen til første opsætning"
+    AppLanguage.Dutch -> "Aanpassingen aan het scherm voor de eerste installatie"
+    AppLanguage.English -> SETUP_CHANGES
+    AppLanguage.Estonian -> "Algseadistuse kuva välimuse täiustused"
+    AppLanguage.Finnish -> "Alkuasetusten näytön ulkoasun muutoksia"
+    AppLanguage.French -> "Ajustements de l’écran de configuration initiale"
+    AppLanguage.German -> "Anpassungen am Bildschirm für die Ersteinrichtung"
+    AppLanguage.Greek -> "Βελτιώσεις στην εμφάνιση της οθόνης αρχικής ρύθμισης"
+    AppLanguage.Hindi -> "शुरुआती सेटअप स्क्रीन के रूप में सुधार"
+    AppLanguage.Hungarian -> "A kezdeti beállítás képernyőjének finomítása"
+    AppLanguage.Indonesian -> "Penyempurnaan tampilan layar pengaturan awal"
+    AppLanguage.Italian -> "Ritocchi alla schermata di configurazione iniziale"
+    AppLanguage.Japanese -> "初期設定画面のデザインを調整"
+    AppLanguage.Korean -> "초기 설정 화면 디자인 개선"
+    AppLanguage.Latvian -> "Sākotnējās iestatīšanas ekrāna izskata uzlabojumi"
+    AppLanguage.Lithuanian -> "Patobulinta pradinės sąrankos ekrano išvaizda"
+    AppLanguage.Macedonian -> "Подобрувања на изгледот на екранот за почетно поставување"
+    AppLanguage.Malay -> "Penambahbaikan rupa skrin persediaan awal"
+    AppLanguage.Norwegian -> "Justeringer av skjermen for førstegangsoppsett"
+    AppLanguage.Polish -> "Poprawki wyglądu ekranu konfiguracji początkowej"
+    AppLanguage.Portuguese -> "Ajustes no ecrã de configuração inicial"
+    AppLanguage.Punjabi -> "ਸ਼ੁਰੂਆਤੀ ਸੈਟਅੱਪ ਸਕ੍ਰੀਨ ਦੀ ਦਿੱਖ ਵਿੱਚ ਸੁਧਾਰ"
+    AppLanguage.Romanian -> "Ajustări ale aspectului ecranului de configurare inițială"
+    AppLanguage.Russian -> "Улучшен внешний вид экрана первоначальной настройки"
+    AppLanguage.Serbian -> "Дораде изгледа екрана за почетно подешавање"
+    AppLanguage.Slovak -> "Úpravy vzhľadu obrazovky úvodného nastavenia"
+    AppLanguage.Slovenian -> "Izboljšave videza zaslona za začetno nastavitev"
+    AppLanguage.Spanish -> "Ajustes en la pantalla de configuración inicial"
+    AppLanguage.Swedish -> "Justeringar av skärmen för första konfigurationen"
+    AppLanguage.Thai -> "ปรับแต่งหน้าตาหน้าจอการตั้งค่าเริ่มต้น"
+    AppLanguage.Ukrainian -> "Удосконалено вигляд екрана початкового налаштування"
+    AppLanguage.Urdu -> "ابتدائی سیٹ اپ اسکرین کی ظاہری بہتری"
 }
 
 internal fun AppLanguage.appLocale(): Locale = Locale.forLanguageTag(when (this) {
@@ -78,7 +118,7 @@ internal fun AppLanguage.appLocale(): Locale = Locale.forLanguageTag(when (this)
     AppLanguage.English -> "en"; AppLanguage.Estonian -> "et"; AppLanguage.Finnish -> "fi"; AppLanguage.French -> "fr"
     AppLanguage.German -> "de"; AppLanguage.Greek -> "el"; AppLanguage.Hindi -> "hi"; AppLanguage.Hungarian -> "hu"
     AppLanguage.Indonesian -> "id"; AppLanguage.Italian -> "it"; AppLanguage.Japanese -> "ja"; AppLanguage.Korean -> "ko"
-    AppLanguage.Latin -> "la"; AppLanguage.Latvian -> "lv"; AppLanguage.Lithuanian -> "lt"; AppLanguage.Macedonian -> "mk"
+    AppLanguage.Latvian -> "lv"; AppLanguage.Lithuanian -> "lt"; AppLanguage.Macedonian -> "mk"
     AppLanguage.Malay -> "ms"; AppLanguage.Norwegian -> "nb"; AppLanguage.Polish -> "pl"; AppLanguage.Portuguese -> "pt"
     AppLanguage.Punjabi -> "pa"; AppLanguage.Romanian -> "ro"; AppLanguage.Russian -> "ru"; AppLanguage.Serbian -> "sr"
     AppLanguage.Slovak -> "sk"; AppLanguage.Slovenian -> "sl"; AppLanguage.Spanish -> "es"; AppLanguage.Swedish -> "sv"

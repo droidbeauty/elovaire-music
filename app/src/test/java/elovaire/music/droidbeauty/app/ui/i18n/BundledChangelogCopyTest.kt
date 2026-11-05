@@ -24,6 +24,10 @@ class BundledChangelogCopyTest {
         assertTrue("Bundled changelog is empty", entries.isNotEmpty())
         entries.forEach { entry ->
             assertFalse("Unexpected final period: $entry", entry.endsWith('.') && !entry.endsWith("..."))
+            assertTrue(
+                "Too many sentence separators: $entry",
+                Regex("(?<!\\.)\\.(?!\\.)\\s+(?=[A-Z])").findAll(entry).count() <= 1,
+            )
             assertEquals(entry, localizedChangelogItem(entry, AppLanguage.English))
             AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
                 assertFalse("Missing $language translation for: $entry", localizedChangelogItem(entry, language) == entry)

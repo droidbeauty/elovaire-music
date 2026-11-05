@@ -25,7 +25,7 @@ class BundledShortcutCopyTest {
                 AppLanguage.Croatian -> "-hr"; AppLanguage.Czech -> "-cs"; AppLanguage.Danish -> "-da"; AppLanguage.Dutch -> "-nl"
                 AppLanguage.Estonian -> "-et"; AppLanguage.Finnish -> "-fi"; AppLanguage.French -> "-fr"; AppLanguage.German -> "-de"
                 AppLanguage.Greek -> "-el"; AppLanguage.Hindi -> "-hi"; AppLanguage.Hungarian -> "-hu"; AppLanguage.Indonesian -> "-in"
-                AppLanguage.Italian -> "-it"; AppLanguage.Japanese -> "-ja"; AppLanguage.Korean -> "-ko"; AppLanguage.Latin -> "-la"
+                AppLanguage.Italian -> "-it"; AppLanguage.Japanese -> "-ja"; AppLanguage.Korean -> "-ko"
                 AppLanguage.Latvian -> "-lv"; AppLanguage.Lithuanian -> "-lt"; AppLanguage.Macedonian -> "-mk"; AppLanguage.Malay -> "-ms"
                 AppLanguage.Norwegian -> "-nb"; AppLanguage.Polish -> "-pl"; AppLanguage.Portuguese -> "-pt"; AppLanguage.Punjabi -> "-pa"
                 AppLanguage.Romanian -> "-ro"; AppLanguage.Russian -> "-ru"; AppLanguage.Serbian -> "-sr"; AppLanguage.Slovak -> "-sk"

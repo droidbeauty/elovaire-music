@@ -44,7 +44,9 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistTy
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsPolicy
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.appLocale
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookExtraCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookPlaybackCategory
@@ -54,6 +56,13 @@ import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
+
+internal fun formatAudiobookSpeed(value: Float, language: AppLanguage, showDecimalForWhole: Boolean = true): String =
+    java.text.NumberFormat.getNumberInstance(language.appLocale()).apply {
+        minimumFractionDigits = if (showDecimalForWhole) 1 else 0
+        maximumFractionDigits = 2
+        isGroupingUsed = false
+    }.format(value)
 
 @Composable
 internal fun AudiobookSettingsScreen(
@@ -67,8 +76,9 @@ internal fun AudiobookSettingsScreen(
     onPlaybackSpeedChanged: (Float) -> Unit,
     onRewindOnResumeChanged: (Boolean) -> Unit,
 ) {
-    val copy = audiobookSettingsCopy(LocalAppLanguage.current)
-    val extraCopy = audiobookExtraCopy(LocalAppLanguage.current)
+    val language = LocalAppLanguage.current
+    val copy = audiobookSettingsCopy(language)
+    val extraCopy = audiobookExtraCopy(language)
     val listState = rememberElovaireLazyListState("audiobook_settings")
     Box(
         modifier = Modifier
@@ -95,7 +105,7 @@ internal fun AudiobookSettingsScreen(
                                 Text(extraCopy.speed, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
                                 Text(extraCopy.speedSubtitle, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                             }
-                            Text("${(playbackSpeed.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f}", style = MaterialTheme.typography.titleMedium)
+                            Text(formatAudiobookSpeed((playbackSpeed.coerceIn(0.5f, 2f) * 4).roundToInt() / 4f, language), style = MaterialTheme.typography.titleMedium)
                         }
                         SteppedSlider(
                             selectedIndex = ((playbackSpeed * 4).roundToInt() - 2).coerceIn(0, 6),
@@ -108,8 +118,8 @@ internal fun AudiobookSettingsScreen(
                             },
                         )
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("0.5×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("2×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${formatAudiobookSpeed(0.5f, language)}×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${formatAudiobookSpeed(2f, language, showDecimalForWhole = false)}×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     AudiobookSeekSettingRow(

@@ -8,6 +8,7 @@
     -->
     <release version="3.0">
         <item>UI tweaks in NAS configuration, tag editing system and settings layout</item>
+        <item>UI tweaks on the initial setup splash screen</item>
         <item>Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu</item>
         <item>General bug fixes</item>
     </release>

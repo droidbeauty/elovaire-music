@@ -29,7 +29,6 @@ internal fun audiobookPartsCount(count: Int, language: AppLanguage): String {
         AppLanguage.Italian -> if (count == 1) "parte" else "parti"
         AppLanguage.Japanese -> return "${count}パート"
         AppLanguage.Korean -> return "부분 ${count}개"
-        AppLanguage.Latin -> if (count == 1) "pars" else "partes"
         AppLanguage.Latvian -> when { lastTwo in 11..19 || lastDigit == 0 -> "daļu"; lastDigit == 1 -> "daļa"; else -> "daļas" }
         AppLanguage.Lithuanian -> when { lastTwo in 11..19 || lastDigit == 0 -> "dalių"; lastDigit == 1 -> "dalis"; else -> "dalys" }
         AppLanguage.Macedonian -> if (count == 1) "дел" else "делови"
@@ -77,7 +76,6 @@ internal fun localizedAudiobookAuthor(author: String, language: AppLanguage): St
         AppLanguage.Italian -> "Autore sconosciuto"
         AppLanguage.Japanese -> "不明な著者"
         AppLanguage.Korean -> "알 수 없는 저자"
-        AppLanguage.Latin -> "Auctor ignotus"
         AppLanguage.Latvian -> "Nezināms autors"
         AppLanguage.Lithuanian -> "Nežinomas autorius"
         AppLanguage.Macedonian -> "Непознат автор"
@@ -152,7 +150,6 @@ internal fun audiobookUnavailableCopy(language: AppLanguage): AudiobookUnavailab
     AppLanguage.Italian -> AudiobookUnavailableCopy("Audiolibro non disponibile", "Questo audiolibro non è più disponibile", "Aggiorna la libreria e riprova")
     AppLanguage.Japanese -> AudiobookUnavailableCopy("オーディオブックを利用できません", "このオーディオブックは利用できなくなりました", "ライブラリを更新してもう一度お試しください")
     AppLanguage.Korean -> AudiobookUnavailableCopy("오디오북을 사용할 수 없음", "이 오디오북은 더 이상 사용할 수 없습니다", "라이브러리를 새로 고친 후 다시 시도하세요")
-    AppLanguage.Latin -> AudiobookUnavailableCopy("Liber audibilis non praesto", "Hic liber audibilis iam non praesto est", "Bibliothecam renova et iterum conare")
     AppLanguage.Latvian -> AudiobookUnavailableCopy("Audiogrāmata nav pieejama", "Šī audiogrāmata vairs nav pieejama", "Atsvaidzini bibliotēku un mēģini vēlreiz")
     AppLanguage.Lithuanian -> AudiobookUnavailableCopy("Garsinė knyga neprieinama", "Ši garsinė knyga nebeprieinama", "Atnaujinkite biblioteką ir bandykite dar kartą")
     AppLanguage.Macedonian -> AudiobookUnavailableCopy("Аудиокнигата не е достапна", "Оваа аудиокнига повеќе не е достапна", "Освежете ја библиотеката и обидете се повторно")
@@ -198,7 +195,6 @@ internal fun audiobookDescriptionCopy(language: AppLanguage): AudiobookDescripti
     AppLanguage.Italian -> AudiobookDescriptionCopy("Informazioni sul libro", "Caricamento descrizione…", "Nessuna descrizione", "ALTRO", "Chiudi descrizione")
     AppLanguage.Japanese -> AudiobookDescriptionCopy("この本について", "説明を読み込み中…", "説明はありません", "もっと見る", "説明を閉じる")
     AppLanguage.Korean -> AudiobookDescriptionCopy("이 책 정보", "설명 로드 중…", "설명이 없습니다", "더 보기", "설명 닫기")
-    AppLanguage.Latin -> AudiobookDescriptionCopy("De hoc libro", "Descriptio oneratur…", "Descriptio nulla", "PLURA", "Descriptionem claude")
     AppLanguage.Latvian -> AudiobookDescriptionCopy("Par šo grāmatu", "Notiek apraksta ielāde…", "Apraksts nav pieejams", "VAIRĀK", "Aizvērt aprakstu")
     AppLanguage.Lithuanian -> AudiobookDescriptionCopy("Apie šią knygą", "Įkeliamas aprašas…", "Aprašo nėra", "DAUGIAU", "Uždaryti aprašą")
     AppLanguage.Malay -> AudiobookDescriptionCopy("Tentang buku ini", "Memuatkan penerangan…", "Tiada penerangan", "LAGI", "Tutup penerangan")
@@ -222,7 +218,6 @@ internal fun audiobookCopy(language: AppLanguage): AudiobookUiCopy {
         AppLanguage.Estonian -> AudiobookUiCopy("Audioraamatud", "Jätka kuulamist", "Kõik audioraamatud", "Autor", "Jätka", "Esita", "Esita uuesti", "Alusta algusest", "Peatükid", "Lõpetatud", "Alustamata", "Kuulamisel", "Kiirus", "Osad", "15 sekundit tagasi", "15 sekundit edasi", "Muuda audioraamatu silte")
         AppLanguage.Greek -> AudiobookUiCopy("Ηχητικά βιβλία", "Συνέχεια ακρόασης", "Όλα τα ηχητικά βιβλία", "Συγγραφέας", "Συνέχεια", "Αναπαραγωγή", "Αναπαραγωγή ξανά", "Από την αρχή", "Κεφάλαια", "Ολοκληρώθηκε", "Δεν έχει ξεκινήσει", "Ακρόαση", "Ταχύτητα", "Μέρη", "15 δευτερόλεπτα πίσω", "15 δευτερόλεπτα μπροστά", "Επεξεργασία ετικετών ηχητικού βιβλίου")
         AppLanguage.Hungarian -> AudiobookUiCopy("Hangoskönyvek", "Hallgatás folytatása", "Összes hangoskönyv", "Szerző", "Folytatás", "Lejátszás", "Újra lejátszás", "Kezdés elölről", "Fejezetek", "Befejezve", "Nem kezdődött el", "Hallgatás alatt", "Sebesség", "Részek", "15 másodperc vissza", "15 másodperc előre", "Hangoskönyv címkéinek szerkesztése")
-        AppLanguage.Latin -> AudiobookUiCopy("Libri audibiles", "Auditionem continua", "Omnes libri audibiles", "Auctor", "Continua", "Redde", "Iterum redde", "Ab initio incipe", "Capitula", "Perfectum", "Nondum inceptum", "Auditur", "Celeritas", "Partes", "XV secundis retro", "XV secundis ante", "Notas libri audibilis muta")
         AppLanguage.Latvian -> AudiobookUiCopy("Audiogrāmatas", "Turpināt klausīties", "Visas audiogrāmatas", "Autors", "Turpināt", "Atskaņot", "Atskaņot vēlreiz", "Sākt no jauna", "Nodaļas", "Pabeigts", "Nav sākts", "Klausās", "Ātrums", "Daļas", "Atpakaļ 15 sekundes", "Uz priekšu 15 sekundes", "Rediģēt audiogrāmatas tagus")
         AppLanguage.Lithuanian -> AudiobookUiCopy("Garsinės knygos", "Tęsti klausymą", "Visos garsinės knygos", "Autorius", "Tęsti", "Leisti", "Leisti dar kartą", "Pradėti iš naujo", "Skyriai", "Baigta", "Nepradėta", "Klausoma", "Greitis", "Dalys", "Atgal 15 sekundžių", "Pirmyn 15 sekundžių", "Redaguoti garsinės knygos žymas")
         AppLanguage.Malay -> AudiobookUiCopy("Buku audio", "Teruskan mendengar", "Semua buku audio", "Pengarang", "Sambung", "Mainkan", "Mainkan semula", "Mula semula", "Bab", "Selesai", "Belum bermula", "Sedang mendengar", "Kelajuan", "Bahagian", "Undur 15 saat", "Maju 15 saat", "Edit tag buku audio")
@@ -307,7 +302,6 @@ internal fun audiobookFinishedLabel(language: AppLanguage): String = when (langu
     AppLanguage.Italian -> "Terminato"
     AppLanguage.Japanese -> "完了"
     AppLanguage.Korean -> "완료됨"
-    AppLanguage.Latin -> "Perfectum"
     AppLanguage.Latvian -> "Pabeigts"
     AppLanguage.Lithuanian -> "Baigta"
     AppLanguage.Macedonian -> "Завршено"

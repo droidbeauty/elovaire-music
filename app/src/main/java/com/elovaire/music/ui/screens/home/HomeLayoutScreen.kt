@@ -112,7 +112,6 @@ internal fun homeLayoutTitle(language: AppLanguage): String = when (language) {
     AppLanguage.Italian -> "Layout della pagina iniziale"
     AppLanguage.Japanese -> "ホーム画面のレイアウト"
     AppLanguage.Korean -> "홈 화면 레이아웃"
-    AppLanguage.Latin -> "Dispositio paginae initialis"
     AppLanguage.Latvian -> "Sākumlapas izkārtojums"
     AppLanguage.Lithuanian -> "Pradžios puslapio išdėstymas"
     AppLanguage.Malay -> "Susun atur halaman utama"
@@ -156,7 +155,6 @@ internal fun homeLayoutSubtitle(language: AppLanguage): String = when (language)
     AppLanguage.Italian -> "Personalizza l’aspetto della schermata principale"
     AppLanguage.Japanese -> "メイン画面の表示をカスタマイズ"
     AppLanguage.Korean -> "메인 화면의 모습을 설정합니다"
-    AppLanguage.Latin -> "Speciem paginae principalis compone"
     AppLanguage.Latvian -> "Pielāgojiet galvenā ekrāna izskatu"
     AppLanguage.Lithuanian -> "Tinkinkite pagrindinio ekrano išvaizdą"
     AppLanguage.Malay -> "Sesuaikan rupa skrin utama"
@@ -180,7 +178,6 @@ internal fun homeLayoutEditorCopy(language: AppLanguage): HomeLayoutEditorCopy =
     AppLanguage.Greek -> HomeLayoutEditorCopy("Κρατήστε πατημένη μια ενότητα και σύρετέ την για αλλαγή σειράς", "Τελευταία αναπαραγωγή", "Σταθερή θέση", "Μετακίνηση πάνω", "Μετακίνηση κάτω", "Αλλαγή σειράς")
     AppLanguage.Hindi -> HomeLayoutEditorCopy("क्रम बदलने के लिए किसी अनुभाग को दबाकर खींचें", "पिछली बार चलाया गया", "निश्चित स्थान", "ऊपर ले जाएँ", "नीचे ले जाएँ", "क्रम बदलें")
     AppLanguage.Hungarian -> HomeLayoutEditorCopy("Tarts lenyomva egy szakaszt, majd húzd a kívánt helyre", "Legutóbb lejátszott", "Rögzített hely", "Mozgatás fel", "Mozgatás le", "Sorrend módosítása")
-    AppLanguage.Latin -> HomeLayoutEditorCopy("Sectionem preme et trahe ut ordinem mutes", "Novissime auditum", "Locus fixus", "Sursum move", "Deorsum move", "Ordinem muta")
     AppLanguage.Latvian -> HomeLayoutEditorCopy("Turi sadaļu un velc to, lai mainītu secību", "Pēdējoreiz atskaņotais", "Fiksēta pozīcija", "Pārvietot augšup", "Pārvietot lejup", "Mainīt secību")
     AppLanguage.Lithuanian -> HomeLayoutEditorCopy("Palaikykite skiltį ir vilkite, kad pakeistumėte jos vietą", "Paskutinį kartą leista", "Fiksuota vieta", "Perkelti aukštyn", "Perkelti žemyn", "Keisti tvarką")
     AppLanguage.Malay -> HomeLayoutEditorCopy("Sentuh dan tahan bahagian, kemudian seret untuk mengubah susunan", "Terakhir dimainkan", "Kedudukan tetap", "Alih ke atas", "Alih ke bawah", "Susun semula")

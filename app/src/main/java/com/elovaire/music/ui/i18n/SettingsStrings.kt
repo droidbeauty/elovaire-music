@@ -41,7 +41,6 @@ internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (l
     AppLanguage.Albanian -> SettingsLanguageCopy("Cilësimet", "Pamja", "Tema", "Madhësia e tekstit", "Gjuha", "Aktualisht në përdorim: ${language.nativeName}", "Tingulli", "Përforcim basi", "Hapësirë", "Ekualizuesi", "Cilësime të tjera", "Skano bibliotekën", "Rifreskon indeksimin për media të reja", "Skano", "Ndryshimet", "Dizajnuar me pasion për muzikën dhe dizajnin e mirë")
     AppLanguage.Hindi -> SettingsLanguageCopy("सेटिंग्स", "दिखावट", "थीम", "टेक्स्ट आकार", "भाषा", "वर्तमान में उपयोग: ${language.nativeName}", "ध्वनि", "बास बूस्ट", "स्पेशियसनेस", "इक्वलाइज़र", "अन्य सेटिंग्स", "लाइब्रेरी स्कैन करें", "नई मीडिया के लिए इंडेक्स ताज़ा करें", "स्कैन", "बदलाव", "संगीत और अच्छे डिज़ाइन के प्रति जुनून से बनाया गया")
     AppLanguage.Hungarian -> SettingsLanguageCopy("Beállítások", "Megjelenés", "Téma", "Szövegméret", "Nyelv", "Jelenleg használt: ${language.nativeName}", "Hang", "Basszuskiemelés", "Térhatás", "Hangszínszabályzó", "Egyéb beállítások", "Könyvtár beolvasása", "Frissíti az indexelést új médiához", "Beolvasás", "Változások", "Szenvedéllyel tervezve zenéhez és jó designhoz")
-    AppLanguage.Latin -> SettingsLanguageCopy("Optiones", "Aspectus", "Thema", "Magnitudo textus", "Lingua", "Nunc adhibetur: ${language.nativeName}", "Sonus", "Bassus auctus", "Spatium", "Aequator", "Aliae optiones", "Bibliothecam scrutare", "Indicem pro novis mediis renovat", "Scrutare", "Mutationes", "Studio musicae et bono consilio creatum")
     AppLanguage.Macedonian -> SettingsLanguageCopy("Поставки", "Изглед", "Тема", "Големина на текст", "Јазик", "Моментално се користи: ${language.nativeName}", "Звук", "Засилување на бас", "Просторност", "Еквилајзер", "Други поставки", "Скенирај библиотека", "Го освежува индексирањето за нови медиуми", "Скенирај", "Промени", "Создадено со страст за музика и добар дизајн")
     AppLanguage.Serbian -> SettingsLanguageCopy("Подешавања", "Изглед", "Тема", "Величина текста", "Језик", "Тренутно се користи: ${language.nativeName}", "Звук", "Појачање баса", "Просторност", "Еквилајзер", "Остала подешавања", "Скенирај библиотеку", "Освежава индексирање за нове медије", "Скенирај", "Промене", "Дизајнирано са страшћу за музику и добар дизајн")
     AppLanguage.Thai -> SettingsLanguageCopy("การตั้งค่า", "รูปลักษณ์", "ธีม", "ขนาดข้อความ", "ภาษา", "ใช้อยู่: ${language.nativeName}", "เสียง", "เพิ่มเสียงเบส", "มิติเสียง", "อีควอไลเซอร์", "การตั้งค่าอื่น", "สแกนคลังเพลง", "รีเฟรชดัชนีเพื่อค้นหาสื่อใหม่", "สแกน", "บันทึกการเปลี่ยนแปลง", "ออกแบบด้วยความหลงใหลในดนตรีและดีไซน์ที่ดี")
@@ -84,7 +83,6 @@ internal fun libraryScanStatusCopy(language: AppLanguage): LibraryScanStatusCopy
     AppLanguage.Italian -> LibraryScanStatusCopy("Scansione in corso", "Fatto")
     AppLanguage.Japanese -> LibraryScanStatusCopy("スキャン中", "完了")
     AppLanguage.Korean -> LibraryScanStatusCopy("스캔 중", "완료")
-    AppLanguage.Latin -> LibraryScanStatusCopy("Lustratio", "Perfectum")
     AppLanguage.Latvian -> LibraryScanStatusCopy("Skenēšana", "Pabeigts")
     AppLanguage.Lithuanian -> LibraryScanStatusCopy("Nuskaitoma", "Baigta")
     AppLanguage.Macedonian -> LibraryScanStatusCopy("Скенирање", "Готово")
@@ -133,7 +131,6 @@ private fun volumeNormalizationTitle(language: AppLanguage): String = when (lang
     AppLanguage.Hungarian -> "Hangerő-normalizálás"
     AppLanguage.Italian -> "Normalizzazione volume"
     AppLanguage.Japanese -> "音量正規化"
-    AppLanguage.Latin -> "Voluminis normalizatio"
     AppLanguage.Latvian -> "Skaļuma normalizēšana"
     AppLanguage.Lithuanian -> "Garsumo normalizavimas"
     AppLanguage.Macedonian -> "Нормализација на јачина"
@@ -189,7 +186,6 @@ internal fun playlistManagementCopy(language: AppLanguage): PlaylistManagementCo
         AppLanguage.Italian -> listOf("Importa", "Esporta tutto", "Non hai playlist", "Crea almeno una playlist per poterla esportare", "Esporta")
         AppLanguage.Japanese -> listOf("インポート", "すべてエクスポート", "プレイリストがありません", "エクスポートするには、少なくとも1つのプレイリストを作成してください", "エクスポート")
         AppLanguage.Korean -> listOf("가져오기", "모두 내보내기", "플레이리스트가 없습니다", "내보내려면 플레이리스트를 하나 이상 만드세요", "내보내기")
-        AppLanguage.Latin -> listOf("Importa", "Omnia exporta", "Nullum indicem habes", "Crea saltem unum indicem ut eum exportare possis", "Exporta")
         AppLanguage.Latvian -> listOf("Importēt", "Eksportēt visu", "Jums nav atskaņošanas sarakstu", "Izveidojiet vismaz vienu atskaņošanas sarakstu, lai to varētu eksportēt", "Eksportēt")
         AppLanguage.Lithuanian -> listOf("Importuoti", "Eksportuoti viską", "Neturite grojaraščių", "Sukurkite bent vieną grojaraštį, kad galėtumėte jį eksportuoti", "Eksportuoti")
         AppLanguage.Macedonian -> listOf("Увези", "Извези ги сите", "Немате плејлисти", "Создадете барем една плејлиста за да можете да ја извезете", "Извези")
@@ -251,7 +247,6 @@ internal fun crossfadeCopy(language: AppLanguage): CrossfadeCopy = when (languag
     AppLanguage.Italian -> CrossfadeCopy("Durata della dissolvenza", "Determina per quanto tempo i brani si sovrappongono durante la transizione", "Rilevamento del silenzio", "Determina quanto silenzio ignorare per trovare la fine del brano")
     AppLanguage.Japanese -> CrossfadeCopy("クロスフェード時間", "切り替え中に曲が重なる時間を調整します", "無音検出", "曲の終わりを探すときに無視する無音の量を設定します")
     AppLanguage.Korean -> CrossfadeCopy("크로스페이드 길이", "전환 중 곡이 얼마나 오래 겹칠지 조정합니다", "무음 감지", "곡의 끝을 찾을 때 무시할 무음의 양을 설정합니다")
-    AppLanguage.Latin -> CrossfadeCopy("Longitudo transitus", "Definit quam diu cantus durante transitione superponantur", "Silentii detectio", "Definit quantum silentium cum finem cantus quaeritur neglegatur")
     AppLanguage.Latvian -> CrossfadeCopy("Sapludināšanas ilgums", "Nosaka, cik ilgi dziesmas pārklājas pārejas laikā", "Klusuma noteikšana", "Nosaka, cik daudz klusuma ignorēt, meklējot dziesmas beigas")
     AppLanguage.Lithuanian -> CrossfadeCopy("Suliejimo trukmė", "Nustato, kiek laiko dainos persidengia pereinant", "Tylos aptikimas", "Nustato, kiek tylos ignoruoti ieškant dainos pabaigos")
     AppLanguage.Macedonian -> CrossfadeCopy("Времетраење на прелевањето", "Одредува колку долго песните се преклопуваат при преминот", "Откривање тишина", "Одредува колку тишина се игнорира при наоѓање на крајот на песната")
@@ -271,12 +266,12 @@ internal fun crossfadeCopy(language: AppLanguage): CrossfadeCopy = when (languag
 }
 
 internal fun volumeNormalizationSubtitle(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Намалява разликите в силата на песните, когато метаданните го поддържат"
-    AppLanguage.Catalan -> "Redueix les diferències de volum quan les metadades ho permeten"
+    AppLanguage.Bulgarian -> "Намалява разликите в силата на песните, когато метаданните на файла го поддържат"
+    AppLanguage.Catalan -> "Redueix les diferències de volum entre cançons quan les metadades del fitxer ho permeten"
     AppLanguage.Finnish -> "Tasaa kappaleiden äänenvoimakkuutta tiedoston metatietojen salliessa"
-    AppLanguage.Romanian -> "Reduce diferențele de volum când metadatele fișierului permit acest lucru"
-    AppLanguage.Slovenian -> "Zmanjša razlike v glasnosti skladb, če to omogočajo metapodatki"
-    AppLanguage.Bosnian -> "Smanjuje razlike u glasnoći pjesama kada to metapodaci podržavaju"
+    AppLanguage.Romanian -> "Reduce diferențele de volum dintre melodii când metadatele fișierului permit acest lucru"
+    AppLanguage.Slovenian -> "Zmanjša razlike v glasnosti med skladbami, če to omogočajo metapodatki datoteke"
+    AppLanguage.Bosnian -> "Smanjuje razlike u glasnoći pjesama kada to podržavaju metapodaci datoteke"
     AppLanguage.Indonesian -> "Mengurangi perbedaan volume lagu jika didukung metadata berkas"
     AppLanguage.Punjabi -> "ਫਾਈਲ ਦੇ ਮੈਟਾਡੇਟਾ ਅਨੁਸਾਰ ਗੀਤਾਂ ਦੀ ਆਵਾਜ਼ ਦਾ ਫ਼ਰਕ ਘਟਾਉਂਦਾ ਹੈ"
     AppLanguage.Polish -> "Zmniejsza różnice głośności między utworami, gdy metadane pliku to obsługują"
@@ -294,7 +289,6 @@ internal fun volumeNormalizationSubtitle(language: AppLanguage): String = when (
     AppLanguage.Hungarian -> "Csökkenti a dalok közti hangerőkülönbségeket, ha a fájl metaadatai támogatják"
     AppLanguage.Italian -> "Riduce le differenze di volume tra i brani quando i metadati del file lo supportano"
     AppLanguage.Japanese -> "ファイルのメタデータが対応している場合に曲間の音量差を抑えます"
-    AppLanguage.Latin -> "Differentias voluminis inter cantus minuit cum metadata fasciculi id sustinent"
     AppLanguage.Latvian -> "Samazina skaļuma atšķirības starp dziesmām, ja to atbalsta faila metadati"
     AppLanguage.Lithuanian -> "Sumažina garsumo skirtumus tarp dainų, kai tai palaiko failo metaduomenys"
     AppLanguage.Macedonian -> "Ги намалува разликите во јачина меѓу песните кога метаподатоците го поддржуваат тоа"
@@ -351,7 +345,6 @@ internal fun SettingsLanguageCopy.withLocalizedSettingsEntries(language: AppLang
         AppLanguage.Italian -> SettingsEntryCopy("Dissolvenza incrociata", "Regola la transizione tra i brani", "Gestisci playlist", "Importa ed esporta le tue playlist", "Testi online", "Recupera i testi da LRCLIB", "Controlla aggiornamenti", "Verifica se è disponibile una versione più recente")
         AppLanguage.Japanese -> SettingsEntryCopy("クロスフェード", "曲間のつなぎ方を調整", "プレイリストを管理", "プレイリストをインポート・エクスポート", "オンライン歌詞", "LRCLIBから歌詞を取得", "アップデートを確認", "新しいバージョンがあるか確認")
         AppLanguage.Korean -> SettingsEntryCopy("크로스페이드", "곡 사이의 전환을 조정합니다", "플레이리스트 관리", "플레이리스트를 가져오고 내보냅니다", "온라인 가사", "LRCLIB에서 가사를 가져옵니다", "업데이트 확인", "새 버전이 있는지 확인합니다")
-        AppLanguage.Latin -> SettingsEntryCopy("Transitus gradualis", "Transitionem inter cantus compone", "Indices curare", "Indices tuos importa et exporta", "Verba carminum online", "Verba carminum ex LRCLIB pete", "Quaere renovationes", "Reprime num versio recentior praesto sit")
         AppLanguage.Latvian -> SettingsEntryCopy("Dziesmu sapludināšana", "Pielāgo pāreju starp dziesmām", "Pārvaldīt atskaņošanas sarakstus", "Importē un eksportē savus atskaņošanas sarakstus", "Dziesmu teksti tiešsaistē", "Iegūsti dziesmu tekstus no LRCLIB", "Pārbaudīt atjauninājumus", "Pārbaudi, vai pieejama jaunāka versija")
         AppLanguage.Lithuanian -> SettingsEntryCopy("Garso takelių suliejimas", "Koreguok perėjimą tarp dainų", "Tvarkyti grojaraščius", "Importuok ir eksportuok savo grojaraščius", "Dainų žodžiai internete", "Gauk dainų žodžius iš LRCLIB", "Tikrinti, ar yra naujinių", "Patikrink, ar yra naujesnė versija")
         AppLanguage.Macedonian -> SettingsEntryCopy("Вкрстено прелевање", "Прилагодете го преминот меѓу песните", "Управување со плејлисти", "Увезете и извезете ги вашите плејлисти", "Текстови на песни онлајн", "Преземете текстови од LRCLIB", "Провери за ажурирања", "Проверете дали има понова верзија")
