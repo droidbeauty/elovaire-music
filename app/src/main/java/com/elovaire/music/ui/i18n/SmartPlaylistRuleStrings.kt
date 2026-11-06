@@ -5,181 +5,181 @@ import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 internal data class SmartPlaylistOrderCopy(val sort: String, val direction: String, val ascending: String, val descending: String)
 
 internal fun smartPlaylistOrderCopy(language: AppLanguage): SmartPlaylistOrderCopy = when (language) {
-    AppLanguage.Albanian -> SmartPlaylistOrderCopy("Renditja", "Drejtimi", "Në rritje", "Në zbritje")
-    AppLanguage.Bengali -> SmartPlaylistOrderCopy("সাজানোর ক্রম", "দিক", "ঊর্ধ্বক্রম", "নিম্নক্রম")
-    AppLanguage.Bosnian -> SmartPlaylistOrderCopy("Sortiranje", "Smjer", "Rastuće", "Opadajuće")
-    AppLanguage.Bulgarian -> SmartPlaylistOrderCopy("Подреждане", "Посока", "Възходящо", "Низходящо")
-    AppLanguage.Catalan -> SmartPlaylistOrderCopy("Ordenació", "Direcció", "Ascendent", "Descendent")
-    AppLanguage.ChineseSimplified -> SmartPlaylistOrderCopy("排序", "顺序", "升序", "降序")
-    AppLanguage.Croatian -> SmartPlaylistOrderCopy("Razvrstavanje", "Smjer", "Uzlazno", "Silazno")
-    AppLanguage.Czech -> SmartPlaylistOrderCopy("Řazení", "Směr", "Vzestupně", "Sestupně")
-    AppLanguage.Danish -> SmartPlaylistOrderCopy("Sortering", "Retning", "Stigende", "Faldende")
-    AppLanguage.Dutch -> SmartPlaylistOrderCopy("Sortering", "Volgorde", "Oplopend", "Aflopend")
-    AppLanguage.English -> SmartPlaylistOrderCopy("Sort", "Direction", "Ascending", "Descending")
-    AppLanguage.Estonian -> SmartPlaylistOrderCopy("Sortimine", "Suund", "Kasvav", "Kahanev")
-    AppLanguage.Finnish -> SmartPlaylistOrderCopy("Lajittelu", "Suunta", "Nouseva", "Laskeva")
-    AppLanguage.French -> SmartPlaylistOrderCopy("Tri", "Ordre", "Croissant", "Décroissant")
-    AppLanguage.German -> SmartPlaylistOrderCopy("Sortierung", "Richtung", "Aufsteigend", "Absteigend")
-    AppLanguage.Greek -> SmartPlaylistOrderCopy("Ταξινόμηση", "Κατεύθυνση", "Αύξουσα", "Φθίνουσα")
-    AppLanguage.Hindi -> SmartPlaylistOrderCopy("क्रमबद्ध करें", "दिशा", "आरोही", "अवरोही")
-    AppLanguage.Hungarian -> SmartPlaylistOrderCopy("Rendezés", "Irány", "Növekvő", "Csökkenő")
-    AppLanguage.Indonesian -> SmartPlaylistOrderCopy("Urutkan", "Arah", "Menaik", "Menurun")
-    AppLanguage.Italian -> SmartPlaylistOrderCopy("Ordinamento", "Direzione", "Crescente", "Decrescente")
-    AppLanguage.Japanese -> SmartPlaylistOrderCopy("並べ替え", "順序", "昇順", "降順")
-    AppLanguage.Korean -> SmartPlaylistOrderCopy("정렬", "방향", "오름차순", "내림차순")
-    AppLanguage.Latvian -> SmartPlaylistOrderCopy("Kārtošana", "Virziens", "Augošā secībā", "Dilstošā secībā")
-    AppLanguage.Lithuanian -> SmartPlaylistOrderCopy("Rikiavimas", "Kryptis", "Didėjančia tvarka", "Mažėjančia tvarka")
-    AppLanguage.Macedonian -> SmartPlaylistOrderCopy("Подредување", "Насока", "Растечки", "Опаѓачки")
-    AppLanguage.Malay -> SmartPlaylistOrderCopy("Susun", "Arah", "Menaik", "Menurun")
-    AppLanguage.Norwegian -> SmartPlaylistOrderCopy("Sortering", "Retning", "Stigende", "Synkende")
-    AppLanguage.Polish -> SmartPlaylistOrderCopy("Sortowanie", "Kierunek", "Rosnąco", "Malejąco")
-    AppLanguage.Portuguese -> SmartPlaylistOrderCopy("Ordenação", "Sentido", "Crescente", "Decrescente")
-    AppLanguage.Punjabi -> SmartPlaylistOrderCopy("ਤਰਤੀਬ", "ਦਿਸ਼ਾ", "ਵੱਧਦਾ ਕ੍ਰਮ", "ਘਟਦਾ ਕ੍ਰਮ")
-    AppLanguage.Romanian -> SmartPlaylistOrderCopy("Sortare", "Direcție", "Crescător", "Descrescător")
-    AppLanguage.Russian -> SmartPlaylistOrderCopy("Сортировка", "Направление", "По возрастанию", "По убыванию")
-    AppLanguage.Serbian -> SmartPlaylistOrderCopy("Сортирање", "Смер", "Растуће", "Опадајуће")
-    AppLanguage.Slovak -> SmartPlaylistOrderCopy("Zoradenie", "Smer", "Vzostupne", "Zostupne")
-    AppLanguage.Slovenian -> SmartPlaylistOrderCopy("Razvrščanje", "Smer", "Naraščajoče", "Padajoče")
-    AppLanguage.Spanish -> SmartPlaylistOrderCopy("Ordenación", "Sentido", "Ascendente", "Descendente")
-    AppLanguage.Swedish -> SmartPlaylistOrderCopy("Sortering", "Riktning", "Stigande", "Fallande")
-    AppLanguage.Thai -> SmartPlaylistOrderCopy("การจัดเรียง", "ทิศทาง", "น้อยไปมาก", "มากไปน้อย")
-    AppLanguage.Ukrainian -> SmartPlaylistOrderCopy("Сортування", "Напрямок", "За зростанням", "За спаданням")
-    AppLanguage.Urdu -> SmartPlaylistOrderCopy("ترتیب", "سمت", "صعودی", "نزولی")
+    AppLanguage.Albanian -> AlbanianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Czech -> CzechTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Danish -> DanishTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Dutch -> DutchTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.English -> EnglishTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.French -> FrenchTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.German -> GermanTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Greek -> GreekTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Hindi -> HindiTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Italian -> ItalianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Korean -> KoreanTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Malay -> MalayTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Polish -> PolishTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Russian -> RussianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Thai -> ThaiTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
+    AppLanguage.Urdu -> UrduTranslations.smartPlaylistRule_smartPlaylistOrderCopy_1
 }
 
 internal data class SmartPlaylistInputCopy(val count: String, val extension: String, val folderText: String, val limit: String)
 
 internal fun smartPlaylistInputCopy(language: AppLanguage): SmartPlaylistInputCopy = when (language) {
-    AppLanguage.Albanian -> SmartPlaylistInputCopy("Numri", "Zgjatimi", "Teksti i dosjes", "Kufiri")
-    AppLanguage.Bengali -> SmartPlaylistInputCopy("সংখ্যা", "এক্সটেনশন", "ফোল্ডারের লেখা", "সীমা")
-    AppLanguage.Bosnian -> SmartPlaylistInputCopy("Broj", "Ekstenzija", "Tekst mape", "Ograničenje")
-    AppLanguage.Bulgarian -> SmartPlaylistInputCopy("Брой", "Разширение", "Текст на папката", "Ограничение")
-    AppLanguage.Catalan -> SmartPlaylistInputCopy("Nombre", "Extensió", "Text de la carpeta", "Límit")
-    AppLanguage.ChineseSimplified -> SmartPlaylistInputCopy("次数", "扩展名", "文件夹文本", "上限")
-    AppLanguage.Croatian -> SmartPlaylistInputCopy("Broj", "Nastavak datoteke", "Tekst mape", "Ograničenje")
-    AppLanguage.Czech -> SmartPlaylistInputCopy("Počet", "Přípona", "Text složky", "Limit")
-    AppLanguage.Danish -> SmartPlaylistInputCopy("Antal", "Filendelse", "Mappetekst", "Grænse")
-    AppLanguage.Dutch -> SmartPlaylistInputCopy("Aantal", "Extensie", "Maptekst", "Limiet")
-    AppLanguage.English -> SmartPlaylistInputCopy("Count", "Extension", "Folder text", "Limit")
-    AppLanguage.Estonian -> SmartPlaylistInputCopy("Arv", "Faililaiend", "Kausta tekst", "Piirang")
-    AppLanguage.Finnish -> SmartPlaylistInputCopy("Määrä", "Tiedostopääte", "Kansion teksti", "Raja")
-    AppLanguage.French -> SmartPlaylistInputCopy("Nombre", "Extension", "Texte du dossier", "Limite")
-    AppLanguage.German -> SmartPlaylistInputCopy("Anzahl", "Dateiendung", "Ordnertext", "Limit")
-    AppLanguage.Greek -> SmartPlaylistInputCopy("Πλήθος", "Επέκταση", "Κείμενο φακέλου", "Όριο")
-    AppLanguage.Hindi -> SmartPlaylistInputCopy("संख्या", "एक्सटेंशन", "फ़ोल्डर का पाठ", "सीमा")
-    AppLanguage.Hungarian -> SmartPlaylistInputCopy("Darabszám", "Kiterjesztés", "Mappa szövege", "Korlát")
-    AppLanguage.Indonesian -> SmartPlaylistInputCopy("Jumlah", "Ekstensi", "Teks folder", "Batas")
-    AppLanguage.Italian -> SmartPlaylistInputCopy("Numero", "Estensione", "Testo cartella", "Limite")
-    AppLanguage.Japanese -> SmartPlaylistInputCopy("回数", "拡張子", "フォルダのテキスト", "上限")
-    AppLanguage.Korean -> SmartPlaylistInputCopy("횟수", "확장자", "폴더 텍스트", "제한")
-    AppLanguage.Latvian -> SmartPlaylistInputCopy("Skaits", "Paplašinājums", "Mapes teksts", "Ierobežojums")
-    AppLanguage.Lithuanian -> SmartPlaylistInputCopy("Skaičius", "Plėtinys", "Aplanko tekstas", "Riba")
-    AppLanguage.Macedonian -> SmartPlaylistInputCopy("Број", "Наставка", "Текст на папката", "Ограничување")
-    AppLanguage.Malay -> SmartPlaylistInputCopy("Bilangan", "Sambungan", "Teks folder", "Had")
-    AppLanguage.Norwegian -> SmartPlaylistInputCopy("Antall", "Filendelse", "Mappetekst", "Grense")
-    AppLanguage.Polish -> SmartPlaylistInputCopy("Liczba", "Rozszerzenie", "Tekst ścieżki folderu", "Limit")
-    AppLanguage.Portuguese -> SmartPlaylistInputCopy("Número", "Extensão", "Texto da pasta", "Limite")
-    AppLanguage.Punjabi -> SmartPlaylistInputCopy("ਗਿਣਤੀ", "ਐਕਸਟੈਂਸ਼ਨ", "ਫੋਲਡਰ ਦਾ ਲਿਖਤ", "ਹੱਦ")
-    AppLanguage.Romanian -> SmartPlaylistInputCopy("Număr", "Extensie", "Textul dosarului", "Limită")
-    AppLanguage.Russian -> SmartPlaylistInputCopy("Количество", "Расширение", "Текст папки", "Ограничение")
-    AppLanguage.Serbian -> SmartPlaylistInputCopy("Број", "Екстензија", "Текст фасцикле", "Ограничење")
-    AppLanguage.Slovak -> SmartPlaylistInputCopy("Počet", "Prípona", "Text priečinka", "Limit")
-    AppLanguage.Slovenian -> SmartPlaylistInputCopy("Število", "Pripona", "Besedilo mape", "Omejitev")
-    AppLanguage.Spanish -> SmartPlaylistInputCopy("Cantidad", "Extensión", "Texto de carpeta", "Límite")
-    AppLanguage.Swedish -> SmartPlaylistInputCopy("Antal", "Filändelse", "Mapptext", "Gräns")
-    AppLanguage.Thai -> SmartPlaylistInputCopy("จำนวน", "นามสกุลไฟล์", "ข้อความโฟลเดอร์", "ขีดจำกัด")
-    AppLanguage.Ukrainian -> SmartPlaylistInputCopy("Кількість", "Розширення", "Текст папки", "Обмеження")
-    AppLanguage.Urdu -> SmartPlaylistInputCopy("تعداد", "ایکسٹینشن", "فولڈر کا متن", "حد")
+    AppLanguage.Albanian -> AlbanianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Czech -> CzechTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Danish -> DanishTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Dutch -> DutchTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.English -> EnglishTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.French -> FrenchTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.German -> GermanTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Greek -> GreekTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Hindi -> HindiTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Italian -> ItalianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Korean -> KoreanTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Malay -> MalayTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Polish -> PolishTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Russian -> RussianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Thai -> ThaiTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
+    AppLanguage.Urdu -> UrduTranslations.smartPlaylistRule_smartPlaylistInputCopy_1
 }
 
 internal data class SmartPlaylistValueCopy(val value: String, val yes: String, val no: String, val seconds: String)
 
 internal fun smartPlaylistValueCopy(language: AppLanguage): SmartPlaylistValueCopy = when (language) {
-    AppLanguage.Albanian -> SmartPlaylistValueCopy("Vlera", "Po", "Jo", "Sekonda")
-    AppLanguage.Bengali -> SmartPlaylistValueCopy("মান", "হ্যাঁ", "না", "সেকেন্ড")
-    AppLanguage.Bosnian -> SmartPlaylistValueCopy("Vrijednost", "Da", "Ne", "Sekunde")
-    AppLanguage.Bulgarian -> SmartPlaylistValueCopy("Стойност", "Да", "Не", "Секунди")
-    AppLanguage.Catalan -> SmartPlaylistValueCopy("Valor", "Sí", "No", "Segons")
-    AppLanguage.ChineseSimplified -> SmartPlaylistValueCopy("值", "是", "否", "秒")
-    AppLanguage.Croatian -> SmartPlaylistValueCopy("Vrijednost", "Da", "Ne", "Sekunde")
-    AppLanguage.Czech -> SmartPlaylistValueCopy("Hodnota", "Ano", "Ne", "Sekundy")
-    AppLanguage.Danish -> SmartPlaylistValueCopy("Værdi", "Ja", "Nej", "Sekunder")
-    AppLanguage.Dutch -> SmartPlaylistValueCopy("Waarde", "Ja", "Nee", "Seconden")
-    AppLanguage.English -> SmartPlaylistValueCopy("Value", "Yes", "No", "Seconds")
-    AppLanguage.Estonian -> SmartPlaylistValueCopy("Väärtus", "Jah", "Ei", "Sekundid")
-    AppLanguage.Finnish -> SmartPlaylistValueCopy("Arvo", "Kyllä", "Ei", "Sekuntia")
-    AppLanguage.French -> SmartPlaylistValueCopy("Valeur", "Oui", "Non", "Secondes")
-    AppLanguage.German -> SmartPlaylistValueCopy("Wert", "Ja", "Nein", "Sekunden")
-    AppLanguage.Greek -> SmartPlaylistValueCopy("Τιμή", "Ναι", "Όχι", "Δευτερόλεπτα")
-    AppLanguage.Hindi -> SmartPlaylistValueCopy("मान", "हाँ", "नहीं", "सेकंड")
-    AppLanguage.Hungarian -> SmartPlaylistValueCopy("Érték", "Igen", "Nem", "Másodperc")
-    AppLanguage.Indonesian -> SmartPlaylistValueCopy("Nilai", "Ya", "Tidak", "Detik")
-    AppLanguage.Italian -> SmartPlaylistValueCopy("Valore", "Sì", "No", "Secondi")
-    AppLanguage.Japanese -> SmartPlaylistValueCopy("値", "はい", "いいえ", "秒")
-    AppLanguage.Korean -> SmartPlaylistValueCopy("값", "예", "아니요", "초")
-    AppLanguage.Latvian -> SmartPlaylistValueCopy("Vērtība", "Jā", "Nē", "Sekundes")
-    AppLanguage.Lithuanian -> SmartPlaylistValueCopy("Reikšmė", "Taip", "Ne", "Sekundės")
-    AppLanguage.Macedonian -> SmartPlaylistValueCopy("Вредност", "Да", "Не", "Секунди")
-    AppLanguage.Malay -> SmartPlaylistValueCopy("Nilai", "Ya", "Tidak", "Saat")
-    AppLanguage.Norwegian -> SmartPlaylistValueCopy("Verdi", "Ja", "Nei", "Sekunder")
-    AppLanguage.Polish -> SmartPlaylistValueCopy("Wartość", "Tak", "Nie", "Sekundy")
-    AppLanguage.Portuguese -> SmartPlaylistValueCopy("Valor", "Sim", "Não", "Segundos")
-    AppLanguage.Punjabi -> SmartPlaylistValueCopy("ਮੁੱਲ", "ਹਾਂ", "ਨਹੀਂ", "ਸਕਿੰਟ")
-    AppLanguage.Romanian -> SmartPlaylistValueCopy("Valoare", "Da", "Nu", "Secunde")
-    AppLanguage.Russian -> SmartPlaylistValueCopy("Значение", "Да", "Нет", "Секунды")
-    AppLanguage.Serbian -> SmartPlaylistValueCopy("Вредност", "Да", "Не", "Секунде")
-    AppLanguage.Slovak -> SmartPlaylistValueCopy("Hodnota", "Áno", "Nie", "Sekundy")
-    AppLanguage.Slovenian -> SmartPlaylistValueCopy("Vrednost", "Da", "Ne", "Sekunde")
-    AppLanguage.Spanish -> SmartPlaylistValueCopy("Valor", "Sí", "No", "Segundos")
-    AppLanguage.Swedish -> SmartPlaylistValueCopy("Värde", "Ja", "Nej", "Sekunder")
-    AppLanguage.Thai -> SmartPlaylistValueCopy("ค่า", "ใช่", "ไม่ใช่", "วินาที")
-    AppLanguage.Ukrainian -> SmartPlaylistValueCopy("Значення", "Так", "Ні", "Секунди")
-    AppLanguage.Urdu -> SmartPlaylistValueCopy("قدر", "ہاں", "نہیں", "سیکنڈ")
+    AppLanguage.Albanian -> AlbanianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Czech -> CzechTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Danish -> DanishTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Dutch -> DutchTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.English -> EnglishTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.French -> FrenchTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.German -> GermanTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Greek -> GreekTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Hindi -> HindiTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Italian -> ItalianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Korean -> KoreanTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Malay -> MalayTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Polish -> PolishTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Russian -> RussianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Thai -> ThaiTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
+    AppLanguage.Urdu -> UrduTranslations.smartPlaylistRule_smartPlaylistValueCopy_1
 }
 
 internal data class SmartPlaylistOtherRuleCopy(val favorite: String, val duration: String, val playCount: String, val format: String)
 
 internal fun smartPlaylistOtherRuleCopy(language: AppLanguage): SmartPlaylistOtherRuleCopy = when (language) {
-    AppLanguage.Albanian -> SmartPlaylistOtherRuleCopy("E preferuar është", "Kohëzgjatja është më e madhe se", "Numri i dëgjimeve", "Formati është")
-    AppLanguage.Bengali -> SmartPlaylistOtherRuleCopy("পছন্দের অবস্থা", "সময়কাল এর চেয়ে বেশি", "কতবার চালানো হয়েছে", "ফরম্যাট হল")
-    AppLanguage.Bosnian -> SmartPlaylistOtherRuleCopy("Omiljeno je", "Trajanje je duže od", "Broj reprodukcija", "Format je")
-    AppLanguage.Bulgarian -> SmartPlaylistOtherRuleCopy("Любимо е", "Продължителността е над", "Брой възпроизвеждания", "Форматът е")
-    AppLanguage.Catalan -> SmartPlaylistOtherRuleCopy("És preferida", "La durada és superior a", "Reproduccions", "El format és")
-    AppLanguage.ChineseSimplified -> SmartPlaylistOtherRuleCopy("收藏状态为", "时长大于", "播放次数", "格式为")
-    AppLanguage.Croatian -> SmartPlaylistOtherRuleCopy("Omiljeno je", "Trajanje je duže od", "Broj reprodukcija", "Format je")
-    AppLanguage.Czech -> SmartPlaylistOtherRuleCopy("Je oblíbená", "Délka je větší než", "Počet přehrání", "Formát je")
-    AppLanguage.Danish -> SmartPlaylistOtherRuleCopy("Favorit er", "Varighed er længere end", "Antal afspilninger", "Format er")
-    AppLanguage.Dutch -> SmartPlaylistOtherRuleCopy("Favoriet is", "Duur is langer dan", "Aantal keer afgespeeld", "Formaat is")
-    AppLanguage.English -> SmartPlaylistOtherRuleCopy("Favorite is", "Duration greater than", "Play count", "Format is")
-    AppLanguage.Estonian -> SmartPlaylistOtherRuleCopy("Lemmiku olek on", "Kestus on pikem kui", "Esituskordade arv", "Vorming on")
-    AppLanguage.Finnish -> SmartPlaylistOtherRuleCopy("Suosikin tila on", "Kesto on yli", "Toistokerrat", "Muoto on")
-    AppLanguage.French -> SmartPlaylistOtherRuleCopy("Est un favori", "Durée supérieure à", "Nombre de lectures", "Le format est")
-    AppLanguage.German -> SmartPlaylistOtherRuleCopy("Favoritenstatus ist", "Dauer länger als", "Wiedergabeanzahl", "Format ist")
-    AppLanguage.Greek -> SmartPlaylistOtherRuleCopy("Είναι αγαπημένο", "Διάρκεια μεγαλύτερη από", "Πλήθος αναπαραγωγών", "Η μορφή είναι")
-    AppLanguage.Hindi -> SmartPlaylistOtherRuleCopy("पसंदीदा स्थिति", "अवधि इससे अधिक", "चलाने की संख्या", "फ़ॉर्मैट है")
-    AppLanguage.Hungarian -> SmartPlaylistOtherRuleCopy("Kedvenc állapota", "Időtartam hosszabb, mint", "Lejátszások száma", "Formátum")
-    AppLanguage.Indonesian -> SmartPlaylistOtherRuleCopy("Status favorit", "Durasi lebih dari", "Jumlah pemutaran", "Format adalah")
-    AppLanguage.Italian -> SmartPlaylistOtherRuleCopy("È un preferito", "Durata superiore a", "Numero di riproduzioni", "Il formato è")
-    AppLanguage.Japanese -> SmartPlaylistOtherRuleCopy("お気に入りの状態", "次より長い再生時間", "再生回数", "形式が次と一致")
-    AppLanguage.Korean -> SmartPlaylistOtherRuleCopy("즐겨찾기 상태", "재생 시간이 다음보다 김", "재생 횟수", "형식이 다음과 같음")
-    AppLanguage.Latvian -> SmartPlaylistOtherRuleCopy("Izlases statuss ir", "Ilgums ir lielāks par", "Atskaņošanas reižu skaits", "Formāts ir")
-    AppLanguage.Lithuanian -> SmartPlaylistOtherRuleCopy("Mėgstamiausio būsena", "Trukmė ilgesnė nei", "Perklausų skaičius", "Formatas yra")
-    AppLanguage.Macedonian -> SmartPlaylistOtherRuleCopy("Омилена е", "Траењето е подолго од", "Број на репродукции", "Форматот е")
-    AppLanguage.Malay -> SmartPlaylistOtherRuleCopy("Status kegemaran", "Tempoh lebih panjang daripada", "Bilangan kali dimainkan", "Format ialah")
-    AppLanguage.Norwegian -> SmartPlaylistOtherRuleCopy("Favoritt er", "Varighet er lengre enn", "Antall avspillinger", "Format er")
-    AppLanguage.Polish -> SmartPlaylistOtherRuleCopy("Status ulubionego", "Czas trwania dłuższy niż", "Liczba odtworzeń", "Format to")
-    AppLanguage.Portuguese -> SmartPlaylistOtherRuleCopy("É favorito", "Duração superior a", "Número de reproduções", "O formato é")
-    AppLanguage.Punjabi -> SmartPlaylistOtherRuleCopy("ਮਨਪਸੰਦ ਸਥਿਤੀ", "ਮਿਆਦ ਇਸ ਤੋਂ ਵੱਧ ਹੈ", "ਚਲਾਉਣ ਦੀ ਗਿਣਤੀ", "ਫਾਰਮੈਟ ਹੈ")
-    AppLanguage.Romanian -> SmartPlaylistOtherRuleCopy("Este favorită", "Durata este mai mare decât", "Număr de redări", "Formatul este")
-    AppLanguage.Russian -> SmartPlaylistOtherRuleCopy("В избранном", "Длительность больше чем", "Число воспроизведений", "Формат")
-    AppLanguage.Serbian -> SmartPlaylistOtherRuleCopy("Омиљено је", "Трајање је дуже од", "Број репродукција", "Формат је")
-    AppLanguage.Slovak -> SmartPlaylistOtherRuleCopy("Je obľúbená", "Dĺžka je väčšia ako", "Počet prehraní", "Formát je")
-    AppLanguage.Slovenian -> SmartPlaylistOtherRuleCopy("Je med priljubljenimi", "Trajanje je daljše od", "Število predvajanj", "Oblika je")
-    AppLanguage.Spanish -> SmartPlaylistOtherRuleCopy("Es favorita", "Duración superior a", "Número de reproducciones", "El formato es")
-    AppLanguage.Swedish -> SmartPlaylistOtherRuleCopy("Är favorit", "Längd längre än", "Antal uppspelningar", "Format är")
-    AppLanguage.Thai -> SmartPlaylistOtherRuleCopy("สถานะรายการโปรด", "ระยะเวลามากกว่า", "จำนวนครั้งที่เล่น", "รูปแบบคือ")
-    AppLanguage.Ukrainian -> SmartPlaylistOtherRuleCopy("В обраному", "Тривалість більша за", "Кількість відтворень", "Формат")
-    AppLanguage.Urdu -> SmartPlaylistOtherRuleCopy("پسندیدہ کی حالت", "دورانیہ اس سے زیادہ ہے", "چلانے کی تعداد", "فارمیٹ ہے")
+    AppLanguage.Albanian -> AlbanianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Czech -> CzechTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Danish -> DanishTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Dutch -> DutchTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.English -> EnglishTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.French -> FrenchTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.German -> GermanTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Greek -> GreekTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Hindi -> HindiTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Italian -> ItalianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Korean -> KoreanTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Malay -> MalayTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Polish -> PolishTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Russian -> RussianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Thai -> ThaiTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
+    AppLanguage.Urdu -> UrduTranslations.smartPlaylistRule_smartPlaylistOtherRuleCopy_1
 }
 
 internal data class SmartPlaylistTextRuleCopy(
@@ -191,44 +191,44 @@ internal data class SmartPlaylistTextRuleCopy(
 )
 
 internal fun smartPlaylistTextRuleCopy(language: AppLanguage): SmartPlaylistTextRuleCopy = when (language) {
-    AppLanguage.Albanian -> SmartPlaylistTextRuleCopy("Titulli përmban", "Emri i artistit përmban", "Emri i albumit përmban", "Zhanri përmban", "Dosja përmban")
-    AppLanguage.Bengali -> SmartPlaylistTextRuleCopy("শিরোনামে রয়েছে", "শিল্পীর নামে রয়েছে", "অ্যালবামের নামে রয়েছে", "ধরনে রয়েছে", "ফোল্ডারে রয়েছে")
-    AppLanguage.Bosnian -> SmartPlaylistTextRuleCopy("Naslov sadrži", "Ime izvođača sadrži", "Naziv albuma sadrži", "Žanr sadrži", "Mapa sadrži")
-    AppLanguage.Bulgarian -> SmartPlaylistTextRuleCopy("Заглавието съдържа", "Името на изпълнителя съдържа", "Името на албума съдържа", "Жанрът съдържа", "Папката съдържа")
-    AppLanguage.Catalan -> SmartPlaylistTextRuleCopy("El títol conté", "El nom de l’artista conté", "El nom de l’àlbum conté", "El gènere conté", "La carpeta conté")
-    AppLanguage.ChineseSimplified -> SmartPlaylistTextRuleCopy("标题包含", "艺人名称包含", "专辑名称包含", "流派包含", "文件夹包含")
-    AppLanguage.Croatian -> SmartPlaylistTextRuleCopy("Naslov sadrži", "Ime izvođača sadrži", "Naziv albuma sadrži", "Žanr sadrži", "Mapa sadrži")
-    AppLanguage.Czech -> SmartPlaylistTextRuleCopy("Název obsahuje", "Jméno interpreta obsahuje", "Název alba obsahuje", "Žánr obsahuje", "Složka obsahuje")
-    AppLanguage.Danish -> SmartPlaylistTextRuleCopy("Titel indeholder", "Kunstnernavn indeholder", "Albumnavn indeholder", "Genre indeholder", "Mappe indeholder")
-    AppLanguage.Dutch -> SmartPlaylistTextRuleCopy("Titel bevat", "Artiestnaam bevat", "Albumnaam bevat", "Genre bevat", "Map bevat")
-    AppLanguage.English -> SmartPlaylistTextRuleCopy("Title contains", "Artist name contains", "Album title contains", "Genre contains", "Folder contains")
-    AppLanguage.Estonian -> SmartPlaylistTextRuleCopy("Pealkiri sisaldab", "Esitaja nimi sisaldab", "Albumi nimi sisaldab", "Žanr sisaldab", "Kaust sisaldab")
-    AppLanguage.Finnish -> SmartPlaylistTextRuleCopy("Nimi sisältää", "Esittäjän nimi sisältää", "Albumin nimi sisältää", "Tyylilaji sisältää", "Kansio sisältää")
-    AppLanguage.French -> SmartPlaylistTextRuleCopy("Le titre contient", "Le nom de l’artiste contient", "Le nom de l’album contient", "Le genre contient", "Le dossier contient")
-    AppLanguage.German -> SmartPlaylistTextRuleCopy("Titel enthält", "Interpretenname enthält", "Albumname enthält", "Genre enthält", "Ordner enthält")
-    AppLanguage.Greek -> SmartPlaylistTextRuleCopy("Ο τίτλος περιέχει", "Το όνομα του καλλιτέχνη περιέχει", "Ο τίτλος του άλμπουμ περιέχει", "Το είδος περιέχει", "Ο φάκελος περιέχει")
-    AppLanguage.Hindi -> SmartPlaylistTextRuleCopy("शीर्षक में शामिल है", "कलाकार के नाम में शामिल है", "एल्बम के नाम में शामिल है", "शैली में शामिल है", "फ़ोल्डर में शामिल है")
-    AppLanguage.Hungarian -> SmartPlaylistTextRuleCopy("A cím tartalmazza", "Az előadó neve tartalmazza", "Az album címe tartalmazza", "A műfaj tartalmazza", "A mappa tartalmazza")
-    AppLanguage.Indonesian -> SmartPlaylistTextRuleCopy("Judul mengandung", "Nama artis mengandung", "Nama album mengandung", "Genre mengandung", "Folder mengandung")
-    AppLanguage.Italian -> SmartPlaylistTextRuleCopy("Il titolo contiene", "Il nome dell’artista contiene", "Il titolo dell’album contiene", "Il genere contiene", "La cartella contiene")
-    AppLanguage.Japanese -> SmartPlaylistTextRuleCopy("タイトルに含む", "アーティスト名に含む", "アルバム名に含む", "ジャンルに含む", "フォルダに含む")
-    AppLanguage.Korean -> SmartPlaylistTextRuleCopy("제목에 포함", "아티스트 이름에 포함", "앨범 이름에 포함", "장르에 포함", "폴더에 포함")
-    AppLanguage.Latvian -> SmartPlaylistTextRuleCopy("Nosaukums satur", "Izpildītāja vārds satur", "Albuma nosaukums satur", "Žanrs satur", "Mape satur")
-    AppLanguage.Lithuanian -> SmartPlaylistTextRuleCopy("Pavadinime yra", "Atlikėjo pavadinime yra", "Albumo pavadinime yra", "Žanre yra", "Aplanke yra")
-    AppLanguage.Macedonian -> SmartPlaylistTextRuleCopy("Насловот содржи", "Името на изведувачот содржи", "Името на албумот содржи", "Жанрот содржи", "Папката содржи")
-    AppLanguage.Malay -> SmartPlaylistTextRuleCopy("Tajuk mengandungi", "Nama artis mengandungi", "Nama album mengandungi", "Genre mengandungi", "Folder mengandungi")
-    AppLanguage.Norwegian -> SmartPlaylistTextRuleCopy("Tittel inneholder", "Artistnavn inneholder", "Albumnavn inneholder", "Sjanger inneholder", "Mappe inneholder")
-    AppLanguage.Polish -> SmartPlaylistTextRuleCopy("Tytuł zawiera", "Nazwa wykonawcy zawiera", "Nazwa albumu zawiera", "Gatunek zawiera", "Ścieżka folderu zawiera")
-    AppLanguage.Portuguese -> SmartPlaylistTextRuleCopy("O título contém", "O nome do artista contém", "O nome do álbum contém", "O género contém", "A pasta contém")
-    AppLanguage.Punjabi -> SmartPlaylistTextRuleCopy("ਸਿਰਲੇਖ ਵਿੱਚ ਹੈ", "ਕਲਾਕਾਰ ਦੇ ਨਾਮ ਵਿੱਚ ਹੈ", "ਐਲਬਮ ਦੇ ਨਾਮ ਵਿੱਚ ਹੈ", "ਸ਼ੈਲੀ ਵਿੱਚ ਹੈ", "ਫੋਲਡਰ ਵਿੱਚ ਹੈ")
-    AppLanguage.Romanian -> SmartPlaylistTextRuleCopy("Titlul conține", "Numele artistului conține", "Numele albumului conține", "Genul conține", "Dosarul conține")
-    AppLanguage.Russian -> SmartPlaylistTextRuleCopy("Название содержит", "Имя исполнителя содержит", "Название альбома содержит", "Жанр содержит", "Папка содержит")
-    AppLanguage.Serbian -> SmartPlaylistTextRuleCopy("Наслов садржи", "Име извођача садржи", "Назив албума садржи", "Жанр садржи", "Фасцикла садржи")
-    AppLanguage.Slovak -> SmartPlaylistTextRuleCopy("Názov obsahuje", "Meno interpreta obsahuje", "Názov albumu obsahuje", "Žáner obsahuje", "Priečinok obsahuje")
-    AppLanguage.Slovenian -> SmartPlaylistTextRuleCopy("Naslov vsebuje", "Ime izvajalca vsebuje", "Naslov albuma vsebuje", "Žanr vsebuje", "Mapa vsebuje")
-    AppLanguage.Spanish -> SmartPlaylistTextRuleCopy("El título contiene", "El nombre del artista contiene", "El nombre del álbum contiene", "El género contiene", "La carpeta contiene")
-    AppLanguage.Swedish -> SmartPlaylistTextRuleCopy("Titel innehåller", "Artistnamn innehåller", "Albumnamn innehåller", "Genre innehåller", "Mapp innehåller")
-    AppLanguage.Thai -> SmartPlaylistTextRuleCopy("ชื่อเพลงมี", "ชื่อศิลปินมี", "ชื่ออัลบั้มมี", "แนวเพลงมี", "โฟลเดอร์มี")
-    AppLanguage.Ukrainian -> SmartPlaylistTextRuleCopy("Назва містить", "Ім’я виконавця містить", "Назва альбому містить", "Жанр містить", "Папка містить")
-    AppLanguage.Urdu -> SmartPlaylistTextRuleCopy("عنوان میں شامل ہے", "فنکار کے نام میں شامل ہے", "البم کے نام میں شامل ہے", "صنف میں شامل ہے", "فولڈر میں شامل ہے")
+    AppLanguage.Albanian -> AlbanianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Czech -> CzechTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Danish -> DanishTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Dutch -> DutchTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.English -> EnglishTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.French -> FrenchTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.German -> GermanTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Greek -> GreekTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Hindi -> HindiTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Italian -> ItalianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Korean -> KoreanTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Malay -> MalayTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Polish -> PolishTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Russian -> RussianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Thai -> ThaiTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
+    AppLanguage.Urdu -> UrduTranslations.smartPlaylistRule_smartPlaylistTextRuleCopy_1
 }

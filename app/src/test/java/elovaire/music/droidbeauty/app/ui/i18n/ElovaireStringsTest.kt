@@ -179,9 +179,27 @@ class ElovaireStringsTest {
             AppLanguage.Romanian to listOf("melodii", "metadatele fișierului"),
             AppLanguage.Slovenian to listOf("skladbami", "metapodatki datoteke"),
             AppLanguage.Bosnian to listOf("pjesama", "metapodaci datoteke"),
+            AppLanguage.Polish to listOf("między utworami", "pozwalają na to metadane pliku"),
+            AppLanguage.Macedonian to listOf("песните", "метаподатоците на датотеката"),
+            AppLanguage.Punjabi to listOf("ਗੀਤਾਂ", "ਫਾਈਲ ਦਾ ਮੈਟਾਡੇਟਾ", "ਸਮਰਥਨ"),
+            AppLanguage.Urdu to listOf("گانوں", "فائل کا میٹا ڈیٹا", "معاون"),
         )
         expected.forEach { (language, terms) ->
             terms.forEach { assertTrue("Missing $it for $language", volumeNormalizationSubtitle(language).contains(it)) }
+        }
+    }
+
+    @Test
+    fun scanDescriptionsExplainFindingNewMedia() {
+        val expected = mapOf(
+            AppLanguage.Danish to "Opdater indekset for at finde nye medier",
+            AppLanguage.Dutch to "Vernieuw de index om nieuwe media te vinden",
+            AppLanguage.Hungarian to "Frissítsd az indexet az új médiafájlok kereséséhez",
+            AppLanguage.Czech to "Obnov index a vyhledej nová média",
+            AppLanguage.Slovak to "Obnov index a vyhľadaj nové médiá",
+        )
+        expected.forEach { (language, description) ->
+            assertEquals(description, settingsCopy(language).scanLibrarySubtitle)
         }
     }
 
@@ -493,7 +511,9 @@ class ElovaireStringsTest {
     @Test
     fun searchEmptyResultsPutTheQueryInANaturalPosition() {
         assertEquals("You might enjoy listening to these again", searchCopy(AppLanguage.English).suggestedAlbumsSubtitle)
-        assertEquals("Nie znaleziono w bibliotece wyników dla \"jazz\"", searchCopy(AppLanguage.Polish).noResultsMessage("jazz"))
+        assertEquals("Vous aimerez peut-être les réécouter", searchCopy(AppLanguage.French).suggestedAlbumsSubtitle)
+        assertEquals("Vielleicht möchtest du sie noch einmal hören", searchCopy(AppLanguage.German).suggestedAlbumsSubtitle)
+        assertEquals("W bieżącej bibliotece offline nie znaleziono jeszcze wyników dla \"jazz\"", searchCopy(AppLanguage.Polish).noResultsMessage("jazz"))
         assertEquals("当前离线媒体库中没有以下搜索的匹配结果： \"jazz\"", searchCopy(AppLanguage.ChineseSimplified).noResultsMessage("jazz"))
         assertEquals("현재 오프라인 라이브러리에 다음 검색 결과가 없습니다: \"jazz\"", searchCopy(AppLanguage.Korean).noResultsMessage("jazz"))
         assertEquals("In der Offline-Bibliothek wurden keine Ergebnisse gefunden für \"jazz\"", searchCopy(AppLanguage.German).noResultsMessage("jazz"))
@@ -508,11 +528,32 @@ class ElovaireStringsTest {
         assertEquals("No hay resultados en la biblioteca sin conexión para \"jazz\"", searchCopy(AppLanguage.Spanish).noResultsMessage("jazz"))
         assertEquals("Não foram encontrados resultados na biblioteca offline para \"jazz\"", searchCopy(AppLanguage.Portuguese).noResultsMessage("jazz"))
         assertEquals("लाइब्रेरी में इस खोज का कोई नतीजा नहीं मिला: \"jazz\"", searchCopy(AppLanguage.Hindi).noResultsMessage("jazz"))
-        assertEquals("ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਖੋਜ ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ: \"jazz\"", searchCopy(AppLanguage.Punjabi).noResultsMessage("jazz"))
+        assertEquals("ਮੌਜੂਦਾ ਔਫਲਾਈਨ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਖੋਜ ਲਈ ਹਾਲੇ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ: \"jazz\"", searchCopy(AppLanguage.Punjabi).noResultsMessage("jazz"))
         AppLanguage.entries.forEach { language ->
             val result = searchCopy(language).noResultsMessage("query-marker")
             assertEquals("Query repeated or missing for $language", 1, Regex("query-marker").findAll(result).count())
             assertEquals("Unexpected outer whitespace for $language", result.trim(), result)
+        }
+    }
+
+    @Test
+    fun searchEmptyCopyRetainsMoreResultsAndOfflineContext() {
+        val terms = mapOf(
+            AppLanguage.Bulgarian to ("Още" to "офлайн"),
+            AppLanguage.Catalan to ("més" to "fora de línia"),
+            AppLanguage.Finnish to ("Lisää" to "offline"),
+            AppLanguage.Romanian to ("Mai multe" to "offline"),
+            AppLanguage.Slovenian to ("več" to "brez povezave"),
+            AppLanguage.Bosnian to ("Više" to "vanmrežnoj"),
+            AppLanguage.Indonesian to ("Lebih banyak" to "offline"),
+            AppLanguage.Punjabi to ("ਹੋਰ" to "ਔਫਲਾਈਨ"),
+            AppLanguage.Albanian to ("Më shumë" to "jashtë linje"),
+            AppLanguage.Serbian to ("Више" to "офлајн"),
+        )
+        terms.forEach { (language, expected) ->
+            val copy = searchCopy(language)
+            assertTrue("Missing additional results in $language", copy.nothingSearchedMessage.contains(expected.first, ignoreCase = true))
+            assertTrue("Missing offline context in $language", copy.noResultsMessage("query").contains(expected.second, ignoreCase = true))
         }
     }
 
@@ -979,6 +1020,8 @@ class ElovaireStringsTest {
             }
         }
         assertEquals("Otwórz Elovaire na telefonie", carMediaCopy(AppLanguage.Polish).openPhone)
+        assertTrue(carMediaCopy(AppLanguage.Hungarian).grantAccess.contains("böngészhess a zenék között"))
+        assertTrue(carMediaCopy(AppLanguage.Hungarian).addMusic.contains("böngészhess a zenék között"))
     }
     @Test
     fun genericAudioFormatIsLocalizedWithoutChangingCodecNames() {
@@ -2195,6 +2238,7 @@ class ElovaireStringsTest {
 
     @Test
     fun sortOptionsArePresentAndConsistentAcrossLibraryAndSearch() {
+        assertEquals("Nome dell’artista", songSortLabel(AppLanguage.Italian, SongSortMode.Artist))
         AppLanguage.entries.forEach { language ->
             SongSortMode.entries.forEach { assertFalse(songSortLabel(language, it).isBlank()) }
             AlbumSortMode.entries.forEach { assertFalse(albumSortLabel(language, it).isBlank()) }
@@ -2203,8 +2247,26 @@ class ElovaireStringsTest {
             if (language != AppLanguage.English) {
                 assertFalse(songSortLabel(language, SongSortMode.Title) == "Song name")
                 assertFalse(songSortLabel(language, SongSortMode.Artist) == "Artist name")
+                assertFalse("Untranslated album sort label for $language", albumSortLabel(language, AlbumSortMode.Album) == "Album name")
             }
         }
+    }
+    @Test
+    fun italianEqualizerPresetNameUsesNaturalWording() {
+        assertEquals("Nome della preimpostazione", equalizerCopy(AppLanguage.Italian).presetName)
+    }
+
+    @Test
+    fun settingsFooterUsesNaturalPolishAndItalian() {
+        assertEquals("Twoja muzyka w dopracowanej, eleganckiej odsłonie", commonUiCopy(AppLanguage.Polish).refinedFooter)
+        assertEquals("La tua musica in un’esperienza curata ed elegante", commonUiCopy(AppLanguage.Italian).refinedFooter)
+    }
+
+    @Test
+    fun hungarianPlaylistExportEmptyStateUsesConsistentWording() {
+        val copy = playlistManagementCopy(AppLanguage.Hungarian)
+        assertEquals("Nincsenek lejátszási listáid", copy.emptyTitle)
+        assertEquals("Hozz létre legalább egy lejátszási listát, hogy exportálhasd", copy.emptySubtitle)
     }
     @Test
     fun privacyTranslationsRetainTheSharedServiceAndSecurityDetails() {
@@ -2325,6 +2387,8 @@ class ElovaireStringsTest {
 
     @Test
     fun audiobookAndMixSettingsDoNotFallBackToEnglish() {
+        assertEquals("Finalizată", audiobookCopy(AppLanguage.Romanian).completed)
+        assertEquals("Neîncepută", audiobookCopy(AppLanguage.Romanian).notStarted)
         val languages = AppLanguage.entries.filterNot { it == AppLanguage.English }
         languages.forEach { language ->
             assertFalse(audiobookCopy(language).title == audiobookCopy(AppLanguage.English).title)
@@ -2332,6 +2396,41 @@ class ElovaireStringsTest {
             assertFalse(audiobookExtraCopy(language).speedSubtitle == audiobookExtraCopy(AppLanguage.English).speedSubtitle)
             assertFalse(smartPlaylistSettingsCopy(language).maximumSongsSubtitle == smartPlaylistSettingsCopy(AppLanguage.English).maximumSongsSubtitle)
         }
+        val audiobookTerms = mapOf(
+            AppLanguage.Greek to "ηχητικού βιβλίου", AppLanguage.Hungarian to "hangoskönyv",
+            AppLanguage.French to "livre audio", AppLanguage.German to "Hörbuchs",
+            AppLanguage.Spanish to "audiolibro", AppLanguage.Italian to "audiolibro",
+            AppLanguage.Portuguese to "audiolivro", AppLanguage.Czech to "audioknihy",
+            AppLanguage.Slovak to "audioknihy", AppLanguage.Albanian to "librit audio",
+            AppLanguage.Croatian to "audioknjige", AppLanguage.Serbian to "аудио-књиге",
+            AppLanguage.Catalan to "audiollibre", AppLanguage.Romanian to "cărții audio",
+            AppLanguage.Slovenian to "zvočne knjige", AppLanguage.Russian to "аудиокниги",
+            AppLanguage.Ukrainian to "аудіокниги", AppLanguage.Dutch to "luisterboek",
+            AppLanguage.Swedish to "ljudbokens", AppLanguage.Danish to "lydbogens",
+            AppLanguage.Norwegian to "lydboken", AppLanguage.Macedonian to "аудиокнигата",
+            AppLanguage.Urdu to "آڈیو بک",
+        )
+        audiobookTerms.forEach { (language, term) ->
+            assertTrue("Missing audiobook context for $language", audiobookExtraCopy(language).speedSubtitle.contains(term))
+        }
+        assertTrue(audiobookExtraCopy(AppLanguage.Urdu).speedSubtitle.contains("قرأت"))
+        assertEquals("Numri maksimal i këngëve për përzierje", smartPlaylistSettingsCopy(AppLanguage.Albanian).maximumSongs)
+        val perMixTerms = mapOf(
+            AppLanguage.Finnish to "miksauksessa", AppLanguage.Romanian to "per mix",
+            AppLanguage.Polish to "w miksie", AppLanguage.German to "pro Mix",
+            AppLanguage.French to "par mix", AppLanguage.Spanish to "por mix",
+            AppLanguage.Italian to "per mix", AppLanguage.Portuguese to "por mix",
+            AppLanguage.Russian to "в миксе", AppLanguage.Ukrainian to "у міксі",
+            AppLanguage.Czech to "v mixu", AppLanguage.Slovak to "v mixe",
+            AppLanguage.Dutch to "per mix", AppLanguage.Swedish to "per mix",
+            AppLanguage.Danish to "pr. mix", AppLanguage.Norwegian to "per miks",
+        )
+        perMixTerms.forEach { (language, term) ->
+            assertTrue("Missing per-mix limit for $language", smartPlaylistSettingsCopy(language).maximumSongs.contains(term))
+        }
+        assertEquals("Filtrowana zmiana częstotliwości próbkowania podczas odtwarzania", upscalerCopy(AppLanguage.Polish).subtitle)
+        assertTrue(upscalerCopy(AppLanguage.Finnish).precisionSubtitle.contains("Kun asetus on pois päältä"))
+        assertTrue(upscalerCopy(AppLanguage.Slovenian).headroomSubtitle.contains("da ostane prostor"))
     }
 
     @Test
@@ -2516,8 +2615,16 @@ class ElovaireStringsTest {
 
     @Test
     fun networkSourceEntriesArePopulatedForEveryLanguage() {
+        assertEquals("Połącz się z sieciowym źródłem muzyki", networkSourcesCopy(AppLanguage.Polish).nasSubtitle)
+        assertEquals("Conectează-te la o sursă de muzică din rețea", networkSourcesCopy(AppLanguage.Romanian).nasSubtitle)
+        assertEquals("Odstraniti omrežni vir?", networkSourcesCopy(AppLanguage.Slovenian).removeTitle)
+        assertEquals("Gedeelde map / pad", networkSourcesCopy(AppLanguage.Dutch).sharePath)
+        assertEquals("Chiudi il selettore delle sorgenti", networkSourcesCopy(AppLanguage.Italian).closeSourcePicker)
         AppLanguage.entries.forEach { language ->
             val copy = networkSourcesCopy(language)
+            if (language != AppLanguage.English) {
+                assertFalse("Untranslated network share label for $language", copy.sharePath == networkSourcesCopy(AppLanguage.English).sharePath)
+            }
             listOf(
                 copy.sectionTitle,
                 copy.available,

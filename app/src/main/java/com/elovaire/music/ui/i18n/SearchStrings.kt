@@ -128,9 +128,9 @@ private fun localizedSearchCount(count: Int, noun: String, language: AppLanguage
         return "ผลการค้นหา: $counted"
     }
     val label = when (language) {
-        AppLanguage.ChineseSimplified -> "搜索结果"
-        AppLanguage.Japanese -> "検索結果"
-        AppLanguage.Korean -> "검색 결과"
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.search_localizedSearchCount_1
+        AppLanguage.Japanese -> JapaneseTranslations.search_localizedSearchCount_1
+        AppLanguage.Korean -> KoreanTranslations.search_localizedSearchCount_1
         AppLanguage.Indonesian, AppLanguage.Malay -> "Hasil"
         else -> error("Unsupported language")
     }
@@ -138,83 +138,19 @@ private fun localizedSearchCount(count: Int, noun: String, language: AppLanguage
     return "$label$separator${localizedCountLabel(count, noun, language)}"
 }
 
-private fun frenchMatchingCount(count: Int, noun: String): String =
-    "${localizedCountLabel(count, noun, AppLanguage.French)} ${if (count == 1) "correspondant" else "correspondants"}"
-
 private fun romanceMatchingCount(count: Int, noun: String, language: AppLanguage): String {
     val adjective = when (language) {
-        AppLanguage.Spanish -> if (count == 1) "coincidente" else "coincidentes"
-        AppLanguage.Portuguese -> if (count == 1) "correspondente" else "correspondentes"
-        AppLanguage.Italian -> if (count == 1) "corrispondente" else "corrispondenti"
+        AppLanguage.Spanish -> if (count == 1) SpanishTranslations.search_romanceMatchingCount_variant_1 else SpanishTranslations.search_romanceMatchingCount_variant_2
+        AppLanguage.Portuguese -> if (count == 1) PortugueseTranslations.search_romanceMatchingCount_variant_1 else PortugueseTranslations.search_romanceMatchingCount_variant_2
+        AppLanguage.Italian -> if (count == 1) ItalianTranslations.search_romanceMatchingCount_variant_1 else ItalianTranslations.search_romanceMatchingCount_variant_2
         else -> error("Unsupported language")
     }
     return "${localizedCountLabel(count, noun, language)} $adjective"
 }
 
-private fun germanMatchingCount(count: Int, noun: String): String {
-    val adjective = if (count == 1) {
-        if (noun == "album") "passendes" else "passender"
-    } else "passende"
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.German).substringAfter(' ')}"
-}
-
-private fun dutchMatchingCount(count: Int, noun: String): String {
-    val adjective = if (count == 1 && noun != "artist") "overeenkomend" else "overeenkomende"
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Dutch).substringAfter(' ')}"
-}
-
-private fun catalanMatchingCount(count: Int, noun: String): String {
-    val adjective = when {
-        noun == "song" && count == 1 -> "trobada"
-        noun == "song" -> "trobades"
-        count == 1 -> "trobat"
-        else -> "trobats"
-    }
-    return "${localizedCountLabel(count, noun, AppLanguage.Catalan)} $adjective"
-}
-
-private fun finnishMatchingCount(count: Int, noun: String): String {
-    val adjective = if (count == 1) "vastaava" else "vastaavaa"
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Finnish).substringAfter(' ')}"
-}
-
-private fun romanianMatchingCount(count: Int, noun: String): String {
-    val adjective = when {
-        noun == "artist" && count != 1 -> "găsiți"
-        noun == "song" && count == 1 -> "găsită"
-        noun != "artist" && count != 1 -> "găsite"
-        else -> "găsit"
-    }
-    return "${localizedCountLabel(count, noun, AppLanguage.Romanian)} $adjective"
-}
-
 private fun scandinavianMatchingCount(count: Int, noun: String, language: AppLanguage): String {
     val adjective = if (language == AppLanguage.Danish) "matchende" else "matchande"
     return "$count $adjective ${localizedCountLabel(count, noun, language).substringAfter(' ')}"
-}
-
-private fun czechMatchingCount(count: Int, noun: String): String {
-    val adjective = when {
-        count == 1 && noun == "artist" -> "nalezený"
-        count == 1 && noun == "album" -> "nalezené"
-        count == 1 -> "nalezená"
-        count in 2..4 && noun == "artist" -> "nalezení"
-        count in 2..4 && noun == "album" -> "nalezená"
-        count in 2..4 -> "nalezené"
-        else -> "nalezených"
-    }
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Czech).substringAfter(' ')}"
-}
-
-private fun slovakMatchingCount(count: Int, noun: String): String {
-    val adjective = when {
-        count == 1 && noun == "song" -> "nájdená"
-        count == 1 -> "nájdený"
-        count in 2..4 && noun == "artist" -> "nájdení"
-        count in 2..4 -> "nájdené"
-        else -> "nájdených"
-    }
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Slovak).substringAfter(' ')}"
 }
 
 private fun eastSlavicMatchingCount(count: Int, noun: String, language: AppLanguage): String {
@@ -233,104 +169,65 @@ private fun balkanMatchingCount(count: Int, noun: String, language: AppLanguage)
 
 private fun labeledMatchingCount(count: Int, noun: String, language: AppLanguage): String {
     val label = when (language) {
-        AppLanguage.Greek -> "Αποτελέσματα"
-        AppLanguage.Hungarian -> "Találatok"
-        AppLanguage.Albanian -> "Rezultate"
+        AppLanguage.Greek -> GreekTranslations.search_labeledMatchingCount_1
+        AppLanguage.Hungarian -> HungarianTranslations.search_labeledMatchingCount_1
+        AppLanguage.Albanian -> AlbanianTranslations.search_labeledMatchingCount_1
         else -> error("Unsupported language")
     }
     return "$label: ${localizedCountLabel(count, noun, language)}"
 }
-
-private fun estonianMatchingCount(count: Int, noun: String): String {
-    val adjective = if (count == 1) "sobiv" else "sobivat"
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Estonian).substringAfter(' ')}"
-}
-
-private fun lithuanianMatchingCount(count: Int, noun: String): String =
-    "Rasta: ${localizedCountLabel(count, noun, AppLanguage.Lithuanian)}"
 
 private fun southAsianMatchingCount(count: Int, noun: String, language: AppLanguage): String {
     val label = when (language) {
-        AppLanguage.Hindi -> "नतीजे"
-        AppLanguage.Punjabi -> "ਨਤੀਜੇ"
-        AppLanguage.Urdu -> "نتائج"
+        AppLanguage.Hindi -> HindiTranslations.search_southAsianMatchingCount_1
+        AppLanguage.Punjabi -> PunjabiTranslations.search_southAsianMatchingCount_1
+        AppLanguage.Urdu -> UrduTranslations.search_southAsianMatchingCount_1
         else -> error("Unsupported language")
     }
     return "$label: ${localizedCountLabel(count, noun, language)}"
 }
 
-private fun bengaliMatchingCount(count: Int, noun: String): String {
-    val counted = localizedCountLabel(count, noun, AppLanguage.Bengali)
-    return "${counted.substringBefore(' ')} মিল থাকা ${counted.substringAfter(' ')}"
-}
-
-private fun slovenianMatchingCount(count: Int, noun: String): String {
-    val lastTwo = count.coerceAtLeast(0) % 100
-    val adjective = when (lastTwo) {
-        1 -> if (noun == "song") "najdena" else "najden"
-        2 -> if (noun == "song") "najdeni" else "najdena"
-        3, 4 -> if (noun == "song") "najdene" else "najdeni"
-        else -> "najdenih"
-    }
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Slovenian).substringAfter(' ')}"
-}
-
-private fun latvianMatchingCount(count: Int, noun: String): String {
-    val number = count.coerceAtLeast(0)
-    val last = number % 10
-    val genitive = last == 0 || number % 100 in 11..19
-    val singular = last == 1 && !genitive
-    val adjective = when {
-        genitive -> "atbilstošu"
-        noun == "song" && singular -> "atbilstoša"
-        noun == "song" -> "atbilstošas"
-        singular -> "atbilstošs"
-        else -> "atbilstoši"
-    }
-    return "$count $adjective ${localizedCountLabel(count, noun, AppLanguage.Latvian).substringAfter(' ')}"
-}
-
 internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
-    AppLanguage.Hindi -> SearchUiCopy("कलाकार, एल्बम और बहुत कुछ", "खोज साफ़ करें", "अभी तक कुछ नहीं खोजा", "गाने और एल्बम खोजने पर नतीजे यहाँ दिखेंगे", "सुझाए गए एल्बम", "शायद आप इन्हें फिर सुनना चाहें", "हाल की खोजें", "इतिहास साफ़ करें", "कोई नतीजा नहीं", "लाइब्रेरी में इस खोज का कोई नतीजा नहीं मिला:", "", "मिलते कलाकार", "मिलते एल्बम", "मिलते गाने")
-    AppLanguage.Latvian -> SearchUiCopy("Izpildītāji, albumi un cits", "Notīrīt meklēšanu", "Vēl nekas nav meklēts", "Meklējot dziesmas un albumus, rezultāti parādīsies šeit", "Ieteiktie albumi", "Varbūt vēlies tos noklausīties vēlreiz", "Nesen meklētais", "Notīrīt vēsturi", "Nav rezultātu", "Bibliotēkā nav rezultātu vaicājumam", "", "atbilstoši izpildītāji", "atbilstoši albumi", "atbilstošas dziesmas")
-    AppLanguage.Lithuanian -> SearchUiCopy("Atlikėjai, albumai ir daugiau", "Išvalyti paiešką", "Dar nieko neieškota", "Ieškant dainų ir albumų rezultatai bus rodomi čia", "Siūlomi albumai", "Galbūt norėsite jų paklausyti dar kartą", "Naujausios paieškos", "Išvalyti istoriją", "Rezultatų nėra", "Bibliotekoje nerasta rezultatų pagal", "", "atitinkančių atlikėjų", "atitinkančių albumų", "atitinkančių dainų")
-    AppLanguage.Thai -> SearchUiCopy("ศิลปิน อัลบั้ม และอื่น ๆ", "ล้างการค้นหา", "ยังไม่มีการค้นหา", "ผลลัพธ์จะแสดงที่นี่เมื่อค้นหาเพลงและอัลบั้ม", "อัลบั้มแนะนำ", "คุณอาจอยากกลับไปฟังอีกครั้ง", "การค้นหาล่าสุด", "ล้างประวัติ", "ไม่พบผลลัพธ์", "ไม่พบผลลัพธ์ในคลังสำหรับ", "", "ศิลปินที่ตรงกัน", "อัลบั้มที่ตรงกัน", "เพลงที่ตรงกัน")
-    AppLanguage.Dutch -> SearchUiCopy("Artiesten, albums en meer", "Zoekopdracht wissen", "Nog niets gezocht", "Resultaten verschijnen hier wanneer je naar nummers en albums zoekt", "Voorgestelde albums", "Misschien wil je deze opnieuw beluisteren", "Recente zoekopdrachten", "Geschiedenis wissen", "Geen resultaten", "Geen resultaten in de bibliotheek voor", "", "overeenkomende artiesten", "overeenkomende albums", "overeenkomende nummers")
-    AppLanguage.Danish -> SearchUiCopy("Kunstnere, album og mere", "Ryd søgning", "Ingen søgninger endnu", "Resultater vises her, når du søger efter sange og album", "Foreslåede album", "Måske vil du lytte til dem igen", "Seneste søgninger", "Ryd historik", "Ingen resultater", "Ingen resultater i biblioteket for", "", "matchende kunstnere", "matchende album", "matchende sange")
-    AppLanguage.Swedish -> SearchUiCopy("Artister, album och mer", "Rensa sökning", "Inga sökningar än", "Resultat visas här när du söker efter låtar och album", "Föreslagna album", "Du kanske vill lyssna på dem igen", "Senaste sökningarna", "Rensa historik", "Inga resultat", "Inga resultat i biblioteket för", "", "matchande artister", "matchande album", "matchande låtar")
-    AppLanguage.Norwegian -> SearchUiCopy("Artister, album og mer", "Tøm søk", "Ingen søk ennå", "Resultater vises her når du søker etter sanger og album", "Foreslåtte album", "Kanskje du vil høre på disse igjen", "Nylige søk", "Tøm historikk", "Ingen resultater", "Ingen resultater i biblioteket for", "", "treff på artister", "treff på album", "treff på sanger")
-    AppLanguage.Croatian -> SearchUiCopy("Izvođači, albumi i više", "Očisti pretragu", "Još nema pretraga", "Rezultati će se pojaviti kada tražite pjesme i albume", "Predloženi albumi", "Možda ih poželite ponovno poslušati", "Nedavne pretrage", "Očisti povijest", "Nema rezultata", "Nema rezultata u biblioteci za", "", "pronađenih izvođača", "pronađenih albuma", "pronađenih pjesama")
-    AppLanguage.Estonian -> SearchUiCopy("Esitajad, albumid ja muu", "Tühjenda otsing", "Otsinguid veel pole", "Lugude ja albumite otsimisel ilmuvad tulemused siia", "Soovitatud albumid", "Võib-olla soovid neid uuesti kuulata", "Viimased otsingud", "Tühjenda ajalugu", "Tulemusi pole", "Teegist ei leitud vasteid päringule", "", "sobivat esitajat", "sobivat albumit", "sobivat lugu")
-    AppLanguage.Hungarian -> SearchUiCopy("Előadók, albumok és mások", "Keresés törlése", "Még nem kerestél semmit", "A dalok és albumok keresésekor itt jelennek meg a találatok", "Ajánlott albumok", "Talán szívesen meghallgatnád őket újra", "Legutóbbi keresések", "Előzmények törlése", "Nincs találat", "A könyvtárban nincs találat erre:", "", "egyező előadó", "egyező album", "egyező dal")
-    AppLanguage.Greek -> SearchUiCopy("Καλλιτέχνες, άλμπουμ και άλλα", "Εκκαθάριση αναζήτησης", "Δεν έχετε κάνει αναζήτηση ακόμα", "Τα αποτελέσματα θα εμφανίζονται εδώ όταν αναζητάτε τραγούδια και άλμπουμ", "Προτεινόμενα άλμπουμ", "Ίσως θέλετε να τα ακούσετε ξανά", "Πρόσφατες αναζητήσεις", "Εκκαθάριση ιστορικού", "Κανένα αποτέλεσμα", "Δεν βρέθηκαν αποτελέσματα στη βιβλιοθήκη για", "", "καλλιτέχνες που βρέθηκαν", "άλμπουμ που βρέθηκαν", "τραγούδια που βρέθηκαν")
-    AppLanguage.Macedonian -> SearchUiCopy("Изведувачи, албуми и повеќе", "Исчисти пребарување", "Сè уште нема пребарувања", "Резултатите ќе се појават тука кога ќе пребарувате песни и албуми", "Предложени албуми", "Можеби ќе сакате повторно да ги слушнете", "Неодамнешни пребарувања", "Исчисти историја", "Нема резултати", "Нема резултати во библиотеката за", "", "пронајдени изведувачи", "пронајдени албуми", "пронајдени песни")
-    AppLanguage.Bulgarian -> SearchUiCopy("Изпълнители, албуми и още", "Изчисти търсенето", "Все още няма търсения", "Резултатите ще се появят при търсене на песни и албуми", "Предложени албуми", "Може да искате да ги чуете отново", "Последни търсения", "Изчисти историята", "Няма резултати", "Няма резултати в библиотеката за", "", "намерени изпълнители", "намерени албуми", "намерени песни")
-    AppLanguage.Catalan -> SearchUiCopy("Artistes, àlbums i més", "Esborra la cerca", "Encara no has cercat res", "Els resultats apareixeran quan cerquis cançons i àlbums", "Àlbums suggerits", "Potser els vols tornar a escoltar", "Cerques recents", "Esborra l’historial", "Cap resultat", "No hi ha resultats a la biblioteca per a", "", "artistes trobats", "àlbums trobats", "cançons trobades")
-    AppLanguage.Finnish -> SearchUiCopy("Esittäjät, albumit ja muut", "Tyhjennä haku", "Ei vielä hakuja", "Tulokset näkyvät tässä, kun haet kappaleita ja albumeita", "Suositellut albumit", "Voisit kuunnella nämä uudelleen", "Viimeisimmät haut", "Tyhjennä historia", "Ei tuloksia", "Kirjastosta ei löydy tuloksia haulle", "", "vastaavaa esittäjää", "vastaavaa albumia", "vastaavaa kappaletta")
-    AppLanguage.Romanian -> SearchUiCopy("Artiști, albume și altele", "Șterge căutarea", "Nu ai căutat nimic încă", "Rezultatele vor apărea când cauți melodii și albume", "Albume sugerate", "Poate dorești să le reasculți", "Căutări recente", "Șterge istoricul", "Niciun rezultat", "Nu există rezultate în bibliotecă pentru", "", "artiști găsiți", "albume găsite", "melodii găsite")
-    AppLanguage.Slovenian -> SearchUiCopy("Izvajalci, albumi in več", "Počisti iskanje", "Še ni iskanj", "Rezultati bodo prikazani med iskanjem skladb in albumov", "Predlagani albumi", "Morda jih želite znova poslušati", "Nedavna iskanja", "Počisti zgodovino", "Ni rezultatov", "V knjižnici ni rezultatov za", "", "najdenih izvajalcev", "najdenih albumov", "najdenih skladb")
-    AppLanguage.Bosnian -> SearchUiCopy("Izvođači, albumi i više", "Obriši pretragu", "Još nema pretraga", "Rezultati će se pojaviti kada počnete tražiti pjesme i albume", "Predloženi albumi", "Možda ih poželite ponovo poslušati", "Nedavne pretrage", "Obriši historiju", "Nema rezultata", "U biblioteci nema rezultata za", "", "pronađenih izvođača", "pronađenih albuma", "pronađenih pjesama")
-    AppLanguage.Indonesian -> SearchUiCopy("Artis, album, dan lainnya", "Hapus pencarian", "Belum ada pencarian", "Hasil akan muncul saat Anda mencari lagu dan album", "Album yang disarankan", "Mungkin Anda ingin mendengarkannya lagi", "Pencarian terbaru", "Hapus riwayat", "Tidak ada hasil", "Tidak ada hasil di pustaka untuk", "", "artis cocok", "album cocok", "lagu cocok")
-    AppLanguage.Punjabi -> SearchUiCopy("ਕਲਾਕਾਰ, ਐਲਬਮਾਂ ਅਤੇ ਹੋਰ", "ਖੋਜ ਸਾਫ਼ ਕਰੋ", "ਹਾਲੇ ਕੋਈ ਖੋਜ ਨਹੀਂ", "ਗੀਤਾਂ ਅਤੇ ਐਲਬਮਾਂ ਦੀ ਖੋਜ ਕਰਨ ਉੱਤੇ ਨਤੀਜੇ ਇੱਥੇ ਦਿਖਣਗੇ", "ਸੁਝਾਈਆਂ ਐਲਬਮਾਂ", "ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਦੁਬਾਰਾ ਸੁਣਨਾ ਚਾਹ ਸਕਦੇ ਹੋ", "ਹਾਲੀਆ ਖੋਜਾਂ", "ਇਤਿਹਾਸ ਸਾਫ਼ ਕਰੋ", "ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ", "ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਇਸ ਖੋਜ ਲਈ ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ:", "", "ਮਿਲਦੇ ਕਲਾਕਾਰ", "ਮਿਲਦੀਆਂ ਐਲਬਮਾਂ", "ਮਿਲਦੇ ਗੀਤ")
-    AppLanguage.Albanian -> SearchUiCopy("Artistë, albume dhe më shumë", "Pastro kërkimin", "Ende asnjë kërkim", "Rezultatet do të shfaqen kur të kërkosh këngë dhe albume", "Albume të sugjeruara", "Mund të dëshirosh t’i dëgjosh përsëri", "Kërkimet e fundit", "Pastro historikun", "Nuk u gjet asnjë rezultat", "Nuk ka përputhje në bibliotekë për", "", "artistë të gjetur", "albume të gjetura", "këngë të gjetura")
-    AppLanguage.Serbian -> SearchUiCopy("Извођачи, албуми и друго", "Обриши претрагу", "Још нема претрага", "Резултати ће се појавити када претражиш песме и албуме", "Предложени албуми", "Можда ћеш желети да их поново послушаш", "Недавне претраге", "Обриши историју", "Нема резултата", "Нема подударања у библиотеци за", "", "пронађених извођача", "пронађених албума", "пронађених песама")
-    AppLanguage.Polish -> SearchUiCopy("Artyści, albumy i więcej", "Wyczyść wyszukiwanie", "Jeszcze nic nie wyszukano", "Więcej wyników pojawi się podczas wyszukiwania utworów i albumów", "Sugerowane albumy", "Warto do nich wrócić", "Ostatnio wyszukiwane", "Wyczyść historię", "Brak wyników", "Nie znaleziono w bibliotece wyników dla", "", "pasujących artystów", "pasujących albumów", "pasujących utworów")
-    AppLanguage.ChineseSimplified -> SearchUiCopy("艺人、专辑等", "清除搜索", "还没有搜索", "搜索歌曲和专辑时会显示更多结果", "推荐专辑", "你可能会想再听听", "最近搜索", "清除历史", "没有结果", "当前离线媒体库中没有以下搜索的匹配结果：", "", "个匹配艺人", "个匹配专辑", "个匹配歌曲")
-    AppLanguage.Czech -> SearchUiCopy("Umělci, alba a další", "Vymazat hledání", "Zatím nic nehledáno", "Další výsledky se zobrazí při hledání skladeb a alb", "Navržená alba", "Možná se k nim chcete vrátit", "Nedávno hledané", "Vymazat historii", "Žádné výsledky", "V offline knihovně zatím nejsou výsledky pro", "", "odpovídajících umělců", "odpovídajících alb", "odpovídajících skladeb")
-    AppLanguage.French -> SearchUiCopy("Artistes, albums et plus", "Effacer la recherche", "Aucune recherche pour l’instant", "Plus de résultats apparaîtront pendant la recherche de morceaux et d’albums", "Albums suggérés", "Vous devriez peut-être les réécouter", "Recherches récentes", "Effacer l’historique", "Aucun résultat", "Rien dans la bibliothèque hors ligne actuelle ne correspond à", "pour l’instant", "artistes correspondants", "albums correspondants", "morceaux correspondants")
-    AppLanguage.German -> SearchUiCopy("Künstler, Alben und mehr", "Suche löschen", "Noch nichts gesucht", "Weitere Ergebnisse erscheinen, wenn du nach Songs und Alben suchst", "Vorgeschlagene Alben", "Diese solltest du vielleicht wieder hören", "Zuletzt gesucht", "Verlauf löschen", "Keine Ergebnisse", "In der Offline-Bibliothek wurden keine Ergebnisse gefunden für", "", "passende Künstler", "passende Alben", "passende Songs")
-    AppLanguage.Italian -> SearchUiCopy("Artisti, album e altro", "Cancella ricerca", "Nessuna ricerca ancora", "Altri risultati appariranno mentre cerchi brani e album", "Album suggeriti", "Potresti volerli riascoltare", "Ricerche recenti", "Cancella cronologia", "Nessun risultato", "Nella libreria offline attuale non corrisponde nulla a", "ancora", "artisti corrispondenti", "album corrispondenti", "brani corrispondenti")
-    AppLanguage.Japanese -> SearchUiCopy("アーティスト、アルバムなど", "検索をクリア", "まだ検索していません", "曲やアルバムを検索すると、さらに結果が表示されます", "おすすめアルバム", "また聴きたくなるかもしれません", "最近の検索", "履歴を消去", "結果なし", "オフラインライブラリに次の検索結果はありません：", "", "件の一致するアーティスト", "件の一致するアルバム", "件の一致する曲")
-    AppLanguage.Spanish -> SearchUiCopy("Artistas, álbumes y más", "Borrar búsqueda", "Aún no has buscado nada", "Aparecerán más resultados al buscar canciones y álbumes", "Álbumes sugeridos", "Quizá quieras volver a escucharlos", "Búsquedas recientes", "Borrar historial", "Sin resultados", "No hay resultados en la biblioteca sin conexión para", "", "artistas coincidentes", "álbumes coincidentes", "canciones coincidentes")
-    AppLanguage.Portuguese -> SearchUiCopy("Artistas, álbuns e mais", "Limpar pesquisa", "Ainda nada pesquisado", "Mais resultados aparecerão ao pesquisar músicas e álbuns", "Álbuns sugeridos", "Talvez queira revisitá-los", "Pesquisas recentes", "Limpar histórico", "Sem resultados", "Não foram encontrados resultados na biblioteca offline para", "", "artistas correspondentes", "álbuns correspondentes", "músicas correspondentes")
-    AppLanguage.Russian -> SearchUiCopy("Исполнители, альбомы и другое", "Очистить поиск", "Пока ничего не искали", "Больше результатов появится при поиске песен и альбомов", "Предложенные альбомы", "Возможно, стоит вернуться к ним", "Недавние поиски", "Очистить историю", "Нет результатов", "В офлайн-библиотеке пока нет результатов для", "", "подходящих исполнителей", "подходящих альбомов", "подходящих песен")
-    AppLanguage.Ukrainian -> SearchUiCopy("Виконавці, альбоми тощо", "Очистити пошук", "Поки нічого не шукали", "Більше результатів з’явиться під час пошуку пісень і альбомів", "Запропоновані альбоми", "Можливо, варто повернутися до них", "Нещодавні пошуки", "Очистити історію", "Немає результатів", "В офлайн-бібліотеці поки немає результатів для", "", "відповідних виконавців", "відповідних альбомів", "відповідних пісень")
-    AppLanguage.Slovak -> SearchUiCopy("Interpreti, albumy a ďalšie", "Vymazať hľadanie", "Zatiaľ nič nehľadané", "Ďalšie výsledky sa zobrazia počas hľadania skladieb a albumov", "Navrhované albumy", "Možno sa k nim budete chcieť vrátiť", "Nedávno hľadané", "Vymazať históriu", "Žiadne výsledky", "V offline knižnici zatiaľ nie sú výsledky pre", "", "zodpovedajúcich interpretov", "zodpovedajúcich albumov", "zodpovedajúcich skladieb")
-    AppLanguage.Korean -> SearchUiCopy("아티스트, 앨범 등", "검색 지우기", "아직 검색한 내용이 없습니다", "곡과 앨범을 검색하면 더 많은 결과가 여기에 표시됩니다", "추천 앨범", "다시 들어보고 싶을지도 모릅니다", "최근 검색", "기록 지우기", "결과 없음", "현재 오프라인 라이브러리에 다음 검색 결과가 없습니다:", "", "개의 일치하는 아티스트", "개의 일치하는 앨범", "개의 일치하는 곡")
-    AppLanguage.Malay -> SearchUiCopy("Artis, album dan banyak lagi", "Kosongkan carian", "Belum ada carian", "Lebih banyak hasil akan muncul di sini apabila anda mencari lagu dan album", "Album disyorkan", "Anda mungkin mahu kembali mendengarnya", "Carian terkini", "Kosongkan sejarah", "Tiada hasil", "Tiada hasil dalam pustaka luar talian untuk", "", "artis sepadan", "album sepadan", "lagu sepadan")
-    AppLanguage.Bengali -> SearchUiCopy("শিল্পী, অ্যালবাম এবং আরও", "সার্চ মুছুন", "এখনও কিছু খোঁজা হয়নি", "গান ও অ্যালবাম খুঁজলে আরও ফল এখানে দেখা যাবে", "প্রস্তাবিত অ্যালবাম", "সম্ভবত এগুলোতে আবার ফিরতে চাইবেন", "সাম্প্রতিক অনুসন্ধান", "ইতিহাস মুছুন", "কোনো ফল নেই", "অফলাইন লাইব্রেরিতে এই অনুসন্ধানের কোনো ফল নেই:", "", "মিল থাকা শিল্পী", "মিল থাকা অ্যালবাম", "মিল থাকা গান")
-    AppLanguage.Urdu -> SearchUiCopy("آرٹسٹس، البمز اور مزید", "تلاش صاف کریں", "ابھی تک کچھ تلاش نہیں کیا گیا", "گانے اور البمز تلاش کرتے وقت مزید نتائج یہاں دکھائی دیں گے", "تجویز کردہ البمز", "شاید آپ دوبارہ انہیں سننا چاہیں", "حالیہ تلاشیں", "تاریخ صاف کریں", "کوئی نتیجہ نہیں", "آف لائن لائبریری میں اس تلاش کا کوئی نتیجہ نہیں:", "", "مطابق آرٹسٹس", "مطابق البمز", "مطابق گانے")
-    AppLanguage.English -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You might enjoy listening to these again", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
+    AppLanguage.Hindi -> HindiTranslations.search_searchCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.search_searchCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.search_searchCopy_1
+    AppLanguage.Thai -> ThaiTranslations.search_searchCopy_1
+    AppLanguage.Dutch -> DutchTranslations.search_searchCopy_1
+    AppLanguage.Danish -> DanishTranslations.search_searchCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.search_searchCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.search_searchCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.search_searchCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.search_searchCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.search_searchCopy_1
+    AppLanguage.Greek -> GreekTranslations.search_searchCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.search_searchCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.search_searchCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.search_searchCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.search_searchCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.search_searchCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.search_searchCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.search_searchCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.search_searchCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.search_searchCopy_1
+    AppLanguage.Albanian -> AlbanianTranslations.search_searchCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.search_searchCopy_1
+    AppLanguage.Polish -> PolishTranslations.search_searchCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.search_searchCopy_1
+    AppLanguage.Czech -> CzechTranslations.search_searchCopy_1
+    AppLanguage.French -> FrenchTranslations.search_searchCopy_1
+    AppLanguage.German -> GermanTranslations.search_searchCopy_1
+    AppLanguage.Italian -> ItalianTranslations.search_searchCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.search_searchCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.search_searchCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.search_searchCopy_1
+    AppLanguage.Russian -> RussianTranslations.search_searchCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.search_searchCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.search_searchCopy_1
+    AppLanguage.Korean -> KoreanTranslations.search_searchCopy_1
+    AppLanguage.Malay -> MalayTranslations.search_searchCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.search_searchCopy_1
+    AppLanguage.Urdu -> UrduTranslations.search_searchCopy_1
+    AppLanguage.English -> EnglishTranslations.search_searchCopy_1
 }
 
 internal fun searchSortModeLabel(
@@ -342,46 +239,46 @@ internal fun searchSortModeLabel(
 }
 
 internal fun recentAdditionsEmptyMessage(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Shto muzikë në pajisjen tënde për të parë diçka këtu"
-    AppLanguage.Bengali -> "এখানে কিছু দেখতে ডিভাইসে গান যোগ করুন"
-    AppLanguage.Bosnian -> "Dodajte muziku na uređaj da biste je vidjeli ovdje"
-    AppLanguage.Bulgarian -> "Добавете музика на устройството, за да се покаже тук"
-    AppLanguage.Catalan -> "Afegeix música al dispositiu perquè aparegui aquí"
-    AppLanguage.ChineseSimplified -> "向设备添加音乐后即可在此查看"
-    AppLanguage.Croatian -> "Dodajte glazbu na uređaj da biste je vidjeli ovdje"
-    AppLanguage.Czech -> "Přidejte do zařízení hudbu, aby se zobrazila zde"
-    AppLanguage.Danish -> "Føj musik til enheden for at se den her"
-    AppLanguage.Dutch -> "Voeg muziek toe aan je apparaat om die hier te zien"
-    AppLanguage.English -> "Add music to your device to see something here"
-    AppLanguage.Estonian -> "Lisa seadmesse muusikat, et seda siin näha"
-    AppLanguage.Finnish -> "Lisää musiikkia laitteellesi nähdäksesi sen täällä"
-    AppLanguage.French -> "Ajoutez de la musique sur votre appareil pour la voir ici"
-    AppLanguage.German -> "Füge deinem Gerät Musik hinzu, damit sie hier erscheint"
-    AppLanguage.Greek -> "Προσθέστε μουσική στη συσκευή σας για να εμφανιστεί εδώ"
-    AppLanguage.Hindi -> "यहाँ संगीत देखने के लिए अपने डिवाइस में गाने जोड़ें"
-    AppLanguage.Hungarian -> "Adj zenét az eszközödhöz, hogy itt megjelenjen"
-    AppLanguage.Indonesian -> "Tambahkan musik ke perangkat agar muncul di sini"
-    AppLanguage.Italian -> "Aggiungi musica al dispositivo per visualizzarla qui"
-    AppLanguage.Japanese -> "端末に音楽を追加するとここに表示されます"
-    AppLanguage.Korean -> "기기에 음악을 추가하면 여기에 표시됩니다"
-    AppLanguage.Latvian -> "Pievieno ierīcei mūziku, lai to šeit redzētu"
-    AppLanguage.Lithuanian -> "Pridėkite muzikos prie įrenginio, kad ji būtų rodoma čia"
-    AppLanguage.Macedonian -> "Додајте музика на уредот за да се прикаже тука"
-    AppLanguage.Malay -> "Tambah muzik pada peranti anda untuk melihatnya di sini"
-    AppLanguage.Norwegian -> "Legg til musikk på enheten for å se den her"
-    AppLanguage.Polish -> "Dodaj muzykę do urządzenia, aby zobaczyć ją tutaj"
-    AppLanguage.Portuguese -> "Adicione música ao dispositivo para a ver aqui"
-    AppLanguage.Punjabi -> "ਇੱਥੇ ਸੰਗੀਤ ਦੇਖਣ ਲਈ ਆਪਣੇ ਡਿਵਾਈਸ ਉੱਤੇ ਗੀਤ ਜੋੜੋ"
-    AppLanguage.Romanian -> "Adaugă muzică pe dispozitiv pentru a o vedea aici"
-    AppLanguage.Russian -> "Добавьте музыку на устройство, чтобы она появилась здесь"
-    AppLanguage.Serbian -> "Додајте музику на уређај да би се приказала овде"
-    AppLanguage.Slovak -> "Pridajte do zariadenia hudbu, aby sa zobrazila tu"
-    AppLanguage.Slovenian -> "Dodajte glasbo v napravo, da se prikaže tukaj"
-    AppLanguage.Spanish -> "Añade música al dispositivo para verla aquí"
-    AppLanguage.Swedish -> "Lägg till musik på enheten för att se den här"
-    AppLanguage.Thai -> "เพิ่มเพลงลงในอุปกรณ์เพื่อให้แสดงที่นี่"
-    AppLanguage.Ukrainian -> "Додайте музику на пристрій, щоб вона з’явилася тут"
-    AppLanguage.Urdu -> "یہاں موسیقی دیکھنے کے لیے اپنے آلے میں گانے شامل کریں"
+    AppLanguage.Albanian -> AlbanianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Bengali -> BengaliTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Bosnian -> BosnianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Catalan -> CatalanTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Croatian -> CroatianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Czech -> CzechTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Danish -> DanishTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Dutch -> DutchTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.English -> EnglishTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Estonian -> EstonianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Finnish -> FinnishTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.French -> FrenchTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.German -> GermanTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Greek -> GreekTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Hindi -> HindiTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Hungarian -> HungarianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Indonesian -> IndonesianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Italian -> ItalianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Japanese -> JapaneseTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Korean -> KoreanTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Latvian -> LatvianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Macedonian -> MacedonianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Malay -> MalayTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Norwegian -> NorwegianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Polish -> PolishTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Portuguese -> PortugueseTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Punjabi -> PunjabiTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Romanian -> RomanianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Russian -> RussianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Serbian -> SerbianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Slovak -> SlovakTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Slovenian -> SlovenianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Spanish -> SpanishTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Swedish -> SwedishTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Thai -> ThaiTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.search_recentAdditionsEmptyMessage_1
+    AppLanguage.Urdu -> UrduTranslations.search_recentAdditionsEmptyMessage_1
 }
 
 
@@ -422,88 +319,88 @@ internal data class NowPlayingBarStyleCopy(
 )
 
 internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCopy = when (language) {
-    AppLanguage.Bulgarian -> NowPlayingBarStyleCopy("Стил на лентата за възпроизвеждане", "Персонализирайте изгледа на плейъра", "Плаващ", "Компактен")
-    AppLanguage.Catalan -> NowPlayingBarStyleCopy("Estil de la barra de reproducció", "Personalitza el reproductor", "Flotant", "Compacte")
-    AppLanguage.Finnish -> NowPlayingBarStyleCopy("Toistopalkin tyyli", "Mukauta toistopalkkia", "Kelluva", "Tiivis")
-    AppLanguage.Romanian -> NowPlayingBarStyleCopy("Stilul barei de redare", "Personalizează playerul", "Plutitor", "Compact")
-    AppLanguage.Slovenian -> NowPlayingBarStyleCopy("Slog vrstice predvajanja", "Prilagodite predvajalnik", "Plavajoča", "Kompaktna")
-    AppLanguage.Bosnian -> NowPlayingBarStyleCopy("Stil trake za reprodukciju", "Prilagodite prikaz reprodukcije", "Plutajuća", "Kompaktna")
-    AppLanguage.Indonesian -> NowPlayingBarStyleCopy("Gaya bilah pemutar", "Sesuaikan tampilan pemutar", "Mengambang", "Ringkas")
-    AppLanguage.Punjabi -> NowPlayingBarStyleCopy("ਹੁਣ ਚੱਲ ਰਹੀ ਪੱਟੀ ਦੀ ਸ਼ੈਲੀ", "ਪਲੇਅਰ ਦਾ ਰੂਪ ਬਦਲੋ", "ਤੈਰਦੀ", "ਸੰਖੇਪ")
-    AppLanguage.Albanian -> NowPlayingBarStyleCopy("Stili i shiritit të riprodhimit", "Personalizo modulin e riprodhimit", "Lundrues", "Kompakt")
-    AppLanguage.Bengali -> NowPlayingBarStyleCopy("এখন বাজছে বারের স্টাইল", "এখন বাজছে মডিউলটি কাস্টমাইজ করুন", "ভাসমান", "কমপ্যাক্ট")
-    AppLanguage.ChineseSimplified -> NowPlayingBarStyleCopy("正在播放栏样式", "自定义正在播放模块", "浮动", "紧凑")
-    AppLanguage.Croatian -> NowPlayingBarStyleCopy("Stil trake reprodukcije", "Prilagodite modul reprodukcije", "Plutajući", "Kompaktni")
-    AppLanguage.Czech -> NowPlayingBarStyleCopy("Styl lišty přehrávání", "Přizpůsobte modul přehrávání", "Plovoucí", "Kompaktní")
-    AppLanguage.Danish -> NowPlayingBarStyleCopy("Stil for afspilningslinjen", "Tilpas afspilningsmodulet", "Flydende", "Kompakt")
-    AppLanguage.Dutch -> NowPlayingBarStyleCopy("Stijl van de afspeelbalk", "Pas de afspeelmodule aan", "Zwevend", "Compact")
-    AppLanguage.English -> NowPlayingBarStyleCopy("Now playing bar style", "Customize the now playing module", "Floating", "Compact")
-    AppLanguage.Estonian -> NowPlayingBarStyleCopy("Esitusriba stiil", "Kohanda esituse moodulit", "Hõljuv", "Kompaktne")
-    AppLanguage.French -> NowPlayingBarStyleCopy("Style de la barre de lecture", "Personnalisez le module de lecture", "Flottant", "Compact")
-    AppLanguage.German -> NowPlayingBarStyleCopy("Stil der Wiedergabeleiste", "Passe das Wiedergabemodul an", "Schwebend", "Kompakt")
-    AppLanguage.Greek -> NowPlayingBarStyleCopy("Στυλ γραμμής αναπαραγωγής", "Προσαρμόστε τη μονάδα αναπαραγωγής", "Αιωρούμενο", "Συμπαγές")
-    AppLanguage.Hindi -> NowPlayingBarStyleCopy("नाउ प्लेइंग बार शैली", "नाउ प्लेइंग मॉड्यूल को कस्टमाइज़ करें", "फ्लोटिंग", "कॉम्पैक्ट")
-    AppLanguage.Hungarian -> NowPlayingBarStyleCopy("Lejátszósáv stílusa", "A lejátszási modul testreszabása", "Lebegő", "Kompakt")
-    AppLanguage.Italian -> NowPlayingBarStyleCopy("Stile della barra di riproduzione", "Personalizza il modulo di riproduzione", "Fluttuante", "Compatto")
-    AppLanguage.Japanese -> NowPlayingBarStyleCopy("再生バーのスタイル", "再生モジュールをカスタマイズ", "フローティング", "コンパクト")
-    AppLanguage.Korean -> NowPlayingBarStyleCopy("재생 바 스타일", "재생 모듈 맞춤설정", "플로팅", "컴팩트")
-    AppLanguage.Latvian -> NowPlayingBarStyleCopy("Atskaņošanas joslas stils", "Pielāgo atskaņošanas moduli", "Peldošs", "Kompakts")
-    AppLanguage.Lithuanian -> NowPlayingBarStyleCopy("Atkūrimo juostos stilius", "Pritaikykite atkūrimo modulį", "Slankusis", "Kompaktiškas")
-    AppLanguage.Macedonian -> NowPlayingBarStyleCopy("Стил на лентата за репродукција", "Приспособете го модулот за репродукција", "Пловечки", "Компактен")
-    AppLanguage.Malay -> NowPlayingBarStyleCopy("Gaya bar sedang dimainkan", "Sesuaikan modul sedang dimainkan", "Terapung", "Kompak")
-    AppLanguage.Norwegian -> NowPlayingBarStyleCopy("Stil for avspillingslinje", "Tilpass avspillingsmodulen", "Flytende", "Kompakt")
-    AppLanguage.Polish -> NowPlayingBarStyleCopy("Styl paska odtwarzania", "Dostosuj moduł odtwarzania", "Pływający", "Kompaktowy")
-    AppLanguage.Portuguese -> NowPlayingBarStyleCopy("Estilo da barra de reprodução", "Personalize o módulo de reprodução", "Flutuante", "Compacto")
-    AppLanguage.Russian -> NowPlayingBarStyleCopy("Стиль панели воспроизведения", "Настройте модуль воспроизведения", "Плавающий", "Компактный")
-    AppLanguage.Serbian -> NowPlayingBarStyleCopy("Стил траке за репродукцију", "Прилагодите модул за репродукцију", "Плутајући", "Компактан")
-    AppLanguage.Slovak -> NowPlayingBarStyleCopy("Štýl lišty prehrávania", "Prispôsobte modul prehrávania", "Plávajúci", "Kompaktný")
-    AppLanguage.Spanish -> NowPlayingBarStyleCopy("Estilo de la barra de reproducción", "Personaliza el módulo de reproducción", "Flotante", "Compacto")
-    AppLanguage.Swedish -> NowPlayingBarStyleCopy("Stil på uppspelningsfältet", "Anpassa uppspelningsmodulen", "Flytande", "Kompakt")
-    AppLanguage.Thai -> NowPlayingBarStyleCopy("รูปแบบแถบกำลังเล่น", "ปรับแต่งโมดูลกำลังเล่น", "ลอย", "กะทัดรัด")
-    AppLanguage.Ukrainian -> NowPlayingBarStyleCopy("Стиль панелі відтворення", "Налаштуйте модуль відтворення", "Плаваючий", "Компактний")
-    AppLanguage.Urdu -> NowPlayingBarStyleCopy("اب چلنے والی بار کا انداز", "اب چلنے والے ماڈیول کو حسبِ ضرورت بنائیں", "فلوٹنگ", "کمپیکٹ")
+    AppLanguage.Bulgarian -> BulgarianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Albanian -> AlbanianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Czech -> CzechTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Danish -> DanishTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Dutch -> DutchTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.English -> EnglishTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.French -> FrenchTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.German -> GermanTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Greek -> GreekTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Hindi -> HindiTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Italian -> ItalianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Korean -> KoreanTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Malay -> MalayTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Polish -> PolishTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Russian -> RussianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Thai -> ThaiTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.search_nowPlayingBarStyleCopy_1
+    AppLanguage.Urdu -> UrduTranslations.search_nowPlayingBarStyleCopy_1
 }
 
 @Suppress("CyclomaticComplexMethod")
 internal fun nowPlayingStyleDescription(language: AppLanguage, compact: Boolean): String = when (language) {
-    AppLanguage.Bulgarian -> if (compact) "Плейър по цялата ширина над навигационната лента" else "Плаващ плейър над навигационната лента"
-    AppLanguage.Catalan -> if (compact) "Reproductor d’amplada completa sobre la barra de navegació" else "Reproductor flotant sobre la barra de navegació"
-    AppLanguage.Finnish -> if (compact) "Koko näytön levyinen soitin navigointipalkin yläpuolella" else "Kelluva soitin navigointipalkin yläpuolella"
-    AppLanguage.Romanian -> if (compact) "Player pe toată lățimea deasupra barei de navigare" else "Player plutitor deasupra barei de navigare"
-    AppLanguage.Slovenian -> if (compact) "Predvajalnik po celotni širini nad navigacijsko vrstico" else "Plavajoči predvajalnik nad navigacijsko vrstico"
-    AppLanguage.Bosnian -> if (compact) "Player preko cijele širine, odmah iznad navigacije" else "Plutajući player iznad navigacijske trake"
-    AppLanguage.Indonesian -> if (compact) "Pemutar selebar layar tepat di atas bilah navigasi" else "Pemutar mengambang di atas bilah navigasi"
-    AppLanguage.Punjabi -> if (compact) "ਨੈਵੀਗੇਸ਼ਨ ਪੱਟੀ ਦੇ ਉੱਪਰ ਪੂਰੀ ਚੌੜਾਈ ਵਾਲਾ ਪਲੇਅਰ" else "ਨੈਵੀਗੇਸ਼ਨ ਪੱਟੀ ਦੇ ਉੱਪਰ ਤੈਰਦਾ ਪਲੇਅਰ"
-    AppLanguage.Albanian -> if (compact) "Luajtës nga skaji në skaj direkt mbi shiritin e navigimit" else "Luajtës lundrues mbi shiritin e navigimit"
-    AppLanguage.Bengali -> if (compact) "নেভিগেশন বারের ঠিক উপরে প্রান্ত-থেকে-প্রান্ত প্লেয়ার" else "নেভিগেশন বারের উপরে ভাসমান প্লেয়ার"
-    AppLanguage.ChineseSimplified -> if (compact) "紧贴导航栏上方的全宽播放器" else "位于导航栏上方的浮动播放器"
-    AppLanguage.Croatian -> if (compact) "Player od ruba do ruba izravno iznad navigacijske trake" else "Plutajući player iznad navigacijske trake"
-    AppLanguage.Czech -> if (compact) "Přehrávač přes celou šířku přímo nad navigační lištou" else "Plovoucí přehrávač nad navigační lištou"
-    AppLanguage.Danish -> if (compact) "Kant-til-kant-afspiller lige over navigationslinjen" else "Flydende afspiller over navigationslinjen"
-    AppLanguage.Dutch -> if (compact) "Rand-tot-randspeler direct boven de navigatiebalk" else "Zwevende speler boven de navigatiebalk"
-    AppLanguage.English -> if (compact) "An edge-to-edge player directly above the navigation bar" else "A floating player above the navigation bar"
-    AppLanguage.Estonian -> if (compact) "Servast servani mängija otse navigeerimisriba kohal" else "Hõljuv mängija navigeerimisriba kohal"
-    AppLanguage.French -> if (compact) "Un lecteur bord à bord juste au-dessus de la barre de navigation" else "Un lecteur flottant au-dessus de la barre de navigation"
-    AppLanguage.German -> if (compact) "Ein randloser Player direkt über der Navigationsleiste" else "Ein schwebender Player über der Navigationsleiste"
-    AppLanguage.Greek -> if (compact) "Πρόγραμμα αναπαραγωγής από άκρη σε άκρη ακριβώς πάνω από τη γραμμή πλοήγησης" else "Αιωρούμενο πρόγραμμα αναπαραγωγής πάνω από τη γραμμή πλοήγησης"
-    AppLanguage.Hindi -> if (compact) "नेविगेशन बार के ठीक ऊपर किनारे से किनारे तक प्लेयर" else "नेविगेशन बार के ऊपर फ्लोटिंग प्लेयर"
-    AppLanguage.Hungarian -> if (compact) "Teljes szélességű lejátszó közvetlenül a navigációs sáv felett" else "Lebegő lejátszó a navigációs sáv felett"
-    AppLanguage.Italian -> if (compact) "Un lettore da bordo a bordo direttamente sopra la barra di navigazione" else "Un lettore fluttuante sopra la barra di navigazione"
-    AppLanguage.Japanese -> if (compact) "ナビゲーションバーのすぐ上に表示する全幅プレーヤー" else "ナビゲーションバーの上に浮かぶプレーヤー"
-    AppLanguage.Korean -> if (compact) "내비게이션 바 바로 위에 표시되는 전체 너비 플레이어" else "내비게이션 바 위에 떠 있는 플레이어"
-    AppLanguage.Latvian -> if (compact) "No malas līdz malai tieši virs navigācijas joslas" else "Peldošs atskaņotājs virs navigācijas joslas"
-    AppLanguage.Lithuanian -> if (compact) "Per visą plotį iškart virš naršymo juostos" else "Slankusis grotuvas virš naršymo juostos"
-    AppLanguage.Macedonian -> if (compact) "Плеер од раб до раб директно над лентата за навигација" else "Пловечки плеер над лентата за навигација"
-    AppLanguage.Malay -> if (compact) "Pemain dari hujung ke hujung terus di atas bar navigasi" else "Pemain terapung di atas bar navigasi"
-    AppLanguage.Norwegian -> if (compact) "Kant-til-kant-spiller rett over navigasjonslinjen" else "Flytende spiller over navigasjonslinjen"
-    AppLanguage.Polish -> if (compact) "Odtwarzacz od krawędzi do krawędzi bezpośrednio nad paskiem nawigacji" else "Pływający odtwarzacz nad paskiem nawigacji"
-    AppLanguage.Portuguese -> if (compact) "Um leitor de largura total diretamente acima da barra de navegação" else "Um leitor flutuante acima da barra de navegação"
-    AppLanguage.Russian -> if (compact) "Проигрыватель на всю ширину прямо над панелью навигации" else "Плавающий проигрыватель над панелью навигации"
-    AppLanguage.Serbian -> if (compact) "Плејер од ивице до ивице директно изнад траке за навигацију" else "Плутајући плејер изнад траке за навигацију"
-    AppLanguage.Slovak -> if (compact) "Prehrávač cez celú šírku priamo nad navigačnou lištou" else "Plávajúci prehrávač nad navigačnou lištou"
-    AppLanguage.Spanish -> if (compact) "Un reproductor de borde a borde justo encima de la barra de navegación" else "Un reproductor flotante sobre la barra de navegación"
-    AppLanguage.Swedish -> if (compact) "En kant-till-kant-spelare direkt ovanför navigeringsfältet" else "En flytande spelare ovanför navigeringsfältet"
-    AppLanguage.Thai -> if (compact) "เครื่องเล่นเต็มความกว้างที่อยู่เหนือแถบนำทางโดยตรง" else "เครื่องเล่นแบบลอยเหนือแถบนำทาง"
-    AppLanguage.Ukrainian -> if (compact) "Програвач на всю ширину безпосередньо над панеллю навігації" else "Плаваючий програвач над панеллю навігації"
-    AppLanguage.Urdu -> if (compact) "نیویگیشن بار کے بالکل اوپر کنارے سے کنارے تک پلیئر" else "نیویگیشن بار کے اوپر تیرتا ہوا پلیئر"
+    AppLanguage.Bulgarian -> if (compact) BulgarianTranslations.search_nowPlayingStyleDescription_variant_1 else BulgarianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Catalan -> if (compact) CatalanTranslations.search_nowPlayingStyleDescription_variant_1 else CatalanTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Finnish -> if (compact) FinnishTranslations.search_nowPlayingStyleDescription_variant_1 else FinnishTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Romanian -> if (compact) RomanianTranslations.search_nowPlayingStyleDescription_variant_1 else RomanianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Slovenian -> if (compact) SlovenianTranslations.search_nowPlayingStyleDescription_variant_1 else SlovenianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Bosnian -> if (compact) BosnianTranslations.search_nowPlayingStyleDescription_variant_1 else BosnianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Indonesian -> if (compact) IndonesianTranslations.search_nowPlayingStyleDescription_variant_1 else IndonesianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Punjabi -> if (compact) PunjabiTranslations.search_nowPlayingStyleDescription_variant_1 else PunjabiTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Albanian -> if (compact) AlbanianTranslations.search_nowPlayingStyleDescription_variant_1 else AlbanianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Bengali -> if (compact) BengaliTranslations.search_nowPlayingStyleDescription_variant_1 else BengaliTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.ChineseSimplified -> if (compact) ChineseSimplifiedTranslations.search_nowPlayingStyleDescription_variant_1 else ChineseSimplifiedTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Croatian -> if (compact) CroatianTranslations.search_nowPlayingStyleDescription_variant_1 else CroatianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Czech -> if (compact) CzechTranslations.search_nowPlayingStyleDescription_variant_1 else CzechTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Danish -> if (compact) DanishTranslations.search_nowPlayingStyleDescription_variant_1 else DanishTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Dutch -> if (compact) DutchTranslations.search_nowPlayingStyleDescription_variant_1 else DutchTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.English -> if (compact) EnglishTranslations.search_nowPlayingStyleDescription_variant_1 else EnglishTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Estonian -> if (compact) EstonianTranslations.search_nowPlayingStyleDescription_variant_1 else EstonianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.French -> if (compact) FrenchTranslations.search_nowPlayingStyleDescription_variant_1 else FrenchTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.German -> if (compact) GermanTranslations.search_nowPlayingStyleDescription_variant_1 else GermanTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Greek -> if (compact) GreekTranslations.search_nowPlayingStyleDescription_variant_1 else GreekTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Hindi -> if (compact) HindiTranslations.search_nowPlayingStyleDescription_variant_1 else HindiTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Hungarian -> if (compact) HungarianTranslations.search_nowPlayingStyleDescription_variant_1 else HungarianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Italian -> if (compact) ItalianTranslations.search_nowPlayingStyleDescription_variant_1 else ItalianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Japanese -> if (compact) JapaneseTranslations.search_nowPlayingStyleDescription_variant_1 else JapaneseTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Korean -> if (compact) KoreanTranslations.search_nowPlayingStyleDescription_variant_1 else KoreanTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Latvian -> if (compact) LatvianTranslations.search_nowPlayingStyleDescription_variant_1 else LatvianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Lithuanian -> if (compact) LithuanianTranslations.search_nowPlayingStyleDescription_variant_1 else LithuanianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Macedonian -> if (compact) MacedonianTranslations.search_nowPlayingStyleDescription_variant_1 else MacedonianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Malay -> if (compact) MalayTranslations.search_nowPlayingStyleDescription_variant_1 else MalayTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Norwegian -> if (compact) NorwegianTranslations.search_nowPlayingStyleDescription_variant_1 else NorwegianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Polish -> if (compact) PolishTranslations.search_nowPlayingStyleDescription_variant_1 else PolishTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Portuguese -> if (compact) PortugueseTranslations.search_nowPlayingStyleDescription_variant_1 else PortugueseTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Russian -> if (compact) RussianTranslations.search_nowPlayingStyleDescription_variant_1 else RussianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Serbian -> if (compact) SerbianTranslations.search_nowPlayingStyleDescription_variant_1 else SerbianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Slovak -> if (compact) SlovakTranslations.search_nowPlayingStyleDescription_variant_1 else SlovakTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Spanish -> if (compact) SpanishTranslations.search_nowPlayingStyleDescription_variant_1 else SpanishTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Swedish -> if (compact) SwedishTranslations.search_nowPlayingStyleDescription_variant_1 else SwedishTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Thai -> if (compact) ThaiTranslations.search_nowPlayingStyleDescription_variant_1 else ThaiTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Ukrainian -> if (compact) UkrainianTranslations.search_nowPlayingStyleDescription_variant_1 else UkrainianTranslations.search_nowPlayingStyleDescription_variant_2
+    AppLanguage.Urdu -> if (compact) UrduTranslations.search_nowPlayingStyleDescription_variant_1 else UrduTranslations.search_nowPlayingStyleDescription_variant_2
 }

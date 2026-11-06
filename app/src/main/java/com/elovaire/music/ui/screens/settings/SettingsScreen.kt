@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+
+import elovaire.music.droidbeauty.app.ui.i18n.*
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
@@ -916,46 +918,46 @@ private fun BoxScope.LibraryScanProgressPopup(
 }
 
 private fun languageFlag(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "🇦🇱"
-    AppLanguage.Bosnian -> "🇧🇦"
-    AppLanguage.Bulgarian -> "🇧🇬"
-    AppLanguage.Catalan -> "🇦🇩"
-    AppLanguage.Finnish -> "🇫🇮"
-    AppLanguage.Romanian -> "🇷🇴"
-    AppLanguage.Slovenian -> "🇸🇮"
-    AppLanguage.Indonesian -> "🇮🇩"
-    AppLanguage.Punjabi -> "🇮🇳"
-    AppLanguage.ChineseSimplified -> "🇨🇳"
-    AppLanguage.Croatian -> "🇭🇷"
-    AppLanguage.Czech -> "🇨🇿"
-    AppLanguage.Danish -> "🇩🇰"
-    AppLanguage.Dutch -> "🇳🇱"
-    AppLanguage.Bengali -> "🇧🇩"
-    AppLanguage.Estonian -> "🇪🇪"
-    AppLanguage.French -> "🇫🇷"
-    AppLanguage.German -> "🇩🇪"
-    AppLanguage.Greek -> "🇬🇷"
-    AppLanguage.Hindi -> "🇮🇳"
-    AppLanguage.Hungarian -> "🇭🇺"
-    AppLanguage.Italian -> "🇮🇹"
-    AppLanguage.Japanese -> "🇯🇵"
-    AppLanguage.Korean -> "🇰🇷"
-    AppLanguage.Latvian -> "🇱🇻"
-    AppLanguage.Lithuanian -> "🇱🇹"
-    AppLanguage.Malay -> "🇲🇾"
-    AppLanguage.Macedonian -> "🇲🇰"
-    AppLanguage.Norwegian -> "🇳🇴"
-    AppLanguage.Polish -> "🇵🇱"
-    AppLanguage.Portuguese -> "🇵🇹"
-    AppLanguage.Russian -> "🇷🇺"
-    AppLanguage.Slovak -> "🇸🇰"
-    AppLanguage.Serbian -> "🇷🇸"
-    AppLanguage.Spanish -> "🇪🇸"
-    AppLanguage.Swedish -> "🇸🇪"
-    AppLanguage.Thai -> "🇹🇭"
-    AppLanguage.Ukrainian -> "🇺🇦"
-    AppLanguage.Urdu -> "🇵🇰"
-    AppLanguage.English -> "🇬🇧"
+    AppLanguage.Albanian -> AlbanianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Bosnian -> BosnianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Catalan -> CatalanTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Finnish -> FinnishTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Romanian -> RomanianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Slovenian -> SlovenianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Indonesian -> IndonesianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Punjabi -> PunjabiTranslations.settingsScreen_languageFlag_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Croatian -> CroatianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Czech -> CzechTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Danish -> DanishTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Dutch -> DutchTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Bengali -> BengaliTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Estonian -> EstonianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.French -> FrenchTranslations.settingsScreen_languageFlag_1
+    AppLanguage.German -> GermanTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Greek -> GreekTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Hindi -> HindiTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Hungarian -> HungarianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Italian -> ItalianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Japanese -> JapaneseTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Korean -> KoreanTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Latvian -> LatvianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Malay -> MalayTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Macedonian -> MacedonianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Norwegian -> NorwegianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Polish -> PolishTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Portuguese -> PortugueseTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Russian -> RussianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Slovak -> SlovakTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Serbian -> SerbianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Spanish -> SpanishTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Swedish -> SwedishTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Thai -> ThaiTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.settingsScreen_languageFlag_1
+    AppLanguage.Urdu -> UrduTranslations.settingsScreen_languageFlag_1
+    AppLanguage.English -> EnglishTranslations.settingsScreen_languageFlag_1
 }
 
 @Composable
@@ -1139,46 +1141,46 @@ private fun crossfadeSummary(
     val formattedDuration = formatCrossfadeSeconds(durationSeconds, language)
     val silence = silenceThresholdDb.toInt()
     return when (language) {
-        AppLanguage.Albanian -> "$formattedDuration s kalim gradual · heshtje $silence dB"
-        AppLanguage.Bosnian -> "$formattedDuration s pretapanja · tišina $silence dB"
-        AppLanguage.Bulgarian -> "$formattedDuration сек преливане · тишина $silence dB"
-        AppLanguage.Catalan -> "$formattedDuration s de transició · silenci $silence dB"
-        AppLanguage.Finnish -> "$formattedDuration s ristiinhäivytys · hiljaisuus $silence dB"
-        AppLanguage.Romanian -> "$formattedDuration s tranziție · liniște $silence dB"
-        AppLanguage.Slovenian -> "$formattedDuration s prehoda · tišina $silence dB"
-        AppLanguage.Indonesian -> "$formattedDuration dtk crossfade · hening $silence dB"
-        AppLanguage.Punjabi -> "$formattedDuration ਸਕਿੰਟ ਕ੍ਰਾਸਫੇਡ · ਖਾਮੋਸ਼ੀ $silence dB"
-        AppLanguage.Bengali -> "$formattedDuration সেকেন্ড ক্রসফেড · নীরবতা $silence dB"
-        AppLanguage.ChineseSimplified -> "$formattedDuration 秒淡化 · 静音 $silence dB"
-        AppLanguage.Croatian -> "$formattedDuration s pretapanja · tišina $silence dB"
-        AppLanguage.Czech -> "$formattedDuration s prolínání · ticho $silence dB"
-        AppLanguage.Danish -> "$formattedDuration s crossfade · stilhed $silence dB"
-        AppLanguage.Dutch -> "$formattedDuration s crossfade · stilte $silence dB"
-        AppLanguage.Estonian -> "$formattedDuration s sujuvat üleminekut · vaikus $silence dB"
-        AppLanguage.French -> "$formattedDuration s de fondu · silence $silence dB"
-        AppLanguage.German -> "$formattedDuration s Überblendung · Stille $silence dB"
-        AppLanguage.Greek -> "$formattedDuration s ομαλής μετάβασης · σιωπή $silence dB"
-        AppLanguage.Hindi -> "$formattedDuration सेकंड क्रॉसफ़ेड · मौन $silence dB"
-        AppLanguage.Hungarian -> "$formattedDuration mp átkeverés · csend $silence dB"
-        AppLanguage.Italian -> "$formattedDuration s di dissolvenza · silenzio $silence dB"
-        AppLanguage.Japanese -> "$formattedDuration 秒クロスフェード · 無音 $silence dB"
-        AppLanguage.Korean -> "${formattedDuration}초 크로스페이드 · 무음 $silence dB"
-        AppLanguage.Latvian -> "$formattedDuration s sapludināšanas · klusums $silence dB"
-        AppLanguage.Lithuanian -> "$formattedDuration s suliejimo · tyla $silence dB"
-        AppLanguage.Macedonian -> "$formattedDuration s вкрстено прелевање · тишина $silence dB"
-        AppLanguage.Malay -> "$formattedDuration s crossfade · senyap $silence dB"
-        AppLanguage.Norwegian -> "$formattedDuration s kryssfade · stillhet $silence dB"
-        AppLanguage.Polish -> "$formattedDuration s przenikania · cisza $silence dB"
-        AppLanguage.Portuguese -> "$formattedDuration s de crossfade · silêncio $silence dB"
-        AppLanguage.Russian -> "$formattedDuration с кроссфейда · тишина $silence дБ"
-        AppLanguage.Serbian -> "$formattedDuration s унакрсног преливања · тишина $silence dB"
-        AppLanguage.Slovak -> "$formattedDuration s prelínania · ticho $silence dB"
-        AppLanguage.Spanish -> "$formattedDuration s de fundido · silencio $silence dB"
-        AppLanguage.Swedish -> "$formattedDuration s övertoning · tystnad $silence dB"
-        AppLanguage.Thai -> "$formattedDuration วินาทีครอสเฟด · เงียบ $silence dB"
-        AppLanguage.Ukrainian -> "$formattedDuration с кросфейду · тиша $silence дБ"
-        AppLanguage.Urdu -> "$formattedDuration سیکنڈ کراس فیڈ · خاموشی $silence dB"
-        AppLanguage.English -> "$formattedDuration s fade · $silence dB silence"
+        AppLanguage.Albanian -> AlbanianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Bosnian -> BosnianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Bulgarian -> BulgarianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Catalan -> CatalanTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Finnish -> FinnishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Romanian -> RomanianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Slovenian -> SlovenianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Indonesian -> IndonesianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Punjabi -> PunjabiTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Bengali -> BengaliTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Croatian -> CroatianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Czech -> CzechTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Danish -> DanishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Dutch -> DutchTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Estonian -> EstonianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.French -> FrenchTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.German -> GermanTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Greek -> GreekTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Hindi -> HindiTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Hungarian -> HungarianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Italian -> ItalianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Japanese -> JapaneseTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Korean -> KoreanTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Latvian -> LatvianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Lithuanian -> LithuanianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Macedonian -> MacedonianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Malay -> MalayTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Norwegian -> NorwegianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Polish -> PolishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Portuguese -> PortugueseTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Russian -> RussianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Serbian -> SerbianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Slovak -> SlovakTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Spanish -> SpanishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Swedish -> SwedishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Thai -> ThaiTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Ukrainian -> UkrainianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.Urdu -> UrduTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
+        AppLanguage.English -> EnglishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
     }
 }
 
@@ -1191,46 +1193,46 @@ private fun updateActionLabel(state: AppUpdateUiState, language: AppLanguage): S
     state.availableRelease != null -> updateActionCopy(language).update
     state.errorMessage != null -> updateActionCopy(language).retry
     else -> when (language) {
-        AppLanguage.Albanian -> "Kontrollo"
-        AppLanguage.Bosnian -> "Provjeri"
-        AppLanguage.Bulgarian -> "Провери"
-        AppLanguage.Catalan -> "Comprova"
-        AppLanguage.Finnish -> "Tarkista"
-        AppLanguage.Romanian -> "Verifică"
-        AppLanguage.Slovenian -> "Preveri"
-        AppLanguage.Indonesian -> "Periksa"
-        AppLanguage.Punjabi -> "ਜਾਂਚੋ"
-        AppLanguage.Bengali -> "পরীক্ষা করুন"
-        AppLanguage.ChineseSimplified -> "检查"
-        AppLanguage.Croatian -> "Provjeri"
-        AppLanguage.Czech -> "Zkontrolovat"
-        AppLanguage.Danish -> "Søg"
-        AppLanguage.Dutch -> "Controleren"
-        AppLanguage.Estonian -> "Kontrolli"
-        AppLanguage.French -> "Vérifier"
-        AppLanguage.German -> "Prüfen"
-        AppLanguage.Greek -> "Έλεγχος"
-        AppLanguage.Hindi -> "जाँचें"
-        AppLanguage.Hungarian -> "Ellenőrzés"
-        AppLanguage.Italian -> "Controlla"
-        AppLanguage.Japanese -> "確認"
-        AppLanguage.Korean -> "확인"
-        AppLanguage.Latvian -> "Pārbaudīt"
-        AppLanguage.Lithuanian -> "Tikrinti"
-        AppLanguage.Macedonian -> "Провери"
-        AppLanguage.Malay -> "Semak"
-        AppLanguage.Norwegian -> "Sjekk"
-        AppLanguage.Polish -> "Sprawdź"
-        AppLanguage.Portuguese -> "Procurar"
-        AppLanguage.Russian -> "Проверить"
-        AppLanguage.Serbian -> "Провери"
-        AppLanguage.Slovak -> "Skontrolovať"
-        AppLanguage.Spanish -> "Comprobar"
-        AppLanguage.Swedish -> "Kontrollera"
-        AppLanguage.Thai -> "ตรวจสอบ"
-        AppLanguage.Ukrainian -> "Перевірити"
-        AppLanguage.Urdu -> "چیک کریں"
-        AppLanguage.English -> "Check"
+        AppLanguage.Albanian -> AlbanianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Bosnian -> BosnianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Catalan -> CatalanTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Finnish -> FinnishTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Romanian -> RomanianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Slovenian -> SlovenianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Indonesian -> IndonesianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Punjabi -> PunjabiTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Bengali -> BengaliTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Croatian -> CroatianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Czech -> CzechTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Danish -> DanishTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Dutch -> DutchTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Estonian -> EstonianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.French -> FrenchTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.German -> GermanTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Greek -> GreekTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Hindi -> HindiTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Hungarian -> HungarianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Italian -> ItalianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Japanese -> JapaneseTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Korean -> KoreanTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Latvian -> LatvianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Macedonian -> MacedonianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Malay -> MalayTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Norwegian -> NorwegianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Polish -> PolishTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Portuguese -> PortugueseTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Russian -> RussianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Serbian -> SerbianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Slovak -> SlovakTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Spanish -> SpanishTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Swedish -> SwedishTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Thai -> ThaiTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.Urdu -> UrduTranslations.settingsScreen_updateActionLabel_1
+        AppLanguage.English -> EnglishTranslations.settingsScreen_updateActionLabel_1
     }
 }
 

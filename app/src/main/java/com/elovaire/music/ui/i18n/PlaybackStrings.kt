@@ -10,182 +10,182 @@ import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 
 internal fun pauseLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Pauzë"
-    AppLanguage.Bosnian -> "Pauziraj"
-    AppLanguage.Bulgarian -> "Пауза"
-    AppLanguage.Catalan -> "Pausa"
-    AppLanguage.Finnish -> "Tauko"
-    AppLanguage.Romanian -> "Pauză"
-    AppLanguage.Slovenian -> "Premor"
-    AppLanguage.Indonesian -> "Jeda"
-    AppLanguage.Punjabi -> "ਰੋਕੋ"
-    AppLanguage.English -> "Pause"
-    AppLanguage.ChineseSimplified -> "暂停"
-    AppLanguage.Croatian -> "Pauziraj"
-    AppLanguage.Czech -> "Pozastavit"
-    AppLanguage.Danish -> "Pause"
-    AppLanguage.Dutch -> "Pauzeren"
-    AppLanguage.Bengali -> "বিরতি"
-    AppLanguage.Estonian -> "Paus"
-    AppLanguage.French -> "Pause"
-    AppLanguage.German -> "Pause"
-    AppLanguage.Greek -> "Παύση"
-    AppLanguage.Hindi -> "रोकें"
-    AppLanguage.Hungarian -> "Szünet"
-    AppLanguage.Italian -> "Pausa"
-    AppLanguage.Japanese -> "一時停止"
-    AppLanguage.Korean -> "일시정지"
-    AppLanguage.Latvian -> "Pauze"
-    AppLanguage.Lithuanian -> "Pristabdyti"
-    AppLanguage.Malay -> "Jeda"
-    AppLanguage.Macedonian -> "Пауза"
-    AppLanguage.Norwegian -> "Pause"
-    AppLanguage.Polish -> "Wstrzymaj"
-    AppLanguage.Portuguese -> "Pausa"
-    AppLanguage.Russian -> "Пауза"
-    AppLanguage.Slovak -> "Pozastaviť"
-    AppLanguage.Serbian -> "Пауза"
-    AppLanguage.Spanish -> "Pausar"
-    AppLanguage.Swedish -> "Pausa"
-    AppLanguage.Thai -> "หยุดชั่วคราว"
-    AppLanguage.Ukrainian -> "Пауза"
-    AppLanguage.Urdu -> "توقف"
+    AppLanguage.Albanian -> AlbanianTranslations.playback_pauseLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_pauseLabel_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_pauseLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_pauseLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_pauseLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_pauseLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_pauseLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_pauseLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_pauseLabel_1
+    AppLanguage.English -> EnglishTranslations.playback_pauseLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_pauseLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_pauseLabel_1
+    AppLanguage.Czech -> CzechTranslations.playback_pauseLabel_1
+    AppLanguage.Danish -> DanishTranslations.playback_pauseLabel_1
+    AppLanguage.Dutch -> DutchTranslations.playback_pauseLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_pauseLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_pauseLabel_1
+    AppLanguage.French -> FrenchTranslations.playback_pauseLabel_1
+    AppLanguage.German -> GermanTranslations.playback_pauseLabel_1
+    AppLanguage.Greek -> GreekTranslations.playback_pauseLabel_1
+    AppLanguage.Hindi -> HindiTranslations.playback_pauseLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_pauseLabel_1
+    AppLanguage.Italian -> ItalianTranslations.playback_pauseLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_pauseLabel_1
+    AppLanguage.Korean -> KoreanTranslations.playback_pauseLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_pauseLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_pauseLabel_1
+    AppLanguage.Malay -> MalayTranslations.playback_pauseLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_pauseLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_pauseLabel_1
+    AppLanguage.Polish -> PolishTranslations.playback_pauseLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_pauseLabel_1
+    AppLanguage.Russian -> RussianTranslations.playback_pauseLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_pauseLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_pauseLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_pauseLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_pauseLabel_1
+    AppLanguage.Thai -> ThaiTranslations.playback_pauseLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_pauseLabel_1
+    AppLanguage.Urdu -> UrduTranslations.playback_pauseLabel_1
 }
 
 internal fun playingFromPrefix(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Възпроизвеждане от"
-    AppLanguage.Catalan -> "Reproduint des de"
-    AppLanguage.Finnish -> "Toistetaan lähteestä"
-    AppLanguage.Romanian -> "Se redă din"
-    AppLanguage.Slovenian -> "Predvajanje iz"
-    AppLanguage.Bosnian -> "Reprodukcija iz"
-    AppLanguage.Indonesian -> "Diputar dari"
-    AppLanguage.Punjabi -> "ਇੱਥੋਂ ਚੱਲ ਰਿਹਾ ਹੈ"
-    AppLanguage.Polish -> "Odtwarzanie z"
-    AppLanguage.Slovak -> "Prehráva sa z"
-    AppLanguage.ChineseSimplified -> "播放来源"
-    AppLanguage.Korean -> "재생 위치"
-    AppLanguage.Czech -> "Přehrávání z"
-    AppLanguage.Lithuanian -> "Groja iš"
-    AppLanguage.Danish -> "Afspiller fra"
-    AppLanguage.French -> "Lecture depuis"
-    AppLanguage.German -> "Wiedergabe aus"
-    AppLanguage.Dutch -> "Afspelen vanuit"
-    AppLanguage.Malay -> "Dimainkan dari"
-    AppLanguage.Norwegian -> "Spiller fra"
-    AppLanguage.Swedish -> "Spelar från"
-    AppLanguage.Spanish -> "Reproduciendo desde"
-    AppLanguage.Portuguese -> "A reproduzir de"
-    AppLanguage.Estonian -> "Esitamine allikast"
-    AppLanguage.Bengali -> "যেখান থেকে চলছে"
-    AppLanguage.Greek -> "Αναπαραγωγή από"
-    AppLanguage.Croatian -> "Reprodukcija iz"
-    AppLanguage.Russian -> "Воспроизведение из"
-    AppLanguage.Ukrainian -> "Відтворення з"
-    AppLanguage.Urdu -> "یہاں سے چل رہا ہے"
-    AppLanguage.Latvian -> "Atskaņo no"
-    AppLanguage.Italian -> "Riproduzione da"
-    AppLanguage.Albanian -> "Duke luajtur nga"
-    AppLanguage.Hindi -> "चल रहा है"
-    AppLanguage.Hungarian -> "Lejátszás innen:"
-    AppLanguage.Japanese -> "再生元"
-    AppLanguage.Macedonian -> "Се репродуцира од"
-    AppLanguage.Serbian -> "Репродукује се из"
-    AppLanguage.Thai -> "กำลังเล่นจาก"
-    AppLanguage.English -> "Playing from"
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_playingFromPrefix_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_playingFromPrefix_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_playingFromPrefix_1
+    AppLanguage.Polish -> PolishTranslations.playback_playingFromPrefix_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_playingFromPrefix_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_playingFromPrefix_1
+    AppLanguage.Korean -> KoreanTranslations.playback_playingFromPrefix_1
+    AppLanguage.Czech -> CzechTranslations.playback_playingFromPrefix_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Danish -> DanishTranslations.playback_playingFromPrefix_1
+    AppLanguage.French -> FrenchTranslations.playback_playingFromPrefix_1
+    AppLanguage.German -> GermanTranslations.playback_playingFromPrefix_1
+    AppLanguage.Dutch -> DutchTranslations.playback_playingFromPrefix_1
+    AppLanguage.Malay -> MalayTranslations.playback_playingFromPrefix_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_playingFromPrefix_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_playingFromPrefix_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_playingFromPrefix_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_playingFromPrefix_1
+    AppLanguage.Greek -> GreekTranslations.playback_playingFromPrefix_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Russian -> RussianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Urdu -> UrduTranslations.playback_playingFromPrefix_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Italian -> ItalianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Albanian -> AlbanianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Hindi -> HindiTranslations.playback_playingFromPrefix_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_playingFromPrefix_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_playingFromPrefix_1
+    AppLanguage.Thai -> ThaiTranslations.playback_playingFromPrefix_1
+    AppLanguage.English -> EnglishTranslations.playback_playingFromPrefix_1
 }
 
 internal fun localizedAllSongsSource(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "të gjitha këngët"
-    AppLanguage.Bengali -> "সব গান"
-    AppLanguage.Bosnian -> "svih pjesama"
-    AppLanguage.Bulgarian -> "всички песни"
-    AppLanguage.Catalan -> "totes les cançons"
-    AppLanguage.ChineseSimplified -> "所有歌曲"
-    AppLanguage.Croatian -> "svih pjesama"
-    AppLanguage.Czech -> "všech skladeb"
-    AppLanguage.Danish -> "alle sange"
-    AppLanguage.Dutch -> "alle nummers"
-    AppLanguage.English -> "all songs"
-    AppLanguage.Estonian -> "kõigist lugudest"
-    AppLanguage.Finnish -> "kaikista kappaleista"
-    AppLanguage.French -> "tous les titres"
-    AppLanguage.German -> "allen Titeln"
-    AppLanguage.Greek -> "όλα τα τραγούδια"
-    AppLanguage.Hindi -> "सभी गानों"
-    AppLanguage.Hungarian -> "összes dal"
-    AppLanguage.Indonesian -> "semua lagu"
-    AppLanguage.Italian -> "tutti i brani"
-    AppLanguage.Japanese -> "すべての曲"
-    AppLanguage.Korean -> "모든 곡"
-    AppLanguage.Latvian -> "visām dziesmām"
-    AppLanguage.Lithuanian -> "visų dainų"
-    AppLanguage.Macedonian -> "сите песни"
-    AppLanguage.Malay -> "semua lagu"
-    AppLanguage.Norwegian -> "alle sanger"
-    AppLanguage.Polish -> "wszystkich utworów"
-    AppLanguage.Portuguese -> "todas as músicas"
-    AppLanguage.Punjabi -> "ਸਾਰੇ ਗੀਤਾਂ"
-    AppLanguage.Romanian -> "toate melodiile"
-    AppLanguage.Russian -> "всех песен"
-    AppLanguage.Serbian -> "свих песама"
-    AppLanguage.Slovak -> "všetkých skladieb"
-    AppLanguage.Slovenian -> "vseh skladb"
-    AppLanguage.Spanish -> "todas las canciones"
-    AppLanguage.Swedish -> "alla låtar"
-    AppLanguage.Thai -> "เพลงทั้งหมด"
-    AppLanguage.Ukrainian -> "усіх пісень"
-    AppLanguage.Urdu -> "تمام گانوں"
+    AppLanguage.Albanian -> AlbanianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Czech -> CzechTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Danish -> DanishTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Dutch -> DutchTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.English -> EnglishTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.French -> FrenchTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.German -> GermanTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Greek -> GreekTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Hindi -> HindiTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Italian -> ItalianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Korean -> KoreanTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Malay -> MalayTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Polish -> PolishTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Russian -> RussianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Thai -> ThaiTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_localizedAllSongsSource_1
+    AppLanguage.Urdu -> UrduTranslations.playback_localizedAllSongsSource_1
 }
 
 internal fun localizedSearchResultsSource(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "rezultatet e kërkimit"
-    AppLanguage.Bengali -> "অনুসন্ধানের ফলাফল"
-    AppLanguage.Bosnian -> "rezultata pretrage"
-    AppLanguage.Bulgarian -> "резултатите от търсенето"
-    AppLanguage.Catalan -> "els resultats de cerca"
-    AppLanguage.ChineseSimplified -> "搜索结果"
-    AppLanguage.Croatian -> "rezultata pretraživanja"
-    AppLanguage.Czech -> "výsledků hledání"
-    AppLanguage.Danish -> "søgeresultater"
-    AppLanguage.Dutch -> "zoekresultaten"
-    AppLanguage.English -> "search results"
-    AppLanguage.Estonian -> "otsingutulemustest"
-    AppLanguage.Finnish -> "hakutuloksista"
-    AppLanguage.French -> "résultats de recherche"
-    AppLanguage.German -> "den Suchergebnissen"
-    AppLanguage.Greek -> "τα αποτελέσματα αναζήτησης"
-    AppLanguage.Hindi -> "खोज परिणामों"
-    AppLanguage.Hungarian -> "keresési találatok"
-    AppLanguage.Indonesian -> "hasil pencarian"
-    AppLanguage.Italian -> "risultati di ricerca"
-    AppLanguage.Japanese -> "検索結果"
-    AppLanguage.Korean -> "검색 결과"
-    AppLanguage.Latvian -> "meklēšanas rezultātiem"
-    AppLanguage.Lithuanian -> "paieškos rezultatų"
-    AppLanguage.Macedonian -> "резултатите од пребарувањето"
-    AppLanguage.Malay -> "hasil carian"
-    AppLanguage.Norwegian -> "søkeresultater"
-    AppLanguage.Polish -> "wyników wyszukiwania"
-    AppLanguage.Portuguese -> "resultados da pesquisa"
-    AppLanguage.Punjabi -> "ਖੋਜ ਨਤੀਜਿਆਂ"
-    AppLanguage.Romanian -> "rezultatele căutării"
-    AppLanguage.Russian -> "результатов поиска"
-    AppLanguage.Serbian -> "резултата претраге"
-    AppLanguage.Slovak -> "výsledkov vyhľadávania"
-    AppLanguage.Slovenian -> "rezultatov iskanja"
-    AppLanguage.Spanish -> "los resultados de búsqueda"
-    AppLanguage.Swedish -> "sökresultat"
-    AppLanguage.Thai -> "ผลการค้นหา"
-    AppLanguage.Ukrainian -> "результатів пошуку"
-    AppLanguage.Urdu -> "تلاش کے نتائج"
+    AppLanguage.Albanian -> AlbanianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Czech -> CzechTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Danish -> DanishTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Dutch -> DutchTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.English -> EnglishTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.French -> FrenchTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.German -> GermanTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Greek -> GreekTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Hindi -> HindiTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Italian -> ItalianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Korean -> KoreanTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Malay -> MalayTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Polish -> PolishTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Russian -> RussianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Thai -> ThaiTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_localizedSearchResultsSource_1
+    AppLanguage.Urdu -> UrduTranslations.playback_localizedSearchResultsSource_1
 }
 
 internal fun playingFromText(source: String, language: AppLanguage): String = when (language) {
-    AppLanguage.Bengali -> "$source থেকে চলছে"
-    AppLanguage.Hindi -> "$source से चल रहा है"
-    AppLanguage.Punjabi -> "$source ਤੋਂ ਚੱਲ ਰਿਹਾ ਹੈ"
-    AppLanguage.Urdu -> "$source سے چل رہا ہے"
+    AppLanguage.Bengali -> BengaliTranslations.playback_playingFromText_dynamic_1(source)
+    AppLanguage.Hindi -> HindiTranslations.playback_playingFromText_dynamic_1(source)
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_playingFromText_dynamic_1(source)
+    AppLanguage.Urdu -> UrduTranslations.playback_playingFromText_dynamic_1(source)
     else -> "${playingFromPrefix(language)} $source"
 }
 
@@ -193,88 +193,88 @@ internal fun playingFromText(source: String, language: AppLanguage): String = wh
 internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language: AppLanguage): String = when (type) {
     BuiltInSmartPlaylistType.RecentlyAdded -> miscPhrase(language, MiscPhrase.RecentlyAdded)
     BuiltInSmartPlaylistType.MostPlayed -> when (language) {
-        AppLanguage.Bulgarian -> "Най-слушани"
-        AppLanguage.Catalan -> "Més escoltades"
-        AppLanguage.Finnish -> "Eniten soitetut"
-        AppLanguage.Romanian -> "Cele mai ascultate"
-        AppLanguage.Slovenian -> "Največkrat predvajano"
-        AppLanguage.Bosnian -> "Najslušanije"
-        AppLanguage.Indonesian -> "Paling sering diputar"
-        AppLanguage.Punjabi -> "ਸਭ ਤੋਂ ਵੱਧ ਚੱਲੇ"
-        AppLanguage.Albanian -> "Më të luajturat"
-        AppLanguage.Bengali -> "সবচেয়ে বেশি শোনা"
-        AppLanguage.Croatian -> "Najslušanije"
-        AppLanguage.Czech -> "Nejhranější"
-        AppLanguage.Danish -> "Mest afspillet"
-        AppLanguage.Dutch -> "Meest afgespeeld"
-        AppLanguage.Estonian -> "Enim esitatud"
-        AppLanguage.Polish -> "Najczęściej odtwarzane"
-        AppLanguage.German -> "Am häufigsten gespielt"
-        AppLanguage.French -> "Les plus écoutés"
-        AppLanguage.Spanish -> "Más reproducidos"
-        AppLanguage.Portuguese -> "Mais reproduzidas"
-        AppLanguage.Italian -> "Più ascoltati"
-        AppLanguage.Russian -> "Самые прослушиваемые"
-        AppLanguage.Ukrainian -> "Найчастіше відтворювані"
-        AppLanguage.Japanese -> "よく聴く曲"
-        AppLanguage.Korean -> "가장 많이 재생한 곡"
-        AppLanguage.ChineseSimplified -> "最常播放"
-        AppLanguage.Thai -> "เล่นบ่อยที่สุด"
-        AppLanguage.Greek -> "Πιο συχνά παιγμένα"
-        AppLanguage.Hindi -> "सबसे ज़्यादा चलाए गए"
-        AppLanguage.Hungarian -> "Legtöbbször lejátszott"
-        AppLanguage.Latvian -> "Visbiežāk atskaņotās"
-        AppLanguage.Lithuanian -> "Dažniausiai klausomos"
-        AppLanguage.Malay -> "Paling kerap dimainkan"
-        AppLanguage.Macedonian -> "Најчесто пуштани"
-        AppLanguage.Norwegian -> "Mest spilt"
-        AppLanguage.Serbian -> "Највише пуштано"
-        AppLanguage.Slovak -> "Najčastejšie prehrávané"
-        AppLanguage.Swedish -> "Mest spelade"
-        AppLanguage.Urdu -> "سب سے زیادہ چلائے گئے"
-        AppLanguage.English -> "Most played"
+        AppLanguage.Bulgarian -> BulgarianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Catalan -> CatalanTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Finnish -> FinnishTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Romanian -> RomanianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Slovenian -> SlovenianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Bosnian -> BosnianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Indonesian -> IndonesianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Albanian -> AlbanianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Bengali -> BengaliTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Croatian -> CroatianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Czech -> CzechTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Danish -> DanishTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Dutch -> DutchTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Estonian -> EstonianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Polish -> PolishTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.German -> GermanTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.French -> FrenchTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Spanish -> SpanishTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Portuguese -> PortugueseTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Italian -> ItalianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Russian -> RussianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Japanese -> JapaneseTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Korean -> KoreanTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Thai -> ThaiTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Greek -> GreekTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Hindi -> HindiTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Hungarian -> HungarianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Latvian -> LatvianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Malay -> MalayTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Macedonian -> MacedonianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Norwegian -> NorwegianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Serbian -> SerbianTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Slovak -> SlovakTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Swedish -> SwedishTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.Urdu -> UrduTranslations.playback_builtInSmartPlaylistTitle_1
+        AppLanguage.English -> EnglishTranslations.playback_builtInSmartPlaylistTitle_1
     }
     BuiltInSmartPlaylistType.Favorites -> when (language) {
-        AppLanguage.Bulgarian -> "Любими"
-        AppLanguage.Catalan -> "Preferides"
-        AppLanguage.Finnish -> "Suosikit"
-        AppLanguage.Romanian -> "Favorite"
-        AppLanguage.Slovenian -> "Priljubljeno"
-        AppLanguage.Bosnian -> "Omiljeno"
-        AppLanguage.Indonesian -> "Favorit"
-        AppLanguage.Punjabi -> "ਮਨਪਸੰਦ"
-        AppLanguage.Albanian -> "Të preferuarat"
-        AppLanguage.Bengali -> "পছন্দের"
-        AppLanguage.Croatian -> "Favoriti"
-        AppLanguage.Czech -> "Oblíbené"
-        AppLanguage.Danish -> "Favoritter"
-        AppLanguage.Dutch -> "Favorieten"
-        AppLanguage.Estonian -> "Lemmikud"
-        AppLanguage.Polish -> "Ulubione"
-        AppLanguage.German -> "Favoriten"
-        AppLanguage.French -> "Favoris"
-        AppLanguage.Spanish -> "Favoritos"
-        AppLanguage.Portuguese -> "Favoritas"
-        AppLanguage.Italian -> "Preferiti"
-        AppLanguage.Russian -> "Избранное"
-        AppLanguage.Ukrainian -> "Улюблені"
-        AppLanguage.Japanese -> "お気に入り"
-        AppLanguage.Korean -> "즐겨찾기"
-        AppLanguage.ChineseSimplified -> "收藏"
-        AppLanguage.Thai -> "รายการโปรด"
-        AppLanguage.Greek -> "Αγαπημένα"
-        AppLanguage.Hindi -> "पसंदीदा"
-        AppLanguage.Hungarian -> "Kedvencek"
-        AppLanguage.Latvian -> "Izlase"
-        AppLanguage.Lithuanian -> "Mėgstamiausi"
-        AppLanguage.Malay -> "Kegemaran"
-        AppLanguage.Macedonian -> "Омилени"
-        AppLanguage.Norwegian -> "Favoritter"
-        AppLanguage.Serbian -> "Омиљено"
-        AppLanguage.Slovak -> "Obľúbené"
-        AppLanguage.Swedish -> "Favoriter"
-        AppLanguage.Urdu -> "پسندیدہ"
-        AppLanguage.English -> "Favorites"
+        AppLanguage.Bulgarian -> BulgarianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Catalan -> CatalanTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Finnish -> FinnishTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Romanian -> RomanianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Slovenian -> SlovenianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Bosnian -> BosnianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Indonesian -> IndonesianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Albanian -> AlbanianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Bengali -> BengaliTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Croatian -> CroatianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Czech -> CzechTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Danish -> DanishTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Dutch -> DutchTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Estonian -> EstonianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Polish -> PolishTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.German -> GermanTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.French -> FrenchTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Spanish -> SpanishTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Portuguese -> PortugueseTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Italian -> ItalianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Russian -> RussianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Ukrainian -> UkrainianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Japanese -> JapaneseTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Korean -> KoreanTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Thai -> ThaiTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Greek -> GreekTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Hindi -> HindiTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Hungarian -> HungarianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Latvian -> LatvianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Lithuanian -> LithuanianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Malay -> MalayTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Macedonian -> MacedonianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Norwegian -> NorwegianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Serbian -> SerbianTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Slovak -> SlovakTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Swedish -> SwedishTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.Urdu -> UrduTranslations.playback_builtInSmartPlaylistTitle_2
+        AppLanguage.English -> EnglishTranslations.playback_builtInSmartPlaylistTitle_2
     }
 }
 
@@ -282,178 +282,178 @@ internal fun artistTopTracksSubtitle(count: Int, language: AppLanguage): String 
     val tracks = localizedCountLabel(count, "track", language)
     val slavicSingular = count % 10 == 1 && count % 100 != 11
     val suffix = when (language) {
-        AppLanguage.Bulgarian -> return "$tracks, ${if (count == 1) "към която" else "към които"} се връщате най-често"
-        AppLanguage.Catalan -> "que escoltes més sovint"
-        AppLanguage.Finnish -> return "$tracks, ${if (count == 1) "johon" else "joihin"} palaat useimmin"
-        AppLanguage.Romanian -> if (count == 1) "pe care o asculți cel mai des" else "pe care le asculți cel mai des"
-        AppLanguage.Slovenian -> return "$tracks, ${if (count % 100 == 1) "h kateri" else "h katerim"} se najpogosteje vračate"
-        AppLanguage.Bosnian -> return "$tracks ${if (slavicSingular) "kojoj" else "kojima"} se najčešće vraćate"
-        AppLanguage.Indonesian -> "yang paling sering Anda dengarkan"
-        AppLanguage.Punjabi -> "ਜੋ ਤੁਸੀਂ ਸਭ ਤੋਂ ਵੱਧ ਸੁਣਦੇ ਹੋ"
-        AppLanguage.Albanian -> "që dëgjoni më shpesh"
-        AppLanguage.Bengali -> if (count == 1) "যেটি আপনি সবচেয়ে বেশি শোনেন" else "যেগুলো আপনি সবচেয়ে বেশি শোনেন"
-        AppLanguage.Croatian -> return "$tracks ${if (slavicSingular) "kojoj" else "kojima"} se najčešće vraćate"
-        AppLanguage.Czech -> return "$tracks, ${if (count == 1) "ke které" else "ke kterým"} se nejčastěji vracíte"
-        AppLanguage.Danish -> "du vender mest tilbage til"
-        AppLanguage.Dutch -> "waar je het vaakst naar terugkeert"
-        AppLanguage.Estonian -> "mida kuulad kõige sagedamini"
-        AppLanguage.Polish -> return "$tracks, ${if (count == 1) "do którego" else "do których"} najczęściej wracasz"
-        AppLanguage.German -> return "$tracks, ${if (count == 1) "zu dem" else "zu denen"} du am häufigsten zurückkehrst"
-        AppLanguage.French -> "que vous écoutez le plus souvent"
-        AppLanguage.Spanish -> if (count == 1) "a la que más vuelves" else "a las que más vuelves"
-        AppLanguage.Portuguese -> if (count == 1) "à qual mais regressa" else "às quais mais regressa"
-        AppLanguage.Italian -> "a cui torni più spesso"
-        AppLanguage.Russian -> return "$tracks, ${if (slavicSingular) "к которому" else "к которым"} вы возвращаетесь чаще всего"
-        AppLanguage.Ukrainian -> return "$tracks, ${if (slavicSingular) "до якого" else "до яких"} ви повертаєтеся найчастіше"
-        AppLanguage.Japanese -> return "よく聴き返す $tracks"
-        AppLanguage.Korean -> return "가장 자주 다시 듣는 $tracks"
-        AppLanguage.ChineseSimplified -> return "最常重听的 $tracks"
-        AppLanguage.Thai -> "ที่คุณกลับมาฟังบ่อยที่สุด"
-        AppLanguage.Greek -> return "$tracks ${if (count == 1) "στο οποίο" else "στα οποία"} επιστρέφετε πιο συχνά"
-        AppLanguage.Hindi -> if (count == 1) "जिसे आप सबसे ज़्यादा सुनते हैं" else "जिन्हें आप सबसे ज़्यादा सुनते हैं"
-        AppLanguage.Hungarian -> return "$tracks, ${if (count == 1) "amelyhez" else "amelyekhez"} a leggyakrabban tér vissza"
-        AppLanguage.Latvian -> return "$tracks, ${if (slavicSingular) "pie kura" else "pie kuriem"} atgriežaties visbiežāk"
-        AppLanguage.Lithuanian -> return "$tracks, ${if (count % 10 == 1 && count % 100 !in 11..19) "prie kurio" else "prie kurių"} grįžtate dažniausiai"
-        AppLanguage.Malay -> "yang paling kerap anda kembali dengar"
-        AppLanguage.Macedonian -> return "$tracks, ${if (count == 1) "на која најчесто ѝ се враќате" else "на кои најчесто им се враќате"}"
-        AppLanguage.Norwegian -> "du oftest kommer tilbake til"
-        AppLanguage.Serbian -> return "$tracks ${if (slavicSingular) "којој" else "којима"} се најчешће враћате"
-        AppLanguage.Slovak -> return "$tracks, ${if (count == 1) "ku ktorej" else "ku ktorým"} sa najčastejšie vraciate"
-        AppLanguage.Swedish -> "du oftast återkommer till"
-        AppLanguage.Urdu -> if (count == 1) "جسے آپ سب سے زیادہ سنتے ہیں" else "جنہیں آپ سب سے زیادہ سنتے ہیں"
-        AppLanguage.English -> "you return to the most"
+        AppLanguage.Bulgarian -> return BulgarianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Catalan -> CatalanTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Finnish -> return FinnishTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Romanian -> if (count == 1) RomanianTranslations.playback_artistTopTracksSubtitle_variant_1 else RomanianTranslations.playback_artistTopTracksSubtitle_variant_2
+        AppLanguage.Slovenian -> return SlovenianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Bosnian -> return BosnianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, slavicSingular)
+        AppLanguage.Indonesian -> IndonesianTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Albanian -> AlbanianTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Bengali -> if (count == 1) BengaliTranslations.playback_artistTopTracksSubtitle_variant_1 else BengaliTranslations.playback_artistTopTracksSubtitle_variant_2
+        AppLanguage.Croatian -> return CroatianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, slavicSingular)
+        AppLanguage.Czech -> return CzechTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Danish -> DanishTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Dutch -> DutchTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Estonian -> EstonianTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Polish -> return PolishTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.German -> return GermanTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.French -> FrenchTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Spanish -> if (count == 1) SpanishTranslations.playback_artistTopTracksSubtitle_variant_1 else SpanishTranslations.playback_artistTopTracksSubtitle_variant_2
+        AppLanguage.Portuguese -> if (count == 1) PortugueseTranslations.playback_artistTopTracksSubtitle_variant_1 else PortugueseTranslations.playback_artistTopTracksSubtitle_variant_2
+        AppLanguage.Italian -> ItalianTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Russian -> return RussianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, slavicSingular)
+        AppLanguage.Ukrainian -> return UkrainianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, slavicSingular)
+        AppLanguage.Japanese -> return JapaneseTranslations.playback_artistTopTracksSubtitle_dynamic_1(tracks)
+        AppLanguage.Korean -> return KoreanTranslations.playback_artistTopTracksSubtitle_dynamic_1(tracks)
+        AppLanguage.ChineseSimplified -> return ChineseSimplifiedTranslations.playback_artistTopTracksSubtitle_dynamic_1(tracks)
+        AppLanguage.Thai -> ThaiTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Greek -> return GreekTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Hindi -> if (count == 1) HindiTranslations.playback_artistTopTracksSubtitle_variant_1 else HindiTranslations.playback_artistTopTracksSubtitle_variant_2
+        AppLanguage.Hungarian -> return HungarianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Latvian -> return LatvianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, slavicSingular)
+        AppLanguage.Lithuanian -> return LithuanianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Malay -> MalayTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Macedonian -> return MacedonianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Norwegian -> NorwegianTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Serbian -> return SerbianTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, slavicSingular)
+        AppLanguage.Slovak -> return SlovakTranslations.playback_artistTopTracksSubtitle_dynamic(tracks, count)
+        AppLanguage.Swedish -> SwedishTranslations.playback_artistTopTracksSubtitle_1
+        AppLanguage.Urdu -> if (count == 1) UrduTranslations.playback_artistTopTracksSubtitle_variant_1 else UrduTranslations.playback_artistTopTracksSubtitle_variant_2
+        AppLanguage.English -> EnglishTranslations.playback_artistTopTracksSubtitle_1
     }
     return "$tracks $suffix"
 }
 
 internal fun privacyPolicySettingsSubtitle(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Как Elovaire обработва файлове, разрешения, мрежови заявки и данни на приложението"
-    AppLanguage.Catalan -> "Com Elovaire gestiona fitxers, permisos, sol·licituds de xarxa i dades de l’aplicació"
-    AppLanguage.Finnish -> "Miten Elovaire käsittelee tiedostoja, käyttöoikeuksia, verkkopyyntöjä ja sovellustietoja"
-    AppLanguage.Romanian -> "Cum gestionează Elovaire fișierele, permisiunile, solicitările de rețea și datele aplicației"
-    AppLanguage.Slovenian -> "Kako Elovaire obravnava datoteke, dovoljenja, omrežne zahteve in podatke aplikacije"
-    AppLanguage.Bosnian -> "Kako Elovaire obrađuje datoteke, dozvole, mrežne zahtjeve i podatke aplikacije"
-    AppLanguage.Indonesian -> "Cara Elovaire menangani berkas, izin, permintaan jaringan, dan data aplikasi"
-    AppLanguage.Punjabi -> "Elovaire ਫਾਈਲਾਂ, ਇਜਾਜ਼ਤਾਂ, ਨੈੱਟਵਰਕ ਬੇਨਤੀਆਂ ਅਤੇ ਐਪ ਡੇਟਾ ਨੂੰ ਕਿਵੇਂ ਸੰਭਾਲਦਾ ਹੈ"
-    AppLanguage.Albanian -> "Si i trajton Elovaire skedarët, lejet, kërkesat e rrjetit dhe të dhënat e aplikacionit"
-    AppLanguage.Bengali -> "Elovaire কীভাবে ফাইল, অনুমতি, নেটওয়ার্ক অনুরোধ ও অ্যাপ ডেটা পরিচালনা করে"
-    AppLanguage.Croatian -> "Kako Elovaire upravlja datotekama, dozvolama, mrežnim zahtjevima i podacima aplikacije"
-    AppLanguage.Czech -> "Jak Elovaire pracuje se soubory, oprávněními, síťovými požadavky a daty aplikace"
-    AppLanguage.Danish -> "Sådan håndterer Elovaire filer, tilladelser, netværksanmodninger og appdata"
-    AppLanguage.Dutch -> "Hoe Elovaire bestanden, machtigingen, netwerkverzoeken en appgegevens verwerkt"
-    AppLanguage.Estonian -> "Kuidas Elovaire käsitleb faile, õigusi, võrgupäringuid ja rakenduse andmeid"
-    AppLanguage.Polish -> "Jak Elovaire obsługuje pliki, uprawnienia, żądania sieciowe i dane aplikacji"
-    AppLanguage.German -> "Wie Elovaire Dateien, Berechtigungen, Netzwerkanfragen und App-Daten verarbeitet"
-    AppLanguage.French -> "Comment Elovaire gère les fichiers, autorisations, requêtes réseau et données de l’app"
-    AppLanguage.Spanish -> "Cómo Elovaire gestiona archivos, permisos, solicitudes de red y datos de la app"
-    AppLanguage.Portuguese -> "Como o Elovaire lida com ficheiros, permissões, pedidos de rede e dados da aplicação"
-    AppLanguage.Italian -> "Come Elovaire gestisce file, autorizzazioni, richieste di rete e dati dell’app"
-    AppLanguage.Russian -> "Как Elovaire обрабатывает файлы, разрешения, сетевые запросы и данные приложения"
-    AppLanguage.Ukrainian -> "Як Elovaire обробляє файли, дозволи, мережеві запити й дані застосунку"
-    AppLanguage.Japanese -> "Elovaire によるファイル、権限、ネットワーク要求、アプリデータの扱い"
-    AppLanguage.Korean -> "Elovaire가 파일, 권한, 네트워크 요청 및 앱 데이터를 처리하는 방법"
-    AppLanguage.ChineseSimplified -> "Elovaire 如何处理文件、权限、网络请求和应用数据"
-    AppLanguage.Thai -> "Elovaire จัดการไฟล์ สิทธิ์ คำขอเครือข่าย และข้อมูลแอปอย่างไร"
-    AppLanguage.Greek -> "Πώς το Elovaire διαχειρίζεται αρχεία, άδειες, αιτήματα δικτύου και δεδομένα εφαρμογής"
-    AppLanguage.Hindi -> "Elovaire फ़ाइलों, अनुमतियों, नेटवर्क अनुरोधों और ऐप डेटा को कैसे संभालता है"
-    AppLanguage.Hungarian -> "Hogyan kezeli az Elovaire a fájlokat, engedélyeket, hálózati kéréseket és alkalmazásadatokat"
-    AppLanguage.Latvian -> "Kā Elovaire apstrādā failus, atļaujas, tīkla pieprasījumus un lietotnes datus"
-    AppLanguage.Lithuanian -> "Kaip Elovaire tvarko failus, leidimus, tinklo užklausas ir programos duomenis"
-    AppLanguage.Malay -> "Cara Elovaire mengendalikan fail, kebenaran, permintaan rangkaian dan data aplikasi"
-    AppLanguage.Macedonian -> "Како Elovaire управува со датотеки, дозволи, мрежни барања и податоци од апликацијата"
-    AppLanguage.Norwegian -> "Hvordan Elovaire håndterer filer, tillatelser, nettverksforespørsler og appdata"
-    AppLanguage.Serbian -> "Како Elovaire обрађује датотеке, дозволе, мрежне захтеве и податке апликације"
-    AppLanguage.Slovak -> "Ako Elovaire spracúva súbory, povolenia, sieťové požiadavky a údaje aplikácie"
-    AppLanguage.Swedish -> "Så här hanterar Elovaire filer, behörigheter, nätverksbegäranden och appdata"
-    AppLanguage.Urdu -> "Elovaire فائلوں، اجازتوں، نیٹ ورک درخواستوں اور ایپ ڈیٹا کو کیسے سنبھالتا ہے"
-    AppLanguage.English -> "How Elovaire handles files, permissions, network requests, and app data"
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Albanian -> AlbanianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Czech -> CzechTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Danish -> DanishTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Dutch -> DutchTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Polish -> PolishTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.German -> GermanTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.French -> FrenchTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Italian -> ItalianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Russian -> RussianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Korean -> KoreanTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Thai -> ThaiTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Greek -> GreekTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Hindi -> HindiTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Malay -> MalayTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.Urdu -> UrduTranslations.playback_privacyPolicySettingsSubtitle_1
+    AppLanguage.English -> EnglishTranslations.playback_privacyPolicySettingsSubtitle_1
 }
 
 internal fun discLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Диск"
-    AppLanguage.Catalan -> "Disc"
-    AppLanguage.Finnish -> "Levy"
-    AppLanguage.Romanian -> "Disc"
-    AppLanguage.Slovenian -> "Disk"
-    AppLanguage.Bosnian -> "Disk"
-    AppLanguage.Indonesian -> "Cakram"
-    AppLanguage.Punjabi -> "ਡਿਸਕ"
-    AppLanguage.Albanian -> "Disku"
-    AppLanguage.English -> "Disc"
-    AppLanguage.ChineseSimplified -> "碟片"
-    AppLanguage.Croatian -> "Disk"
-    AppLanguage.Czech -> "Disk"
-    AppLanguage.Danish -> "Disk"
-    AppLanguage.Dutch -> "Schijf"
-    AppLanguage.Bengali -> "ডিস্ক"
-    AppLanguage.Estonian -> "Plaat"
-    AppLanguage.French -> "Disque"
-    AppLanguage.German -> "Disc"
-    AppLanguage.Greek -> "Δίσκος"
-    AppLanguage.Hindi -> "डिस्क"
-    AppLanguage.Hungarian -> "Lemez"
-    AppLanguage.Italian -> "Disco"
-    AppLanguage.Japanese -> "ディスク"
-    AppLanguage.Korean -> "디스크"
-    AppLanguage.Latvian -> "Disks"
-    AppLanguage.Lithuanian -> "Diskas"
-    AppLanguage.Malay -> "Cakera"
-    AppLanguage.Macedonian -> "Диск"
-    AppLanguage.Norwegian -> "Disk"
-    AppLanguage.Polish -> "Płyta"
-    AppLanguage.Portuguese -> "Disco"
-    AppLanguage.Russian -> "Диск"
-    AppLanguage.Slovak -> "Disk"
-    AppLanguage.Serbian -> "Диск"
-    AppLanguage.Spanish -> "Disco"
-    AppLanguage.Swedish -> "Skiva"
-    AppLanguage.Thai -> "ดิสก์"
-    AppLanguage.Ukrainian -> "Диск"
-    AppLanguage.Urdu -> "ڈسک"
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_discLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_discLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_discLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_discLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_discLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_discLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_discLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_discLabel_1
+    AppLanguage.Albanian -> AlbanianTranslations.playback_discLabel_1
+    AppLanguage.English -> EnglishTranslations.playback_discLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_discLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_discLabel_1
+    AppLanguage.Czech -> CzechTranslations.playback_discLabel_1
+    AppLanguage.Danish -> DanishTranslations.playback_discLabel_1
+    AppLanguage.Dutch -> DutchTranslations.playback_discLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_discLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_discLabel_1
+    AppLanguage.French -> FrenchTranslations.playback_discLabel_1
+    AppLanguage.German -> GermanTranslations.playback_discLabel_1
+    AppLanguage.Greek -> GreekTranslations.playback_discLabel_1
+    AppLanguage.Hindi -> HindiTranslations.playback_discLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_discLabel_1
+    AppLanguage.Italian -> ItalianTranslations.playback_discLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_discLabel_1
+    AppLanguage.Korean -> KoreanTranslations.playback_discLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_discLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_discLabel_1
+    AppLanguage.Malay -> MalayTranslations.playback_discLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_discLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_discLabel_1
+    AppLanguage.Polish -> PolishTranslations.playback_discLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_discLabel_1
+    AppLanguage.Russian -> RussianTranslations.playback_discLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_discLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_discLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_discLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_discLabel_1
+    AppLanguage.Thai -> ThaiTranslations.playback_discLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_discLabel_1
+    AppLanguage.Urdu -> UrduTranslations.playback_discLabel_1
 }
 
 @Suppress("CyclomaticComplexMethod")
 internal fun equalizerCustomLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Personalizuar"
-    AppLanguage.Bengali -> "নিজস্ব"
-    AppLanguage.Bosnian -> "Prilagođeno"
-    AppLanguage.Bulgarian -> "Персонализирано"
-    AppLanguage.Catalan -> "Personalitzat"
-    AppLanguage.ChineseSimplified -> "自定义"
-    AppLanguage.Croatian -> "Prilagođeno"
-    AppLanguage.Czech -> "Vlastní"
-    AppLanguage.Danish -> "Brugerdefineret"
-    AppLanguage.Dutch -> "Aangepast"
-    AppLanguage.English -> "Custom"
-    AppLanguage.Estonian -> "Kohandatud"
-    AppLanguage.Finnish -> "Mukautettu"
-    AppLanguage.French -> "Personnalisé"
-    AppLanguage.German -> "Benutzerdefiniert"
-    AppLanguage.Greek -> "Προσαρμοσμένο"
-    AppLanguage.Hindi -> "कस्टम"
-    AppLanguage.Hungarian -> "Egyéni"
-    AppLanguage.Indonesian -> "Kustom"
-    AppLanguage.Italian -> "Personalizzato"
-    AppLanguage.Japanese -> "カスタム"
-    AppLanguage.Korean -> "사용자 설정"
-    AppLanguage.Latvian -> "Pielāgots"
-    AppLanguage.Lithuanian -> "Pasirinktinis"
-    AppLanguage.Macedonian -> "Приспособено"
-    AppLanguage.Malay -> "Tersuai"
-    AppLanguage.Norwegian -> "Egendefinert"
-    AppLanguage.Polish -> "własne"
-    AppLanguage.Portuguese -> "Personalizado"
-    AppLanguage.Punjabi -> "ਕਸਟਮ"
-    AppLanguage.Romanian -> "Personalizat"
-    AppLanguage.Russian -> "Пользовательский"
-    AppLanguage.Serbian -> "Прилагођено"
-    AppLanguage.Slovak -> "Vlastné"
-    AppLanguage.Slovenian -> "Po meri"
-    AppLanguage.Spanish -> "Personalizado"
-    AppLanguage.Swedish -> "Anpassad"
-    AppLanguage.Thai -> "กำหนดเอง"
-    AppLanguage.Ukrainian -> "Власний"
-    AppLanguage.Urdu -> "حسب ضرورت"
+    AppLanguage.Albanian -> AlbanianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Czech -> CzechTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Danish -> DanishTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Dutch -> DutchTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.English -> EnglishTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.French -> FrenchTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.German -> GermanTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Greek -> GreekTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Hindi -> HindiTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Italian -> ItalianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Korean -> KoreanTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Malay -> MalayTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Polish -> PolishTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Russian -> RussianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Thai -> ThaiTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_equalizerCustomLabel_1
+    AppLanguage.Urdu -> UrduTranslations.playback_equalizerCustomLabel_1
 }
 
 internal fun localizedEqualizerPreset(name: String, language: AppLanguage): String {
@@ -465,46 +465,46 @@ internal fun localizedEqualizerPreset(name: String, language: AppLanguage): Stri
         else -> return localizedEqualizerGenre(name, language)
     }
     return when (language) {
-        AppLanguage.Albanian -> listOf("Elektronike", "Klasike", "Akustike", "Vokale")
-        AppLanguage.Bengali -> listOf("ইলেকট্রনিক", "ধ্রুপদি", "অ্যাকুস্টিক", "কণ্ঠস্বর")
-        AppLanguage.Bosnian -> listOf("Elektronska", "Klasična", "Akustična", "Vokal")
-        AppLanguage.Bulgarian -> listOf("Електронна", "Класическа", "Акустична", "Вокали")
-        AppLanguage.Catalan -> listOf("Electrònica", "Clàssica", "Acústica", "Veus")
-        AppLanguage.ChineseSimplified -> listOf("电子", "古典", "原声", "人声")
-        AppLanguage.Croatian -> listOf("Elektronička", "Klasična", "Akustična", "Vokali")
-        AppLanguage.Czech -> listOf("Elektronická", "Klasická", "Akustická", "Vokály")
-        AppLanguage.Danish -> listOf("Elektronisk", "Klassisk", "Akustisk", "Vokal")
-        AppLanguage.Dutch -> listOf("Elektronisch", "Klassiek", "Akoestisch", "Vocaal")
-        AppLanguage.English -> listOf("Electronic", "Classical", "Acoustic", "Vocal")
-        AppLanguage.Estonian -> listOf("Elektrooniline", "Klassikaline", "Akustiline", "Vokaal")
-        AppLanguage.Finnish -> listOf("Elektroninen", "Klassinen", "Akustinen", "Laulu")
-        AppLanguage.French -> listOf("Électronique", "Classique", "Acoustique", "Voix")
-        AppLanguage.German -> listOf("Elektronisch", "Klassik", "Akustisch", "Gesang")
-        AppLanguage.Greek -> listOf("Ηλεκτρονική", "Κλασική", "Ακουστική", "Φωνητικά")
-        AppLanguage.Hindi -> listOf("इलेक्ट्रॉनिक", "शास्त्रीय", "अकूस्टिक", "वोकल")
-        AppLanguage.Hungarian -> listOf("Elektronikus", "Klasszikus", "Akusztikus", "Ének")
-        AppLanguage.Indonesian -> listOf("Elektronik", "Klasik", "Akustik", "Vokal")
-        AppLanguage.Italian -> listOf("Elettronica", "Classica", "Acustica", "Voce")
-        AppLanguage.Japanese -> listOf("エレクトロニック", "クラシック", "アコースティック", "ボーカル")
-        AppLanguage.Korean -> listOf("일렉트로닉", "클래식", "어쿠스틱", "보컬")
-        AppLanguage.Latvian -> listOf("Elektroniskā", "Klasiskā", "Akustiskā", "Vokāls")
-        AppLanguage.Lithuanian -> listOf("Elektroninė", "Klasikinė", "Akustinė", "Vokalas")
-        AppLanguage.Macedonian -> listOf("Електронска", "Класична", "Акустична", "Вокали")
-        AppLanguage.Malay -> listOf("Elektronik", "Klasik", "Akustik", "Vokal")
-        AppLanguage.Norwegian -> listOf("Elektronisk", "Klassisk", "Akustisk", "Vokal")
-        AppLanguage.Polish -> listOf("Elektroniczna", "Klasyczna", "Akustyczna", "Wokal")
-        AppLanguage.Portuguese -> listOf("Eletrónica", "Clássica", "Acústica", "Voz")
-        AppLanguage.Punjabi -> listOf("ਇਲੈਕਟ੍ਰਾਨਿਕ", "ਸ਼ਾਸਤਰੀ", "ਅਕੂਸਟਿਕ", "ਵੋਕਲ")
-        AppLanguage.Romanian -> listOf("Electronică", "Clasică", "Acustică", "Voce")
-        AppLanguage.Russian -> listOf("Электронная", "Классическая", "Акустическая", "Вокал")
-        AppLanguage.Serbian -> listOf("Електронска", "Класична", "Акустична", "Вокали")
-        AppLanguage.Slovak -> listOf("Elektronická", "Klasická", "Akustická", "Vokály")
-        AppLanguage.Slovenian -> listOf("Elektronska", "Klasična", "Akustična", "Vokali")
-        AppLanguage.Spanish -> listOf("Electrónica", "Clásica", "Acústica", "Voz")
-        AppLanguage.Swedish -> listOf("Elektronisk", "Klassisk", "Akustisk", "Sång")
-        AppLanguage.Thai -> listOf("อิเล็กทรอนิกส์", "คลาสสิก", "อะคูสติก", "เสียงร้อง")
-        AppLanguage.Ukrainian -> listOf("Електронна", "Класична", "Акустична", "Вокал")
-        AppLanguage.Urdu -> listOf("الیکٹرانک", "کلاسیکی", "اکوسٹک", "آواز")
+        AppLanguage.Albanian -> AlbanianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Bengali -> BengaliTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Bosnian -> BosnianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Catalan -> CatalanTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Croatian -> CroatianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Czech -> CzechTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Danish -> DanishTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Dutch -> DutchTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.English -> EnglishTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Estonian -> EstonianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Finnish -> FinnishTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.French -> FrenchTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.German -> GermanTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Greek -> GreekTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Hindi -> HindiTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Hungarian -> HungarianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Indonesian -> IndonesianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Italian -> ItalianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Japanese -> JapaneseTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Korean -> KoreanTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Latvian -> LatvianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Macedonian -> MacedonianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Malay -> MalayTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Norwegian -> NorwegianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Polish -> PolishTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Portuguese -> PortugueseTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Romanian -> RomanianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Russian -> RussianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Serbian -> SerbianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Slovak -> SlovakTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Slovenian -> SlovenianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Spanish -> SpanishTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Swedish -> SwedishTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Thai -> ThaiTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.playback_localizedEqualizerPreset_1
+        AppLanguage.Urdu -> UrduTranslations.playback_localizedEqualizerPreset_1
     }[index]
 }
 
@@ -519,20 +519,20 @@ private fun localizedEqualizerGenre(name: String, language: AppLanguage): String
         else -> return name
     }
     val labels = when (language) {
-        AppLanguage.Bengali -> listOf("জ্যাজ", "পপ", "রক", "মেটাল", "সোল", "হিপ-হপ")
-        AppLanguage.Bulgarian -> listOf("Джаз", "Поп", "Рок", "Метъл", "Соул", "Хип-хоп")
-        AppLanguage.ChineseSimplified -> listOf("爵士", "流行", "摇滚", "金属", "灵魂乐", "嘻哈")
-        AppLanguage.Greek -> listOf("Τζαζ", "Ποπ", "Ροκ", "Μέταλ", "Σόουλ", "Χιπ χοπ")
-        AppLanguage.Hindi -> listOf("जैज़", "पॉप", "रॉक", "मेटल", "सोल", "हिप-हॉप")
-        AppLanguage.Japanese -> listOf("ジャズ", "ポップ", "ロック", "メタル", "ソウル", "ヒップホップ")
-        AppLanguage.Korean -> listOf("재즈", "팝", "록", "메탈", "소울", "힙합")
-        AppLanguage.Macedonian -> listOf("Џез", "Поп", "Рок", "Метал", "Соул", "Хип-хоп")
-        AppLanguage.Punjabi -> listOf("ਜੈਜ਼", "ਪੌਪ", "ਰੌਕ", "ਮੈਟਲ", "ਸੋਲ", "ਹਿਪ-ਹੌਪ")
-        AppLanguage.Russian -> listOf("Джаз", "Поп", "Рок", "Метал", "Соул", "Хип-хоп")
-        AppLanguage.Serbian -> listOf("Џез", "Поп", "Рок", "Метал", "Соул", "Хип-хоп")
-        AppLanguage.Thai -> listOf("แจ๊ส", "ป๊อป", "ร็อก", "เมทัล", "โซล", "ฮิปฮอป")
-        AppLanguage.Ukrainian -> listOf("Джаз", "Поп", "Рок", "Метал", "Соул", "Хіп-хоп")
-        AppLanguage.Urdu -> listOf("جاز", "پاپ", "راک", "میٹل", "سول", "ہپ ہاپ")
+        AppLanguage.Bengali -> BengaliTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Greek -> GreekTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Hindi -> HindiTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Japanese -> JapaneseTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Korean -> KoreanTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Macedonian -> MacedonianTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Russian -> RussianTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Serbian -> SerbianTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Thai -> ThaiTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.playback_localizedEqualizerGenre_1
+        AppLanguage.Urdu -> UrduTranslations.playback_localizedEqualizerGenre_1
         else -> return name
     }
     return labels[index]
@@ -541,132 +541,132 @@ private fun localizedEqualizerGenre(name: String, language: AppLanguage): String
 @Suppress("CyclomaticComplexMethod")
 internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): String = when {
     presetName != null -> when (language) {
-        AppLanguage.Bulgarian -> "Избрано: $presetName"
-        AppLanguage.Catalan -> "Definit a $presetName"
-        AppLanguage.Finnish -> "Valittu: $presetName"
-        AppLanguage.Romanian -> "Setat la $presetName"
-        AppLanguage.Slovenian -> "Nastavljeno na $presetName"
-        AppLanguage.Bosnian -> "Postavljeno na $presetName"
-        AppLanguage.Indonesian -> "Disetel ke $presetName"
-        AppLanguage.Punjabi -> "$presetName ਸੈੱਟ ਹੈ"
-        AppLanguage.Albanian -> "Caktuar në $presetName"
-        AppLanguage.English -> "Set to $presetName"
-        AppLanguage.ChineseSimplified -> "已设为 $presetName"
-        AppLanguage.Croatian -> "Postavljeno na $presetName"
-        AppLanguage.Czech -> "Nastaveno na $presetName"
-        AppLanguage.Danish -> "Indstillet til $presetName"
-        AppLanguage.Dutch -> "Ingesteld op $presetName"
-        AppLanguage.Bengali -> "$presetName-এ সেট করা"
-        AppLanguage.Estonian -> "Seadistatud: $presetName"
-        AppLanguage.French -> "Réglé sur $presetName"
-        AppLanguage.German -> "Auf $presetName eingestellt"
-        AppLanguage.Greek -> "Ρυθμίστηκε σε $presetName"
-        AppLanguage.Hindi -> "$presetName पर सेट"
-        AppLanguage.Hungarian -> "Beállítva: $presetName"
-        AppLanguage.Italian -> "Impostato su $presetName"
-        AppLanguage.Japanese -> "$presetName に設定"
-        AppLanguage.Korean -> "$presetName(으)로 설정됨"
-        AppLanguage.Latvian -> "Iestatīts uz $presetName"
-        AppLanguage.Lithuanian -> "Nustatyta į $presetName"
-        AppLanguage.Malay -> "Ditetapkan kepada $presetName"
-        AppLanguage.Macedonian -> "Поставено на $presetName"
-        AppLanguage.Norwegian -> "Satt til $presetName"
-        AppLanguage.Polish -> "Wybrano: $presetName"
-        AppLanguage.Portuguese -> "Definido para $presetName"
-        AppLanguage.Russian -> "Установлено: $presetName"
-        AppLanguage.Slovak -> "Nastavené na $presetName"
-        AppLanguage.Serbian -> "Подешено на $presetName"
-        AppLanguage.Spanish -> "Establecido en $presetName"
-        AppLanguage.Swedish -> "Inställd på $presetName"
-        AppLanguage.Thai -> "ตั้งเป็น $presetName"
-        AppLanguage.Ukrainian -> "Установлено: $presetName"
-        AppLanguage.Urdu -> "$presetName پر سیٹ ہے"
+        AppLanguage.Bulgarian -> BulgarianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Catalan -> CatalanTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Finnish -> FinnishTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Romanian -> RomanianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Slovenian -> SlovenianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Bosnian -> BosnianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Indonesian -> IndonesianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Albanian -> AlbanianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.English -> EnglishTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Croatian -> CroatianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Czech -> CzechTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Danish -> DanishTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Dutch -> DutchTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Bengali -> BengaliTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Estonian -> EstonianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.French -> FrenchTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.German -> GermanTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Greek -> GreekTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Hindi -> HindiTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Hungarian -> HungarianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Italian -> ItalianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Japanese -> JapaneseTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Korean -> KoreanTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Latvian -> LatvianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Lithuanian -> LithuanianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Malay -> MalayTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Macedonian -> MacedonianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Norwegian -> NorwegianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Polish -> PolishTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Portuguese -> PortugueseTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Russian -> RussianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Slovak -> SlovakTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Serbian -> SerbianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Spanish -> SpanishTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Swedish -> SwedishTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Thai -> ThaiTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Ukrainian -> UkrainianTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
+        AppLanguage.Urdu -> UrduTranslations.playback_equalizerStatusLabel_dynamic_1(presetName)
     }
     else -> when (language) {
-        AppLanguage.Bulgarian -> "Изключен"
-        AppLanguage.Catalan -> "Actualment desactivat"
-        AppLanguage.Finnish -> "Tällä hetkellä pois käytöstä"
-        AppLanguage.Romanian -> "Dezactivat momentan"
-        AppLanguage.Slovenian -> "Trenutno izklopljeno"
-        AppLanguage.Bosnian -> "Trenutno isključeno"
-        AppLanguage.Indonesian -> "Saat ini nonaktif"
-        AppLanguage.Punjabi -> "ਇਸ ਵੇਲੇ ਬੰਦ ਹੈ"
-        AppLanguage.Albanian -> "Aktualisht i fikur"
-        AppLanguage.English -> "Currently off"
-        AppLanguage.ChineseSimplified -> "当前已关闭"
-        AppLanguage.Croatian -> "Trenutno isključeno"
-        AppLanguage.Czech -> "Aktuálně vypnuto"
-        AppLanguage.Danish -> "Slået fra i øjeblikket"
-        AppLanguage.Dutch -> "Momenteel uit"
-        AppLanguage.Bengali -> "বর্তমানে বন্ধ"
-        AppLanguage.Estonian -> "Praegu väljas"
-        AppLanguage.French -> "Actuellement désactivé"
-        AppLanguage.German -> "Derzeit aus"
-        AppLanguage.Greek -> "Αυτή τη στιγμή ανενεργό"
-        AppLanguage.Hindi -> "अभी बंद है"
-        AppLanguage.Hungarian -> "Jelenleg kikapcsolva"
-        AppLanguage.Italian -> "Attualmente disattivato"
-        AppLanguage.Japanese -> "現在オフ"
-        AppLanguage.Korean -> "현재 꺼짐"
-        AppLanguage.Latvian -> "Pašlaik izslēgts"
-        AppLanguage.Lithuanian -> "Šiuo metu išjungta"
-        AppLanguage.Malay -> "Dimatikan sekarang"
-        AppLanguage.Macedonian -> "Моментално исклучено"
-        AppLanguage.Norwegian -> "For øyeblikket av"
-        AppLanguage.Polish -> "Obecnie wyłączony"
-        AppLanguage.Portuguese -> "Atualmente desligado"
-        AppLanguage.Russian -> "Сейчас выключен"
-        AppLanguage.Slovak -> "Momentálne vypnuté"
-        AppLanguage.Serbian -> "Тренутно искључено"
-        AppLanguage.Spanish -> "Actualmente desactivado"
-        AppLanguage.Swedish -> "För närvarande av"
-        AppLanguage.Thai -> "ปิดอยู่ในขณะนี้"
-        AppLanguage.Ukrainian -> "Зараз вимкнено"
-        AppLanguage.Urdu -> "فی الحال بند ہے"
+        AppLanguage.Bulgarian -> BulgarianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Catalan -> CatalanTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Finnish -> FinnishTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Romanian -> RomanianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Slovenian -> SlovenianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Bosnian -> BosnianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Indonesian -> IndonesianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Punjabi -> PunjabiTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Albanian -> AlbanianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.English -> EnglishTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Croatian -> CroatianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Czech -> CzechTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Danish -> DanishTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Dutch -> DutchTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Bengali -> BengaliTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Estonian -> EstonianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.French -> FrenchTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.German -> GermanTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Greek -> GreekTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Hindi -> HindiTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Hungarian -> HungarianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Italian -> ItalianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Japanese -> JapaneseTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Korean -> KoreanTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Latvian -> LatvianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Malay -> MalayTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Macedonian -> MacedonianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Norwegian -> NorwegianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Polish -> PolishTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Portuguese -> PortugueseTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Russian -> RussianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Slovak -> SlovakTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Serbian -> SerbianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Spanish -> SpanishTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Swedish -> SwedishTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Thai -> ThaiTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.playback_equalizerStatusLabel_1
+        AppLanguage.Urdu -> UrduTranslations.playback_equalizerStatusLabel_1
     }
 }
 
 internal fun queueTitle(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Опашка"
-    AppLanguage.Catalan -> "Cua"
-    AppLanguage.Finnish -> "Toistojono"
-    AppLanguage.Romanian -> "Coadă"
-    AppLanguage.Slovenian -> "Čakalna vrsta"
-    AppLanguage.Bosnian -> "Red čekanja"
-    AppLanguage.Indonesian -> "Antrean"
-    AppLanguage.Punjabi -> "ਕਤਾਰ"
-    AppLanguage.Polish -> "Kolejka"
-    AppLanguage.Slovak -> "Front"
-    AppLanguage.ChineseSimplified -> "队列"
-    AppLanguage.Korean -> "대기열"
-    AppLanguage.Czech -> "Fronta"
-    AppLanguage.Lithuanian -> "Eilė"
-    AppLanguage.Danish -> "Kø"
-    AppLanguage.French -> "File"
-    AppLanguage.German -> "Warteschlange"
-    AppLanguage.Dutch -> "Wachtrij"
-    AppLanguage.Malay -> "Barisan"
-    AppLanguage.Norwegian -> "Kø"
-    AppLanguage.Swedish -> "Kö"
-    AppLanguage.Spanish -> "Cola"
-    AppLanguage.Portuguese -> "Fila"
-    AppLanguage.Estonian -> "Järjekord"
-    AppLanguage.Bengali -> "কিউ"
-    AppLanguage.Greek -> "Ουρά"
-    AppLanguage.Croatian -> "Red"
-    AppLanguage.Russian -> "Очередь"
-    AppLanguage.Ukrainian -> "Черга"
-    AppLanguage.Urdu -> "قطار"
-    AppLanguage.Latvian -> "Rinda"
-    AppLanguage.Italian -> "Coda"
-    AppLanguage.Albanian -> "Radha"
-    AppLanguage.Hindi -> "कतार"
-    AppLanguage.Hungarian -> "Sor"
-    AppLanguage.Japanese -> "キュー"
-    AppLanguage.Macedonian -> "Редица"
-    AppLanguage.Serbian -> "Ред"
-    AppLanguage.Thai -> "คิว"
-    AppLanguage.English -> "Queue"
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_queueTitle_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_queueTitle_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_queueTitle_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_queueTitle_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_queueTitle_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_queueTitle_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_queueTitle_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_queueTitle_1
+    AppLanguage.Polish -> PolishTranslations.playback_queueTitle_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_queueTitle_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_queueTitle_1
+    AppLanguage.Korean -> KoreanTranslations.playback_queueTitle_1
+    AppLanguage.Czech -> CzechTranslations.playback_queueTitle_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_queueTitle_1
+    AppLanguage.Danish -> DanishTranslations.playback_queueTitle_1
+    AppLanguage.French -> FrenchTranslations.playback_queueTitle_1
+    AppLanguage.German -> GermanTranslations.playback_queueTitle_1
+    AppLanguage.Dutch -> DutchTranslations.playback_queueTitle_1
+    AppLanguage.Malay -> MalayTranslations.playback_queueTitle_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_queueTitle_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_queueTitle_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_queueTitle_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_queueTitle_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_queueTitle_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_queueTitle_1
+    AppLanguage.Greek -> GreekTranslations.playback_queueTitle_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_queueTitle_1
+    AppLanguage.Russian -> RussianTranslations.playback_queueTitle_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_queueTitle_1
+    AppLanguage.Urdu -> UrduTranslations.playback_queueTitle_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_queueTitle_1
+    AppLanguage.Italian -> ItalianTranslations.playback_queueTitle_1
+    AppLanguage.Albanian -> AlbanianTranslations.playback_queueTitle_1
+    AppLanguage.Hindi -> HindiTranslations.playback_queueTitle_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_queueTitle_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_queueTitle_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_queueTitle_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_queueTitle_1
+    AppLanguage.Thai -> ThaiTranslations.playback_queueTitle_1
+    AppLanguage.English -> EnglishTranslations.playback_queueTitle_1
 }
 
 internal data class SleepTimerCopy(
@@ -679,88 +679,88 @@ internal data class SleepTimerCopy(
 )
 
 internal fun sleepTimerCopy(language: AppLanguage): SleepTimerCopy = when (language) {
-    AppLanguage.Bulgarian -> SleepTimerCopy("Таймер за заспиване", "Изключен", "Край на песента", "Потвърди", "Затвори таймера", " мин")
-    AppLanguage.Catalan -> SleepTimerCopy("Temporitzador de son", "Desactivat", "Final de la cançó", "Confirma", "Tanca el temporitzador")
-    AppLanguage.Finnish -> SleepTimerCopy("Uniajastin", "Pois", "Kappaleen lopussa", "Vahvista", "Sulje uniajastin")
-    AppLanguage.Romanian -> SleepTimerCopy("Temporizator de somn", "Oprit", "Sfârșitul melodiei", "Confirmă", "Închide temporizatorul")
-    AppLanguage.Slovenian -> SleepTimerCopy("Časovnik za spanje", "Izklopljeno", "Konec skladbe", "Potrdi", "Zapri časovnik")
-    AppLanguage.Bosnian -> SleepTimerCopy("Tajmer za spavanje", "Isključeno", "Kraj pjesme", "Potvrdi", "Zatvori tajmer")
-    AppLanguage.Indonesian -> SleepTimerCopy("Timer tidur", "Nonaktif", "Akhir lagu", "Konfirmasi", "Tutup timer tidur")
-    AppLanguage.Punjabi -> SleepTimerCopy("ਸਲੀਪ ਟਾਈਮਰ", "ਬੰਦ", "ਗੀਤ ਦਾ ਅੰਤ", "ਪੁਸ਼ਟੀ ਕਰੋ", "ਸਲੀਪ ਟਾਈਮਰ ਬੰਦ ਕਰੋ", " ਮਿੰਟ")
-    AppLanguage.Albanian -> SleepTimerCopy("Kohëmatësi i gjumit", "Fikur", "Fundi i këngës", "Konfirmo", "Mbyll kohëmatësin")
-    AppLanguage.English -> SleepTimerCopy("Sleep timer", "Off", "End of song", "Confirm", "Close sleep timer")
-    AppLanguage.ChineseSimplified -> SleepTimerCopy("睡眠定时器", "关闭", "歌曲结束时", "确认", "关闭睡眠定时器", " 分钟")
-    AppLanguage.Croatian -> SleepTimerCopy("Mjerač vremena za spavanje", "Isključeno", "Kraj pjesme", "Potvrdi", "Zatvori mjerač vremena")
-    AppLanguage.Czech -> SleepTimerCopy("Časovač vypnutí", "Vypnuto", "Konec skladby", "Potvrdit", "Zavřít časovač")
-    AppLanguage.Danish -> SleepTimerCopy("Sleep-timer", "Fra", "Slutningen af sangen", "Bekræft", "Luk sleep-timer")
-    AppLanguage.Dutch -> SleepTimerCopy("Slaaptimer", "Uit", "Einde van nummer", "Bevestigen", "Slaaptimer sluiten")
-    AppLanguage.Bengali -> SleepTimerCopy("স্লিপ টাইমার", "বন্ধ", "গানের শেষে", "নিশ্চিত করুন", "স্লিপ টাইমার বন্ধ করুন", " মিনিট")
-    AppLanguage.Estonian -> SleepTimerCopy("Unetaimer", "Väljas", "Loo lõpus", "Kinnita", "Sulge unetaimer")
-    AppLanguage.French -> SleepTimerCopy("Minuteur de veille", "Désactivé", "Fin du morceau", "Confirmer", "Fermer le minuteur")
-    AppLanguage.German -> SleepTimerCopy("Sleep-Timer", "Aus", "Titelende", "Bestätigen", "Sleep-Timer schließen")
-    AppLanguage.Greek -> SleepTimerCopy("Χρονοδιακόπτης ύπνου", "Ανενεργό", "Τέλος τραγουδιού", "Επιβεβαίωση", "Κλείσιμο χρονοδιακόπτη")
-    AppLanguage.Hindi -> SleepTimerCopy("स्लीप टाइमर", "बंद", "गाने के अंत में", "पुष्टि करें", "स्लीप टाइमर बंद करें", " मिनट")
-    AppLanguage.Hungarian -> SleepTimerCopy("Elalvás-időzítő", "Ki", "Dal végén", "Megerősítés", "Időzítő bezárása")
-    AppLanguage.Italian -> SleepTimerCopy("Timer di spegnimento", "Disattivato", "Fine del brano", "Conferma", "Chiudi timer")
-    AppLanguage.Japanese -> SleepTimerCopy("スリープタイマー", "オフ", "曲の終了時", "確認", "スリープタイマーを閉じる", "分")
-    AppLanguage.Korean -> SleepTimerCopy("취침 타이머", "꺼짐", "곡이 끝날 때", "확인", "취침 타이머 닫기", "분")
-    AppLanguage.Latvian -> SleepTimerCopy("Miega taimeris", "Izslēgts", "Dziesmas beigās", "Apstiprināt", "Aizvērt miega taimeri")
-    AppLanguage.Lithuanian -> SleepTimerCopy("Miego laikmatis", "Išjungta", "Dainos pabaigoje", "Patvirtinti", "Uždaryti miego laikmatį")
-    AppLanguage.Malay -> SleepTimerCopy("Pemasa tidur", "Mati", "Akhir lagu", "Sahkan", "Tutup pemasa tidur")
-    AppLanguage.Macedonian -> SleepTimerCopy("Тајмер за спиење", "Исклучено", "Крај на песната", "Потврди", "Затвори го тајмерот")
-    AppLanguage.Norwegian -> SleepTimerCopy("Innsovningstimer", "Av", "Slutten av sangen", "Bekreft", "Lukk innsovningstimer")
-    AppLanguage.Polish -> SleepTimerCopy("Wyłącznik czasowy", "Wyłączony", "Koniec utworu", "Potwierdź", "Zamknij wyłącznik czasowy")
-    AppLanguage.Portuguese -> SleepTimerCopy("Temporizador", "Desligado", "Fim da música", "Confirmar", "Fechar temporizador")
-    AppLanguage.Russian -> SleepTimerCopy("Таймер сна", "Выкл.", "Конец песни", "Подтвердить", "Закрыть таймер сна", " мин")
-    AppLanguage.Slovak -> SleepTimerCopy("Časovač spánku", "Vypnuté", "Koniec skladby", "Potvrdiť", "Zavrieť časovač")
-    AppLanguage.Serbian -> SleepTimerCopy("Тајмер за спавање", "Искључено", "Крај песме", "Потврди", "Затвори тајмер")
-    AppLanguage.Spanish -> SleepTimerCopy("Temporizador", "Desactivado", "Final de la canción", "Confirmar", "Cerrar temporizador")
-    AppLanguage.Swedish -> SleepTimerCopy("Insomningstimer", "Av", "Slutet av låten", "Bekräfta", "Stäng insomningstimer")
-    AppLanguage.Thai -> SleepTimerCopy("ตัวตั้งเวลาปิด", "ปิด", "เมื่อเพลงจบ", "ยืนยัน", "ปิดตัวตั้งเวลา", " นาที")
-    AppLanguage.Ukrainian -> SleepTimerCopy("Таймер сну", "Вимкнено", "Кінець пісні", "Підтвердити", "Закрити таймер сну", " хв")
-    AppLanguage.Urdu -> SleepTimerCopy("سلیپ ٹائمر", "بند", "گانے کے اختتام پر", "تصدیق کریں", "سلیپ ٹائمر بند کریں", " منٹ")
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Albanian -> AlbanianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.English -> EnglishTranslations.playback_sleepTimerCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Czech -> CzechTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Danish -> DanishTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Dutch -> DutchTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.French -> FrenchTranslations.playback_sleepTimerCopy_1
+    AppLanguage.German -> GermanTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Greek -> GreekTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Hindi -> HindiTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Italian -> ItalianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Korean -> KoreanTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Malay -> MalayTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Polish -> PolishTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Russian -> RussianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Thai -> ThaiTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_sleepTimerCopy_1
+    AppLanguage.Urdu -> UrduTranslations.playback_sleepTimerCopy_1
 }
 
 internal fun playLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Пусни"
-    AppLanguage.Catalan -> "Reprodueix"
-    AppLanguage.Finnish -> "Toista"
-    AppLanguage.Romanian -> "Redă"
-    AppLanguage.Slovenian -> "Predvajaj"
-    AppLanguage.Bosnian -> "Pusti"
-    AppLanguage.Indonesian -> "Putar"
-    AppLanguage.Punjabi -> "ਚਲਾਓ"
-    AppLanguage.Polish -> "Odtwórz"
-    AppLanguage.Slovak -> "Prehrať"
-    AppLanguage.ChineseSimplified -> "播放"
-    AppLanguage.Croatian -> "Reproduciraj"
-    AppLanguage.Korean -> "재생"
-    AppLanguage.Czech -> "Přehrát"
-    AppLanguage.Danish -> "Afspil"
-    AppLanguage.Dutch -> "Afspelen"
-    AppLanguage.Malay -> "Mainkan"
-    AppLanguage.Estonian -> "Esita"
-    AppLanguage.French -> "Lire"
-    AppLanguage.German -> "Abspielen"
-    AppLanguage.Greek -> "Αναπαραγωγή"
-    AppLanguage.Bengali -> "চালান"
-    AppLanguage.Hindi -> "चलाएँ"
-    AppLanguage.Hungarian -> "Lejátszás"
-    AppLanguage.Italian -> "Riproduci"
-    AppLanguage.Japanese -> "再生"
-    AppLanguage.Latvian -> "Atskaņot"
-    AppLanguage.Lithuanian -> "Leisti"
-    AppLanguage.Macedonian -> "Пушти"
-    AppLanguage.Norwegian -> "Spill av"
-    AppLanguage.Portuguese -> "Reproduzir"
-    AppLanguage.Russian -> "Играть"
-    AppLanguage.Serbian -> "Пусти"
-    AppLanguage.Spanish -> "Reproducir"
-    AppLanguage.Swedish -> "Spela"
-    AppLanguage.Thai -> "เล่น"
-    AppLanguage.Ukrainian -> "Відтворити"
-    AppLanguage.Urdu -> "چلائیں"
-    AppLanguage.Albanian -> "Luaj"
-    AppLanguage.English -> "Play"
+    AppLanguage.Bulgarian -> BulgarianTranslations.playback_playLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.playback_playLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.playback_playLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.playback_playLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.playback_playLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.playback_playLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.playback_playLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.playback_playLabel_1
+    AppLanguage.Polish -> PolishTranslations.playback_playLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.playback_playLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playback_playLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.playback_playLabel_1
+    AppLanguage.Korean -> KoreanTranslations.playback_playLabel_1
+    AppLanguage.Czech -> CzechTranslations.playback_playLabel_1
+    AppLanguage.Danish -> DanishTranslations.playback_playLabel_1
+    AppLanguage.Dutch -> DutchTranslations.playback_playLabel_1
+    AppLanguage.Malay -> MalayTranslations.playback_playLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.playback_playLabel_1
+    AppLanguage.French -> FrenchTranslations.playback_playLabel_1
+    AppLanguage.German -> GermanTranslations.playback_playLabel_1
+    AppLanguage.Greek -> GreekTranslations.playback_playLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.playback_playLabel_1
+    AppLanguage.Hindi -> HindiTranslations.playback_playLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.playback_playLabel_1
+    AppLanguage.Italian -> ItalianTranslations.playback_playLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.playback_playLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.playback_playLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.playback_playLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.playback_playLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.playback_playLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.playback_playLabel_1
+    AppLanguage.Russian -> RussianTranslations.playback_playLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.playback_playLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.playback_playLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.playback_playLabel_1
+    AppLanguage.Thai -> ThaiTranslations.playback_playLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.playback_playLabel_1
+    AppLanguage.Urdu -> UrduTranslations.playback_playLabel_1
+    AppLanguage.Albanian -> AlbanianTranslations.playback_playLabel_1
+    AppLanguage.English -> EnglishTranslations.playback_playLabel_1
 }
 

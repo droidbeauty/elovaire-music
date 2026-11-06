@@ -37,605 +37,605 @@ internal fun localizedLyricsSaveError(message: String, language: AppLanguage): S
 }
 
 private fun lyricsInvalidMediaAddress(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kjo këngë nuk ka një adresë të vlefshme në MediaStore"
-    AppLanguage.Bengali -> "এই গানের কোনো বৈধ MediaStore ঠিকানা নেই"
-    AppLanguage.Bosnian -> "Ova pjesma nema važeću adresu stavke u MediaStoreu"
-    AppLanguage.Bulgarian -> "Тази песен няма валиден адрес на елемент в MediaStore"
-    AppLanguage.Catalan -> "Aquesta cançó no té una adreça d’element vàlida a MediaStore"
-    AppLanguage.ChineseSimplified -> "此歌曲没有有效的 MediaStore 项目地址"
-    AppLanguage.Croatian -> "Ova pjesma nema valjanu adresu stavke u MediaStoreu"
-    AppLanguage.Czech -> "Tato skladba nemá platnou adresu položky v MediaStore"
-    AppLanguage.Danish -> "Denne sang har ikke en gyldig elementadresse i MediaStore"
-    AppLanguage.Dutch -> "Dit nummer heeft geen geldig itemadres in MediaStore"
-    AppLanguage.English -> "This song does not have a valid MediaStore item address"
-    AppLanguage.Estonian -> "Sellel lool pole kehtivat MediaStore’i kirje aadressi"
-    AppLanguage.Finnish -> "Tällä kappaleella ei ole kelvollista MediaStore-kohteen osoitetta"
-    AppLanguage.French -> "Ce morceau ne possède pas d’adresse d’élément MediaStore valide"
-    AppLanguage.German -> "Dieser Titel hat keine gültige MediaStore-Eintragsadresse"
-    AppLanguage.Greek -> "Αυτό το τραγούδι δεν έχει έγκυρη διεύθυνση στοιχείου MediaStore"
-    AppLanguage.Hindi -> "इस गाने का मान्य MediaStore आइटम पता नहीं है"
-    AppLanguage.Hungarian -> "Ehhez a dalhoz nem tartozik érvényes MediaStore-elemcím"
-    AppLanguage.Indonesian -> "Lagu ini tidak memiliki alamat item MediaStore yang valid"
-    AppLanguage.Italian -> "Questo brano non ha un indirizzo di elemento MediaStore valido"
-    AppLanguage.Japanese -> "この曲には有効な MediaStore 項目アドレスがありません"
-    AppLanguage.Korean -> "이 노래에 유효한 MediaStore 항목 주소가 없습니다"
-    AppLanguage.Latvian -> "Šai dziesmai nav derīgas MediaStore vienuma adreses"
-    AppLanguage.Lithuanian -> "Ši daina neturi galiojančio „MediaStore“ elemento adreso"
-    AppLanguage.Macedonian -> "Оваа песна нема важечка адреса на ставка во MediaStore"
-    AppLanguage.Malay -> "Lagu ini tidak mempunyai alamat item MediaStore yang sah"
-    AppLanguage.Norwegian -> "Denne sangen har ikke en gyldig elementadresse i MediaStore"
-    AppLanguage.Polish -> "Ten utwór nie ma prawidłowego adresu elementu w MediaStore"
-    AppLanguage.Portuguese -> "Esta música não tem um endereço de item válido no MediaStore"
-    AppLanguage.Punjabi -> "ਇਸ ਗੀਤ ਦਾ ਵੈਧ MediaStore ਆਈਟਮ ਪਤਾ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Această melodie nu are o adresă validă de element MediaStore"
-    AppLanguage.Russian -> "У этой песни нет действительного адреса элемента MediaStore"
-    AppLanguage.Serbian -> "Ова песма нема важећу адресу ставке у MediaStore-у"
-    AppLanguage.Slovak -> "Táto skladba nemá platnú adresu položky v MediaStore"
-    AppLanguage.Slovenian -> "Ta skladba nima veljavnega naslova elementa v MediaStore"
-    AppLanguage.Spanish -> "Esta canción no tiene una dirección de elemento válida en MediaStore"
-    AppLanguage.Swedish -> "Den här låten har ingen giltig objektadress i MediaStore"
-    AppLanguage.Thai -> "เพลงนี้ไม่มีที่อยู่รายการ MediaStore ที่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Ця пісня не має дійсної адреси елемента в MediaStore"
-    AppLanguage.Urdu -> "اس گانے کا درست MediaStore آئٹم پتہ موجود نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsInvalidMediaAddress_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsInvalidMediaAddress_1
 }
 
 private fun lyricsMetadataUpdateFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Metadatat e tekstit të kësaj kënge nuk mund të përditësoheshin"
-    AppLanguage.Bengali -> "এই গানের কথার মেটাডেটা আপডেট করা যায়নি"
-    AppLanguage.Bosnian -> "Metapodaci teksta ove pjesme nisu se mogli ažurirati"
-    AppLanguage.Bulgarian -> "Метаданните на текста на тази песен не можаха да бъдат обновени"
-    AppLanguage.Catalan -> "No s’han pogut actualitzar les metadades de la lletra d’aquesta cançó"
-    AppLanguage.ChineseSimplified -> "无法更新此歌曲的歌词元数据"
-    AppLanguage.Croatian -> "Metapodatke teksta ove pjesme nije bilo moguće ažurirati"
-    AppLanguage.Czech -> "Metadata textu této skladby se nepodařilo aktualizovat"
-    AppLanguage.Danish -> "Metadataene for denne sangs sangtekst kunne ikke opdateres"
-    AppLanguage.Dutch -> "De metadata van de songtekst van dit nummer konden niet worden bijgewerkt"
-    AppLanguage.English -> "This song’s lyrics metadata could not be updated"
-    AppLanguage.Estonian -> "Selle loo laulusõnade metaandmeid ei saanud uuendada"
-    AppLanguage.Finnish -> "Tämän kappaleen sanoituksen metatietoja ei voitu päivittää"
-    AppLanguage.French -> "Les métadonnées des paroles de ce morceau n’ont pas pu être mises à jour"
-    AppLanguage.German -> "Die Metadaten des Liedtexts dieses Titels konnten nicht aktualisiert werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η ενημέρωση των μεταδεδομένων στίχων αυτού του τραγουδιού"
-    AppLanguage.Hindi -> "इस गाने के बोल का मेटाडेटा अपडेट नहीं किया जा सका"
-    AppLanguage.Hungarian -> "A dal dalszövegének metaadatait nem sikerült frissíteni"
-    AppLanguage.Indonesian -> "Metadata lirik lagu ini tidak dapat diperbarui"
-    AppLanguage.Italian -> "Impossibile aggiornare i metadati del testo di questo brano"
-    AppLanguage.Japanese -> "この曲の歌詞のメタデータを更新できませんでした"
-    AppLanguage.Korean -> "이 노래의 가사 메타데이터를 업데이트할 수 없었습니다"
-    AppLanguage.Latvian -> "Šīs dziesmas vārdu metadatus neizdevās atjaunināt"
-    AppLanguage.Lithuanian -> "Nepavyko atnaujinti šios dainos žodžių metaduomenų"
-    AppLanguage.Macedonian -> "Метаподатоците за текстот на оваа песна не можеа да се ажурираат"
-    AppLanguage.Malay -> "Metadata lirik lagu ini tidak dapat dikemas kini"
-    AppLanguage.Norwegian -> "Metadataene for sangteksten kunne ikke oppdateres"
-    AppLanguage.Polish -> "Nie udało się zaktualizować metadanych tekstu tego utworu"
-    AppLanguage.Portuguese -> "Não foi possível atualizar os metadados da letra desta música"
-    AppLanguage.Punjabi -> "ਇਸ ਗੀਤ ਦੇ ਬੋਲਾਂ ਦਾ ਮੈਟਾਡੇਟਾ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Metadatele versurilor acestei melodii nu au putut fi actualizate"
-    AppLanguage.Russian -> "Не удалось обновить метаданные текста этой песни"
-    AppLanguage.Serbian -> "Метаподаци текста ове песме нису могли бити ажурирани"
-    AppLanguage.Slovak -> "Metadáta textu tejto skladby sa nepodarilo aktualizovať"
-    AppLanguage.Slovenian -> "Metapodatkov besedila te skladbe ni bilo mogoče posodobiti"
-    AppLanguage.Spanish -> "No se pudieron actualizar los metadatos de la letra de esta canción"
-    AppLanguage.Swedish -> "Metadata för låtens sångtext kunde inte uppdateras"
-    AppLanguage.Thai -> "ไม่สามารถอัปเดตข้อมูลกำกับเนื้อเพลงของเพลงนี้ได้"
-    AppLanguage.Ukrainian -> "Не вдалося оновити метадані тексту цієї пісні"
-    AppLanguage.Urdu -> "اس گانے کے بول کا میٹا ڈیٹا اپ ڈیٹ نہیں ہو سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsMetadataUpdateFailed_1
 }
 
 private fun lyricsPreparationFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kënga nuk mund të përgatitet për redaktimin e tekstit"
-    AppLanguage.Bengali -> "গানের কথা সম্পাদনার জন্য গানটি প্রস্তুত করা যায়নি"
-    AppLanguage.Bosnian -> "Pjesmu nije moguće pripremiti za uređivanje teksta"
-    AppLanguage.Bulgarian -> "Песента не може да бъде подготвена за редактиране на текста"
-    AppLanguage.Catalan -> "No es pot preparar la cançó per editar-ne la lletra"
-    AppLanguage.ChineseSimplified -> "无法准备歌曲以编辑歌词"
-    AppLanguage.Croatian -> "Pjesmu nije moguće pripremiti za uređivanje teksta"
-    AppLanguage.Czech -> "Skladbu nelze připravit k úpravě textu"
-    AppLanguage.Danish -> "Sangen kunne ikke klargøres til redigering af sangteksten"
-    AppLanguage.Dutch -> "Het nummer kon niet worden voorbereid om de songtekst te bewerken"
-    AppLanguage.English -> "Unable to prepare this song for lyrics editing"
-    AppLanguage.Estonian -> "Lugu ei saa laulusõnade muutmiseks ette valmistada"
-    AppLanguage.Finnish -> "Kappaletta ei voi valmistella sanoituksen muokkaamista varten"
-    AppLanguage.French -> "Impossible de préparer ce morceau pour modifier ses paroles"
-    AppLanguage.German -> "Dieser Titel kann nicht für die Bearbeitung des Liedtexts vorbereitet werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η προετοιμασία του τραγουδιού για επεξεργασία των στίχων"
-    AppLanguage.Hindi -> "बोल संपादित करने के लिए यह गाना तैयार नहीं किया जा सका"
-    AppLanguage.Hungarian -> "A dalt nem sikerült előkészíteni a dalszöveg szerkesztéséhez"
-    AppLanguage.Indonesian -> "Lagu ini tidak dapat disiapkan untuk pengeditan lirik"
-    AppLanguage.Italian -> "Impossibile preparare questo brano per modificarne il testo"
-    AppLanguage.Japanese -> "歌詞を編集するためにこの曲を準備できません"
-    AppLanguage.Korean -> "가사 편집을 위해 이 노래를 준비할 수 없습니다"
-    AppLanguage.Latvian -> "Dziesmu nevar sagatavot vārdu rediģēšanai"
-    AppLanguage.Lithuanian -> "Nepavyko paruošti dainos jos žodžiams redaguoti"
-    AppLanguage.Macedonian -> "Песната не може да се подготви за уредување на текстот"
-    AppLanguage.Malay -> "Lagu ini tidak dapat disediakan untuk mengedit lirik"
-    AppLanguage.Norwegian -> "Sangen kunne ikke klargjøres for redigering av sangteksten"
-    AppLanguage.Polish -> "Nie można przygotować utworu do edycji tekstu"
-    AppLanguage.Portuguese -> "Não é possível preparar esta música para editar a letra"
-    AppLanguage.Punjabi -> "ਬੋਲ ਸੰਪਾਦਿਤ ਕਰਨ ਲਈ ਇਸ ਗੀਤ ਨੂੰ ਤਿਆਰ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Melodia nu poate fi pregătită pentru editarea versurilor"
-    AppLanguage.Russian -> "Не удалось подготовить песню к редактированию текста"
-    AppLanguage.Serbian -> "Песма не може да се припреми за уређивање текста"
-    AppLanguage.Slovak -> "Skladbu nemožno pripraviť na úpravu textu"
-    AppLanguage.Slovenian -> "Skladbe ni mogoče pripraviti za urejanje besedila"
-    AppLanguage.Spanish -> "No se puede preparar esta canción para editar la letra"
-    AppLanguage.Swedish -> "Låten kunde inte förberedas för redigering av sångtexten"
-    AppLanguage.Thai -> "ไม่สามารถเตรียมเพลงนี้เพื่อแก้ไขเนื้อเพลงได้"
-    AppLanguage.Ukrainian -> "Не вдалося підготувати пісню до редагування тексту"
-    AppLanguage.Urdu -> "بول میں ترمیم کے لیے یہ گانا تیار نہیں کیا جا سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsPreparationFailed_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsPreparationFailed_1
 }
 
 private fun lyricsVerificationAfterSave(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Teksti nuk mund të verifikohej pas ruajtjes"
-    AppLanguage.Bengali -> "সংরক্ষণের পর গানের কথা যাচাই করা যায়নি"
-    AppLanguage.Bosnian -> "Tekst pjesme nije se mogao provjeriti nakon spremanja"
-    AppLanguage.Bulgarian -> "Текстът не можа да бъде проверен след запазване"
-    AppLanguage.Catalan -> "No s’ha pogut verificar la lletra després de desar"
-    AppLanguage.ChineseSimplified -> "保存后无法验证歌词"
-    AppLanguage.Croatian -> "Tekst pjesme nije bilo moguće provjeriti nakon spremanja"
-    AppLanguage.Czech -> "Text skladby se po uložení nepodařilo ověřit"
-    AppLanguage.Danish -> "Sangteksten kunne ikke verificeres efter lagring"
-    AppLanguage.Dutch -> "De songtekst kon na het opslaan niet worden gecontroleerd"
-    AppLanguage.English -> "Lyrics could not be verified after saving"
-    AppLanguage.Estonian -> "Laulusõnu ei saanud pärast salvestamist kontrollida"
-    AppLanguage.Finnish -> "Sanoitusta ei voitu vahvistaa tallennuksen jälkeen"
-    AppLanguage.French -> "Les paroles n’ont pas pu être vérifiées après l’enregistrement"
-    AppLanguage.German -> "Der Liedtext konnte nach dem Speichern nicht überprüft werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η επαλήθευση των στίχων μετά την αποθήκευση"
-    AppLanguage.Hindi -> "सहेजने के बाद बोल सत्यापित नहीं किए जा सके"
-    AppLanguage.Hungarian -> "A dalszöveget mentés után nem sikerült ellenőrizni"
-    AppLanguage.Indonesian -> "Lirik tidak dapat diverifikasi setelah disimpan"
-    AppLanguage.Italian -> "Impossibile verificare il testo dopo il salvataggio"
-    AppLanguage.Japanese -> "保存後に歌詞を確認できませんでした"
-    AppLanguage.Korean -> "저장한 후 가사를 확인할 수 없었습니다"
-    AppLanguage.Latvian -> "Pēc saglabāšanas neizdevās pārbaudīt dziesmas vārdus"
-    AppLanguage.Lithuanian -> "Išsaugojus nepavyko patikrinti dainos žodžių"
-    AppLanguage.Macedonian -> "Текстот не можеше да се провери по зачувувањето"
-    AppLanguage.Malay -> "Lirik tidak dapat disahkan selepas disimpan"
-    AppLanguage.Norwegian -> "Sangteksten kunne ikke bekreftes etter lagring"
-    AppLanguage.Polish -> "Nie udało się zweryfikować tekstu po zapisie"
-    AppLanguage.Portuguese -> "Não foi possível verificar a letra depois de guardar"
-    AppLanguage.Punjabi -> "ਸੰਭਾਲਣ ਤੋਂ ਬਾਅਦ ਬੋਲਾਂ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਹੋ ਸਕੀ"
-    AppLanguage.Romanian -> "Versurile nu au putut fi verificate după salvare"
-    AppLanguage.Russian -> "Не удалось проверить текст песни после сохранения"
-    AppLanguage.Serbian -> "Текст песме није могао бити проверен након чувања"
-    AppLanguage.Slovak -> "Text skladby sa po uložení nepodarilo overiť"
-    AppLanguage.Slovenian -> "Besedila po shranjevanju ni bilo mogoče preveriti"
-    AppLanguage.Spanish -> "No se pudo verificar la letra después de guardar"
-    AppLanguage.Swedish -> "Sångtexten kunde inte verifieras efter sparning"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบเนื้อเพลงหลังบันทึกได้"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити текст пісні після збереження"
-    AppLanguage.Urdu -> "محفوظ کرنے کے بعد بول کی تصدیق نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsVerificationAfterSave_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsVerificationAfterSave_1
 }
 
 private fun lyricsVerificationBeforeSave(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Metadatat e tekstit nuk mund të verifikoheshin para ruajtjes"
-    AppLanguage.Bengali -> "সংরক্ষণের আগে গানের কথার মেটাডেটা যাচাই করা যায়নি"
-    AppLanguage.Bosnian -> "Metapodaci teksta pjesme nisu se mogli provjeriti prije spremanja"
-    AppLanguage.Bulgarian -> "Метаданните на текста не можаха да бъдат проверени преди запазване"
-    AppLanguage.Catalan -> "No s’han pogut verificar les metadades de la lletra abans de desar"
-    AppLanguage.ChineseSimplified -> "保存前无法验证歌词元数据"
-    AppLanguage.Croatian -> "Metapodatke teksta pjesme nije bilo moguće provjeriti prije spremanja"
-    AppLanguage.Czech -> "Metadata textu skladby se před uložením nepodařilo ověřit"
-    AppLanguage.Danish -> "Sangtekstens metadata kunne ikke verificeres før lagring"
-    AppLanguage.Dutch -> "De metadata van de songtekst konden niet vóór het opslaan worden gecontroleerd"
-    AppLanguage.English -> "Lyrics metadata could not be verified before saving"
-    AppLanguage.Estonian -> "Laulusõnade metaandmeid ei saanud enne salvestamist kontrollida"
-    AppLanguage.Finnish -> "Sanoituksen metatietoja ei voitu vahvistaa ennen tallennusta"
-    AppLanguage.French -> "Les métadonnées des paroles n’ont pas pu être vérifiées avant l’enregistrement"
-    AppLanguage.German -> "Die Metadaten des Liedtexts konnten vor dem Speichern nicht überprüft werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η επαλήθευση των μεταδεδομένων στίχων πριν από την αποθήκευση"
-    AppLanguage.Hindi -> "सहेजने से पहले बोल का मेटाडेटा सत्यापित नहीं किया जा सका"
-    AppLanguage.Hungarian -> "A dalszöveg metaadatait nem sikerült ellenőrizni mentés előtt"
-    AppLanguage.Indonesian -> "Metadata lirik tidak dapat diverifikasi sebelum disimpan"
-    AppLanguage.Italian -> "Impossibile verificare i metadati del testo prima del salvataggio"
-    AppLanguage.Japanese -> "保存前に歌詞のメタデータを確認できませんでした"
-    AppLanguage.Korean -> "저장하기 전에 가사 메타데이터를 확인할 수 없었습니다"
-    AppLanguage.Latvian -> "Pirms saglabāšanas neizdevās pārbaudīt dziesmas vārdu metadatus"
-    AppLanguage.Lithuanian -> "Prieš išsaugant nepavyko patikrinti dainos žodžių metaduomenų"
-    AppLanguage.Macedonian -> "Метаподатоците за текстот не можеа да се проверат пред зачувувањето"
-    AppLanguage.Malay -> "Metadata lirik tidak dapat disahkan sebelum disimpan"
-    AppLanguage.Norwegian -> "Metadataene for sangteksten kunne ikke bekreftes før lagring"
-    AppLanguage.Polish -> "Nie udało się zweryfikować metadanych tekstu przed zapisem"
-    AppLanguage.Portuguese -> "Não foi possível verificar os metadados da letra antes de guardar"
-    AppLanguage.Punjabi -> "ਸੰਭਾਲਣ ਤੋਂ ਪਹਿਲਾਂ ਬੋਲਾਂ ਦੇ ਮੈਟਾਡੇਟਾ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਹੋ ਸਕੀ"
-    AppLanguage.Romanian -> "Metadatele versurilor nu au putut fi verificate înainte de salvare"
-    AppLanguage.Russian -> "Не удалось проверить метаданные текста песни перед сохранением"
-    AppLanguage.Serbian -> "Метаподаци текста песме нису могли бити проверени пре чувања"
-    AppLanguage.Slovak -> "Metadáta textu skladby sa pred uložením nepodarilo overiť"
-    AppLanguage.Slovenian -> "Metapodatkov besedila pred shranjevanjem ni bilo mogoče preveriti"
-    AppLanguage.Spanish -> "No se pudieron verificar los metadatos de la letra antes de guardar"
-    AppLanguage.Swedish -> "Sångtextens metadata kunde inte verifieras före sparning"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบข้อมูลกำกับเนื้อเพลงก่อนบันทึกได้"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити метадані тексту пісні перед збереженням"
-    AppLanguage.Urdu -> "محفوظ کرنے سے پہلے بول کے میٹا ڈیٹا کی تصدیق نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsVerificationBeforeSave_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsVerificationBeforeSave_1
 }
 
 private fun lyricsWriteFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Teksti nuk mund të ruhet në skedarin e këngës"
-    AppLanguage.Bengali -> "গানের ফাইলে গানের কথা সংরক্ষণ করা যায়নি"
-    AppLanguage.Bosnian -> "Tekst nije moguće spremiti u datoteku pjesme"
-    AppLanguage.Bulgarian -> "Текстът не може да бъде запазен във файла на песента"
-    AppLanguage.Catalan -> "No es pot desar la lletra al fitxer de la cançó"
-    AppLanguage.ChineseSimplified -> "无法将歌词保存到歌曲文件"
-    AppLanguage.Croatian -> "Tekst nije moguće spremiti u datoteku pjesme"
-    AppLanguage.Czech -> "Text nelze uložit do souboru skladby"
-    AppLanguage.Danish -> "Sangteksten kunne ikke gemmes i sangfilen"
-    AppLanguage.Dutch -> "De songtekst kon niet in het nummerbestand worden opgeslagen"
-    AppLanguage.English -> "Unable to save lyrics to the song file"
-    AppLanguage.Estonian -> "Laulusõnu ei saa loo faili salvestada"
-    AppLanguage.Finnish -> "Sanoitusta ei voi tallentaa kappaletiedostoon"
-    AppLanguage.French -> "Impossible d’enregistrer les paroles dans le fichier du morceau"
-    AppLanguage.German -> "Der Liedtext kann nicht in der Titeldatei gespeichert werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η αποθήκευση των στίχων στο αρχείο του τραγουδιού"
-    AppLanguage.Hindi -> "गाने की फ़ाइल में बोल सहेजे नहीं जा सके"
-    AppLanguage.Hungarian -> "A dalszöveget nem sikerült a dal fájljába menteni"
-    AppLanguage.Indonesian -> "Lirik tidak dapat disimpan ke berkas lagu"
-    AppLanguage.Italian -> "Impossibile salvare il testo nel file del brano"
-    AppLanguage.Japanese -> "歌詞を曲のファイルに保存できません"
-    AppLanguage.Korean -> "가사를 노래 파일에 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Dziesmas vārdus nevar saglabāt dziesmas failā"
-    AppLanguage.Lithuanian -> "Nepavyko išsaugoti dainos žodžių dainos faile"
-    AppLanguage.Macedonian -> "Текстот не може да се зачува во датотеката на песната"
-    AppLanguage.Malay -> "Lirik tidak dapat disimpan ke fail lagu"
-    AppLanguage.Norwegian -> "Sangteksten kunne ikke lagres i sangfilen"
-    AppLanguage.Polish -> "Nie można zapisać tekstu w pliku utworu"
-    AppLanguage.Portuguese -> "Não é possível guardar a letra no ficheiro da música"
-    AppLanguage.Punjabi -> "ਗੀਤ ਦੀ ਫਾਈਲ ਵਿੱਚ ਬੋਲ ਸੰਭਾਲੇ ਨਹੀਂ ਜਾ ਸਕੇ"
-    AppLanguage.Romanian -> "Versurile nu pot fi salvate în fișierul melodiei"
-    AppLanguage.Russian -> "Не удалось сохранить текст в файле песни"
-    AppLanguage.Serbian -> "Текст није могуће сачувати у датотеци песме"
-    AppLanguage.Slovak -> "Text nemožno uložiť do súboru skladby"
-    AppLanguage.Slovenian -> "Besedila ni mogoče shraniti v datoteko skladbe"
-    AppLanguage.Spanish -> "No se puede guardar la letra en el archivo de la canción"
-    AppLanguage.Swedish -> "Sångtexten kunde inte sparas i låtfilen"
-    AppLanguage.Thai -> "ไม่สามารถบันทึกเนื้อเพลงลงในไฟล์เพลงได้"
-    AppLanguage.Ukrainian -> "Не вдалося зберегти текст у файлі пісні"
-    AppLanguage.Urdu -> "گانے کی فائل میں بول محفوظ نہیں کیے جا سکے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsWriteFailed_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsWriteFailed_1
 }
 
 private fun lyricsProviderRejectsReplacement(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ofruesi i ruajtjes nuk mbështet zëvendësimin e sigurt të kësaj kënge"
-    AppLanguage.Bengali -> "স্টোরেজ প্রদানকারী এই গানটি নিরাপদে প্রতিস্থাপন করতে সমর্থন করে না"
-    AppLanguage.Bosnian -> "Davalac pohrane ne podržava sigurnu zamjenu ove pjesme"
-    AppLanguage.Bulgarian -> "Доставчикът на хранилището не поддържа безопасна замяна на тази песен"
-    AppLanguage.Catalan -> "El proveïdor d’emmagatzematge no permet substituir aquesta cançó amb seguretat"
-    AppLanguage.ChineseSimplified -> "存储提供方不支持安全替换此歌曲"
-    AppLanguage.Croatian -> "Pružatelj pohrane ne podržava sigurnu zamjenu ove pjesme"
-    AppLanguage.Czech -> "Poskytovatel úložiště nepodporuje bezpečné nahrazení této skladby"
-    AppLanguage.Danish -> "Lagerudbyderen understøtter ikke sikker erstatning af denne sang"
-    AppLanguage.Dutch -> "De opslagprovider ondersteunt het veilig vervangen van dit nummer niet"
-    AppLanguage.English -> "The storage provider does not support safely replacing this song"
-    AppLanguage.Estonian -> "Salvestusteenuse pakkuja ei toeta selle loo turvalist asendamist"
-    AppLanguage.Finnish -> "Tallennuspalvelu ei tue tämän kappaleen turvallista korvaamista"
-    AppLanguage.French -> "Le fournisseur de stockage ne permet pas de remplacer ce morceau en toute sécurité"
-    AppLanguage.German -> "Der Speicheranbieter unterstützt das sichere Ersetzen dieses Titels nicht"
-    AppLanguage.Greek -> "Ο πάροχος αποθήκευσης δεν υποστηρίζει την ασφαλή αντικατάσταση αυτού του τραγουδιού"
-    AppLanguage.Hindi -> "स्टोरेज प्रदाता इस गाने को सुरक्षित रूप से बदलने का समर्थन नहीं करता"
-    AppLanguage.Hungarian -> "A tárhelyszolgáltató nem támogatja a dal biztonságos cseréjét"
-    AppLanguage.Indonesian -> "Penyedia penyimpanan tidak mendukung penggantian lagu ini secara aman"
-    AppLanguage.Italian -> "Il provider di archiviazione non supporta la sostituzione sicura di questo brano"
-    AppLanguage.Japanese -> "ストレージプロバイダはこの曲の安全な置き換えに対応していません"
-    AppLanguage.Korean -> "저장소 제공업체가 이 노래의 안전한 교체를 지원하지 않습니다"
-    AppLanguage.Latvian -> "Krātuves nodrošinātājs neatbalsta šīs dziesmas drošu aizstāšanu"
-    AppLanguage.Lithuanian -> "Saugyklos teikėjas nepalaiko saugaus šios dainos pakeitimo"
-    AppLanguage.Macedonian -> "Давателот на складиштето не поддржува безбедна замена на оваа песна"
-    AppLanguage.Malay -> "Penyedia storan tidak menyokong penggantian lagu ini dengan selamat"
-    AppLanguage.Norwegian -> "Lagringsleverandøren støtter ikke sikker erstatning av denne sangen"
-    AppLanguage.Polish -> "Dostawca pamięci nie obsługuje bezpiecznego zastępowania tego utworu"
-    AppLanguage.Portuguese -> "O fornecedor de armazenamento não suporta a substituição segura desta música"
-    AppLanguage.Punjabi -> "ਸਟੋਰੇਜ ਪ੍ਰਦਾਤਾ ਇਸ ਗੀਤ ਨੂੰ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਬਦਲਣ ਦਾ ਸਮਰਥਨ ਨਹੀਂ ਕਰਦਾ"
-    AppLanguage.Romanian -> "Furnizorul de stocare nu permite înlocuirea în siguranță a acestei melodii"
-    AppLanguage.Russian -> "Поставщик хранилища не поддерживает безопасную замену этой песни"
-    AppLanguage.Serbian -> "Добављач складишта не подржава безбедну замену ове песме"
-    AppLanguage.Slovak -> "Poskytovateľ úložiska nepodporuje bezpečné nahradenie tejto skladby"
-    AppLanguage.Slovenian -> "Ponudnik shrambe ne podpira varne zamenjave te skladbe"
-    AppLanguage.Spanish -> "El proveedor de almacenamiento no permite sustituir esta canción de forma segura"
-    AppLanguage.Swedish -> "Lagringsleverantören stöder inte säker ersättning av den här låten"
-    AppLanguage.Thai -> "ผู้ให้บริการพื้นที่จัดเก็บไม่รองรับการแทนที่เพลงนี้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Постачальник сховища не підтримує безпечну заміну цієї пісні"
-    AppLanguage.Urdu -> "اسٹوریج فراہم کنندہ اس گانے کو محفوظ طریقے سے بدلنے کی سہولت نہیں دیتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsProviderRejectsReplacement_1
 }
 
 private fun lyricsUnsupportedSynced(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ky format audio nuk mund ta ruajë tekstin e sinkronizuar në mënyrë të sigurt"
-    AppLanguage.Bengali -> "এই অডিও ফরম্যাটে সিঙ্ক করা গানের কথা নিরাপদে সংরক্ষণ করা যায় না"
-    AppLanguage.Bosnian -> "Ovaj audio format ne može sigurno pohraniti sinhronizirani tekst pjesme"
-    AppLanguage.Bulgarian -> "Този аудиоформат не може безопасно да съхранява синхронизирани текстове на песни"
-    AppLanguage.Catalan -> "Aquest format d’àudio no pot emmagatzemar la lletra sincronitzada amb seguretat"
-    AppLanguage.ChineseSimplified -> "此音频格式无法安全存储同步歌词"
-    AppLanguage.Croatian -> "Ovaj audioformat ne može sigurno pohraniti sinkronizirani tekst pjesme"
-    AppLanguage.Czech -> "Tento zvukový formát nedokáže bezpečně uložit synchronizovaný text skladby"
-    AppLanguage.Danish -> "Dette lydformat kan ikke gemme synkroniseret sangtekst sikkert"
-    AppLanguage.Dutch -> "Dit audioformaat kan gesynchroniseerde songteksten niet veilig opslaan"
-    AppLanguage.English -> "This audio format cannot store synchronized lyrics safely"
-    AppLanguage.Estonian -> "See helivorming ei võimalda sünkroonitud laulusõnu turvaliselt salvestada"
-    AppLanguage.Finnish -> "Tähän äänimuotoon ei voi tallentaa ajoitettua sanoitusta turvallisesti"
-    AppLanguage.French -> "Ce format audio ne permet pas d’enregistrer les paroles synchronisées en toute sécurité"
-    AppLanguage.German -> "Dieses Audioformat kann synchronisierte Liedtexte nicht sicher speichern"
-    AppLanguage.Greek -> "Αυτή η μορφή ήχου δεν μπορεί να αποθηκεύσει συγχρονισμένους στίχους με ασφάλεια"
-    AppLanguage.Hindi -> "इस ऑडियो फ़ॉर्मैट में सिंक किए गए बोल सुरक्षित रूप से सहेजे नहीं जा सकते"
-    AppLanguage.Hungarian -> "Ez a hangformátum nem tud biztonságosan szinkronizált dalszöveget tárolni"
-    AppLanguage.Indonesian -> "Format audio ini tidak dapat menyimpan lirik tersinkron dengan aman"
-    AppLanguage.Italian -> "Questo formato audio non può salvare il testo sincronizzato in sicurezza"
-    AppLanguage.Japanese -> "この音声形式では同期歌詞を安全に保存できません"
-    AppLanguage.Korean -> "이 오디오 형식에는 동기화된 가사를 안전하게 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Šajā audio formātā sinhronizētus dziesmas vārdus nevar droši saglabāt"
-    AppLanguage.Lithuanian -> "Šiuo garso formatu negalima saugiai išsaugoti sinchronizuotų dainos žodžių"
-    AppLanguage.Macedonian -> "Овој аудиоформат не може безбедно да зачува синхронизиран текст на песна"
-    AppLanguage.Malay -> "Format audio ini tidak dapat menyimpan lirik yang disegerakkan dengan selamat"
-    AppLanguage.Norwegian -> "Dette lydformatet kan ikke lagre synkronisert sangtekst på en trygg måte"
-    AppLanguage.Polish -> "Ten format audio nie pozwala bezpiecznie zapisać zsynchronizowanego tekstu utworu"
-    AppLanguage.Portuguese -> "Este formato de áudio não permite guardar letras sincronizadas em segurança"
-    AppLanguage.Punjabi -> "ਇਸ ਆਡੀਓ ਫਾਰਮੈਟ ਵਿੱਚ ਸਿੰਕ ਕੀਤੇ ਬੋਲ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸੰਭਾਲੇ ਨਹੀਂ ਜਾ ਸਕਦੇ"
-    AppLanguage.Romanian -> "Acest format audio nu poate stoca versuri sincronizate în siguranță"
-    AppLanguage.Russian -> "Этот аудиоформат не позволяет безопасно сохранить синхронизированный текст песни"
-    AppLanguage.Serbian -> "Овај аудио формат не може безбедно да сачува синхронизовани текст песме"
-    AppLanguage.Slovak -> "Tento zvukový formát nedokáže bezpečne uložiť synchronizovaný text skladby"
-    AppLanguage.Slovenian -> "Ta zvočni format ne omogoča varnega shranjevanja sinhroniziranega besedila"
-    AppLanguage.Spanish -> "Este formato de audio no permite guardar la letra sincronizada de forma segura"
-    AppLanguage.Swedish -> "Det här ljudformatet kan inte lagra synkroniserad sångtext på ett säkert sätt"
-    AppLanguage.Thai -> "รูปแบบเสียงนี้ไม่สามารถบันทึกเนื้อเพลงแบบซิงค์ได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Цей аудіоформат не дає змоги безпечно зберігати синхронізований текст пісні"
-    AppLanguage.Urdu -> "اس آڈیو فارمیٹ میں مطابقت پذیر بول محفوظ طریقے سے محفوظ نہیں کیے جا سکتے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsUnsupportedSynced_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsUnsupportedSynced_1
 }
 
 private fun lyricsUnsupportedFormat(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ky format audio nuk mund ta ruajë tekstin në mënyrë të sigurt"
-    AppLanguage.Bengali -> "এই অডিও ফরম্যাটে গানের কথা নিরাপদে সংরক্ষণ করা যায় না"
-    AppLanguage.Bosnian -> "Ovaj audio format ne može sigurno pohraniti tekst pjesme"
-    AppLanguage.Bulgarian -> "Този аудиоформат не може безопасно да съхранява текстове на песни"
-    AppLanguage.Catalan -> "Aquest format d’àudio no pot emmagatzemar la lletra amb seguretat"
-    AppLanguage.ChineseSimplified -> "此音频格式无法安全存储歌词"
-    AppLanguage.Croatian -> "Ovaj audioformat ne može sigurno pohraniti tekst pjesme"
-    AppLanguage.Czech -> "Tento zvukový formát nedokáže bezpečně uložit text skladby"
-    AppLanguage.Danish -> "Dette lydformat kan ikke gemme sangtekst sikkert"
-    AppLanguage.Dutch -> "Dit audioformaat kan songteksten niet veilig opslaan"
-    AppLanguage.English -> "This audio format cannot store lyrics safely"
-    AppLanguage.Estonian -> "See helivorming ei võimalda laulusõnu turvaliselt salvestada"
-    AppLanguage.Finnish -> "Tähän äänimuotoon ei voi tallentaa sanoitusta turvallisesti"
-    AppLanguage.French -> "Ce format audio ne permet pas d’enregistrer les paroles en toute sécurité"
-    AppLanguage.German -> "Dieses Audioformat kann Liedtexte nicht sicher speichern"
-    AppLanguage.Greek -> "Αυτή η μορφή ήχου δεν μπορεί να αποθηκεύσει στίχους με ασφάλεια"
-    AppLanguage.Hindi -> "इस ऑडियो फ़ॉर्मैट में बोल सुरक्षित रूप से सहेजे नहीं जा सकते"
-    AppLanguage.Hungarian -> "Ez a hangformátum nem tud biztonságosan dalszöveget tárolni"
-    AppLanguage.Indonesian -> "Format audio ini tidak dapat menyimpan lirik dengan aman"
-    AppLanguage.Italian -> "Questo formato audio non può salvare il testo in sicurezza"
-    AppLanguage.Japanese -> "この音声形式では歌詞を安全に保存できません"
-    AppLanguage.Korean -> "이 오디오 형식에는 가사를 안전하게 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Šajā audio formātā dziesmas vārdus nevar droši saglabāt"
-    AppLanguage.Lithuanian -> "Šiuo garso formatu negalima saugiai išsaugoti dainos žodžių"
-    AppLanguage.Macedonian -> "Овој аудиоформат не може безбедно да зачува текст на песна"
-    AppLanguage.Malay -> "Format audio ini tidak dapat menyimpan lirik dengan selamat"
-    AppLanguage.Norwegian -> "Dette lydformatet kan ikke lagre sangtekst på en trygg måte"
-    AppLanguage.Polish -> "Ten format audio nie pozwala bezpiecznie zapisać tekstu utworu"
-    AppLanguage.Portuguese -> "Este formato de áudio não permite guardar letras em segurança"
-    AppLanguage.Punjabi -> "ਇਸ ਆਡੀਓ ਫਾਰਮੈਟ ਵਿੱਚ ਬੋਲ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸੰਭਾਲੇ ਨਹੀਂ ਜਾ ਸਕਦੇ"
-    AppLanguage.Romanian -> "Acest format audio nu poate stoca versuri în siguranță"
-    AppLanguage.Russian -> "Этот аудиоформат не позволяет безопасно сохранить текст песни"
-    AppLanguage.Serbian -> "Овај аудио формат не може безбедно да сачува текст песме"
-    AppLanguage.Slovak -> "Tento zvukový formát nedokáže bezpečne uložiť text skladby"
-    AppLanguage.Slovenian -> "Ta zvočni format ne omogoča varnega shranjevanja besedila"
-    AppLanguage.Spanish -> "Este formato de audio no permite guardar la letra de forma segura"
-    AppLanguage.Swedish -> "Det här ljudformatet kan inte lagra sångtext på ett säkert sätt"
-    AppLanguage.Thai -> "รูปแบบเสียงนี้ไม่สามารถบันทึกเนื้อเพลงได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Цей аудіоформат не дає змоги безпечно зберігати текст пісні"
-    AppLanguage.Urdu -> "اس آڈیو فارمیٹ میں بول محفوظ طریقے سے محفوظ نہیں کیے جا سکتے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsUnsupportedFormat_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsUnsupportedFormat_1
 }
 
 private fun lyricsFolderAccessLost(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Qasja në këtë dosje muzike humbi. Shtoje përsëri dosjen për të ruajtur tekstin"
-    AppLanguage.Bengali -> "এই সংগীত ফোল্ডারের অ্যাক্সেস হারিয়েছে। গানের কথা সংরক্ষণ করতে ফোল্ডারটি আবার যোগ করুন"
-    AppLanguage.Bosnian -> "Izgubljen je pristup ovoj muzičkoj mapi. Ponovo dodajte mapu da biste spremili tekst"
-    AppLanguage.Bulgarian -> "Достъпът до тази музикална папка е изгубен. Добавете папката отново, за да запазите текста"
-    AppLanguage.Catalan -> "S’ha perdut l’accés a aquesta carpeta de música. Torna-la a afegir per desar la lletra"
-    AppLanguage.ChineseSimplified -> "已失去对此音乐文件夹的访问权限。请重新添加文件夹以保存歌词"
-    AppLanguage.Croatian -> "Izgubljen je pristup ovoj glazbenoj mapi. Ponovno dodajte mapu kako biste spremili tekst"
-    AppLanguage.Czech -> "Přístup k této hudební složce byl ztracen. Pro uložení textu složku znovu přidejte"
-    AppLanguage.Danish -> "Adgangen til denne musikmappe er mistet. Tilføj mappen igen for at gemme sangteksten"
-    AppLanguage.Dutch -> "De toegang tot deze muziekmap is verloren. Voeg de map opnieuw toe om de songtekst op te slaan"
-    AppLanguage.English -> "Access to this music folder was lost. Add the folder again to save lyrics"
-    AppLanguage.Estonian -> "Juurdepääs sellele muusikakaustale kadus. Laulusõnade salvestamiseks lisa kaust uuesti"
-    AppLanguage.Finnish -> "Tämän musiikkikansion käyttöoikeus menetettiin. Lisää kansio uudelleen tallentaaksesi sanoituksen"
-    AppLanguage.French -> "L’accès à ce dossier musical a été perdu. Ajoutez à nouveau le dossier pour enregistrer les paroles"
-    AppLanguage.German -> "Der Zugriff auf diesen Musikordner ist verloren gegangen. Füge den Ordner erneut hinzu, um den Liedtext zu speichern"
-    AppLanguage.Greek -> "Η πρόσβαση σε αυτόν τον φάκελο μουσικής χάθηκε. Πρόσθεσε ξανά τον φάκελο για να αποθηκεύσεις τους στίχους"
-    AppLanguage.Hindi -> "इस संगीत फ़ोल्डर का एक्सेस खो गया है। बोल सहेजने के लिए फ़ोल्डर फिर से जोड़ें"
-    AppLanguage.Hungarian -> "Megszűnt a hozzáférés ehhez a zenei mappához. A dalszöveg mentéséhez add hozzá újra a mappát"
-    AppLanguage.Indonesian -> "Akses ke folder musik ini telah hilang. Tambahkan kembali folder untuk menyimpan lirik"
-    AppLanguage.Italian -> "L’accesso a questa cartella musicale è stato perso. Aggiungi di nuovo la cartella per salvare il testo"
-    AppLanguage.Japanese -> "この音楽フォルダへのアクセスが失われました。歌詞を保存するにはフォルダを再度追加してください"
-    AppLanguage.Korean -> "이 음악 폴더에 대한 액세스 권한이 사라졌습니다. 가사를 저장하려면 폴더를 다시 추가하세요"
-    AppLanguage.Latvian -> "Piekļuve šai mūzikas mapei ir zaudēta. Pievienojiet mapi vēlreiz, lai saglabātu dziesmas vārdus"
-    AppLanguage.Lithuanian -> "Prieiga prie šio muzikos aplanko prarasta. Pridėkite aplanką iš naujo, kad išsaugotumėte dainos žodžius"
-    AppLanguage.Macedonian -> "Пристапот до оваа музичка папка е изгубен. Додајте ја папката повторно за да го зачувате текстот"
-    AppLanguage.Malay -> "Akses kepada folder muzik ini telah hilang. Tambah semula folder untuk menyimpan lirik"
-    AppLanguage.Norwegian -> "Tilgangen til denne musikkmappen er mistet. Legg til mappen på nytt for å lagre sangteksten"
-    AppLanguage.Polish -> "Utracono dostęp do tego folderu z muzyką. Dodaj folder ponownie, aby zapisać tekst utworu"
-    AppLanguage.Portuguese -> "O acesso a esta pasta de música foi perdido. Adiciona novamente a pasta para guardar a letra"
-    AppLanguage.Punjabi -> "ਇਸ ਸੰਗੀਤ ਫੋਲਡਰ ਦੀ ਪਹੁੰਚ ਖਤਮ ਹੋ ਗਈ ਹੈ। ਬੋਲ ਸੰਭਾਲਣ ਲਈ ਫੋਲਡਰ ਦੁਬਾਰਾ ਜੋੜੋ"
-    AppLanguage.Romanian -> "Accesul la acest folder muzical a fost pierdut. Adaugă din nou folderul pentru a salva versurile"
-    AppLanguage.Russian -> "Доступ к этой папке с музыкой потерян. Добавьте папку снова, чтобы сохранить текст песни"
-    AppLanguage.Serbian -> "Приступ овој музичкој фасцикли је изгубљен. Додајте фасциклу поново да бисте сачували текст"
-    AppLanguage.Slovak -> "Prístup k tomuto hudobnému priečinku sa stratil. Ak chcete uložiť text, pridajte priečinok znova"
-    AppLanguage.Slovenian -> "Dostop do te glasbene mape je izgubljen. Znova dodajte mapo, da shranite besedilo"
-    AppLanguage.Spanish -> "Se ha perdido el acceso a esta carpeta de música. Vuelve a añadirla para guardar la letra"
-    AppLanguage.Swedish -> "Åtkomsten till den här musikmappen har förlorats. Lägg till mappen igen för att spara sångtexten"
-    AppLanguage.Thai -> "สูญเสียสิทธิ์เข้าถึงโฟลเดอร์เพลงนี้ เพิ่มโฟลเดอร์อีกครั้งเพื่อบันทึกเนื้อเพลง"
-    AppLanguage.Ukrainian -> "Доступ до цієї музичної папки втрачено. Додайте папку знову, щоб зберегти текст пісні"
-    AppLanguage.Urdu -> "اس موسیقی کے فولڈر تک رسائی ختم ہو گئی ہے۔ بول محفوظ کرنے کے لیے فولڈر دوبارہ شامل کریں"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsFolderAccessLost_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsFolderAccessLost_1
 }
 
 private fun lyricsSourceReadFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kënga nuk mund të lexohet për të redaktuar tekstin"
-    AppLanguage.Bengali -> "গানের কথা সম্পাদনার জন্য গানটি পড়া যায়নি"
-    AppLanguage.Bosnian -> "Pjesmu nije moguće pročitati za uređivanje teksta"
-    AppLanguage.Bulgarian -> "Песента не може да бъде прочетена за редактиране на текста"
-    AppLanguage.Catalan -> "No es pot llegir la cançó per editar-ne la lletra"
-    AppLanguage.ChineseSimplified -> "无法读取歌曲以编辑歌词"
-    AppLanguage.Croatian -> "Pjesmu nije moguće pročitati za uređivanje teksta"
-    AppLanguage.Czech -> "Skladbu nelze načíst pro úpravu textu"
-    AppLanguage.Danish -> "Sangen kunne ikke læses til redigering af sangteksten"
-    AppLanguage.Dutch -> "Het nummer kon niet worden gelezen om de songtekst te bewerken"
-    AppLanguage.English -> "Unable to read this song for lyrics editing"
-    AppLanguage.Estonian -> "Lugu ei saa laulusõnade muutmiseks lugeda"
-    AppLanguage.Finnish -> "Kappaletta ei voi lukea sanoituksen muokkaamista varten"
-    AppLanguage.French -> "Impossible de lire ce morceau pour modifier ses paroles"
-    AppLanguage.German -> "Dieser Titel kann zum Bearbeiten des Liedtexts nicht gelesen werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η ανάγνωση του τραγουδιού για επεξεργασία των στίχων"
-    AppLanguage.Hindi -> "बोल संपादित करने के लिए यह गाना पढ़ा नहीं जा सका"
-    AppLanguage.Hungarian -> "A dal nem olvasható be a dalszöveg szerkesztéséhez"
-    AppLanguage.Indonesian -> "Lagu ini tidak dapat dibaca untuk mengedit lirik"
-    AppLanguage.Italian -> "Impossibile leggere questo brano per modificarne il testo"
-    AppLanguage.Japanese -> "歌詞を編集するためにこの曲を読み取れません"
-    AppLanguage.Korean -> "가사를 편집하기 위해 이 노래를 읽을 수 없습니다"
-    AppLanguage.Latvian -> "Dziesmu nevar nolasīt vārdu rediģēšanai"
-    AppLanguage.Lithuanian -> "Nepavyko perskaityti dainos, kad būtų galima redaguoti jos žodžius"
-    AppLanguage.Macedonian -> "Песната не може да се прочита за уредување на текстот"
-    AppLanguage.Malay -> "Lagu ini tidak dapat dibaca untuk mengedit lirik"
-    AppLanguage.Norwegian -> "Sangen kunne ikke leses for redigering av sangteksten"
-    AppLanguage.Polish -> "Nie można odczytać utworu, aby edytować jego tekst"
-    AppLanguage.Portuguese -> "Não é possível ler esta música para editar a letra"
-    AppLanguage.Punjabi -> "ਬੋਲ ਸੰਪਾਦਿਤ ਕਰਨ ਲਈ ਇਸ ਗੀਤ ਨੂੰ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Melodia nu poate fi citită pentru editarea versurilor"
-    AppLanguage.Russian -> "Не удалось прочитать песню для редактирования текста"
-    AppLanguage.Serbian -> "Песма не може да се прочита ради уређивања текста"
-    AppLanguage.Slovak -> "Skladbu nemožno načítať na úpravu textu"
-    AppLanguage.Slovenian -> "Skladbe ni mogoče prebrati za urejanje besedila"
-    AppLanguage.Spanish -> "No se puede leer esta canción para editar la letra"
-    AppLanguage.Swedish -> "Låten kunde inte läsas för redigering av sångtexten"
-    AppLanguage.Thai -> "ไม่สามารถอ่านเพลงนี้เพื่อแก้ไขเนื้อเพลงได้"
-    AppLanguage.Ukrainian -> "Не вдалося прочитати пісню для редагування тексту"
-    AppLanguage.Urdu -> "بول میں ترمیم کے لیے یہ گانا پڑھا نہیں جا سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsSourceReadFailed_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsSourceReadFailed_1
 }
 
 private fun lyricsWriteAccessUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Android nuk mund ta hapte këtë këngë për redaktim"
-    AppLanguage.Bengali -> "Android সম্পাদনার জন্য গানটি খুলতে পারেনি"
-    AppLanguage.Bosnian -> "Android nije mogao otvoriti ovu pjesmu za uređivanje"
-    AppLanguage.Bulgarian -> "Android не можа да отвори тази песен за редактиране"
-    AppLanguage.Catalan -> "Android no ha pogut obrir aquesta cançó per editar-la"
-    AppLanguage.ChineseSimplified -> "Android 无法打开此歌曲进行编辑"
-    AppLanguage.Croatian -> "Android nije mogao otvoriti ovu pjesmu za uređivanje"
-    AppLanguage.Czech -> "Android nemohl tuto skladbu otevřít pro úpravy"
-    AppLanguage.Danish -> "Android kunne ikke åbne denne sang til redigering"
-    AppLanguage.Dutch -> "Android kon dit nummer niet openen om te bewerken"
-    AppLanguage.English -> "Android could not open this song for editing"
-    AppLanguage.Estonian -> "Android ei saanud seda lugu muutmiseks avada"
-    AppLanguage.Finnish -> "Android ei voinut avata tätä kappaletta muokattavaksi"
-    AppLanguage.French -> "Android n’a pas pu ouvrir ce morceau pour le modifier"
-    AppLanguage.German -> "Android konnte diesen Titel nicht zur Bearbeitung öffnen"
-    AppLanguage.Greek -> "Το Android δεν μπόρεσε να ανοίξει αυτό το τραγούδι για επεξεργασία"
-    AppLanguage.Hindi -> "Android इस गाने को संपादित करने के लिए नहीं खोल सका"
-    AppLanguage.Hungarian -> "Az Android nem tudta megnyitni ezt a dalt szerkesztésre"
-    AppLanguage.Indonesian -> "Android tidak dapat membuka lagu ini untuk diedit"
-    AppLanguage.Italian -> "Android non è riuscito ad aprire questo brano per la modifica"
-    AppLanguage.Japanese -> "Android でこの曲を編集用に開けませんでした"
-    AppLanguage.Korean -> "Android에서 이 노래를 편집하도록 열 수 없었습니다"
-    AppLanguage.Latvian -> "Android nevarēja atvērt šo dziesmu rediģēšanai"
-    AppLanguage.Lithuanian -> "„Android“ nepavyko atverti šios dainos redaguoti"
-    AppLanguage.Macedonian -> "Android не можеше да ја отвори оваа песна за уредување"
-    AppLanguage.Malay -> "Android tidak dapat membuka lagu ini untuk diedit"
-    AppLanguage.Norwegian -> "Android kunne ikke åpne denne sangen for redigering"
-    AppLanguage.Polish -> "Android nie mógł otworzyć tego utworu do edycji"
-    AppLanguage.Portuguese -> "O Android não conseguiu abrir esta música para edição"
-    AppLanguage.Punjabi -> "Android ਇਸ ਗੀਤ ਨੂੰ ਸੰਪਾਦਨ ਲਈ ਖੋਲ੍ਹ ਨਹੀਂ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Android nu a putut deschide această melodie pentru editare"
-    AppLanguage.Russian -> "Android не удалось открыть эту песню для редактирования"
-    AppLanguage.Serbian -> "Android није могао да отвори ову песму за уређивање"
-    AppLanguage.Slovak -> "Android nemohol túto skladbu otvoriť na úpravu"
-    AppLanguage.Slovenian -> "Android ni mogel odpreti te skladbe za urejanje"
-    AppLanguage.Spanish -> "Android no pudo abrir esta canción para editarla"
-    AppLanguage.Swedish -> "Android kunde inte öppna den här låten för redigering"
-    AppLanguage.Thai -> "Android ไม่สามารถเปิดเพลงนี้เพื่อแก้ไขได้"
-    AppLanguage.Ukrainian -> "Android не вдалося відкрити цю пісню для редагування"
-    AppLanguage.Urdu -> "Android اس گانے کو ترمیم کے لیے کھول نہیں سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsWriteAccessUnavailable_1
 }
 
 private fun lyricsTooLargeError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ky tekst është tepër i gjatë për t’u ruajtur në mënyrë të sigurt"
-    AppLanguage.Bengali -> "এই গানের কথা নিরাপদে সংরক্ষণের জন্য খুব বড়"
-    AppLanguage.Bosnian -> "Ovaj tekst je predug za sigurno spremanje"
-    AppLanguage.Bulgarian -> "Текстът е твърде дълъг за безопасно запазване"
-    AppLanguage.Catalan -> "Aquesta lletra és massa llarga per desar-la amb seguretat"
-    AppLanguage.ChineseSimplified -> "歌词过长，无法安全保存"
-    AppLanguage.Croatian -> "Ovaj tekst je predug za sigurno spremanje"
-    AppLanguage.Czech -> "Tento text je příliš dlouhý pro bezpečné uložení"
-    AppLanguage.Danish -> "Sangteksten er for lang til at blive gemt sikkert"
-    AppLanguage.Dutch -> "Deze songtekst is te lang om veilig op te slaan"
-    AppLanguage.English -> "These lyrics are too large to store safely"
-    AppLanguage.Estonian -> "Need laulusõnad on turvaliseks salvestamiseks liiga pikad"
-    AppLanguage.Finnish -> "Sanoitus on liian pitkä turvallisesti tallennettavaksi"
-    AppLanguage.French -> "Ces paroles sont trop longues pour être enregistrées en toute sécurité"
-    AppLanguage.German -> "Dieser Liedtext ist zu lang, um sicher gespeichert zu werden"
-    AppLanguage.Greek -> "Οι στίχοι είναι πολύ μεγάλοι για ασφαλή αποθήκευση"
-    AppLanguage.Hindi -> "ये बोल सुरक्षित रूप से सहेजने के लिए बहुत लंबे हैं"
-    AppLanguage.Hungarian -> "A dalszöveg túl hosszú a biztonságos mentéshez"
-    AppLanguage.Indonesian -> "Lirik ini terlalu panjang untuk disimpan dengan aman"
-    AppLanguage.Italian -> "Questo testo è troppo lungo per essere salvato in sicurezza"
-    AppLanguage.Japanese -> "歌詞が長すぎるため安全に保存できません"
-    AppLanguage.Korean -> "가사가 너무 길어 안전하게 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Dziesmas vārdi ir pārāk gari drošai saglabāšanai"
-    AppLanguage.Lithuanian -> "Dainos žodžiai per ilgi, kad juos būtų galima saugiai išsaugoti"
-    AppLanguage.Macedonian -> "Текстот е предолг за безбедно зачувување"
-    AppLanguage.Malay -> "Lirik ini terlalu panjang untuk disimpan dengan selamat"
-    AppLanguage.Norwegian -> "Sangteksten er for lang til å lagres trygt"
-    AppLanguage.Polish -> "Tekst jest zbyt długi, aby bezpiecznie go zapisać"
-    AppLanguage.Portuguese -> "Esta letra é demasiado longa para ser guardada em segurança"
-    AppLanguage.Punjabi -> "ਇਹ ਬੋਲ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸੰਭਾਲਣ ਲਈ ਬਹੁਤ ਲੰਮੇ ਹਨ"
-    AppLanguage.Romanian -> "Versurile sunt prea lungi pentru a fi salvate în siguranță"
-    AppLanguage.Russian -> "Текст песни слишком длинный для безопасного сохранения"
-    AppLanguage.Serbian -> "Текст је предугачак за безбедно чување"
-    AppLanguage.Slovak -> "Tento text je príliš dlhý na bezpečné uloženie"
-    AppLanguage.Slovenian -> "Besedilo je predolgo za varno shranjevanje"
-    AppLanguage.Spanish -> "Esta letra es demasiado larga para guardarla de forma segura"
-    AppLanguage.Swedish -> "Sångtexten är för lång för att sparas säkert"
-    AppLanguage.Thai -> "เนื้อเพลงยาวเกินกว่าจะบันทึกได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Текст пісні надто довгий для безпечного збереження"
-    AppLanguage.Urdu -> "یہ بول محفوظ طریقے سے محفوظ کرنے کے لیے بہت طویل ہیں"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsTooLargeError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsTooLargeError_1
 }
 
 private fun lyricsRollbackFailure(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kënga nuk mund të rikthehej pasi dështoi ruajtja e tekstit"
-    AppLanguage.Bengali -> "গানের কথা সংরক্ষণ ব্যর্থ হওয়ার পর গানটি পুনরুদ্ধার করা যায়নি"
-    AppLanguage.Bosnian -> "Pjesma se nije mogla vratiti nakon neuspjelog spremanja teksta"
-    AppLanguage.Bulgarian -> "Песента не можа да бъде възстановена след неуспешното запазване на текста"
-    AppLanguage.Catalan -> "No s’ha pogut restaurar la cançó després de fallar el desament de la lletra"
-    AppLanguage.ChineseSimplified -> "歌词保存失败后无法恢复歌曲"
-    AppLanguage.Croatian -> "Pjesmu nije bilo moguće vratiti nakon neuspjelog spremanja teksta"
-    AppLanguage.Czech -> "Skladbu se po neúspěšném uložení textu nepodařilo obnovit"
-    AppLanguage.Danish -> "Sangen kunne ikke gendannes efter den mislykkede lagring af sangteksten"
-    AppLanguage.Dutch -> "Het nummer kon niet worden hersteld nadat het opslaan van de songtekst mislukte"
-    AppLanguage.English -> "The song could not be restored after saving the lyrics failed"
-    AppLanguage.Estonian -> "Lugu ei õnnestunud pärast laulusõnade salvestamise nurjumist taastada"
-    AppLanguage.Finnish -> "Kappaletta ei voitu palauttaa sanoituksen tallennuksen epäonnistuttua"
-    AppLanguage.French -> "Le morceau n’a pas pu être restauré après l’échec de l’enregistrement des paroles"
-    AppLanguage.German -> "Der Titel konnte nach dem fehlgeschlagenen Speichern des Liedtexts nicht wiederhergestellt werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η επαναφορά του τραγουδιού μετά την αποτυχία αποθήκευσης των στίχων"
-    AppLanguage.Hindi -> "बोल सहेजने में विफलता के बाद गाना बहाल नहीं किया जा सका"
-    AppLanguage.Hungarian -> "A dalt nem sikerült visszaállítani a dalszöveg sikertelen mentése után"
-    AppLanguage.Indonesian -> "Lagu tidak dapat dipulihkan setelah penyimpanan lirik gagal"
-    AppLanguage.Italian -> "Impossibile ripristinare il brano dopo l’errore di salvataggio del testo"
-    AppLanguage.Japanese -> "歌詞の保存に失敗した後、曲を復元できませんでした"
-    AppLanguage.Korean -> "가사 저장에 실패한 후 노래를 복원할 수 없었습니다"
-    AppLanguage.Latvian -> "Pēc neveiksmīgas dziesmas vārdu saglabāšanas dziesmu neizdevās atjaunot"
-    AppLanguage.Lithuanian -> "Nepavyko atkurti dainos po nesėkmingo jos žodžių išsaugojimo"
-    AppLanguage.Macedonian -> "Песната не можеше да се врати по неуспешното зачувување на текстот"
-    AppLanguage.Malay -> "Lagu tidak dapat dipulihkan selepas penyimpanan lirik gagal"
-    AppLanguage.Norwegian -> "Sangen kunne ikke gjenopprettes etter at lagringen av sangteksten mislyktes"
-    AppLanguage.Polish -> "Nie udało się przywrócić utworu po nieudanym zapisie tekstu"
-    AppLanguage.Portuguese -> "Não foi possível restaurar a música após a falha ao guardar a letra"
-    AppLanguage.Punjabi -> "ਬੋਲ ਸੁਰੱਖਿਅਤ ਕਰਨ ਵਿੱਚ ਅਸਫਲਤਾ ਤੋਂ ਬਾਅਦ ਗੀਤ ਮੁੜ ਬਹਾਲ ਨਹੀਂ ਹੋ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Melodia nu a putut fi restaurată după eșecul salvării versurilor"
-    AppLanguage.Russian -> "Не удалось восстановить песню после ошибки сохранения текста"
-    AppLanguage.Serbian -> "Песма није могла бити враћена након неуспелог чувања текста"
-    AppLanguage.Slovak -> "Skladbu sa po neúspešnom uložení textu nepodarilo obnoviť"
-    AppLanguage.Slovenian -> "Skladbe po neuspešnem shranjevanju besedila ni bilo mogoče obnoviti"
-    AppLanguage.Spanish -> "No se pudo restaurar la canción tras fallar el guardado de la letra"
-    AppLanguage.Swedish -> "Låten kunde inte återställas efter att sångtexten inte kunde sparas"
-    AppLanguage.Thai -> "ไม่สามารถกู้คืนเพลงได้หลังจากบันทึกเนื้อเพลงไม่สำเร็จ"
-    AppLanguage.Ukrainian -> "Не вдалося відновити пісню після помилки збереження тексту"
-    AppLanguage.Urdu -> "بول محفوظ کرنے میں ناکامی کے بعد گانا بحال نہیں ہو سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_lyricsRollbackFailure_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_lyricsRollbackFailure_1
 }
 
 internal fun localizedTagSaveStatus(status: String, failureCount: Int, language: AppLanguage): String {
@@ -666,908 +666,908 @@ internal fun localizedTagSaveStatus(status: String, failureCount: Int, language:
     if (status != "Saved with $failureCount issue(s)") return status
     if (language == AppLanguage.English) return "Saved with $failureCount ${if (failureCount == 1) "issue" else "issues"}"
     val label = when (language) {
-        AppLanguage.Albanian -> "U ruajt me probleme"
-        AppLanguage.Bengali -> "সমস্যাসহ সংরক্ষিত"
-        AppLanguage.Bosnian -> "Spremljeno uz probleme"
-        AppLanguage.Bulgarian -> "Запазено с проблеми"
-        AppLanguage.Catalan -> "Desat amb problemes"
-        AppLanguage.ChineseSimplified -> "已保存，存在问题"
-        AppLanguage.Croatian -> "Spremljeno uz probleme"
-        AppLanguage.Czech -> "Uloženo s problémy"
-        AppLanguage.Danish -> "Gemt med problemer"
-        AppLanguage.Dutch -> "Opgeslagen met problemen"
+        AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Bengali -> BengaliTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Catalan -> CatalanTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Croatian -> CroatianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Czech -> CzechTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Danish -> DanishTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Dutch -> DutchTranslations.tagFeedback_localizedTagSaveStatus_1
         AppLanguage.English -> error("English is handled above")
-        AppLanguage.Estonian -> "Salvestatud probleemidega"
-        AppLanguage.Finnish -> "Tallennettu ongelmien kanssa"
-        AppLanguage.French -> "Enregistré avec des problèmes"
-        AppLanguage.German -> "Mit Problemen gespeichert"
-        AppLanguage.Greek -> "Αποθηκεύτηκε με προβλήματα"
-        AppLanguage.Hindi -> "समस्याओं के साथ सहेजा गया"
-        AppLanguage.Hungarian -> "Mentve problémákkal"
-        AppLanguage.Indonesian -> "Disimpan dengan masalah"
-        AppLanguage.Italian -> "Salvato con problemi"
-        AppLanguage.Japanese -> "一部に問題がある状態で保存"
-        AppLanguage.Korean -> "일부 문제가 있는 상태로 저장됨"
-        AppLanguage.Latvian -> "Saglabāts ar problēmām"
-        AppLanguage.Lithuanian -> "Išsaugota su problemomis"
-        AppLanguage.Macedonian -> "Зачувано со проблеми"
-        AppLanguage.Malay -> "Disimpan dengan masalah"
-        AppLanguage.Norwegian -> "Lagret med problemer"
-        AppLanguage.Polish -> "Zapisano z problemami"
-        AppLanguage.Portuguese -> "Guardado com problemas"
-        AppLanguage.Punjabi -> "ਸਮੱਸਿਆਵਾਂ ਨਾਲ ਸੁਰੱਖਿਅਤ ਕੀਤਾ"
-        AppLanguage.Romanian -> "Salvat cu probleme"
-        AppLanguage.Russian -> "Сохранено с ошибками"
-        AppLanguage.Serbian -> "Сачувано уз проблеме"
-        AppLanguage.Slovak -> "Uložené s problémami"
-        AppLanguage.Slovenian -> "Shranjeno s težavami"
-        AppLanguage.Spanish -> "Guardado con problemas"
-        AppLanguage.Swedish -> "Sparat med problem"
-        AppLanguage.Thai -> "บันทึกแล้วโดยมีปัญหา"
-        AppLanguage.Ukrainian -> "Збережено з помилками"
-        AppLanguage.Urdu -> "مسائل کے ساتھ محفوظ ہوا"
+        AppLanguage.Estonian -> EstonianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Finnish -> FinnishTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.French -> FrenchTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.German -> GermanTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Greek -> GreekTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Hindi -> HindiTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Italian -> ItalianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Korean -> KoreanTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Latvian -> LatvianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Malay -> MalayTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Polish -> PolishTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Romanian -> RomanianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Russian -> RussianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Serbian -> SerbianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Slovak -> SlovakTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Spanish -> SpanishTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Swedish -> SwedishTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Thai -> ThaiTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_localizedTagSaveStatus_1
+        AppLanguage.Urdu -> UrduTranslations.tagFeedback_localizedTagSaveStatus_1
     }
     return "$label: $failureCount"
 }
 
 private fun tagSourceAlreadyBeingEdited(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kënga po redaktohet tashmë"
-    AppLanguage.Bengali -> "গানটি ইতিমধ্যেই সম্পাদনা করা হচ্ছে"
-    AppLanguage.Bosnian -> "Pjesma se već uređuje"
-    AppLanguage.Bulgarian -> "Песента вече се редактира"
-    AppLanguage.Catalan -> "La cançó ja s’està editant"
-    AppLanguage.ChineseSimplified -> "此歌曲正在编辑中"
-    AppLanguage.Croatian -> "Pjesma se već uređuje"
-    AppLanguage.Czech -> "Skladba se již upravuje"
-    AppLanguage.Danish -> "Sangen redigeres allerede"
-    AppLanguage.Dutch -> "Het nummer wordt al bewerkt"
-    AppLanguage.English -> "The song is already being edited"
-    AppLanguage.Estonian -> "Lugu juba muudetakse"
-    AppLanguage.Finnish -> "Kappaletta muokataan jo"
-    AppLanguage.French -> "Le morceau est déjà en cours de modification"
-    AppLanguage.German -> "Der Titel wird bereits bearbeitet"
-    AppLanguage.Greek -> "Το τραγούδι βρίσκεται ήδη υπό επεξεργασία"
-    AppLanguage.Hindi -> "गाने को पहले से संपादित किया जा रहा है"
-    AppLanguage.Hungarian -> "A dal szerkesztése már folyamatban van"
-    AppLanguage.Indonesian -> "Lagu sedang diedit"
-    AppLanguage.Italian -> "Il brano è già in fase di modifica"
-    AppLanguage.Japanese -> "この曲はすでに編集中です"
-    AppLanguage.Korean -> "이미 곡을 편집하고 있습니다"
-    AppLanguage.Latvian -> "Dziesma jau tiek rediģēta"
-    AppLanguage.Lithuanian -> "Daina jau redaguojama"
-    AppLanguage.Macedonian -> "Песната веќе се уредува"
-    AppLanguage.Malay -> "Lagu sedang diedit"
-    AppLanguage.Norwegian -> "Sangen redigeres allerede"
-    AppLanguage.Polish -> "Utwór jest już edytowany"
-    AppLanguage.Portuguese -> "A música já está a ser editada"
-    AppLanguage.Punjabi -> "ਗੀਤ ਪਹਿਲਾਂ ਹੀ ਸੋਧਿਆ ਜਾ ਰਿਹਾ ਹੈ"
-    AppLanguage.Romanian -> "Melodia este deja în curs de editare"
-    AppLanguage.Russian -> "Песня уже редактируется"
-    AppLanguage.Serbian -> "Песма се већ уређује"
-    AppLanguage.Slovak -> "Skladba sa už upravuje"
-    AppLanguage.Slovenian -> "Skladba se že ureja"
-    AppLanguage.Spanish -> "La canción ya se está editando"
-    AppLanguage.Swedish -> "Låten redigeras redan"
-    AppLanguage.Thai -> "เพลงนี้กำลังถูกแก้ไขอยู่แล้ว"
-    AppLanguage.Ukrainian -> "Пісня вже редагується"
-    AppLanguage.Urdu -> "گانے میں پہلے ہی ترمیم کی جا رہی ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagSourceAlreadyBeingEdited_1
 }
 
 private fun tagSourceLocationUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Vendndodhja e skedarit të këngës nuk është e disponueshme"
-    AppLanguage.Bengali -> "গানের ফাইলের অবস্থান উপলভ্য নয়"
-    AppLanguage.Bosnian -> "Lokacija datoteke pjesme nije dostupna"
-    AppLanguage.Bulgarian -> "Местоположението на файла на песента не е достъпно"
-    AppLanguage.Catalan -> "La ubicació del fitxer de la cançó no està disponible"
-    AppLanguage.ChineseSimplified -> "歌曲文件的位置不可用"
-    AppLanguage.Croatian -> "Lokacija datoteke pjesme nije dostupna"
-    AppLanguage.Czech -> "Umístění souboru skladby není dostupné"
-    AppLanguage.Danish -> "Sangfilens placering er ikke tilgængelig"
-    AppLanguage.Dutch -> "De locatie van het muziekbestand is niet beschikbaar"
-    AppLanguage.English -> "The song file location is unavailable"
-    AppLanguage.Estonian -> "Loo faili asukoht pole saadaval"
-    AppLanguage.Finnish -> "Kappaleen tiedoston sijainti ei ole käytettävissä"
-    AppLanguage.French -> "L’emplacement du fichier du morceau est indisponible"
-    AppLanguage.German -> "Der Speicherort der Titeldatei ist nicht verfügbar"
-    AppLanguage.Greek -> "Η θέση του αρχείου του τραγουδιού δεν είναι διαθέσιμη"
-    AppLanguage.Hindi -> "गाने की फ़ाइल का स्थान उपलब्ध नहीं है"
-    AppLanguage.Hungarian -> "A dal fájljának helye nem érhető el"
-    AppLanguage.Indonesian -> "Lokasi berkas lagu tidak tersedia"
-    AppLanguage.Italian -> "La posizione del file del brano non è disponibile"
-    AppLanguage.Japanese -> "曲のファイルの場所を利用できません"
-    AppLanguage.Korean -> "곡 파일의 위치를 사용할 수 없습니다"
-    AppLanguage.Latvian -> "Dziesmas faila atrašanās vieta nav pieejama"
-    AppLanguage.Lithuanian -> "Dainos failo vieta nepasiekiama"
-    AppLanguage.Macedonian -> "Локацијата на датотеката на песната не е достапна"
-    AppLanguage.Malay -> "Lokasi fail lagu tidak tersedia"
-    AppLanguage.Norwegian -> "Plasseringen til sangfilen er ikke tilgjengelig"
-    AppLanguage.Polish -> "Lokalizacja pliku utworu jest niedostępna"
-    AppLanguage.Portuguese -> "A localização do ficheiro da música não está disponível"
-    AppLanguage.Punjabi -> "ਗੀਤ ਦੀ ਫ਼ਾਈਲ ਦਾ ਟਿਕਾਣਾ ਉਪਲਬਧ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Locația fișierului melodiei nu este disponibilă"
-    AppLanguage.Russian -> "Расположение файла песни недоступно"
-    AppLanguage.Serbian -> "Локација датотеке песме није доступна"
-    AppLanguage.Slovak -> "Umiestnenie súboru skladby nie je dostupné"
-    AppLanguage.Slovenian -> "Mesto datoteke skladbe ni na voljo"
-    AppLanguage.Spanish -> "La ubicación del archivo de la canción no está disponible"
-    AppLanguage.Swedish -> "Låtfilens plats är inte tillgänglig"
-    AppLanguage.Thai -> "ตำแหน่งไฟล์เพลงไม่พร้อมใช้งาน"
-    AppLanguage.Ukrainian -> "Розташування файлу пісні недоступне"
-    AppLanguage.Urdu -> "گانے کی فائل کا مقام دستیاب نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagSourceLocationUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagSourceLocationUnavailable_1
 }
 
 private fun tagSourceNotWritable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Skedari i këngës nuk mund të shkruhet"
-    AppLanguage.Bengali -> "গানের ফাইলটিতে লেখা যায় না"
-    AppLanguage.Bosnian -> "U datoteku pjesme nije moguće pisati"
-    AppLanguage.Bulgarian -> "Във файла на песента не може да се записва"
-    AppLanguage.Catalan -> "No es pot escriure al fitxer de la cançó"
-    AppLanguage.ChineseSimplified -> "无法写入歌曲文件"
-    AppLanguage.Croatian -> "U datoteku pjesme nije moguće pisati"
-    AppLanguage.Czech -> "Do souboru skladby nelze zapisovat"
-    AppLanguage.Danish -> "Der kan ikke skrives til sangfilen"
-    AppLanguage.Dutch -> "Er kan niet naar het muziekbestand worden geschreven"
-    AppLanguage.English -> "The song file is not writable"
-    AppLanguage.Estonian -> "Loo faili ei saa kirjutada"
-    AppLanguage.Finnish -> "Kappaleen tiedostoon ei voi kirjoittaa"
-    AppLanguage.French -> "Le fichier du morceau ne peut pas être modifié"
-    AppLanguage.German -> "Die Titeldatei ist nicht beschreibbar"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η εγγραφή στο αρχείο του τραγουδιού"
-    AppLanguage.Hindi -> "गाने की फ़ाइल में लिखा नहीं जा सकता"
-    AppLanguage.Hungarian -> "A dal fájlja nem írható"
-    AppLanguage.Indonesian -> "Berkas lagu tidak dapat ditulisi"
-    AppLanguage.Italian -> "Non è possibile scrivere nel file del brano"
-    AppLanguage.Japanese -> "曲のファイルに書き込めません"
-    AppLanguage.Korean -> "곡 파일에 쓸 수 없습니다"
-    AppLanguage.Latvian -> "Dziesmas failā nevar rakstīt"
-    AppLanguage.Lithuanian -> "Į dainos failą negalima rašyti"
-    AppLanguage.Macedonian -> "Не може да се запишува во датотеката на песната"
-    AppLanguage.Malay -> "Fail lagu tidak boleh ditulis"
-    AppLanguage.Norwegian -> "Det kan ikke skrives til sangfilen"
-    AppLanguage.Polish -> "Nie można zapisać zmian w pliku utworu"
-    AppLanguage.Portuguese -> "Não é possível escrever no ficheiro da música"
-    AppLanguage.Punjabi -> "ਗੀਤ ਦੀ ਫ਼ਾਈਲ ਵਿੱਚ ਲਿਖਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Nu se poate scrie în fișierul melodiei"
-    AppLanguage.Russian -> "Файл песни недоступен для записи"
-    AppLanguage.Serbian -> "У датотеку песме није могуће писати"
-    AppLanguage.Slovak -> "Do súboru skladby nemožno zapisovať"
-    AppLanguage.Slovenian -> "V datoteko skladbe ni mogoče zapisovati"
-    AppLanguage.Spanish -> "No se puede escribir en el archivo de la canción"
-    AppLanguage.Swedish -> "Det går inte att skriva till låtfilen"
-    AppLanguage.Thai -> "ไม่สามารถเขียนลงในไฟล์เพลงได้"
-    AppLanguage.Ukrainian -> "Файл пісні недоступний для запису"
-    AppLanguage.Urdu -> "گانے کی فائل میں لکھا نہیں جا سکتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagSourceNotWritable_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagSourceNotWritable_1
 }
 
 private fun emptyTagSource(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Skedari i këngës është bosh"
-    AppLanguage.Bengali -> "গানের ফাইলটি খালি"
-    AppLanguage.Bosnian -> "Datoteka pjesme je prazna"
-    AppLanguage.Bulgarian -> "Файлът на песента е празен"
-    AppLanguage.Catalan -> "El fitxer de la cançó és buit"
-    AppLanguage.ChineseSimplified -> "歌曲文件为空"
-    AppLanguage.Croatian -> "Datoteka pjesme je prazna"
-    AppLanguage.Czech -> "Soubor skladby je prázdný"
-    AppLanguage.Danish -> "Sangfilen er tom"
-    AppLanguage.Dutch -> "Het muziekbestand is leeg"
-    AppLanguage.English -> "The song file is empty"
-    AppLanguage.Estonian -> "Loo fail on tühi"
-    AppLanguage.Finnish -> "Kappaleen tiedosto on tyhjä"
-    AppLanguage.French -> "Le fichier du morceau est vide"
-    AppLanguage.German -> "Die Titeldatei ist leer"
-    AppLanguage.Greek -> "Το αρχείο του τραγουδιού είναι κενό"
-    AppLanguage.Hindi -> "गाने की फ़ाइल खाली है"
-    AppLanguage.Hungarian -> "A dal fájlja üres"
-    AppLanguage.Indonesian -> "Berkas lagu kosong"
-    AppLanguage.Italian -> "Il file del brano è vuoto"
-    AppLanguage.Japanese -> "曲のファイルが空です"
-    AppLanguage.Korean -> "곡 파일이 비어 있습니다"
-    AppLanguage.Latvian -> "Dziesmas fails ir tukšs"
-    AppLanguage.Lithuanian -> "Dainos failas tuščias"
-    AppLanguage.Macedonian -> "Датотеката на песната е празна"
-    AppLanguage.Malay -> "Fail lagu kosong"
-    AppLanguage.Norwegian -> "Sangfilen er tom"
-    AppLanguage.Polish -> "Plik utworu jest pusty"
-    AppLanguage.Portuguese -> "O ficheiro da música está vazio"
-    AppLanguage.Punjabi -> "ਗੀਤ ਦੀ ਫ਼ਾਈਲ ਖਾਲੀ ਹੈ"
-    AppLanguage.Romanian -> "Fișierul melodiei este gol"
-    AppLanguage.Russian -> "Файл песни пуст"
-    AppLanguage.Serbian -> "Датотека песме је празна"
-    AppLanguage.Slovak -> "Súbor skladby je prázdny"
-    AppLanguage.Slovenian -> "Datoteka skladbe je prazna"
-    AppLanguage.Spanish -> "El archivo de la canción está vacío"
-    AppLanguage.Swedish -> "Låtfilen är tom"
-    AppLanguage.Thai -> "ไฟล์เพลงว่างเปล่า"
-    AppLanguage.Ukrainian -> "Файл пісні порожній"
-    AppLanguage.Urdu -> "گانے کی فائل خالی ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_emptyTagSource_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_emptyTagSource_1
 }
 
 private fun insufficientTagStorage(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Nuk ka hapësirë të lirë të mjaftueshme për ta redaktuar këngën në mënyrë të sigurt"
-    AppLanguage.Bengali -> "গানটি নিরাপদে সম্পাদনা করার জন্য পর্যাপ্ত ফাঁকা জায়গা নেই"
-    AppLanguage.Bosnian -> "Nema dovoljno slobodnog prostora za sigurno uređivanje pjesme"
-    AppLanguage.Bulgarian -> "Няма достатъчно свободно място за безопасно редактиране на песента"
-    AppLanguage.Catalan -> "No hi ha prou espai lliure per editar la cançó amb seguretat"
-    AppLanguage.ChineseSimplified -> "可用存储空间不足，无法安全编辑此歌曲"
-    AppLanguage.Croatian -> "Nema dovoljno slobodnog prostora za sigurno uređivanje pjesme"
-    AppLanguage.Czech -> "Pro bezpečnou úpravu skladby není dostatek volného místa"
-    AppLanguage.Danish -> "Der er ikke nok ledig plads til at redigere sangen sikkert"
-    AppLanguage.Dutch -> "Er is niet genoeg vrije ruimte om het nummer veilig te bewerken"
-    AppLanguage.English -> "There is not enough free storage to edit this song safely"
-    AppLanguage.Estonian -> "Loo turvaliseks muutmiseks pole piisavalt vaba ruumi"
-    AppLanguage.Finnish -> "Kappaleen turvalliseen muokkaamiseen ei ole riittävästi vapaata tilaa"
-    AppLanguage.French -> "L’espace libre est insuffisant pour modifier ce morceau en toute sécurité"
-    AppLanguage.German -> "Es ist nicht genügend freier Speicher vorhanden, um den Titel sicher zu bearbeiten"
-    AppLanguage.Greek -> "Δεν υπάρχει αρκετός ελεύθερος χώρος για ασφαλή επεξεργασία του τραγουδιού"
-    AppLanguage.Hindi -> "इस गाने को सुरक्षित रूप से संपादित करने के लिए पर्याप्त खाली जगह नहीं है"
-    AppLanguage.Hungarian -> "Nincs elég szabad hely a dal biztonságos szerkesztéséhez"
-    AppLanguage.Indonesian -> "Ruang kosong tidak cukup untuk mengedit lagu ini dengan aman"
-    AppLanguage.Italian -> "Lo spazio libero non è sufficiente per modificare il brano in sicurezza"
-    AppLanguage.Japanese -> "この曲を安全に編集するための空き容量が不足しています"
-    AppLanguage.Korean -> "이 곡을 안전하게 편집할 저장 공간이 부족합니다"
-    AppLanguage.Latvian -> "Nav pietiekami daudz brīvas vietas drošai dziesmas rediģēšanai"
-    AppLanguage.Lithuanian -> "Nepakanka laisvos vietos saugiai redaguoti šią dainą"
-    AppLanguage.Macedonian -> "Нема доволно слободен простор за безбедно уредување на песната"
-    AppLanguage.Malay -> "Ruang kosong tidak mencukupi untuk mengedit lagu ini dengan selamat"
-    AppLanguage.Norwegian -> "Det er ikke nok ledig plass til å redigere sangen trygt"
-    AppLanguage.Polish -> "Brakuje wolnego miejsca do bezpiecznej edycji utworu"
-    AppLanguage.Portuguese -> "Não existe espaço livre suficiente para editar esta música em segurança"
-    AppLanguage.Punjabi -> "ਇਸ ਗੀਤ ਨੂੰ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸੋਧਣ ਲਈ ਲੋੜੀਂਦੀ ਖਾਲੀ ਥਾਂ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Nu există suficient spațiu liber pentru a edita melodia în siguranță"
-    AppLanguage.Russian -> "Недостаточно свободного места для безопасного редактирования песни"
-    AppLanguage.Serbian -> "Нема довољно слободног простора за безбедно уређивање песме"
-    AppLanguage.Slovak -> "Na bezpečnú úpravu skladby nie je dostatok voľného miesta"
-    AppLanguage.Slovenian -> "Za varno urejanje skladbe ni dovolj prostega prostora"
-    AppLanguage.Spanish -> "No hay suficiente espacio libre para editar esta canción de forma segura"
-    AppLanguage.Swedish -> "Det finns inte tillräckligt med ledigt utrymme för att redigera låten säkert"
-    AppLanguage.Thai -> "มีพื้นที่ว่างไม่เพียงพอที่จะแก้ไขเพลงนี้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Недостатньо вільного місця для безпечного редагування пісні"
-    AppLanguage.Urdu -> "اس گانے کو محفوظ طریقے سے ترمیم کرنے کے لیے کافی خالی جگہ نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_insufficientTagStorage_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_insufficientTagStorage_1
 }
 
 private fun unsupportedTagUriError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Adresa e skedarit nuk mbështetet"
-    AppLanguage.Bengali -> "ফাইলের ঠিকানাটি সমর্থিত নয়"
-    AppLanguage.Bosnian -> "Adresa datoteke nije podržana"
-    AppLanguage.Bulgarian -> "Адресът на файла не се поддържа"
-    AppLanguage.Catalan -> "L’adreça del fitxer no és compatible"
-    AppLanguage.ChineseSimplified -> "不支持此文件地址"
-    AppLanguage.Croatian -> "Adresa datoteke nije podržana"
-    AppLanguage.Czech -> "Adresa souboru není podporována"
-    AppLanguage.Danish -> "Filadressen understøttes ikke"
-    AppLanguage.Dutch -> "Het bestandsadres wordt niet ondersteund"
-    AppLanguage.English -> "The file address is unsupported"
-    AppLanguage.Estonian -> "Faili aadressi ei toetata"
-    AppLanguage.Finnish -> "Tiedoston osoitetta ei tueta"
-    AppLanguage.French -> "L’adresse du fichier n’est pas prise en charge"
-    AppLanguage.German -> "Die Dateiadresse wird nicht unterstützt"
-    AppLanguage.Greek -> "Η διεύθυνση του αρχείου δεν υποστηρίζεται"
-    AppLanguage.Hindi -> "फ़ाइल का पता समर्थित नहीं है"
-    AppLanguage.Hungarian -> "A fájl címe nem támogatott"
-    AppLanguage.Indonesian -> "Alamat berkas tidak didukung"
-    AppLanguage.Italian -> "L’indirizzo del file non è supportato"
-    AppLanguage.Japanese -> "このファイルのアドレスはサポートされていません"
-    AppLanguage.Korean -> "지원하지 않는 파일 주소입니다"
-    AppLanguage.Latvian -> "Faila adrese netiek atbalstīta"
-    AppLanguage.Lithuanian -> "Failo adresas nepalaikomas"
-    AppLanguage.Macedonian -> "Адресата на датотеката не е поддржана"
-    AppLanguage.Malay -> "Alamat fail tidak disokong"
-    AppLanguage.Norwegian -> "Filadressen støttes ikke"
-    AppLanguage.Polish -> "Adres pliku nie jest obsługiwany"
-    AppLanguage.Portuguese -> "O endereço do ficheiro não é suportado"
-    AppLanguage.Punjabi -> "ਫ਼ਾਈਲ ਦਾ ਪਤਾ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Adresa fișierului nu este acceptată"
-    AppLanguage.Russian -> "Адрес файла не поддерживается"
-    AppLanguage.Serbian -> "Адреса датотеке није подржана"
-    AppLanguage.Slovak -> "Adresa súboru nie je podporovaná"
-    AppLanguage.Slovenian -> "Naslov datoteke ni podprt"
-    AppLanguage.Spanish -> "La dirección del archivo no es compatible"
-    AppLanguage.Swedish -> "Filadressen stöds inte"
-    AppLanguage.Thai -> "ไม่รองรับที่อยู่ไฟล์นี้"
-    AppLanguage.Ukrainian -> "Адреса файлу не підтримується"
-    AppLanguage.Urdu -> "فائل کا پتہ معاون نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_unsupportedTagUriError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_unsupportedTagUriError_1
 }
 
 private fun fileWriteOpenError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Skedari nuk mund të hapet për shkrim"
-    AppLanguage.Bengali -> "লেখার জন্য ফাইল খোলা যায়নি"
-    AppLanguage.Bosnian -> "Datoteku nije moguće otvoriti za pisanje"
-    AppLanguage.Bulgarian -> "Файлът не може да бъде отворен за запис"
-    AppLanguage.Catalan -> "No es pot obrir el fitxer per escriure-hi"
-    AppLanguage.ChineseSimplified -> "无法打开文件进行写入"
-    AppLanguage.Croatian -> "Datoteku nije moguće otvoriti za pisanje"
-    AppLanguage.Czech -> "Soubor nelze otevřít pro zápis"
-    AppLanguage.Danish -> "Filen kunne ikke åbnes til skrivning"
-    AppLanguage.Dutch -> "Het bestand kon niet worden geopend om te schrijven"
-    AppLanguage.English -> "Unable to open the file for writing"
-    AppLanguage.Estonian -> "Faili ei saa kirjutamiseks avada"
-    AppLanguage.Finnish -> "Tiedostoa ei voi avata kirjoittamista varten"
-    AppLanguage.French -> "Impossible d’ouvrir le fichier en écriture"
-    AppLanguage.German -> "Die Datei kann nicht zum Schreiben geöffnet werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατό το άνοιγμα του αρχείου για εγγραφή"
-    AppLanguage.Hindi -> "लिखने के लिए फ़ाइल खोली नहीं जा सकी"
-    AppLanguage.Hungarian -> "A fájl nem nyitható meg írásra"
-    AppLanguage.Indonesian -> "Berkas tidak dapat dibuka untuk ditulis"
-    AppLanguage.Italian -> "Impossibile aprire il file in scrittura"
-    AppLanguage.Japanese -> "ファイルを書き込み用に開けません"
-    AppLanguage.Korean -> "쓰기 위해 파일을 열 수 없습니다"
-    AppLanguage.Latvian -> "Failu nevar atvērt rakstīšanai"
-    AppLanguage.Lithuanian -> "Nepavyko atverti failo įrašymui"
-    AppLanguage.Macedonian -> "Датотеката не може да се отвори за запишување"
-    AppLanguage.Malay -> "Fail tidak dapat dibuka untuk ditulis"
-    AppLanguage.Norwegian -> "Filen kunne ikke åpnes for skriving"
-    AppLanguage.Polish -> "Nie można otworzyć pliku do zapisu"
-    AppLanguage.Portuguese -> "Não é possível abrir o ficheiro para escrita"
-    AppLanguage.Punjabi -> "ਲਿਖਣ ਲਈ ਫਾਈਲ ਖੋਲ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ"
-    AppLanguage.Romanian -> "Fișierul nu poate fi deschis pentru scriere"
-    AppLanguage.Russian -> "Не удалось открыть файл для записи"
-    AppLanguage.Serbian -> "Датотека не може да се отвори за писање"
-    AppLanguage.Slovak -> "Súbor nemožno otvoriť na zápis"
-    AppLanguage.Slovenian -> "Datoteke ni mogoče odpreti za pisanje"
-    AppLanguage.Spanish -> "No se puede abrir el archivo para escritura"
-    AppLanguage.Swedish -> "Filen kunde inte öppnas för skrivning"
-    AppLanguage.Thai -> "ไม่สามารถเปิดไฟล์เพื่อเขียนได้"
-    AppLanguage.Ukrainian -> "Не вдалося відкрити файл для запису"
-    AppLanguage.Urdu -> "لکھنے کے لیے فائل کھولی نہیں جا سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_fileWriteOpenError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_fileWriteOpenError_1
 }
 
 private fun sourceFileOpenError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Skedari burim nuk mund të hapet"
-    AppLanguage.Bengali -> "উৎস ফাইল খোলা যায়নি"
-    AppLanguage.Bosnian -> "Izvornu datoteku nije moguće otvoriti"
-    AppLanguage.Bulgarian -> "Изходният файл не може да бъде отворен"
-    AppLanguage.Catalan -> "No es pot obrir el fitxer d’origen"
-    AppLanguage.ChineseSimplified -> "无法打开源文件"
-    AppLanguage.Croatian -> "Izvornu datoteku nije moguće otvoriti"
-    AppLanguage.Czech -> "Zdrojový soubor nelze otevřít"
-    AppLanguage.Danish -> "Kildefilen kunne ikke åbnes"
-    AppLanguage.Dutch -> "Het bronbestand kon niet worden geopend"
-    AppLanguage.English -> "Unable to open the source file"
-    AppLanguage.Estonian -> "Lähtefaili ei saa avada"
-    AppLanguage.Finnish -> "Lähdetiedostoa ei voi avata"
-    AppLanguage.French -> "Impossible d’ouvrir le fichier source"
-    AppLanguage.German -> "Die Quelldatei kann nicht geöffnet werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατό το άνοιγμα του αρχείου προέλευσης"
-    AppLanguage.Hindi -> "स्रोत फ़ाइल खोली नहीं जा सकी"
-    AppLanguage.Hungarian -> "A forrásfájl nem nyitható meg"
-    AppLanguage.Indonesian -> "Berkas sumber tidak dapat dibuka"
-    AppLanguage.Italian -> "Impossibile aprire il file di origine"
-    AppLanguage.Japanese -> "元のファイルを開けません"
-    AppLanguage.Korean -> "원본 파일을 열 수 없습니다"
-    AppLanguage.Latvian -> "Nevar atvērt avota failu"
-    AppLanguage.Lithuanian -> "Nepavyko atverti šaltinio failo"
-    AppLanguage.Macedonian -> "Изворната датотека не може да се отвори"
-    AppLanguage.Malay -> "Fail sumber tidak dapat dibuka"
-    AppLanguage.Norwegian -> "Kildefilen kunne ikke åpnes"
-    AppLanguage.Polish -> "Nie można otworzyć pliku źródłowego"
-    AppLanguage.Portuguese -> "Não é possível abrir o ficheiro de origem"
-    AppLanguage.Punjabi -> "ਸਰੋਤ ਫਾਈਲ ਖੋਲ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ"
-    AppLanguage.Romanian -> "Fișierul sursă nu poate fi deschis"
-    AppLanguage.Russian -> "Не удалось открыть исходный файл"
-    AppLanguage.Serbian -> "Изворна датотека не може да се отвори"
-    AppLanguage.Slovak -> "Zdrojový súbor nemožno otvoriť"
-    AppLanguage.Slovenian -> "Izvorne datoteke ni mogoče odpreti"
-    AppLanguage.Spanish -> "No se puede abrir el archivo de origen"
-    AppLanguage.Swedish -> "Källfilen kunde inte öppnas"
-    AppLanguage.Thai -> "ไม่สามารถเปิดไฟล์ต้นฉบับได้"
-    AppLanguage.Ukrainian -> "Не вдалося відкрити вихідний файл"
-    AppLanguage.Urdu -> "ماخذ فائل کھولی نہیں جا سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_sourceFileOpenError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_sourceFileOpenError_1
 }
 
 private fun tagDocumentWriteCapabilityError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Nuk mund të kontrollohet nëse dokumenti mund të shkruhet"
-    AppLanguage.Bengali -> "ডকুমেন্টে লেখার সুবিধা যাচাই করা যায়নি"
-    AppLanguage.Bosnian -> "Nije moguće provjeriti podržava li dokument pisanje"
-    AppLanguage.Bulgarian -> "Не може да се провери дали документът поддържа запис"
-    AppLanguage.Catalan -> "No es pot comprovar si es pot escriure al document"
-    AppLanguage.ChineseSimplified -> "无法查询文档是否支持写入"
-    AppLanguage.Croatian -> "Nije moguće provjeriti podržava li dokument pisanje"
-    AppLanguage.Czech -> "Nelze zjistit, zda dokument podporuje zápis"
-    AppLanguage.Danish -> "Det kan ikke kontrolleres, om dokumentet understøtter skrivning"
-    AppLanguage.Dutch -> "Er kan niet worden gecontroleerd of het document schrijven ondersteunt"
-    AppLanguage.English -> "Unable to query document write capability"
-    AppLanguage.Estonian -> "Dokumendi kirjutusvõimalust ei saa kontrollida"
-    AppLanguage.Finnish -> "Asiakirjan kirjoitusmahdollisuutta ei voi tarkistaa"
-    AppLanguage.French -> "Impossible de vérifier si le document accepte l’écriture"
-    AppLanguage.German -> "Es kann nicht geprüft werden, ob das Dokument beschreibbar ist"
-    AppLanguage.Greek -> "Δεν είναι δυνατός ο έλεγχος της δυνατότητας εγγραφής στο έγγραφο"
-    AppLanguage.Hindi -> "दस्तावेज़ में लिखने की क्षमता जाँची नहीं जा सकी"
-    AppLanguage.Hungarian -> "Nem ellenőrizhető, hogy a dokumentum írható-e"
-    AppLanguage.Indonesian -> "Kemampuan menulis dokumen tidak dapat diperiksa"
-    AppLanguage.Italian -> "Impossibile verificare se il documento supporta la scrittura"
-    AppLanguage.Japanese -> "ドキュメントに書き込めるか確認できません"
-    AppLanguage.Korean -> "문서에 쓰기가 가능한지 확인할 수 없습니다"
-    AppLanguage.Latvian -> "Nevar pārbaudīt, vai dokumentā var rakstīt"
-    AppLanguage.Lithuanian -> "Nepavyko patikrinti, ar į dokumentą galima rašyti"
-    AppLanguage.Macedonian -> "Не може да се провери дали документот поддржува запишување"
-    AppLanguage.Malay -> "Keupayaan menulis dokumen tidak dapat disemak"
-    AppLanguage.Norwegian -> "Det kan ikke kontrolleres om dokumentet støtter skriving"
-    AppLanguage.Polish -> "Nie można sprawdzić, czy dokument obsługuje zapis"
-    AppLanguage.Portuguese -> "Não é possível verificar se o documento suporta escrita"
-    AppLanguage.Punjabi -> "ਦਸਤਾਵੇਜ਼ ਵਿੱਚ ਲਿਖਣ ਦੀ ਸਮਰੱਥਾ ਦੀ ਜਾਂਚ ਨਹੀਂ ਹੋ ਸਕੀ"
-    AppLanguage.Romanian -> "Nu se poate verifica dacă documentul acceptă scrierea"
-    AppLanguage.Russian -> "Не удалось проверить возможность записи документа"
-    AppLanguage.Serbian -> "Није могуће проверити да ли документ подржава писање"
-    AppLanguage.Slovak -> "Nemožno zistiť, či dokument podporuje zápis"
-    AppLanguage.Slovenian -> "Ni mogoče preveriti, ali dokument podpira pisanje"
-    AppLanguage.Spanish -> "No se puede comprobar si el documento admite escritura"
-    AppLanguage.Swedish -> "Det går inte att kontrollera om dokumentet stöder skrivning"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบได้ว่าเอกสารรองรับการเขียนหรือไม่"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити можливість запису документа"
-    AppLanguage.Urdu -> "دستاویز میں لکھنے کی صلاحیت جانچی نہیں جا سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagDocumentWriteCapabilityError_1
 }
 
 private fun tagProviderDoesNotSupportWriting(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ofruesi i zgjedhur i dokumenteve nuk mbështet shkrimin e këtij skedari"
-    AppLanguage.Bengali -> "নির্বাচিত ডকুমেন্ট প্রদানকারী এই ফাইলে লেখা সমর্থন করে না"
-    AppLanguage.Bosnian -> "Odabrani pružatelj dokumenata ne podržava pisanje ove datoteke"
-    AppLanguage.Bulgarian -> "Избраният доставчик на документи не поддържа запис в този файл"
-    AppLanguage.Catalan -> "El proveïdor de documents seleccionat no permet escriure en aquest fitxer"
-    AppLanguage.ChineseSimplified -> "所选文档提供程序不支持写入此文件"
-    AppLanguage.Croatian -> "Odabrani pružatelj dokumenata ne podržava pisanje ove datoteke"
-    AppLanguage.Czech -> "Vybraný poskytovatel dokumentů nepodporuje zápis do tohoto souboru"
-    AppLanguage.Danish -> "Den valgte dokumentudbyder understøtter ikke skrivning af denne fil"
-    AppLanguage.Dutch -> "De geselecteerde documentprovider ondersteunt het schrijven van dit bestand niet"
-    AppLanguage.English -> "The selected document provider does not support writing this file"
-    AppLanguage.Estonian -> "Valitud dokumendipakkuja ei toeta sellesse faili kirjutamist"
-    AppLanguage.Finnish -> "Valittu asiakirjojen tarjoaja ei tue tähän tiedostoon kirjoittamista"
-    AppLanguage.French -> "Le fournisseur de documents sélectionné ne permet pas d’écrire dans ce fichier"
-    AppLanguage.German -> "Der ausgewählte Dokumentanbieter unterstützt das Schreiben dieser Datei nicht"
-    AppLanguage.Greek -> "Ο επιλεγμένος πάροχος εγγράφων δεν υποστηρίζει εγγραφή σε αυτό το αρχείο"
-    AppLanguage.Hindi -> "चुना गया दस्तावेज़ प्रदाता इस फ़ाइल में लिखने का समर्थन नहीं करता"
-    AppLanguage.Hungarian -> "A kiválasztott dokumentumszolgáltató nem támogatja a fájl írását"
-    AppLanguage.Indonesian -> "Penyedia dokumen yang dipilih tidak mendukung penulisan berkas ini"
-    AppLanguage.Italian -> "Il provider di documenti selezionato non supporta la scrittura di questo file"
-    AppLanguage.Japanese -> "選択したドキュメントプロバイダはこのファイルへの書き込みに対応していません"
-    AppLanguage.Korean -> "선택한 문서 제공업체는 이 파일에 쓰기를 지원하지 않습니다"
-    AppLanguage.Latvian -> "Izvēlētais dokumentu nodrošinātājs neatbalsta rakstīšanu šajā failā"
-    AppLanguage.Lithuanian -> "Pasirinktas dokumentų teikėjas nepalaiko rašymo į šį failą"
-    AppLanguage.Macedonian -> "Избраниот давател на документи не поддржува запишување во оваа датотека"
-    AppLanguage.Malay -> "Penyedia dokumen yang dipilih tidak menyokong penulisan fail ini"
-    AppLanguage.Norwegian -> "Den valgte dokumentleverandøren støtter ikke skriving av denne filen"
-    AppLanguage.Polish -> "Wybrany dostawca dokumentów nie obsługuje zapisu tego pliku"
-    AppLanguage.Portuguese -> "O fornecedor de documentos selecionado não suporta a escrita deste ficheiro"
-    AppLanguage.Punjabi -> "ਚੁਣਿਆ ਦਸਤਾਵੇਜ਼ ਪ੍ਰਦਾਤਾ ਇਸ ਫ਼ਾਈਲ ਵਿੱਚ ਲਿਖਣ ਦਾ ਸਮਰਥਨ ਨਹੀਂ ਕਰਦਾ"
-    AppLanguage.Romanian -> "Furnizorul de documente selectat nu acceptă scrierea acestui fișier"
-    AppLanguage.Russian -> "Выбранный поставщик документов не поддерживает запись этого файла"
-    AppLanguage.Serbian -> "Изабрани добављач докумената не подржава писање ове датотеке"
-    AppLanguage.Slovak -> "Vybraný poskytovateľ dokumentov nepodporuje zápis do tohto súboru"
-    AppLanguage.Slovenian -> "Izbrani ponudnik dokumentov ne podpira pisanja te datoteke"
-    AppLanguage.Spanish -> "El proveedor de documentos seleccionado no admite la escritura de este archivo"
-    AppLanguage.Swedish -> "Den valda dokumentleverantören stöder inte skrivning av den här filen"
-    AppLanguage.Thai -> "ผู้ให้บริการเอกสารที่เลือกไม่รองรับการเขียนไฟล์นี้"
-    AppLanguage.Ukrainian -> "Вибраний постачальник документів не підтримує запис цього файлу"
-    AppLanguage.Urdu -> "منتخب دستاویز فراہم کنندہ اس فائل میں لکھنے کی معاونت نہیں کرتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagProviderDoesNotSupportWriting_1
 }
 
 private fun tagDocumentWriteAccessMissing(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Dokumenti i zgjedhur nuk ka leje të përhershme shkrimi"
-    AppLanguage.Bengali -> "নির্বাচিত ডকুমেন্টের স্থায়ী লেখার অনুমতি নেই"
-    AppLanguage.Bosnian -> "Odabrani dokument nema trajnu dozvolu za pisanje"
-    AppLanguage.Bulgarian -> "Избраният документ няма постоянно разрешение за запис"
-    AppLanguage.Catalan -> "El document seleccionat no té permís d’escriptura persistent"
-    AppLanguage.ChineseSimplified -> "所选文档没有持久写入权限"
-    AppLanguage.Croatian -> "Odabrani dokument nema trajno dopuštenje za pisanje"
-    AppLanguage.Czech -> "Vybraný dokument nemá trvalé oprávnění k zápisu"
-    AppLanguage.Danish -> "Det valgte dokument har ikke vedvarende skrivetilladelse"
-    AppLanguage.Dutch -> "Het geselecteerde document heeft geen blijvende schrijftoegang"
-    AppLanguage.English -> "The selected document has no persisted write permission"
-    AppLanguage.Estonian -> "Valitud dokumendil puudub püsiv kirjutusõigus"
-    AppLanguage.Finnish -> "Valitulla asiakirjalla ei ole pysyvää kirjoitusoikeutta"
-    AppLanguage.French -> "Le document sélectionné ne dispose pas d’une autorisation d’écriture permanente"
-    AppLanguage.German -> "Für das ausgewählte Dokument besteht keine dauerhafte Schreibberechtigung"
-    AppLanguage.Greek -> "Το επιλεγμένο έγγραφο δεν έχει μόνιμη άδεια εγγραφής"
-    AppLanguage.Hindi -> "चुने गए दस्तावेज़ के लिए स्थायी लेखन अनुमति नहीं है"
-    AppLanguage.Hungarian -> "A kiválasztott dokumentumhoz nincs tartós írási engedély"
-    AppLanguage.Indonesian -> "Dokumen yang dipilih tidak memiliki izin tulis permanen"
-    AppLanguage.Italian -> "Il documento selezionato non dispone di un’autorizzazione di scrittura permanente"
-    AppLanguage.Japanese -> "選択したドキュメントには永続的な書き込み権限がありません"
-    AppLanguage.Korean -> "선택한 문서에 지속적인 쓰기 권한이 없습니다"
-    AppLanguage.Latvian -> "Izvēlētajam dokumentam nav pastāvīgas rakstīšanas atļaujas"
-    AppLanguage.Lithuanian -> "Pasirinktas dokumentas neturi nuolatinio rašymo leidimo"
-    AppLanguage.Macedonian -> "Избраниот документ нема трајна дозвола за запишување"
-    AppLanguage.Malay -> "Dokumen yang dipilih tidak mempunyai kebenaran menulis berterusan"
-    AppLanguage.Norwegian -> "Det valgte dokumentet har ikke varig skrivetilgang"
-    AppLanguage.Polish -> "Wybrany dokument nie ma trwałego uprawnienia do zapisu"
-    AppLanguage.Portuguese -> "O documento selecionado não tem autorização de escrita persistente"
-    AppLanguage.Punjabi -> "ਚੁਣੇ ਦਸਤਾਵੇਜ਼ ਲਈ ਸਥਾਈ ਲਿਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Documentul selectat nu are permisiune persistentă de scriere"
-    AppLanguage.Russian -> "Для выбранного документа нет постоянного разрешения на запись"
-    AppLanguage.Serbian -> "Изабрани документ нема трајну дозволу за писање"
-    AppLanguage.Slovak -> "Vybraný dokument nemá trvalé oprávnenie na zápis"
-    AppLanguage.Slovenian -> "Izbrani dokument nima trajnega dovoljenja za pisanje"
-    AppLanguage.Spanish -> "El documento seleccionado no tiene permiso de escritura permanente"
-    AppLanguage.Swedish -> "Det valda dokumentet saknar beständig skrivbehörighet"
-    AppLanguage.Thai -> "เอกสารที่เลือกไม่มีสิทธิ์เขียนแบบถาวร"
-    AppLanguage.Ukrainian -> "Вибраний документ не має постійного дозволу на запис"
-    AppLanguage.Urdu -> "منتخب دستاویز کے لیے لکھنے کی مستقل اجازت موجود نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagDocumentWriteAccessMissing_1
 }
 
 private fun tagProviderDoesNotAllowEditing(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ofruesi i zgjedhur i dokumenteve nuk lejon redaktimin e etiketave"
-    AppLanguage.Bengali -> "নির্বাচিত ডকুমেন্ট প্রদানকারী ট্যাগ সম্পাদনার অনুমতি দেয় না"
-    AppLanguage.Bosnian -> "Odabrani pružatelj dokumenata ne dozvoljava uređivanje oznaka"
-    AppLanguage.Bulgarian -> "Избраният доставчик на документи не позволява редактиране на етикети"
-    AppLanguage.Catalan -> "El proveïdor de documents seleccionat no permet editar etiquetes"
-    AppLanguage.ChineseSimplified -> "所选文档提供程序不允许编辑标签"
-    AppLanguage.Croatian -> "Odabrani pružatelj dokumenata ne dopušta uređivanje oznaka"
-    AppLanguage.Czech -> "Vybraný poskytovatel dokumentů neumožňuje úpravu štítků"
-    AppLanguage.Danish -> "Den valgte dokumentudbyder tillader ikke redigering af tags"
-    AppLanguage.Dutch -> "De geselecteerde documentprovider staat het bewerken van tags niet toe"
-    AppLanguage.English -> "The selected document provider does not allow tag editing"
-    AppLanguage.Estonian -> "Valitud dokumendipakkuja ei luba silte muuta"
-    AppLanguage.Finnish -> "Valittu asiakirjojen tarjoaja ei salli tunnisteiden muokkaamista"
-    AppLanguage.French -> "Le fournisseur de documents sélectionné n’autorise pas la modification des tags"
-    AppLanguage.German -> "Der ausgewählte Dokumentanbieter erlaubt keine Tag-Bearbeitung"
-    AppLanguage.Greek -> "Ο επιλεγμένος πάροχος εγγράφων δεν επιτρέπει την επεξεργασία ετικετών"
-    AppLanguage.Hindi -> "चुना गया दस्तावेज़ प्रदाता टैग संपादन की अनुमति नहीं देता"
-    AppLanguage.Hungarian -> "A kiválasztott dokumentumszolgáltató nem engedélyezi a címkék szerkesztését"
-    AppLanguage.Indonesian -> "Penyedia dokumen yang dipilih tidak mengizinkan pengeditan tag"
-    AppLanguage.Italian -> "Il provider di documenti selezionato non consente la modifica dei tag"
-    AppLanguage.Japanese -> "選択したドキュメントプロバイダではタグを編集できません"
-    AppLanguage.Korean -> "선택한 문서 제공업체에서 태그 수정을 허용하지 않습니다"
-    AppLanguage.Latvian -> "Izvēlētais dokumentu nodrošinātājs neatļauj rediģēt tagus"
-    AppLanguage.Lithuanian -> "Pasirinktas dokumentų teikėjas neleidžia redaguoti žymų"
-    AppLanguage.Macedonian -> "Избраниот давател на документи не дозволува уредување ознаки"
-    AppLanguage.Malay -> "Penyedia dokumen yang dipilih tidak membenarkan pengeditan tag"
-    AppLanguage.Norwegian -> "Den valgte dokumentleverandøren tillater ikke redigering av tagger"
-    AppLanguage.Polish -> "Wybrany dostawca dokumentów nie pozwala na edycję tagów"
-    AppLanguage.Portuguese -> "O fornecedor de documentos selecionado não permite editar etiquetas"
-    AppLanguage.Punjabi -> "ਚੁਣਿਆ ਦਸਤਾਵੇਜ਼ ਪ੍ਰਦਾਤਾ ਟੈਗ ਸੋਧਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਦਿੰਦਾ"
-    AppLanguage.Romanian -> "Furnizorul de documente selectat nu permite editarea etichetelor"
-    AppLanguage.Russian -> "Выбранный поставщик документов не разрешает редактирование тегов"
-    AppLanguage.Serbian -> "Изабрани добављач докумената не дозвољава уређивање ознака"
-    AppLanguage.Slovak -> "Vybraný poskytovateľ dokumentov neumožňuje úpravu značiek"
-    AppLanguage.Slovenian -> "Izbrani ponudnik dokumentov ne dovoljuje urejanja oznak"
-    AppLanguage.Spanish -> "El proveedor de documentos seleccionado no permite editar etiquetas"
-    AppLanguage.Swedish -> "Den valda dokumentleverantören tillåter inte redigering av taggar"
-    AppLanguage.Thai -> "ผู้ให้บริการเอกสารที่เลือกไม่อนุญาตให้แก้ไขแท็ก"
-    AppLanguage.Ukrainian -> "Вибраний постачальник документів не дозволяє редагувати теги"
-    AppLanguage.Urdu -> "منتخب دستاویز فراہم کنندہ ٹیگز میں ترمیم کی اجازت نہیں دیتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagProviderDoesNotAllowEditing_1
 }
 
 private fun tagFolderWriteAccessMissing(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Dosja e zgjedhur nuk dha leje të përhershme shkrimi"
-    AppLanguage.Bengali -> "নির্বাচিত ফোল্ডারটি স্থায়ী লেখার অনুমতি দেয়নি"
-    AppLanguage.Bosnian -> "Odabrana mapa nije odobrila trajnu dozvolu za pisanje"
-    AppLanguage.Bulgarian -> "Избраната папка не предостави постоянен достъп за запис"
-    AppLanguage.Catalan -> "La carpeta seleccionada no ha concedit permís d’escriptura persistent"
-    AppLanguage.ChineseSimplified -> "所选文件夹未授予持久写入权限"
-    AppLanguage.Croatian -> "Odabrana mapa nije odobrila trajno dopuštenje za pisanje"
-    AppLanguage.Czech -> "Vybraná složka neposkytla trvalé oprávnění k zápisu"
-    AppLanguage.Danish -> "Den valgte mappe gav ikke vedvarende skrivetilladelse"
-    AppLanguage.Dutch -> "De geselecteerde map heeft geen blijvende schrijftoegang verleend"
-    AppLanguage.English -> "The selected folder did not grant persistent write access"
-    AppLanguage.Estonian -> "Valitud kaust ei andnud püsivat kirjutusõigust"
-    AppLanguage.Finnish -> "Valittu kansio ei myöntänyt pysyvää kirjoitusoikeutta"
-    AppLanguage.French -> "Le dossier sélectionné n’a pas accordé d’autorisation d’écriture permanente"
-    AppLanguage.German -> "Der ausgewählte Ordner hat keine dauerhafte Schreibberechtigung erteilt"
-    AppLanguage.Greek -> "Ο επιλεγμένος φάκελος δεν παρείχε μόνιμη άδεια εγγραφής"
-    AppLanguage.Hindi -> "चुने गए फ़ोल्डर ने स्थायी लेखन अनुमति नहीं दी"
-    AppLanguage.Hungarian -> "A kiválasztott mappa nem adott tartós írási engedélyt"
-    AppLanguage.Indonesian -> "Folder yang dipilih tidak memberikan izin tulis permanen"
-    AppLanguage.Italian -> "La cartella selezionata non ha concesso l’autorizzazione di scrittura permanente"
-    AppLanguage.Japanese -> "選択したフォルダから永続的な書き込み権限が付与されませんでした"
-    AppLanguage.Korean -> "선택한 폴더에서 지속적인 쓰기 권한을 부여하지 않았습니다"
-    AppLanguage.Latvian -> "Izvēlētā mape nepiešķīra pastāvīgu rakstīšanas atļauju"
-    AppLanguage.Lithuanian -> "Pasirinktas aplankas nesuteikė nuolatinio rašymo leidimo"
-    AppLanguage.Macedonian -> "Избраната папка не додели трајна дозвола за запишување"
-    AppLanguage.Malay -> "Folder yang dipilih tidak memberikan kebenaran menulis berterusan"
-    AppLanguage.Norwegian -> "Den valgte mappen ga ikke varig skrivetilgang"
-    AppLanguage.Polish -> "Wybrany folder nie przyznał trwałego uprawnienia do zapisu"
-    AppLanguage.Portuguese -> "A pasta selecionada não concedeu autorização de escrita persistente"
-    AppLanguage.Punjabi -> "ਚੁਣੇ ਫੋਲਡਰ ਨੇ ਸਥਾਈ ਲਿਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਦਿੱਤੀ"
-    AppLanguage.Romanian -> "Dosarul selectat nu a acordat acces persistent de scriere"
-    AppLanguage.Russian -> "Выбранная папка не предоставила постоянный доступ на запись"
-    AppLanguage.Serbian -> "Изабрана фасцикла није одобрила трајну дозволу за писање"
-    AppLanguage.Slovak -> "Vybraný priečinok neposkytol trvalé oprávnenie na zápis"
-    AppLanguage.Slovenian -> "Izbrana mapa ni odobrila trajnega dovoljenja za pisanje"
-    AppLanguage.Spanish -> "La carpeta seleccionada no concedió permiso de escritura permanente"
-    AppLanguage.Swedish -> "Den valda mappen gav inte beständig skrivbehörighet"
-    AppLanguage.Thai -> "โฟลเดอร์ที่เลือกไม่ได้ให้สิทธิ์เขียนแบบถาวร"
-    AppLanguage.Ukrainian -> "Вибрана папка не надала постійного дозволу на запис"
-    AppLanguage.Urdu -> "منتخب فولڈر نے لکھنے کی مستقل اجازت نہیں دی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagFolderWriteAccessMissing_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagFolderWriteAccessMissing_1
 }
 
 private fun unableToSaveAudiobookTags(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Etiketat e librit audio nuk mund të ruhen"
-    AppLanguage.Bengali -> "অডিওবুকের ট্যাগ সংরক্ষণ করা যায়নি"
-    AppLanguage.Bosnian -> "Oznake audioknjige nije moguće spremiti"
-    AppLanguage.Bulgarian -> "Етикетите на аудиокнигата не могат да бъдат запазени"
-    AppLanguage.Catalan -> "No es poden desar les etiquetes de l’audiollibre"
-    AppLanguage.ChineseSimplified -> "无法保存有声书标签"
-    AppLanguage.Croatian -> "Oznake audioknjige nije moguće spremiti"
-    AppLanguage.Czech -> "Štítky audioknihy nelze uložit"
-    AppLanguage.Danish -> "Lydbogens tags kan ikke gemmes"
-    AppLanguage.Dutch -> "Tags van het luisterboek kunnen niet worden opgeslagen"
-    AppLanguage.English -> "Unable to save audiobook tags"
-    AppLanguage.Estonian -> "Audioraamatu silte ei saa salvestada"
-    AppLanguage.Finnish -> "Äänikirjan tunnisteita ei voi tallentaa"
-    AppLanguage.French -> "Impossible d’enregistrer les tags du livre audio"
-    AppLanguage.German -> "Tags des Hörbuchs können nicht gespeichert werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η αποθήκευση των ετικετών του ηχητικού βιβλίου"
-    AppLanguage.Hindi -> "ऑडियोबुक के टैग सहेजे नहीं जा सके"
-    AppLanguage.Hungarian -> "A hangoskönyv címkéi nem menthetők"
-    AppLanguage.Indonesian -> "Tag buku audio tidak dapat disimpan"
-    AppLanguage.Italian -> "Impossibile salvare i tag dell’audiolibro"
-    AppLanguage.Japanese -> "オーディオブックのタグを保存できません"
-    AppLanguage.Korean -> "오디오북 태그를 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Audiogrāmatas tagus nevar saglabāt"
-    AppLanguage.Lithuanian -> "Nepavyko išsaugoti audioknygos žymų"
-    AppLanguage.Macedonian -> "Ознаките на аудиокнигата не може да се зачуваат"
-    AppLanguage.Malay -> "Tag buku audio tidak dapat disimpan"
-    AppLanguage.Norwegian -> "Lydbokens tagger kan ikke lagres"
-    AppLanguage.Polish -> "Nie można zapisać tagów audiobooka"
-    AppLanguage.Portuguese -> "Não é possível guardar as etiquetas do audiolivro"
-    AppLanguage.Punjabi -> "ਆਡੀਓਬੁੱਕ ਦੇ ਟੈਗ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ"
-    AppLanguage.Romanian -> "Etichetele cărții audio nu pot fi salvate"
-    AppLanguage.Russian -> "Не удалось сохранить теги аудиокниги"
-    AppLanguage.Serbian -> "Ознаке аудиокњиге није могуће сачувати"
-    AppLanguage.Slovak -> "Značky audioknihy nemožno uložiť"
-    AppLanguage.Slovenian -> "Oznak zvočne knjige ni mogoče shraniti"
-    AppLanguage.Spanish -> "No se pueden guardar las etiquetas del audiolibro"
-    AppLanguage.Swedish -> "Ljudbokens taggar kan inte sparas"
-    AppLanguage.Thai -> "ไม่สามารถบันทึกแท็กหนังสือเสียงได้"
-    AppLanguage.Ukrainian -> "Не вдалося зберегти теги аудіокниги"
-    AppLanguage.Urdu -> "آڈیو بک کے ٹیگز محفوظ نہیں کیے جا سکے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_unableToSaveAudiobookTags_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_unableToSaveAudiobookTags_1
 }
 
 private fun unableToSaveTags(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Etiketat nuk mund të ruhen"
-    AppLanguage.Bengali -> "ট্যাগ সংরক্ষণ করা যায়নি"
-    AppLanguage.Bosnian -> "Oznake nije moguće spremiti"
-    AppLanguage.Bulgarian -> "Етикетите не могат да бъдат запазени"
-    AppLanguage.Catalan -> "No es poden desar les etiquetes"
-    AppLanguage.ChineseSimplified -> "无法保存标签"
-    AppLanguage.Croatian -> "Oznake nije moguće spremiti"
-    AppLanguage.Czech -> "Štítky nelze uložit"
-    AppLanguage.Danish -> "Tags kan ikke gemmes"
-    AppLanguage.Dutch -> "Tags kunnen niet worden opgeslagen"
-    AppLanguage.English -> "Unable to save tags"
-    AppLanguage.Estonian -> "Silte ei saa salvestada"
-    AppLanguage.Finnish -> "Tunnisteita ei voi tallentaa"
-    AppLanguage.French -> "Impossible d’enregistrer les tags"
-    AppLanguage.German -> "Tags können nicht gespeichert werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η αποθήκευση ετικετών"
-    AppLanguage.Hindi -> "टैग सहेजे नहीं जा सके"
-    AppLanguage.Hungarian -> "A címkék nem menthetők"
-    AppLanguage.Indonesian -> "Tag tidak dapat disimpan"
-    AppLanguage.Italian -> "Impossibile salvare i tag"
-    AppLanguage.Japanese -> "タグを保存できません"
-    AppLanguage.Korean -> "태그를 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Tagus nevar saglabāt"
-    AppLanguage.Lithuanian -> "Nepavyko išsaugoti žymų"
-    AppLanguage.Macedonian -> "Ознаките не може да се зачуваат"
-    AppLanguage.Malay -> "Tag tidak dapat disimpan"
-    AppLanguage.Norwegian -> "Tagger kan ikke lagres"
-    AppLanguage.Polish -> "Nie można zapisać tagów"
-    AppLanguage.Portuguese -> "Não é possível guardar as etiquetas"
-    AppLanguage.Punjabi -> "ਟੈਗ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ"
-    AppLanguage.Romanian -> "Etichetele nu pot fi salvate"
-    AppLanguage.Russian -> "Не удалось сохранить теги"
-    AppLanguage.Serbian -> "Ознаке није могуће сачувати"
-    AppLanguage.Slovak -> "Značky nemožno uložiť"
-    AppLanguage.Slovenian -> "Oznak ni mogoče shraniti"
-    AppLanguage.Spanish -> "No se pueden guardar las etiquetas"
-    AppLanguage.Swedish -> "Taggar kan inte sparas"
-    AppLanguage.Thai -> "ไม่สามารถบันทึกแท็กได้"
-    AppLanguage.Ukrainian -> "Не вдалося зберегти теги"
-    AppLanguage.Urdu -> "ٹیگز محفوظ نہیں کیے جا سکے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_unableToSaveTags_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_unableToSaveTags_1
 }
 
 private fun noTagsSaved(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Nuk u ruajt asnjë etiketë"
-    AppLanguage.Bengali -> "কোনো ট্যাগ সংরক্ষিত হয়নি"
-    AppLanguage.Bosnian -> "Nijedna oznaka nije spremljena"
-    AppLanguage.Bulgarian -> "Няма запазени етикети"
-    AppLanguage.Catalan -> "No s’ha desat cap etiqueta"
-    AppLanguage.ChineseSimplified -> "未保存任何标签"
-    AppLanguage.Croatian -> "Nijedna oznaka nije spremljena"
-    AppLanguage.Czech -> "Žádné štítky nebyly uloženy"
-    AppLanguage.Danish -> "Ingen tags blev gemt"
-    AppLanguage.Dutch -> "Er zijn geen tags opgeslagen"
-    AppLanguage.English -> "No tags were saved"
-    AppLanguage.Estonian -> "Ühtegi silti ei salvestatud"
-    AppLanguage.Finnish -> "Yhtään tunnistetta ei tallennettu"
-    AppLanguage.French -> "Aucun tag n’a été enregistré"
-    AppLanguage.German -> "Es wurden keine Tags gespeichert"
-    AppLanguage.Greek -> "Δεν αποθηκεύτηκε καμία ετικέτα"
-    AppLanguage.Hindi -> "कोई टैग सहेजा नहीं गया"
-    AppLanguage.Hungarian -> "Nem történt címkementés"
-    AppLanguage.Indonesian -> "Tidak ada tag yang disimpan"
-    AppLanguage.Italian -> "Nessun tag è stato salvato"
-    AppLanguage.Japanese -> "タグは保存されませんでした"
-    AppLanguage.Korean -> "저장된 태그가 없습니다"
-    AppLanguage.Latvian -> "Neviens tags netika saglabāts"
-    AppLanguage.Lithuanian -> "Žymų neišsaugota"
-    AppLanguage.Macedonian -> "Не е зачувана ниту една ознака"
-    AppLanguage.Malay -> "Tiada tag disimpan"
-    AppLanguage.Norwegian -> "Ingen tagger ble lagret"
-    AppLanguage.Polish -> "Nie zapisano żadnych tagów"
-    AppLanguage.Portuguese -> "Nenhuma etiqueta foi guardada"
-    AppLanguage.Punjabi -> "ਕੋਈ ਟੈਗ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤਾ ਗਿਆ"
-    AppLanguage.Romanian -> "Nu a fost salvată nicio etichetă"
-    AppLanguage.Russian -> "Ни один тег не сохранён"
-    AppLanguage.Serbian -> "Ниједна ознака није сачувана"
-    AppLanguage.Slovak -> "Žiadne značky neboli uložené"
-    AppLanguage.Slovenian -> "Nobena oznaka ni bila shranjena"
-    AppLanguage.Spanish -> "No se ha guardado ninguna etiqueta"
-    AppLanguage.Swedish -> "Inga taggar sparades"
-    AppLanguage.Thai -> "ไม่มีแท็กใดถูกบันทึก"
-    AppLanguage.Ukrainian -> "Жоден тег не збережено"
-    AppLanguage.Urdu -> "کوئی ٹیگ محفوظ نہیں ہوا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_noTagsSaved_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_noTagsSaved_1
 }
 
 private fun tagWriteRequestPending(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Një kërkesë për leje shkrimi është tashmë në pritje"
-    AppLanguage.Bengali -> "লেখার অনুমতির একটি অনুরোধ ইতিমধ্যে অপেক্ষায় আছে"
-    AppLanguage.Bosnian -> "Zahtjev za dozvolu pisanja već je na čekanju"
-    AppLanguage.Bulgarian -> "Вече има чакаща заявка за достъп за запис"
-    AppLanguage.Catalan -> "Ja hi ha una sol·licitud de permís d’escriptura pendent"
-    AppLanguage.ChineseSimplified -> "已有一个写入权限请求正在等待处理"
-    AppLanguage.Croatian -> "Zahtjev za dopuštenje pisanja već je na čekanju"
-    AppLanguage.Czech -> "Žádost o oprávnění k zápisu již čeká na vyřízení"
-    AppLanguage.Danish -> "En anmodning om skrivetilladelse afventer allerede"
-    AppLanguage.Dutch -> "Er staat al een verzoek om schrijftoegang open"
-    AppLanguage.English -> "A write-access request is already pending"
-    AppLanguage.Estonian -> "Kirjutusõiguse taotlus on juba ootel"
-    AppLanguage.Finnish -> "Kirjoitusoikeuspyyntö odottaa jo käsittelyä"
-    AppLanguage.French -> "Une demande d’autorisation d’écriture est déjà en attente"
-    AppLanguage.German -> "Eine Anfrage für die Schreibberechtigung ist bereits ausstehend"
-    AppLanguage.Greek -> "Ένα αίτημα άδειας εγγραφής εκκρεμεί ήδη"
-    AppLanguage.Hindi -> "लिखने की अनुमति का एक अनुरोध पहले से लंबित है"
-    AppLanguage.Hungarian -> "Egy írási engedélykérés már függőben van"
-    AppLanguage.Indonesian -> "Permintaan izin tulis sudah menunggu"
-    AppLanguage.Italian -> "Una richiesta di autorizzazione di scrittura è già in sospeso"
-    AppLanguage.Japanese -> "書き込み権限のリクエストは既に保留中です"
-    AppLanguage.Korean -> "쓰기 권한 요청이 이미 대기 중입니다"
-    AppLanguage.Latvian -> "Rakstīšanas atļaujas pieprasījums jau gaida apstiprinājumu"
-    AppLanguage.Lithuanian -> "Rašymo leidimo užklausa jau laukia patvirtinimo"
-    AppLanguage.Macedonian -> "Барање за дозвола за запишување веќе чека одговор"
-    AppLanguage.Malay -> "Permintaan kebenaran menulis sudah menunggu"
-    AppLanguage.Norwegian -> "En forespørsel om skrivetilgang venter allerede"
-    AppLanguage.Polish -> "Prośba o uprawnienie do zapisu już oczekuje na odpowiedź"
-    AppLanguage.Portuguese -> "Já existe um pedido de autorização de escrita pendente"
-    AppLanguage.Punjabi -> "ਲਿਖਣ ਦੀ ਇਜਾਜ਼ਤ ਦੀ ਇੱਕ ਬੇਨਤੀ ਪਹਿਲਾਂ ਹੀ ਬਕਾਇਆ ਹੈ"
-    AppLanguage.Romanian -> "O solicitare de permisiune de scriere este deja în așteptare"
-    AppLanguage.Russian -> "Запрос разрешения на запись уже ожидает ответа"
-    AppLanguage.Serbian -> "Захтев за дозволу писања већ чека одговор"
-    AppLanguage.Slovak -> "Žiadosť o oprávnenie na zápis už čaká na vybavenie"
-    AppLanguage.Slovenian -> "Zahteva za dovoljenje za pisanje že čaka na odgovor"
-    AppLanguage.Spanish -> "Ya hay una solicitud de permiso de escritura pendiente"
-    AppLanguage.Swedish -> "En begäran om skrivbehörighet väntar redan på svar"
-    AppLanguage.Thai -> "มีคำขอสิทธิ์เขียนที่รอการตอบกลับอยู่แล้ว"
-    AppLanguage.Ukrainian -> "Запит на дозвіл запису вже очікує відповіді"
-    AppLanguage.Urdu -> "لکھنے کی اجازت کی ایک درخواست پہلے ہی زیر التوا ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagWriteRequestPending_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagWriteRequestPending_1
 }
 
 private fun tagWriteRequestUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Android nuk mundi të hapë kërkesën për leje shkrimi"
-    AppLanguage.Bengali -> "Android লেখার অনুমতির অনুরোধ খুলতে পারেনি"
-    AppLanguage.Bosnian -> "Android nije mogao otvoriti zahtjev za dozvolu pisanja"
-    AppLanguage.Bulgarian -> "Android не можа да отвори заявката за достъп за запис"
-    AppLanguage.Catalan -> "Android no ha pogut obrir la sol·licitud de permís d’escriptura"
-    AppLanguage.ChineseSimplified -> "Android 无法打开写入权限请求"
-    AppLanguage.Croatian -> "Android nije mogao otvoriti zahtjev za dopuštenje pisanja"
-    AppLanguage.Czech -> "Android nemohl otevřít žádost o oprávnění k zápisu"
-    AppLanguage.Danish -> "Android kunne ikke åbne anmodningen om skrivetilladelse"
-    AppLanguage.Dutch -> "Android kon het verzoek om schrijftoegang niet openen"
-    AppLanguage.English -> "Android could not open the write-access request"
-    AppLanguage.Estonian -> "Android ei saanud kirjutusõiguse taotlust avada"
-    AppLanguage.Finnish -> "Android ei voinut avata kirjoitusoikeuspyyntöä"
-    AppLanguage.French -> "Android n’a pas pu ouvrir la demande d’autorisation d’écriture"
-    AppLanguage.German -> "Android konnte die Anfrage für die Schreibberechtigung nicht öffnen"
-    AppLanguage.Greek -> "Το Android δεν μπόρεσε να ανοίξει το αίτημα άδειας εγγραφής"
-    AppLanguage.Hindi -> "Android लिखने की अनुमति का अनुरोध नहीं खोल सका"
-    AppLanguage.Hungarian -> "Az Android nem tudta megnyitni az írási engedély kérését"
-    AppLanguage.Indonesian -> "Android tidak dapat membuka permintaan izin tulis"
-    AppLanguage.Italian -> "Android non è riuscito ad aprire la richiesta di autorizzazione di scrittura"
-    AppLanguage.Japanese -> "Android は書き込み権限のリクエストを開けませんでした"
-    AppLanguage.Korean -> "Android에서 쓰기 권한 요청을 열 수 없었습니다"
-    AppLanguage.Latvian -> "Android nevarēja atvērt rakstīšanas atļaujas pieprasījumu"
-    AppLanguage.Lithuanian -> "Android nepavyko atverti rašymo leidimo užklausos"
-    AppLanguage.Macedonian -> "Android не можеше да го отвори барањето за дозвола за запишување"
-    AppLanguage.Malay -> "Android tidak dapat membuka permintaan kebenaran menulis"
-    AppLanguage.Norwegian -> "Android kunne ikke åpne forespørselen om skrivetilgang"
-    AppLanguage.Polish -> "Android nie mógł otworzyć prośby o uprawnienie do zapisu"
-    AppLanguage.Portuguese -> "O Android não conseguiu abrir o pedido de autorização de escrita"
-    AppLanguage.Punjabi -> "Android ਲਿਖਣ ਦੀ ਇਜਾਜ਼ਤ ਦੀ ਬੇਨਤੀ ਨਹੀਂ ਖੋਲ੍ਹ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Android nu a putut deschide solicitarea permisiunii de scriere"
-    AppLanguage.Russian -> "Android не удалось открыть запрос разрешения на запись"
-    AppLanguage.Serbian -> "Android није могао да отвори захтев за дозволу писања"
-    AppLanguage.Slovak -> "Android nemohol otvoriť žiadosť o oprávnenie na zápis"
-    AppLanguage.Slovenian -> "Android ni mogel odpreti zahteve za dovoljenje za pisanje"
-    AppLanguage.Spanish -> "Android no pudo abrir la solicitud de permiso de escritura"
-    AppLanguage.Swedish -> "Android kunde inte öppna begäran om skrivbehörighet"
-    AppLanguage.Thai -> "Android ไม่สามารถเปิดคำขอสิทธิ์เขียนได้"
-    AppLanguage.Ukrainian -> "Android не вдалося відкрити запит на дозвіл запису"
-    AppLanguage.Urdu -> "Android لکھنے کی اجازت کی درخواست نہیں کھول سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagWriteRequestUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagWriteRequestUnavailable_1
 }
 
 private fun tagWriteAccessNotGranted(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Leja e shkrimit nuk u dha"
-    AppLanguage.Bengali -> "লেখার অনুমতি দেওয়া হয়নি"
-    AppLanguage.Bosnian -> "Dozvola za pisanje nije odobrena"
-    AppLanguage.Bulgarian -> "Не е предоставено разрешение за запис"
-    AppLanguage.Catalan -> "No s’ha concedit el permís d’escriptura"
-    AppLanguage.ChineseSimplified -> "未授予写入权限"
-    AppLanguage.Croatian -> "Dopuštenje za pisanje nije odobreno"
-    AppLanguage.Czech -> "Oprávnění k zápisu nebylo uděleno"
-    AppLanguage.Danish -> "Skrivetilladelse blev ikke givet"
-    AppLanguage.Dutch -> "Schrijftoegang is niet verleend"
-    AppLanguage.English -> "Write access was not granted"
-    AppLanguage.Estonian -> "Kirjutusõigust ei antud"
-    AppLanguage.Finnish -> "Kirjoitusoikeutta ei myönnetty"
-    AppLanguage.French -> "L’autorisation d’écriture n’a pas été accordée"
-    AppLanguage.German -> "Die Schreibberechtigung wurde nicht erteilt"
-    AppLanguage.Greek -> "Δεν δόθηκε άδεια εγγραφής"
-    AppLanguage.Hindi -> "लिखने की अनुमति नहीं दी गई"
-    AppLanguage.Hungarian -> "Az írási engedély nem lett megadva"
-    AppLanguage.Indonesian -> "Izin tulis tidak diberikan"
-    AppLanguage.Italian -> "L’autorizzazione di scrittura non è stata concessa"
-    AppLanguage.Japanese -> "書き込み権限が許可されませんでした"
-    AppLanguage.Korean -> "쓰기 권한이 부여되지 않았습니다"
-    AppLanguage.Latvian -> "Rakstīšanas atļauja netika piešķirta"
-    AppLanguage.Lithuanian -> "Rašymo leidimas nebuvo suteiktas"
-    AppLanguage.Macedonian -> "Дозволата за запишување не е доделена"
-    AppLanguage.Malay -> "Kebenaran menulis tidak diberikan"
-    AppLanguage.Norwegian -> "Skrivetilgang ble ikke gitt"
-    AppLanguage.Polish -> "Nie przyznano uprawnienia do zapisu"
-    AppLanguage.Portuguese -> "A autorização de escrita não foi concedida"
-    AppLanguage.Punjabi -> "ਲਿਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਦਿੱਤੀ ਗਈ"
-    AppLanguage.Romanian -> "Permisiunea de scriere nu a fost acordată"
-    AppLanguage.Russian -> "Разрешение на запись не предоставлено"
-    AppLanguage.Serbian -> "Дозвола за писање није одобрена"
-    AppLanguage.Slovak -> "Oprávnenie na zápis nebolo udelené"
-    AppLanguage.Slovenian -> "Dovoljenje za pisanje ni bilo odobreno"
-    AppLanguage.Spanish -> "No se ha concedido permiso de escritura"
-    AppLanguage.Swedish -> "Skrivbehörighet beviljades inte"
-    AppLanguage.Thai -> "ไม่ได้รับสิทธิ์เขียน"
-    AppLanguage.Ukrainian -> "Дозвіл на запис не надано"
-    AppLanguage.Urdu -> "لکھنے کی اجازت نہیں دی گئی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagWriteAccessNotGranted_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagWriteAccessNotGranted_1
 }
 
 private fun tagSaveAwaitingAccess(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Nevojitet leje shtesë shkrimi për të përfunduar ruajtjen"
-    AppLanguage.Bengali -> "সংরক্ষণ শেষ করতে অতিরিক্ত লেখার অনুমতি প্রয়োজন"
-    AppLanguage.Bosnian -> "Za završetak spremanja potrebna je dodatna dozvola za pisanje"
-    AppLanguage.Bulgarian -> "За завършване на запазването е необходимо допълнително разрешение за запис"
-    AppLanguage.Catalan -> "Cal permís d’escriptura addicional per acabar de desar"
-    AppLanguage.ChineseSimplified -> "需要额外的写入权限才能完成保存"
-    AppLanguage.Croatian -> "Za dovršetak spremanja potrebno je dodatno dopuštenje za pisanje"
-    AppLanguage.Czech -> "K dokončení ukládání je potřeba další oprávnění k zápisu"
-    AppLanguage.Danish -> "Der kræves yderligere skrivetilladelse for at fuldføre lagringen"
-    AppLanguage.Dutch -> "Aanvullende schrijftoegang is nodig om het opslaan te voltooien"
-    AppLanguage.English -> "Additional write access is needed to finish saving"
-    AppLanguage.Estonian -> "Salvestamise lõpetamiseks on vaja täiendavat kirjutusõigust"
-    AppLanguage.Finnish -> "Tallennuksen viimeistely vaatii lisää kirjoitusoikeuksia"
-    AppLanguage.French -> "Une autorisation d’écriture supplémentaire est nécessaire pour terminer l’enregistrement"
-    AppLanguage.German -> "Zum Abschließen des Speichervorgangs ist eine zusätzliche Schreibberechtigung erforderlich"
-    AppLanguage.Greek -> "Απαιτείται επιπλέον άδεια εγγραφής για να ολοκληρωθεί η αποθήκευση"
-    AppLanguage.Hindi -> "सहेजना पूरा करने के लिए लिखने की अतिरिक्त अनुमति आवश्यक है"
-    AppLanguage.Hungarian -> "A mentés befejezéséhez további írási engedély szükséges"
-    AppLanguage.Indonesian -> "Izin tulis tambahan diperlukan untuk menyelesaikan penyimpanan"
-    AppLanguage.Italian -> "È necessaria un’ulteriore autorizzazione di scrittura per completare il salvataggio"
-    AppLanguage.Japanese -> "保存を完了するには追加の書き込み権限が必要です"
-    AppLanguage.Korean -> "저장을 완료하려면 추가 쓰기 권한이 필요합니다"
-    AppLanguage.Latvian -> "Lai pabeigtu saglabāšanu, nepieciešama papildu rakstīšanas atļauja"
-    AppLanguage.Lithuanian -> "Norint baigti išsaugoti reikia papildomo rašymo leidimo"
-    AppLanguage.Macedonian -> "За завршување на зачувувањето е потребна дополнителна дозвола за запишување"
-    AppLanguage.Malay -> "Kebenaran menulis tambahan diperlukan untuk melengkapkan penyimpanan"
-    AppLanguage.Norwegian -> "Ytterligere skrivetilgang er nødvendig for å fullføre lagringen"
-    AppLanguage.Polish -> "Aby zakończyć zapisywanie, potrzebne jest dodatkowe uprawnienie do zapisu"
-    AppLanguage.Portuguese -> "É necessária autorização adicional de escrita para concluir a gravação"
-    AppLanguage.Punjabi -> "ਸੁਰੱਖਿਅਤ ਕਰਨਾ ਪੂਰਾ ਕਰਨ ਲਈ ਲਿਖਣ ਦੀ ਵਾਧੂ ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ"
-    AppLanguage.Romanian -> "Este necesară o permisiune suplimentară de scriere pentru finalizarea salvării"
-    AppLanguage.Russian -> "Чтобы завершить сохранение, требуется дополнительное разрешение на запись"
-    AppLanguage.Serbian -> "За довршетак чувања потребна је додатна дозвола за писање"
-    AppLanguage.Slovak -> "Na dokončenie ukladania je potrebné ďalšie oprávnenie na zápis"
-    AppLanguage.Slovenian -> "Za dokončanje shranjevanja je potrebno dodatno dovoljenje za pisanje"
-    AppLanguage.Spanish -> "Se necesita permiso adicional de escritura para terminar de guardar"
-    AppLanguage.Swedish -> "Ytterligare skrivbehörighet krävs för att slutföra sparningen"
-    AppLanguage.Thai -> "ต้องได้รับสิทธิ์เขียนเพิ่มเติมเพื่อบันทึกให้เสร็จ"
-    AppLanguage.Ukrainian -> "Щоб завершити збереження, потрібен додатковий дозвіл на запис"
-    AppLanguage.Urdu -> "محفوظ کرنا مکمل کرنے کے لیے لکھنے کی اضافی اجازت درکار ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagSaveAwaitingAccess_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagSaveAwaitingAccess_1
 }
 
 internal fun localizedTagSaveFailure(failure: TagEditFailureUi, language: AppLanguage): String {
@@ -1590,864 +1590,864 @@ internal fun localizedTagSaveFailure(failure: TagEditFailureUi, language: AppLan
     if (failure.cause == TagEditFailureCause.UnsupportedArtworkFormat) return unsupportedArtworkError(language)
     if (failure.cause != TagEditFailureCause.UnsupportedFormat) return localizedTagSaveStatus(failure.reason, 0, language)
     return when (language) {
-        AppLanguage.Albanian -> "Ky format audio nuk mund të etiketohet në mënyrë të sigurt"
-        AppLanguage.Bengali -> "এই অডিও ফরম্যাটে নিরাপদে ট্যাগ লেখা যায় না"
-        AppLanguage.Bosnian -> "Ovaj audio format nije moguće sigurno označiti"
-        AppLanguage.Bulgarian -> "Този аудиоформат не може да бъде безопасно редактиран"
-        AppLanguage.Catalan -> "No es poden editar les etiquetes d’aquest format d’àudio amb seguretat"
-        AppLanguage.ChineseSimplified -> "无法安全地编辑此音频格式的标签"
-        AppLanguage.Croatian -> "Ovaj audioformat nije moguće sigurno označiti"
-        AppLanguage.Czech -> "Štítky tohoto zvukového formátu nelze bezpečně upravit"
-        AppLanguage.Danish -> "Tags i dette lydformat kan ikke redigeres sikkert"
-        AppLanguage.Dutch -> "Tags van dit audioformaat kunnen niet veilig worden bewerkt"
-        AppLanguage.English -> "This audio format cannot be tagged safely"
-        AppLanguage.Estonian -> "Selle helivormingu silte ei saa turvaliselt muuta"
-        AppLanguage.Finnish -> "Tämän äänimuodon tunnisteita ei voi muokata turvallisesti"
-        AppLanguage.French -> "Les tags de ce format audio ne peuvent pas être modifiés en toute sécurité"
-        AppLanguage.German -> "Die Tags dieses Audioformats können nicht sicher bearbeitet werden"
-        AppLanguage.Greek -> "Οι ετικέτες αυτής της μορφής ήχου δεν μπορούν να επεξεργαστούν με ασφάλεια"
-        AppLanguage.Hindi -> "इस ऑडियो फ़ॉर्मैट में टैग सुरक्षित रूप से नहीं लिखे जा सकते"
-        AppLanguage.Hungarian -> "Ennek a hangformátumnak a címkéi nem szerkeszthetők biztonságosan"
-        AppLanguage.Indonesian -> "Tag format audio ini tidak dapat diedit dengan aman"
-        AppLanguage.Italian -> "I tag di questo formato audio non possono essere modificati in sicurezza"
-        AppLanguage.Japanese -> "この音声形式のタグは安全に編集できません"
-        AppLanguage.Korean -> "이 오디오 형식의 태그를 안전하게 수정할 수 없습니다"
-        AppLanguage.Latvian -> "Šī audioformāta tagus nevar droši rediģēt"
-        AppLanguage.Lithuanian -> "Šio garso formato žymų negalima saugiai redaguoti"
-        AppLanguage.Macedonian -> "Ознаките на овој аудиоформат не може безбедно да се уредат"
-        AppLanguage.Malay -> "Tag format audio ini tidak boleh diedit dengan selamat"
-        AppLanguage.Norwegian -> "Tagger i dette lydformatet kan ikke redigeres trygt"
-        AppLanguage.Polish -> "Nie można bezpiecznie edytować tagów w tym formacie audio"
-        AppLanguage.Portuguese -> "Não é possível editar em segurança as etiquetas deste formato de áudio"
-        AppLanguage.Punjabi -> "ਇਸ ਆਡੀਓ ਫਾਰਮੈਟ ਵਿੱਚ ਟੈਗ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਨਹੀਂ ਲਿਖੇ ਜਾ ਸਕਦੇ"
-        AppLanguage.Romanian -> "Etichetele acestui format audio nu pot fi editate în siguranță"
-        AppLanguage.Russian -> "Теги этого аудиоформата нельзя безопасно изменить"
-        AppLanguage.Serbian -> "Ознаке овог аудио-формата не могу се безбедно уређивати"
-        AppLanguage.Slovak -> "Značky tohto zvukového formátu nemožno bezpečne upraviť"
-        AppLanguage.Slovenian -> "Oznak tega zvočnega formata ni mogoče varno urediti"
-        AppLanguage.Spanish -> "Las etiquetas de este formato de audio no se pueden editar de forma segura"
-        AppLanguage.Swedish -> "Taggar i detta ljudformat kan inte redigeras säkert"
-        AppLanguage.Thai -> "ไม่สามารถแก้ไขแท็กของรูปแบบเสียงนี้ได้อย่างปลอดภัย"
-        AppLanguage.Ukrainian -> "Теги цього аудіоформату неможливо безпечно змінити"
-        AppLanguage.Urdu -> "اس آڈیو فارمیٹ کے ٹیگز محفوظ طریقے سے تبدیل نہیں کیے جا سکتے"
+        AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Bengali -> BengaliTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Catalan -> CatalanTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Croatian -> CroatianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Czech -> CzechTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Danish -> DanishTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Dutch -> DutchTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.English -> EnglishTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Estonian -> EstonianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Finnish -> FinnishTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.French -> FrenchTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.German -> GermanTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Greek -> GreekTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Hindi -> HindiTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Italian -> ItalianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Korean -> KoreanTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Latvian -> LatvianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Malay -> MalayTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Polish -> PolishTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Romanian -> RomanianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Russian -> RussianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Serbian -> SerbianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Slovak -> SlovakTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Spanish -> SpanishTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Swedish -> SwedishTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Thai -> ThaiTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_localizedTagSaveFailure_1
+        AppLanguage.Urdu -> UrduTranslations.tagFeedback_localizedTagSaveFailure_1
     }
 }
 
 private fun invalidTrackSelectionError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Pistat e zgjedhura nuk janë më të vlefshme për këtë përmbledhje"
-    AppLanguage.Bengali -> "নির্বাচিত ট্র্যাকগুলি এই সংগ্রহের জন্য আর বৈধ নয়"
-    AppLanguage.Bosnian -> "Odabrane pjesme više nisu važeće za ovu kolekciju"
-    AppLanguage.Bulgarian -> "Избраните песни вече не са валидни за тази колекция"
-    AppLanguage.Catalan -> "Les pistes seleccionades ja no són vàlides per a aquesta col·lecció"
-    AppLanguage.ChineseSimplified -> "所选音轨对这个合集已不再有效"
-    AppLanguage.Croatian -> "Odabrane pjesme više nisu valjane za ovu zbirku"
-    AppLanguage.Czech -> "Vybrané skladby již nejsou pro tuto kolekci platné"
-    AppLanguage.Danish -> "De valgte spor er ikke længere gyldige for denne samling"
-    AppLanguage.Dutch -> "De geselecteerde tracks zijn niet langer geldig voor deze verzameling"
-    AppLanguage.English -> "The selected tracks are no longer valid for this collection"
-    AppLanguage.Estonian -> "Valitud lood ei kehti enam selles kogumikus"
-    AppLanguage.Finnish -> "Valitut kappaleet eivät ole enää kelvollisia tässä kokoelmassa"
-    AppLanguage.French -> "Les pistes sélectionnées ne sont plus valides pour cette collection"
-    AppLanguage.German -> "Die ausgewählten Titel sind für diese Sammlung nicht mehr gültig"
-    AppLanguage.Greek -> "Τα επιλεγμένα κομμάτια δεν είναι πλέον έγκυρα για αυτή τη συλλογή"
-    AppLanguage.Hindi -> "चुने गए ट्रैक इस संग्रह के लिए अब मान्य नहीं हैं"
-    AppLanguage.Hungarian -> "A kiválasztott számok már nem érvényesek ebben a gyűjteményben"
-    AppLanguage.Indonesian -> "Trek yang dipilih tidak lagi valid untuk koleksi ini"
-    AppLanguage.Italian -> "Le tracce selezionate non sono più valide per questa raccolta"
-    AppLanguage.Japanese -> "選択したトラックはこのコレクションでは無効になりました"
-    AppLanguage.Korean -> "선택한 트랙이 더 이상 이 컬렉션에 유효하지 않습니다"
-    AppLanguage.Latvian -> "Atlasītie ieraksti šai kolekcijai vairs nav derīgi"
-    AppLanguage.Lithuanian -> "Pasirinkti takeliai šiai kolekcijai nebegalioja"
-    AppLanguage.Macedonian -> "Избраните песни веќе не важат за оваа колекција"
-    AppLanguage.Malay -> "Trek yang dipilih tidak lagi sah untuk koleksi ini"
-    AppLanguage.Norwegian -> "De valgte sporene er ikke lenger gyldige for denne samlingen"
-    AppLanguage.Polish -> "Wybrane utwory nie są już prawidłowe dla tej kolekcji"
-    AppLanguage.Portuguese -> "As faixas selecionadas já não são válidas para esta coleção"
-    AppLanguage.Punjabi -> "ਚੁਣੇ ਟਰੈਕ ਇਸ ਸੰਗ੍ਰਹਿ ਲਈ ਹੁਣ ਵੈਧ ਨਹੀਂ ਹਨ"
-    AppLanguage.Romanian -> "Piesele selectate nu mai sunt valide pentru această colecție"
-    AppLanguage.Russian -> "Выбранные дорожки больше не подходят для этой коллекции"
-    AppLanguage.Serbian -> "Изабране нумере више нису важеће за ову колекцију"
-    AppLanguage.Slovak -> "Vybrané skladby už nie sú platné pre túto kolekciu"
-    AppLanguage.Slovenian -> "Izbrane skladbe za to zbirko niso več veljavne"
-    AppLanguage.Spanish -> "Las pistas seleccionadas ya no son válidas para esta colección"
-    AppLanguage.Swedish -> "De valda spåren är inte längre giltiga för den här samlingen"
-    AppLanguage.Thai -> "แทร็กที่เลือกใช้กับคอลเลกชันนี้ไม่ได้แล้ว"
-    AppLanguage.Ukrainian -> "Вибрані доріжки більше не підходять для цієї колекції"
-    AppLanguage.Urdu -> "منتخب کردہ ٹریک اس مجموعے کے لیے اب درست نہیں ہیں"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_invalidTrackSelectionError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_invalidTrackSelectionError_1
 }
 
 private fun tagTextTooLongError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Një ose më shumë vlera etiketash janë tepër të gjata për t’u ruajtur në mënyrë të sigurt"
-    AppLanguage.Bengali -> "এক বা একাধিক ট্যাগের মান নিরাপদে সংরক্ষণের জন্য খুব দীর্ঘ"
-    AppLanguage.Bosnian -> "Jedna ili više vrijednosti oznaka preduge su za sigurno spremanje"
-    AppLanguage.Bulgarian -> "Една или повече стойности на етикети са твърде дълги за безопасно запазване"
-    AppLanguage.Catalan -> "Un o més valors d’etiqueta són massa llargs per desar-los amb seguretat"
-    AppLanguage.ChineseSimplified -> "一个或多个标签值过长，无法安全保存"
-    AppLanguage.Croatian -> "Jedna ili više vrijednosti oznaka preduge su za sigurno spremanje"
-    AppLanguage.Czech -> "Jedna nebo více hodnot štítků jsou příliš dlouhé pro bezpečné uložení"
-    AppLanguage.Danish -> "En eller flere tagværdier er for lange til at blive gemt sikkert"
-    AppLanguage.Dutch -> "Een of meer tagwaarden zijn te lang om veilig op te slaan"
-    AppLanguage.English -> "One or more tag values are too long to save safely"
-    AppLanguage.Estonian -> "Üks või mitu sildi väärtust on turvaliseks salvestamiseks liiga pikad"
-    AppLanguage.Finnish -> "Yksi tai useampi tunnistearvo on liian pitkä turvallisesti tallennettavaksi"
-    AppLanguage.French -> "Une ou plusieurs valeurs de tag sont trop longues pour être enregistrées en toute sécurité"
-    AppLanguage.German -> "Ein oder mehrere Tag-Werte sind zu lang, um sicher gespeichert zu werden"
-    AppLanguage.Greek -> "Μία ή περισσότερες τιμές ετικετών είναι πολύ μεγάλες για ασφαλή αποθήκευση"
-    AppLanguage.Hindi -> "एक या अधिक टैग मान सुरक्षित रूप से सहेजने के लिए बहुत लंबे हैं"
-    AppLanguage.Hungarian -> "Egy vagy több címkeérték túl hosszú a biztonságos mentéshez"
-    AppLanguage.Indonesian -> "Satu atau beberapa nilai tag terlalu panjang untuk disimpan dengan aman"
-    AppLanguage.Italian -> "Uno o più valori dei tag sono troppo lunghi per essere salvati in sicurezza"
-    AppLanguage.Japanese -> "1つ以上のタグ値が長すぎるため安全に保存できません"
-    AppLanguage.Korean -> "하나 이상의 태그 값이 너무 길어 안전하게 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Viena vai vairākas tagu vērtības ir pārāk garas drošai saglabāšanai"
-    AppLanguage.Lithuanian -> "Viena ar daugiau žymų reikšmių yra per ilgos saugiai išsaugoti"
-    AppLanguage.Macedonian -> "Една или повеќе вредности на ознаки се предолги за безбедно зачувување"
-    AppLanguage.Malay -> "Satu atau lebih nilai tag terlalu panjang untuk disimpan dengan selamat"
-    AppLanguage.Norwegian -> "Én eller flere taggverdier er for lange til å lagres trygt"
-    AppLanguage.Polish -> "Co najmniej jedna wartość tagu jest zbyt długa, aby bezpiecznie ją zapisać"
-    AppLanguage.Portuguese -> "Um ou mais valores de etiquetas são demasiado longos para guardar em segurança"
-    AppLanguage.Punjabi -> "ਇੱਕ ਜਾਂ ਵੱਧ ਟੈਗ ਮੁੱਲ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸੰਭਾਲਣ ਲਈ ਬਹੁਤ ਲੰਬੇ ਹਨ"
-    AppLanguage.Romanian -> "Una sau mai multe valori ale etichetelor sunt prea lungi pentru a fi salvate în siguranță"
-    AppLanguage.Russian -> "Одно или несколько значений тегов слишком длинные для безопасного сохранения"
-    AppLanguage.Serbian -> "Једна или више вредности ознака су предугачке за безбедно чување"
-    AppLanguage.Slovak -> "Jedna alebo viac hodnôt značiek sú príliš dlhé na bezpečné uloženie"
-    AppLanguage.Slovenian -> "Ena ali več vrednosti oznak je predolgih za varno shranjevanje"
-    AppLanguage.Spanish -> "Uno o varios valores de etiquetas son demasiado largos para guardarlos de forma segura"
-    AppLanguage.Swedish -> "Ett eller flera taggvärden är för långa för att sparas säkert"
-    AppLanguage.Thai -> "ค่าแท็กอย่างน้อยหนึ่งรายการยาวเกินกว่าจะบันทึกได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Одне або кілька значень тегів задовгі для безпечного збереження"
-    AppLanguage.Urdu -> "ایک یا زیادہ ٹیگ قدریں محفوظ طریقے سے محفوظ کرنے کے لیے بہت لمبی ہیں"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagTextTooLongError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagTextTooLongError_1
 }
 
 private fun artworkTooLargeError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kopertina e zgjedhur është tepër e madhe për t’u përfshirë në mënyrë të sigurt"
-    AppLanguage.Bengali -> "নির্বাচিত কভারটি নিরাপদে সংযুক্ত করার জন্য খুব বড়"
-    AppLanguage.Bosnian -> "Odabrani omot je prevelik za sigurno ugrađivanje"
-    AppLanguage.Bulgarian -> "Избраната обложка е твърде голяма за безопасно вграждане"
-    AppLanguage.Catalan -> "La portada seleccionada és massa gran per incrustar-la amb seguretat"
-    AppLanguage.ChineseSimplified -> "所选封面过大，无法安全嵌入"
-    AppLanguage.Croatian -> "Odabrani omot je prevelik za sigurnu ugradnju"
-    AppLanguage.Czech -> "Vybraný obal je příliš velký pro bezpečné vložení"
-    AppLanguage.Danish -> "Det valgte coverbillede er for stort til sikker indlejring"
-    AppLanguage.Dutch -> "De geselecteerde hoes is te groot om veilig in te sluiten"
-    AppLanguage.English -> "The selected artwork is too large to embed safely"
-    AppLanguage.Estonian -> "Valitud kaanepilt on turvaliseks manustamiseks liiga suur"
-    AppLanguage.Finnish -> "Valittu kansikuva on liian suuri turvallisesti upotettavaksi"
-    AppLanguage.French -> "La pochette sélectionnée est trop volumineuse pour être intégrée en toute sécurité"
-    AppLanguage.German -> "Das ausgewählte Cover ist zu groß, um sicher eingebettet zu werden"
-    AppLanguage.Greek -> "Το επιλεγμένο εξώφυλλο είναι πολύ μεγάλο για ασφαλή ενσωμάτωση"
-    AppLanguage.Hindi -> "चुनी गई कवर छवि सुरक्षित रूप से जोड़ने के लिए बहुत बड़ी है"
-    AppLanguage.Hungarian -> "A kiválasztott borítókép túl nagy a biztonságos beágyazáshoz"
-    AppLanguage.Indonesian -> "Sampul yang dipilih terlalu besar untuk disematkan dengan aman"
-    AppLanguage.Italian -> "La copertina selezionata è troppo grande per essere incorporata in sicurezza"
-    AppLanguage.Japanese -> "選択したアートワークは大きすぎるため安全に埋め込めません"
-    AppLanguage.Korean -> "선택한 커버 이미지가 너무 커서 안전하게 삽입할 수 없습니다"
-    AppLanguage.Latvian -> "Izvēlētais vāka attēls ir pārāk liels drošai iegulšanai"
-    AppLanguage.Lithuanian -> "Pasirinktas viršelis yra per didelis saugiai įterpti"
-    AppLanguage.Macedonian -> "Избраната слика е преголема за безбедно вградување"
-    AppLanguage.Malay -> "Kulit yang dipilih terlalu besar untuk dibenamkan dengan selamat"
-    AppLanguage.Norwegian -> "Det valgte omslagsbildet er for stort til å bygges trygt inn"
-    AppLanguage.Polish -> "Wybrana okładka jest zbyt duża, aby bezpiecznie ją osadzić"
-    AppLanguage.Portuguese -> "A capa selecionada é demasiado grande para ser incorporada em segurança"
-    AppLanguage.Punjabi -> "ਚੁਣਿਆ ਕਵਰ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸ਼ਾਮਲ ਕਰਨ ਲਈ ਬਹੁਤ ਵੱਡਾ ਹੈ"
-    AppLanguage.Romanian -> "Coperta selectată este prea mare pentru a fi încorporată în siguranță"
-    AppLanguage.Russian -> "Выбранная обложка слишком велика для безопасного встраивания"
-    AppLanguage.Serbian -> "Изабрани омот је превелик за безбедно уграђивање"
-    AppLanguage.Slovak -> "Vybraný obal je príliš veľký na bezpečné vloženie"
-    AppLanguage.Slovenian -> "Izbrani ovitek je prevelik za varno vdelavo"
-    AppLanguage.Spanish -> "La portada seleccionada es demasiado grande para incrustarla de forma segura"
-    AppLanguage.Swedish -> "Den valda omslagsbilden är för stor för att bäddas in säkert"
-    AppLanguage.Thai -> "ภาพปกที่เลือกมีขนาดใหญ่เกินกว่าจะฝังได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Вибрана обкладинка завелика для безпечного вбудовування"
-    AppLanguage.Urdu -> "منتخب کردہ کور محفوظ طریقے سے شامل کرنے کے لیے بہت بڑا ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_artworkTooLargeError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_artworkTooLargeError_1
 }
 
 private fun tagNotReadyError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kjo këngë nuk është gati për redaktim të sigurt të etiketave"
-    AppLanguage.Bengali -> "এই গানটি নিরাপদে ট্যাগ সম্পাদনার জন্য প্রস্তুত নয়"
-    AppLanguage.Bosnian -> "Ova pjesma nije spremna za sigurno uređivanje oznaka"
-    AppLanguage.Bulgarian -> "Песента не е готова за безопасно редактиране на етикетите"
-    AppLanguage.Catalan -> "Aquesta cançó no està preparada per editar-ne les etiquetes amb seguretat"
-    AppLanguage.ChineseSimplified -> "此歌曲尚未准备好安全地编辑标签"
-    AppLanguage.Croatian -> "Ova pjesma nije spremna za sigurno uređivanje oznaka"
-    AppLanguage.Czech -> "Tato skladba není připravena na bezpečnou úpravu štítků"
-    AppLanguage.Danish -> "Sangen er ikke klar til sikker redigering af tags"
-    AppLanguage.Dutch -> "Dit nummer is niet klaar om tags veilig te bewerken"
-    AppLanguage.English -> "This song is not ready for safe tag editing"
-    AppLanguage.Estonian -> "See lugu pole siltide turvaliseks muutmiseks valmis"
-    AppLanguage.Finnish -> "Kappale ei ole valmis tunnisteiden turvalliseen muokkaukseen"
-    AppLanguage.French -> "Ce morceau n’est pas prêt pour une modification sécurisée des tags"
-    AppLanguage.German -> "Dieser Titel ist nicht für eine sichere Tag-Bearbeitung bereit"
-    AppLanguage.Greek -> "Αυτό το τραγούδι δεν είναι έτοιμο για ασφαλή επεξεργασία ετικετών"
-    AppLanguage.Hindi -> "यह गाना सुरक्षित रूप से टैग संपादित करने के लिए तैयार नहीं है"
-    AppLanguage.Hungarian -> "Ez a dal még nem áll készen a címkék biztonságos szerkesztésére"
-    AppLanguage.Indonesian -> "Lagu ini belum siap untuk pengeditan tag yang aman"
-    AppLanguage.Italian -> "Il brano non è pronto per la modifica sicura dei tag"
-    AppLanguage.Japanese -> "この曲はタグを安全に編集できる状態ではありません"
-    AppLanguage.Korean -> "이 노래는 태그를 안전하게 수정할 준비가 되지 않았습니다"
-    AppLanguage.Latvian -> "Šī dziesma nav gatava drošai tagu rediģēšanai"
-    AppLanguage.Lithuanian -> "Ši daina neparengta saugiam žymų redagavimui"
-    AppLanguage.Macedonian -> "Оваа песна не е подготвена за безбедно уредување ознаки"
-    AppLanguage.Malay -> "Lagu ini belum sedia untuk pengeditan tag yang selamat"
-    AppLanguage.Norwegian -> "Sangen er ikke klar for sikker redigering av tagger"
-    AppLanguage.Polish -> "Ten utwór nie jest gotowy do bezpiecznej edycji tagów"
-    AppLanguage.Portuguese -> "Esta música não está pronta para a edição segura de etiquetas"
-    AppLanguage.Punjabi -> "ਇਹ ਗੀਤ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਟੈਗ ਸੋਧਣ ਲਈ ਤਿਆਰ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Melodia nu este pregătită pentru editarea în siguranță a etichetelor"
-    AppLanguage.Russian -> "Песня не готова к безопасному редактированию тегов"
-    AppLanguage.Serbian -> "Ова песма није спремна за безбедно уређивање ознака"
-    AppLanguage.Slovak -> "Táto skladba nie je pripravená na bezpečnú úpravu značiek"
-    AppLanguage.Slovenian -> "Ta skladba ni pripravljena za varno urejanje oznak"
-    AppLanguage.Spanish -> "Esta canción no está lista para editar sus etiquetas de forma segura"
-    AppLanguage.Swedish -> "Låten är inte redo för säker redigering av taggar"
-    AppLanguage.Thai -> "เพลงนี้ยังไม่พร้อมสำหรับการแก้ไขแท็กอย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Пісня не готова до безпечного редагування тегів"
-    AppLanguage.Urdu -> "یہ گانا محفوظ طریقے سے ٹیگز میں ترمیم کے لیے تیار نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagNotReadyError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagNotReadyError_1
 }
 
 private fun tagOutputWriteError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Etiketat nuk mund të ruhen në skedarin e këngës"
-    AppLanguage.Bengali -> "গানের ফাইলে ট্যাগ সংরক্ষণ করা যায়নি"
-    AppLanguage.Bosnian -> "Oznake nije moguće spremiti u datoteku pjesme"
-    AppLanguage.Bulgarian -> "Етикетите не могат да бъдат запазени във файла на песента"
-    AppLanguage.Catalan -> "No es poden desar les etiquetes al fitxer de la cançó"
-    AppLanguage.ChineseSimplified -> "无法将标签保存到歌曲文件"
-    AppLanguage.Croatian -> "Oznake nije moguće spremiti u datoteku pjesme"
-    AppLanguage.Czech -> "Štítky nelze uložit do souboru skladby"
-    AppLanguage.Danish -> "Tags kan ikke gemmes i sangfilen"
-    AppLanguage.Dutch -> "Tags kunnen niet worden opgeslagen in het nummerbestand"
-    AppLanguage.English -> "Unable to save tags to the song file"
-    AppLanguage.Estonian -> "Silte ei saa loo faili salvestada"
-    AppLanguage.Finnish -> "Tunnisteita ei voi tallentaa kappaletiedostoon"
-    AppLanguage.French -> "Impossible d’enregistrer les tags dans le fichier du morceau"
-    AppLanguage.German -> "Tags können nicht in der Titeldatei gespeichert werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η αποθήκευση των ετικετών στο αρχείο του τραγουδιού"
-    AppLanguage.Hindi -> "गाने की फ़ाइल में टैग सहेजे नहीं जा सके"
-    AppLanguage.Hungarian -> "A címkéket nem lehet a dal fájljába menteni"
-    AppLanguage.Indonesian -> "Tag tidak dapat disimpan ke berkas lagu"
-    AppLanguage.Italian -> "Impossibile salvare i tag nel file del brano"
-    AppLanguage.Japanese -> "曲のファイルにタグを保存できません"
-    AppLanguage.Korean -> "노래 파일에 태그를 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Tagus nevar saglabāt dziesmas failā"
-    AppLanguage.Lithuanian -> "Nepavyko išsaugoti žymų dainos faile"
-    AppLanguage.Macedonian -> "Ознаките не може да се зачуваат во датотеката на песната"
-    AppLanguage.Malay -> "Tag tidak dapat disimpan ke dalam fail lagu"
-    AppLanguage.Norwegian -> "Tagger kan ikke lagres i sangfilen"
-    AppLanguage.Polish -> "Nie można zapisać tagów w pliku utworu"
-    AppLanguage.Portuguese -> "Não é possível guardar as etiquetas no ficheiro da música"
-    AppLanguage.Punjabi -> "ਗੀਤ ਦੀ ਫ਼ਾਈਲ ਵਿੱਚ ਟੈਗ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ"
-    AppLanguage.Romanian -> "Etichetele nu pot fi salvate în fișierul melodiei"
-    AppLanguage.Russian -> "Не удалось сохранить теги в файле песни"
-    AppLanguage.Serbian -> "Ознаке није могуће сачувати у датотеци песме"
-    AppLanguage.Slovak -> "Značky nemožno uložiť do súboru skladby"
-    AppLanguage.Slovenian -> "Oznak ni mogoče shraniti v datoteko skladbe"
-    AppLanguage.Spanish -> "No se pueden guardar las etiquetas en el archivo de la canción"
-    AppLanguage.Swedish -> "Taggar kan inte sparas i låtfilen"
-    AppLanguage.Thai -> "ไม่สามารถบันทึกแท็กลงในไฟล์เพลงได้"
-    AppLanguage.Ukrainian -> "Не вдалося зберегти теги у файлі пісні"
-    AppLanguage.Urdu -> "گانے کی فائل میں ٹیگز محفوظ نہیں کیے جا سکے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagOutputWriteError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagOutputWriteError_1
 }
 
 private fun tagSourceReadError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kjo këngë nuk mund të lexohet për redaktimin e etiketave"
-    AppLanguage.Bengali -> "ট্যাগ সম্পাদনার জন্য এই গান পড়া যায়নি"
-    AppLanguage.Bosnian -> "Nije moguće pročitati ovu pjesmu radi uređivanja oznaka"
-    AppLanguage.Bulgarian -> "Песента не може да бъде прочетена за редактиране на етикетите"
-    AppLanguage.Catalan -> "No es pot llegir aquesta cançó per editar-ne les etiquetes"
-    AppLanguage.ChineseSimplified -> "无法读取此歌曲以编辑标签"
-    AppLanguage.Croatian -> "Nije moguće pročitati ovu pjesmu radi uređivanja oznaka"
-    AppLanguage.Czech -> "Tuto skladbu nelze načíst pro úpravu štítků"
-    AppLanguage.Danish -> "Sangen kan ikke læses til redigering af tags"
-    AppLanguage.Dutch -> "Dit nummer kan niet worden gelezen om tags te bewerken"
-    AppLanguage.English -> "Unable to read this song for tag editing"
-    AppLanguage.Estonian -> "Seda lugu ei saa siltide muutmiseks lugeda"
-    AppLanguage.Finnish -> "Kappaletta ei voi lukea tunnisteiden muokkausta varten"
-    AppLanguage.French -> "Impossible de lire ce morceau pour modifier ses tags"
-    AppLanguage.German -> "Dieser Titel kann zur Bearbeitung der Tags nicht gelesen werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η ανάγνωση αυτού του τραγουδιού για επεξεργασία ετικετών"
-    AppLanguage.Hindi -> "टैग संपादित करने के लिए यह गाना पढ़ा नहीं जा सका"
-    AppLanguage.Hungarian -> "A dal nem olvasható be a címkék szerkesztéséhez"
-    AppLanguage.Indonesian -> "Lagu ini tidak dapat dibaca untuk pengeditan tag"
-    AppLanguage.Italian -> "Impossibile leggere il brano per modificare i tag"
-    AppLanguage.Japanese -> "タグを編集するためにこの曲を読み込めません"
-    AppLanguage.Korean -> "태그를 수정하기 위해 이 노래를 읽을 수 없습니다"
-    AppLanguage.Latvian -> "Šo dziesmu nevar nolasīt tagu rediģēšanai"
-    AppLanguage.Lithuanian -> "Nepavyko perskaityti šios dainos žymoms redaguoti"
-    AppLanguage.Macedonian -> "Оваа песна не може да се прочита за уредување ознаки"
-    AppLanguage.Malay -> "Lagu ini tidak dapat dibaca untuk mengedit tag"
-    AppLanguage.Norwegian -> "Sangen kan ikke leses for redigering av tagger"
-    AppLanguage.Polish -> "Nie można odczytać tego utworu do edycji tagów"
-    AppLanguage.Portuguese -> "Não é possível ler esta música para editar as etiquetas"
-    AppLanguage.Punjabi -> "ਟੈਗ ਸੋਧਣ ਲਈ ਇਹ ਗੀਤ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Melodia nu poate fi citită pentru editarea etichetelor"
-    AppLanguage.Russian -> "Не удалось прочитать эту песню для редактирования тегов"
-    AppLanguage.Serbian -> "Ову песму није могуће прочитати ради уређивања ознака"
-    AppLanguage.Slovak -> "Túto skladbu nemožno načítať na úpravu značiek"
-    AppLanguage.Slovenian -> "Te skladbe ni mogoče prebrati za urejanje oznak"
-    AppLanguage.Spanish -> "No se puede leer esta canción para editar sus etiquetas"
-    AppLanguage.Swedish -> "Låten kan inte läsas för att redigera taggar"
-    AppLanguage.Thai -> "ไม่สามารถอ่านเพลงนี้เพื่อแก้ไขแท็กได้"
-    AppLanguage.Ukrainian -> "Не вдалося прочитати цю пісню для редагування тегів"
-    AppLanguage.Urdu -> "ٹیگز میں ترمیم کے لیے یہ گانا پڑھا نہیں جا سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagSourceReadError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagSourceReadError_1
 }
 
 private fun tagVerificationAfterSaveError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Etiketat e ndryshuara nuk mund të verifikoheshin pas ruajtjes"
-    AppLanguage.Bengali -> "সংরক্ষণের পর পরিবর্তিত ট্যাগ যাচাই করা যায়নি"
-    AppLanguage.Bosnian -> "Izmijenjene oznake nije bilo moguće provjeriti nakon spremanja"
-    AppLanguage.Bulgarian -> "Променените етикети не можаха да бъдат проверени след запазване"
-    AppLanguage.Catalan -> "No s’han pogut verificar les etiquetes modificades després de desar"
-    AppLanguage.ChineseSimplified -> "保存后无法验证修改后的标签"
-    AppLanguage.Croatian -> "Promijenjene oznake nije bilo moguće provjeriti nakon spremanja"
-    AppLanguage.Czech -> "Upravené štítky se po uložení nepodařilo ověřit"
-    AppLanguage.Danish -> "De ændrede tags kunne ikke kontrolleres efter lagring"
-    AppLanguage.Dutch -> "Gewijzigde tags konden niet worden gecontroleerd na het opslaan"
-    AppLanguage.English -> "Changed tags could not be verified after saving"
-    AppLanguage.Estonian -> "Muudetud silte ei õnnestunud pärast salvestamist kontrollida"
-    AppLanguage.Finnish -> "Muutettuja tunnisteita ei voitu tarkistaa tallennuksen jälkeen"
-    AppLanguage.French -> "Les tags modifiés n’ont pas pu être vérifiés après l’enregistrement"
-    AppLanguage.German -> "Geänderte Tags konnten nach dem Speichern nicht überprüft werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η επαλήθευση των αλλαγμένων ετικετών μετά την αποθήκευση"
-    AppLanguage.Hindi -> "बदले गए टैग सहेजने के बाद सत्यापित नहीं किए जा सके"
-    AppLanguage.Hungarian -> "A módosított címkéket nem sikerült ellenőrizni mentés után"
-    AppLanguage.Indonesian -> "Tag yang diubah tidak dapat diverifikasi setelah disimpan"
-    AppLanguage.Italian -> "Impossibile verificare i tag modificati dopo il salvataggio"
-    AppLanguage.Japanese -> "保存後に変更したタグを検証できませんでした"
-    AppLanguage.Korean -> "저장한 후 변경된 태그를 확인할 수 없었습니다"
-    AppLanguage.Latvian -> "Pēc saglabāšanas neizdevās pārbaudīt mainītos tagus"
-    AppLanguage.Lithuanian -> "Išsaugojus nepavyko patikrinti pakeistų žymų"
-    AppLanguage.Macedonian -> "Изменетите ознаки не можеа да се проверат по зачувување"
-    AppLanguage.Malay -> "Tag yang diubah tidak dapat disahkan selepas disimpan"
-    AppLanguage.Norwegian -> "De endrede taggene kunne ikke kontrolleres etter lagring"
-    AppLanguage.Polish -> "Nie udało się zweryfikować zmienionych tagów po zapisaniu"
-    AppLanguage.Portuguese -> "Não foi possível verificar as etiquetas alteradas após guardar"
-    AppLanguage.Punjabi -> "ਸੁਰੱਖਿਅਤ ਕਰਨ ਤੋਂ ਬਾਅਦ ਬਦਲੇ ਟੈਗਾਂ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਹੋ ਸਕੀ"
-    AppLanguage.Romanian -> "Etichetele modificate nu au putut fi verificate după salvare"
-    AppLanguage.Russian -> "Не удалось проверить изменённые теги после сохранения"
-    AppLanguage.Serbian -> "Измењене ознаке није било могуће проверити након чувања"
-    AppLanguage.Slovak -> "Upravené značky sa po uložení nepodarilo overiť"
-    AppLanguage.Slovenian -> "Spremenjenih oznak po shranjevanju ni bilo mogoče preveriti"
-    AppLanguage.Spanish -> "No se pudieron verificar las etiquetas modificadas después de guardar"
-    AppLanguage.Swedish -> "De ändrade taggarna kunde inte verifieras efter sparning"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบแท็กที่เปลี่ยนแปลงหลังบันทึกได้"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити змінені теги після збереження"
-    AppLanguage.Urdu -> "محفوظ کرنے کے بعد تبدیل شدہ ٹیگز کی تصدیق نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagVerificationAfterSaveError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagVerificationAfterSaveError_1
 }
 
 private fun tagVerificationBeforeSaveError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Etiketat e ndryshuara nuk mund të verifikoheshin para ruajtjes"
-    AppLanguage.Bengali -> "সংরক্ষণের আগে পরিবর্তিত ট্যাগ যাচাই করা যায়নি"
-    AppLanguage.Bosnian -> "Izmijenjene oznake nije bilo moguće provjeriti prije spremanja"
-    AppLanguage.Bulgarian -> "Променените етикети не можаха да бъдат проверени преди запазване"
-    AppLanguage.Catalan -> "No s’han pogut verificar les etiquetes modificades abans de desar"
-    AppLanguage.ChineseSimplified -> "保存前无法验证修改后的标签"
-    AppLanguage.Croatian -> "Promijenjene oznake nije bilo moguće provjeriti prije spremanja"
-    AppLanguage.Czech -> "Upravené štítky se před uložením nepodařilo ověřit"
-    AppLanguage.Danish -> "De ændrede tags kunne ikke kontrolleres før lagring"
-    AppLanguage.Dutch -> "Gewijzigde tags konden niet worden gecontroleerd vóór het opslaan"
-    AppLanguage.English -> "Changed tags could not be verified before saving"
-    AppLanguage.Estonian -> "Muudetud silte ei õnnestunud enne salvestamist kontrollida"
-    AppLanguage.Finnish -> "Muutettuja tunnisteita ei voitu tarkistaa ennen tallennusta"
-    AppLanguage.French -> "Les tags modifiés n’ont pas pu être vérifiés avant l’enregistrement"
-    AppLanguage.German -> "Geänderte Tags konnten vor dem Speichern nicht überprüft werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η επαλήθευση των αλλαγμένων ετικετών πριν από την αποθήκευση"
-    AppLanguage.Hindi -> "बदले गए टैग सहेजने से पहले सत्यापित नहीं किए जा सके"
-    AppLanguage.Hungarian -> "A módosított címkéket nem sikerült ellenőrizni mentés előtt"
-    AppLanguage.Indonesian -> "Tag yang diubah tidak dapat diverifikasi sebelum disimpan"
-    AppLanguage.Italian -> "Impossibile verificare i tag modificati prima del salvataggio"
-    AppLanguage.Japanese -> "保存前に変更したタグを検証できませんでした"
-    AppLanguage.Korean -> "저장하기 전에 변경된 태그를 확인할 수 없었습니다"
-    AppLanguage.Latvian -> "Pirms saglabāšanas neizdevās pārbaudīt mainītos tagus"
-    AppLanguage.Lithuanian -> "Prieš išsaugant nepavyko patikrinti pakeistų žymų"
-    AppLanguage.Macedonian -> "Изменетите ознаки не можеа да се проверат пред зачувување"
-    AppLanguage.Malay -> "Tag yang diubah tidak dapat disahkan sebelum disimpan"
-    AppLanguage.Norwegian -> "De endrede taggene kunne ikke kontrolleres før lagring"
-    AppLanguage.Polish -> "Nie udało się zweryfikować zmienionych tagów przed zapisaniem"
-    AppLanguage.Portuguese -> "Não foi possível verificar as etiquetas alteradas antes de guardar"
-    AppLanguage.Punjabi -> "ਸੁਰੱਖਿਅਤ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਬਦਲੇ ਟੈਗਾਂ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਹੋ ਸਕੀ"
-    AppLanguage.Romanian -> "Etichetele modificate nu au putut fi verificate înainte de salvare"
-    AppLanguage.Russian -> "Не удалось проверить изменённые теги перед сохранением"
-    AppLanguage.Serbian -> "Измењене ознаке није било могуће проверити пре чувања"
-    AppLanguage.Slovak -> "Upravené značky sa pred uložením nepodarilo overiť"
-    AppLanguage.Slovenian -> "Spremenjenih oznak pred shranjevanjem ni bilo mogoče preveriti"
-    AppLanguage.Spanish -> "No se pudieron verificar las etiquetas modificadas antes de guardar"
-    AppLanguage.Swedish -> "De ändrade taggarna kunde inte verifieras före sparning"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบแท็กที่เปลี่ยนแปลงก่อนบันทึกได้"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити змінені теги перед збереженням"
-    AppLanguage.Urdu -> "محفوظ کرنے سے پہلے تبدیل شدہ ٹیگز کی تصدیق نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagVerificationBeforeSaveError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagVerificationBeforeSaveError_1
 }
 
 private fun tagTemporaryWriteFailure(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Etiketat nuk mund të shkruhen në mënyrë të sigurt"
-    AppLanguage.Bengali -> "ট্যাগ নিরাপদে লেখা যায়নি"
-    AppLanguage.Bosnian -> "Oznake nije moguće sigurno zapisati"
-    AppLanguage.Bulgarian -> "Етикетите не могат да бъдат записани безопасно"
-    AppLanguage.Catalan -> "No es poden escriure les etiquetes amb seguretat"
-    AppLanguage.ChineseSimplified -> "无法安全地写入标签"
-    AppLanguage.Croatian -> "Oznake nije moguće sigurno zapisati"
-    AppLanguage.Czech -> "Štítky nelze bezpečně zapsat"
-    AppLanguage.Danish -> "Tags kan ikke skrives sikkert"
-    AppLanguage.Dutch -> "Tags kunnen niet veilig worden geschreven"
-    AppLanguage.English -> "Unable to write tags safely"
-    AppLanguage.Estonian -> "Silte ei saa turvaliselt kirjutada"
-    AppLanguage.Finnish -> "Tunnisteita ei voi kirjoittaa turvallisesti"
-    AppLanguage.French -> "Impossible d’écrire les tags en toute sécurité"
-    AppLanguage.German -> "Tags können nicht sicher geschrieben werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η ασφαλής εγγραφή ετικετών"
-    AppLanguage.Hindi -> "टैग सुरक्षित रूप से नहीं लिखे जा सके"
-    AppLanguage.Hungarian -> "A címkéket nem lehet biztonságosan kiírni"
-    AppLanguage.Indonesian -> "Tag tidak dapat ditulis dengan aman"
-    AppLanguage.Italian -> "Impossibile scrivere i tag in sicurezza"
-    AppLanguage.Japanese -> "タグを安全に書き込めません"
-    AppLanguage.Korean -> "태그를 안전하게 쓸 수 없습니다"
-    AppLanguage.Latvian -> "Tagus nevar droši ierakstīt"
-    AppLanguage.Lithuanian -> "Nepavyko saugiai įrašyti žymų"
-    AppLanguage.Macedonian -> "Ознаките не може безбедно да се запишат"
-    AppLanguage.Malay -> "Tag tidak dapat ditulis dengan selamat"
-    AppLanguage.Norwegian -> "Tagger kan ikke skrives trygt"
-    AppLanguage.Polish -> "Nie można bezpiecznie zapisać tagów"
-    AppLanguage.Portuguese -> "Não é possível escrever as etiquetas em segurança"
-    AppLanguage.Punjabi -> "ਟੈਗ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਨਹੀਂ ਲਿਖੇ ਜਾ ਸਕੇ"
-    AppLanguage.Romanian -> "Etichetele nu pot fi scrise în siguranță"
-    AppLanguage.Russian -> "Не удалось безопасно записать теги"
-    AppLanguage.Serbian -> "Ознаке није могуће безбедно уписати"
-    AppLanguage.Slovak -> "Značky nemožno bezpečne zapísať"
-    AppLanguage.Slovenian -> "Oznak ni mogoče varno zapisati"
-    AppLanguage.Spanish -> "No se pueden escribir las etiquetas de forma segura"
-    AppLanguage.Swedish -> "Taggar kan inte skrivas säkert"
-    AppLanguage.Thai -> "ไม่สามารถเขียนแท็กได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Не вдалося безпечно записати теги"
-    AppLanguage.Urdu -> "ٹیگز محفوظ طریقے سے نہیں لکھے جا سکے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagTemporaryWriteFailure_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagTemporaryWriteFailure_1
 }
 
 private fun tagPermissionDeniedAfterGrant(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Sistemi nuk lejoi përditësimin e skedarit pasi u dha leja e shkrimit"
-    AppLanguage.Bengali -> "লেখার অনুমতি দেওয়ার পরও সিস্টেম ফাইলটি আপডেট করতে দেয়নি"
-    AppLanguage.Bosnian -> "Sistem nije dozvolio ažuriranje datoteke ni nakon davanja dozvole za pisanje"
-    AppLanguage.Bulgarian -> "Системата не разреши обновяването на файла след предоставяне на достъп за запис"
-    AppLanguage.Catalan -> "El sistema no ha permès actualitzar el fitxer després de concedir el permís d’escriptura"
-    AppLanguage.ChineseSimplified -> "授予写入权限后，系统仍未允许更新此文件"
-    AppLanguage.Croatian -> "Sustav nije dopustio ažuriranje datoteke nakon dodjele dopuštenja za pisanje"
-    AppLanguage.Czech -> "Systém nedovolil soubor aktualizovat ani po udělení oprávnění k zápisu"
-    AppLanguage.Danish -> "Systemet tillod ikke opdatering af filen efter tildeling af skrivetilladelse"
-    AppLanguage.Dutch -> "Het systeem stond het bijwerken van het bestand niet toe na het verlenen van schrijftoegang"
-    AppLanguage.English -> "The system did not allow this file to be updated after write access was granted"
-    AppLanguage.Estonian -> "Süsteem ei lubanud faili pärast kirjutusõiguse andmist värskendada"
-    AppLanguage.Finnish -> "Järjestelmä ei sallinut tiedoston päivittämistä kirjoitusoikeuden myöntämisen jälkeen"
-    AppLanguage.French -> "Le système n’a pas autorisé la mise à jour du fichier après l’octroi de l’accès en écriture"
-    AppLanguage.German -> "Das System hat die Aktualisierung der Datei nach Erteilung der Schreibberechtigung nicht zugelassen"
-    AppLanguage.Greek -> "Το σύστημα δεν επέτρεψε την ενημέρωση του αρχείου μετά την παροχή άδειας εγγραφής"
-    AppLanguage.Hindi -> "लिखने की अनुमति मिलने के बाद भी सिस्टम ने फ़ाइल अपडेट करने की अनुमति नहीं दी"
-    AppLanguage.Hungarian -> "A rendszer az írási engedély megadása után sem engedélyezte a fájl frissítését"
-    AppLanguage.Indonesian -> "Sistem tidak mengizinkan pembaruan berkas setelah izin tulis diberikan"
-    AppLanguage.Italian -> "Il sistema non ha consentito l’aggiornamento del file dopo la concessione dell’accesso in scrittura"
-    AppLanguage.Japanese -> "書き込み権限を許可した後も、システムはこのファイルの更新を許可しませんでした"
-    AppLanguage.Korean -> "쓰기 권한을 부여한 후에도 시스템이 파일 업데이트를 허용하지 않았습니다"
-    AppLanguage.Latvian -> "Sistēma neatļāva atjaunināt failu pēc rakstīšanas atļaujas piešķiršanas"
-    AppLanguage.Lithuanian -> "Suteikus rašymo leidimą sistema neleido atnaujinti failo"
-    AppLanguage.Macedonian -> "Системот не дозволи ажурирање на датотеката по доделувањето дозвола за запишување"
-    AppLanguage.Malay -> "Sistem tidak membenarkan fail dikemas kini selepas kebenaran menulis diberikan"
-    AppLanguage.Norwegian -> "Systemet tillot ikke oppdatering av filen etter at skrivetilgang ble gitt"
-    AppLanguage.Polish -> "System nie zezwolił na aktualizację pliku po przyznaniu uprawnienia do zapisu"
-    AppLanguage.Portuguese -> "O sistema não permitiu atualizar o ficheiro após a concessão de acesso de escrita"
-    AppLanguage.Punjabi -> "ਲਿਖਣ ਦੀ ਇਜਾਜ਼ਤ ਦੇਣ ਤੋਂ ਬਾਅਦ ਵੀ ਸਿਸਟਮ ਨੇ ਫ਼ਾਈਲ ਅੱਪਡੇਟ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਦਿੱਤੀ"
-    AppLanguage.Romanian -> "Sistemul nu a permis actualizarea fișierului după acordarea accesului de scriere"
-    AppLanguage.Russian -> "Система не разрешила обновить файл после предоставления доступа на запись"
-    AppLanguage.Serbian -> "Систем није дозволио ажурирање датотеке након давања дозволе за писање"
-    AppLanguage.Slovak -> "Systém nepovolil aktualizáciu súboru ani po udelení oprávnenia na zápis"
-    AppLanguage.Slovenian -> "Sistem po odobritvi dostopa za pisanje ni dovolil posodobitve datoteke"
-    AppLanguage.Spanish -> "El sistema no permitió actualizar el archivo después de conceder el acceso de escritura"
-    AppLanguage.Swedish -> "Systemet tillät inte att filen uppdaterades efter att skrivbehörighet beviljats"
-    AppLanguage.Thai -> "ระบบไม่อนุญาตให้อัปเดตไฟล์หลังจากให้สิทธิ์เขียนแล้ว"
-    AppLanguage.Ukrainian -> "Система не дозволила оновити файл після надання дозволу на запис"
-    AppLanguage.Urdu -> "لکھنے کی اجازت دینے کے بعد بھی سسٹم نے فائل اپ ڈیٹ کرنے کی اجازت نہیں دی"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagPermissionDeniedAfterGrant_1
 }
 
 private fun tagWritePermissionRequired(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Për këtë skedar nevojitet leje shtesë shkrimi"
-    AppLanguage.Bengali -> "এই ফাইলের জন্য অতিরিক্ত লেখার অনুমতি প্রয়োজন"
-    AppLanguage.Bosnian -> "Za ovu datoteku potrebna je dodatna dozvola za pisanje"
-    AppLanguage.Bulgarian -> "За този файл е необходимо допълнително разрешение за запис"
-    AppLanguage.Catalan -> "Cal permís d’escriptura addicional per a aquest fitxer"
-    AppLanguage.ChineseSimplified -> "此文件需要额外的写入权限"
-    AppLanguage.Croatian -> "Za ovu datoteku potrebno je dodatno dopuštenje za pisanje"
-    AppLanguage.Czech -> "Pro tento soubor je vyžadováno další oprávnění k zápisu"
-    AppLanguage.Danish -> "Denne fil kræver yderligere skrivetilladelse"
-    AppLanguage.Dutch -> "Voor dit bestand is aanvullende schrijftoegang nodig"
-    AppLanguage.English -> "Additional write access is required for this file"
-    AppLanguage.Estonian -> "Selle faili jaoks on vaja täiendavat kirjutusõigust"
-    AppLanguage.Finnish -> "Tämä tiedosto vaatii lisää kirjoitusoikeuksia"
-    AppLanguage.French -> "Une autorisation d’écriture supplémentaire est nécessaire pour ce fichier"
-    AppLanguage.German -> "Für diese Datei ist eine zusätzliche Schreibberechtigung erforderlich"
-    AppLanguage.Greek -> "Απαιτείται επιπλέον άδεια εγγραφής για αυτό το αρχείο"
-    AppLanguage.Hindi -> "इस फ़ाइल के लिए लिखने की अतिरिक्त अनुमति आवश्यक है"
-    AppLanguage.Hungarian -> "Ehhez a fájlhoz további írási engedély szükséges"
-    AppLanguage.Indonesian -> "Berkas ini memerlukan izin tulis tambahan"
-    AppLanguage.Italian -> "Per questo file è necessaria un’ulteriore autorizzazione di scrittura"
-    AppLanguage.Japanese -> "このファイルには追加の書き込み権限が必要です"
-    AppLanguage.Korean -> "이 파일에 추가 쓰기 권한이 필요합니다"
-    AppLanguage.Latvian -> "Šim failam ir nepieciešama papildu rakstīšanas atļauja"
-    AppLanguage.Lithuanian -> "Šiam failui reikia papildomo rašymo leidimo"
-    AppLanguage.Macedonian -> "За оваа датотека е потребна дополнителна дозвола за запишување"
-    AppLanguage.Malay -> "Fail ini memerlukan kebenaran menulis tambahan"
-    AppLanguage.Norwegian -> "Denne filen krever ytterligere skrivetilgang"
-    AppLanguage.Polish -> "Ten plik wymaga dodatkowego uprawnienia do zapisu"
-    AppLanguage.Portuguese -> "Este ficheiro requer autorização adicional de escrita"
-    AppLanguage.Punjabi -> "ਇਸ ਫ਼ਾਈਲ ਲਈ ਲਿਖਣ ਦੀ ਵਾਧੂ ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ"
-    AppLanguage.Romanian -> "Acest fișier necesită permisiune suplimentară de scriere"
-    AppLanguage.Russian -> "Для этого файла требуется дополнительное разрешение на запись"
-    AppLanguage.Serbian -> "За ову датотеку је потребна додатна дозвола за писање"
-    AppLanguage.Slovak -> "Pre tento súbor je potrebné ďalšie oprávnenie na zápis"
-    AppLanguage.Slovenian -> "Za to datoteko je potrebno dodatno dovoljenje za pisanje"
-    AppLanguage.Spanish -> "Este archivo requiere permiso adicional de escritura"
-    AppLanguage.Swedish -> "Den här filen kräver ytterligare skrivbehörighet"
-    AppLanguage.Thai -> "ไฟล์นี้ต้องได้รับสิทธิ์เขียนเพิ่มเติม"
-    AppLanguage.Ukrainian -> "Для цього файлу потрібен додатковий дозвіл на запис"
-    AppLanguage.Urdu -> "اس فائل کے لیے لکھنے کی اضافی اجازت درکار ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagWritePermissionRequired_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagWritePermissionRequired_1
 }
 
 private fun tagRollbackFailure(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kënga nuk mund të rikthehej pasi dështoi shkrimi i etiketave"
-    AppLanguage.Bengali -> "ট্যাগ লেখা ব্যর্থ হওয়ার পর গানটি পুনরুদ্ধার করা যায়নি"
-    AppLanguage.Bosnian -> "Pjesma se nije mogla vratiti nakon neuspjelog upisa oznaka"
-    AppLanguage.Bulgarian -> "Песента не можа да бъде възстановена след неуспешен запис на етикетите"
-    AppLanguage.Catalan -> "No s’ha pogut restaurar la cançó després de fallar l’escriptura de les etiquetes"
-    AppLanguage.ChineseSimplified -> "标签写入失败后无法恢复歌曲"
-    AppLanguage.Croatian -> "Pjesmu nije bilo moguće vratiti nakon neuspjelog zapisivanja oznaka"
-    AppLanguage.Czech -> "Skladbu se po neúspěšném zápisu štítků nepodařilo obnovit"
-    AppLanguage.Danish -> "Sangen kunne ikke gendannes efter den mislykkede skrivning af tags"
-    AppLanguage.Dutch -> "Het nummer kon niet worden hersteld nadat het schrijven van tags mislukte"
-    AppLanguage.English -> "The song could not be restored after the tag write failed"
-    AppLanguage.Estonian -> "Lugu ei õnnestunud pärast siltide kirjutamise nurjumist taastada"
-    AppLanguage.Finnish -> "Kappaletta ei voitu palauttaa tunnisteiden kirjoituksen epäonnistuttua"
-    AppLanguage.French -> "Le morceau n’a pas pu être restauré après l’échec de l’écriture des tags"
-    AppLanguage.German -> "Der Titel konnte nach dem fehlgeschlagenen Schreiben der Tags nicht wiederhergestellt werden"
-    AppLanguage.Greek -> "Δεν ήταν δυνατή η επαναφορά του τραγουδιού μετά την αποτυχία εγγραφής ετικετών"
-    AppLanguage.Hindi -> "टैग लिखना विफल होने के बाद गाना बहाल नहीं किया जा सका"
-    AppLanguage.Hungarian -> "A dalt nem sikerült visszaállítani a címkék sikertelen írása után"
-    AppLanguage.Indonesian -> "Lagu tidak dapat dipulihkan setelah penulisan tag gagal"
-    AppLanguage.Italian -> "Impossibile ripristinare il brano dopo l’errore di scrittura dei tag"
-    AppLanguage.Japanese -> "タグの書き込みに失敗した後、曲を復元できませんでした"
-    AppLanguage.Korean -> "태그 쓰기에 실패한 후 노래를 복원할 수 없었습니다"
-    AppLanguage.Latvian -> "Pēc neveiksmīgas tagu ierakstīšanas dziesmu neizdevās atjaunot"
-    AppLanguage.Lithuanian -> "Nepavyko atkurti dainos po nesėkmingo žymų įrašymo"
-    AppLanguage.Macedonian -> "Песната не можеше да се врати по неуспешното запишување ознаки"
-    AppLanguage.Malay -> "Lagu tidak dapat dipulihkan selepas penulisan tag gagal"
-    AppLanguage.Norwegian -> "Sangen kunne ikke gjenopprettes etter at skriving av tagger mislyktes"
-    AppLanguage.Polish -> "Nie udało się przywrócić utworu po nieudanym zapisie tagów"
-    AppLanguage.Portuguese -> "Não foi possível restaurar a música após a falha na escrita das etiquetas"
-    AppLanguage.Punjabi -> "ਟੈਗ ਲਿਖਣ ਵਿੱਚ ਅਸਫਲਤਾ ਤੋਂ ਬਾਅਦ ਗੀਤ ਮੁੜ ਬਹਾਲ ਨਹੀਂ ਹੋ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Melodia nu a putut fi restaurată după eșecul scrierii etichetelor"
-    AppLanguage.Russian -> "Не удалось восстановить песню после ошибки записи тегов"
-    AppLanguage.Serbian -> "Песма није могла бити враћена након неуспелог уписивања ознака"
-    AppLanguage.Slovak -> "Skladbu sa po neúspešnom zápise značiek nepodarilo obnoviť"
-    AppLanguage.Slovenian -> "Skladbe po neuspešnem zapisovanju oznak ni bilo mogoče obnoviti"
-    AppLanguage.Spanish -> "No se pudo restaurar la canción tras fallar la escritura de etiquetas"
-    AppLanguage.Swedish -> "Låten kunde inte återställas efter att skrivningen av taggar misslyckades"
-    AppLanguage.Thai -> "ไม่สามารถกู้คืนเพลงได้หลังจากเขียนแท็กไม่สำเร็จ"
-    AppLanguage.Ukrainian -> "Не вдалося відновити пісню після помилки запису тегів"
-    AppLanguage.Urdu -> "ٹیگ لکھنے میں ناکامی کے بعد گانا بحال نہیں ہو سکا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagRollbackFailure_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagRollbackFailure_1
 }
 
 private fun cannotReadArtworkError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kopertina e zgjedhur nuk mund të lexohet"
-    AppLanguage.Bengali -> "নির্বাচিত কভার পড়া যাচ্ছে না"
-    AppLanguage.Bosnian -> "Nije moguće pročitati odabrani omot"
-    AppLanguage.Bulgarian -> "Избраната обложка не може да бъде прочетена"
-    AppLanguage.Catalan -> "No es pot llegir la portada seleccionada"
-    AppLanguage.ChineseSimplified -> "无法读取所选封面"
-    AppLanguage.Croatian -> "Nije moguće pročitati odabrani omot"
-    AppLanguage.Czech -> "Vybraný obal nelze načíst"
-    AppLanguage.Danish -> "Det valgte coverbillede kan ikke læses"
-    AppLanguage.Dutch -> "De geselecteerde hoes kan niet worden gelezen"
-    AppLanguage.English -> "Unable to read the selected artwork"
-    AppLanguage.Estonian -> "Valitud kaanepilti ei saa lugeda"
-    AppLanguage.Finnish -> "Valittua kansikuvaa ei voi lukea"
-    AppLanguage.French -> "Impossible de lire la pochette sélectionnée"
-    AppLanguage.German -> "Das ausgewählte Cover kann nicht gelesen werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η ανάγνωση του επιλεγμένου εξωφύλλου"
-    AppLanguage.Hindi -> "चुनी गई कवर छवि पढ़ी नहीं जा सकी"
-    AppLanguage.Hungarian -> "A kiválasztott borítókép nem olvasható"
-    AppLanguage.Indonesian -> "Sampul yang dipilih tidak dapat dibaca"
-    AppLanguage.Italian -> "Impossibile leggere la copertina selezionata"
-    AppLanguage.Japanese -> "選択したアートワークを読み込めません"
-    AppLanguage.Korean -> "선택한 커버 이미지를 읽을 수 없습니다"
-    AppLanguage.Latvian -> "Izvēlēto vāka attēlu nevar nolasīt"
-    AppLanguage.Lithuanian -> "Nepavyko perskaityti pasirinkto viršelio"
-    AppLanguage.Macedonian -> "Избраната слика не може да се прочита"
-    AppLanguage.Malay -> "Kulit yang dipilih tidak dapat dibaca"
-    AppLanguage.Norwegian -> "Det valgte omslagsbildet kan ikke leses"
-    AppLanguage.Polish -> "Nie można odczytać wybranej okładki"
-    AppLanguage.Portuguese -> "Não é possível ler a capa selecionada"
-    AppLanguage.Punjabi -> "ਚੁਣਿਆ ਕਵਰ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Coperta selectată nu poate fi citită"
-    AppLanguage.Russian -> "Не удалось прочитать выбранную обложку"
-    AppLanguage.Serbian -> "Изабрани омот није могуће прочитати"
-    AppLanguage.Slovak -> "Vybraný obal sa nedá načítať"
-    AppLanguage.Slovenian -> "Izbranega ovitka ni mogoče prebrati"
-    AppLanguage.Spanish -> "No se puede leer la portada seleccionada"
-    AppLanguage.Swedish -> "Den valda omslagsbilden kan inte läsas"
-    AppLanguage.Thai -> "ไม่สามารถอ่านภาพปกที่เลือกได้"
-    AppLanguage.Ukrainian -> "Не вдалося прочитати вибрану обкладинку"
-    AppLanguage.Urdu -> "منتخب کردہ کور پڑھا نہیں جا سکتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_cannotReadArtworkError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_cannotReadArtworkError_1
 }
 
 private fun unsupportedArtworkError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kopertina nuk mund të përfshihet në mënyrë të sigurt në këtë format audio"
-    AppLanguage.Bengali -> "এই অডিও ফরম্যাটে কভার নিরাপদে সংযুক্ত করা যায় না"
-    AppLanguage.Bosnian -> "Omot se ne može sigurno ugraditi u ovaj audio format"
-    AppLanguage.Bulgarian -> "Обложката не може да бъде безопасно вградена в този аудиоформат"
-    AppLanguage.Catalan -> "La portada no es pot incrustar amb seguretat en aquest format d’àudio"
-    AppLanguage.ChineseSimplified -> "无法将封面安全地嵌入此音频格式"
-    AppLanguage.Croatian -> "Omot se ne može sigurno ugraditi u ovaj audioformat"
-    AppLanguage.Czech -> "Obal nelze do tohoto zvukového formátu bezpečně vložit"
-    AppLanguage.Danish -> "Coverbilledet kan ikke indlejres sikkert i dette lydformat"
-    AppLanguage.Dutch -> "De hoes kan niet veilig in dit audioformaat worden ingesloten"
-    AppLanguage.English -> "Artwork cannot be embedded safely in this audio format"
-    AppLanguage.Estonian -> "Kaanepilti ei saa sellesse helivormingusse turvaliselt manustada"
-    AppLanguage.Finnish -> "Kansikuvaa ei voi upottaa turvallisesti tähän äänimuotoon"
-    AppLanguage.French -> "La pochette ne peut pas être intégrée en toute sécurité dans ce format audio"
-    AppLanguage.German -> "Das Cover kann nicht sicher in dieses Audioformat eingebettet werden"
-    AppLanguage.Greek -> "Το εξώφυλλο δεν μπορεί να ενσωματωθεί με ασφάλεια σε αυτή τη μορφή ήχου"
-    AppLanguage.Hindi -> "इस ऑडियो फ़ॉर्मैट में कवर सुरक्षित रूप से नहीं जोड़ा जा सकता"
-    AppLanguage.Hungarian -> "A borító nem ágyazható be biztonságosan ebbe a hangformátumba"
-    AppLanguage.Indonesian -> "Sampul tidak dapat disematkan dengan aman dalam format audio ini"
-    AppLanguage.Italian -> "La copertina non può essere incorporata in sicurezza in questo formato audio"
-    AppLanguage.Japanese -> "この音声形式にはアートワークを安全に埋め込めません"
-    AppLanguage.Korean -> "이 오디오 형식에 커버 이미지를 안전하게 삽입할 수 없습니다"
-    AppLanguage.Latvian -> "Šajā audioformātā nevar droši iegult vāka attēlu"
-    AppLanguage.Lithuanian -> "Viršelio negalima saugiai įterpti į šį garso formatą"
-    AppLanguage.Macedonian -> "Сликата не може безбедно да се вгради во овој аудиоформат"
-    AppLanguage.Malay -> "Kulit tidak boleh dibenamkan dengan selamat dalam format audio ini"
-    AppLanguage.Norwegian -> "Omslagsbildet kan ikke bygges trygt inn i dette lydformatet"
-    AppLanguage.Polish -> "Nie można bezpiecznie osadzić okładki w tym formacie audio"
-    AppLanguage.Portuguese -> "Não é possível incorporar a capa em segurança neste formato de áudio"
-    AppLanguage.Punjabi -> "ਇਸ ਆਡੀਓ ਫਾਰਮੈਟ ਵਿੱਚ ਕਵਰ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Coperta nu poate fi încorporată în siguranță în acest format audio"
-    AppLanguage.Russian -> "Обложку нельзя безопасно встроить в этот аудиоформат"
-    AppLanguage.Serbian -> "Омот се не може безбедно уградити у овај аудио-формат"
-    AppLanguage.Slovak -> "Obal nemožno bezpečne vložiť do tohto zvukového formátu"
-    AppLanguage.Slovenian -> "Ovitka ni mogoče varno vdelati v ta zvočni format"
-    AppLanguage.Spanish -> "La portada no se puede incrustar de forma segura en este formato de audio"
-    AppLanguage.Swedish -> "Omslagsbilden kan inte bäddas in säkert i detta ljudformat"
-    AppLanguage.Thai -> "ไม่สามารถฝังภาพปกลงในรูปแบบเสียงนี้ได้อย่างปลอดภัย"
-    AppLanguage.Ukrainian -> "Обкладинку неможливо безпечно вбудувати в цей аудіоформат"
-    AppLanguage.Urdu -> "اس آڈیو فارمیٹ میں کور محفوظ طریقے سے شامل نہیں کیا جا سکتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_unsupportedArtworkError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_unsupportedArtworkError_1
 }
 
 private fun trackArtistAndChapterTitleErrors(language: AppLanguage): Pair<String, String> = when (language) {
-    AppLanguage.Albanian -> "Artisti i pistës nuk mund të jetë bosh" to "Titulli i kapitullit nuk mund të jetë bosh"
-    AppLanguage.Bengali -> "ট্র্যাকের শিল্পীর নাম খালি রাখা যাবে না" to "অধ্যায়ের শিরোনাম খালি রাখা যাবে না"
-    AppLanguage.Bosnian -> "Izvođač pjesme ne može biti prazan" to "Naslov poglavlja ne može biti prazan"
-    AppLanguage.Bulgarian -> "Изпълнителят на песента не може да е празен" to "Заглавието на главата не може да е празно"
-    AppLanguage.Catalan -> "L’artista de la pista no pot estar buit" to "El títol del capítol no pot estar buit"
-    AppLanguage.ChineseSimplified -> "音轨艺人不能为空" to "章节标题不能为空"
-    AppLanguage.Croatian -> "Izvođač pjesme ne može biti prazan" to "Naslov poglavlja ne može biti prazan"
-    AppLanguage.Czech -> "Interpret skladby nesmí být prázdný" to "Název kapitoly nesmí být prázdný"
-    AppLanguage.Danish -> "Sporets kunstner må ikke være tom" to "Kapitlets titel må ikke være tom"
-    AppLanguage.Dutch -> "Trackartiest mag niet leeg zijn" to "Hoofdstuktitel mag niet leeg zijn"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to AlbanianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to BengaliTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to BosnianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to BulgarianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to CatalanTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to ChineseSimplifiedTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to CroatianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to CzechTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to DanishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to DutchTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
     AppLanguage.English -> TagValidationKind.TrackArtist.english to TagValidationKind.ChapterTitle.english
-    AppLanguage.Estonian -> "Loo esitaja ei tohi olla tühi" to "Peatüki pealkiri ei tohi olla tühi"
-    AppLanguage.Finnish -> "Kappaleen esittäjä ei voi olla tyhjä" to "Luvun nimi ei voi olla tyhjä"
-    AppLanguage.French -> "L’artiste du morceau ne peut pas être vide" to "Le titre du chapitre ne peut pas être vide"
-    AppLanguage.German -> "Der Interpret des Stücks darf nicht leer sein" to "Der Kapiteltitel darf nicht leer sein"
-    AppLanguage.Greek -> "Ο καλλιτέχνης του κομματιού δεν μπορεί να είναι κενός" to "Ο τίτλος του κεφαλαίου δεν μπορεί να είναι κενός"
-    AppLanguage.Hindi -> "ट्रैक कलाकार का नाम खाली नहीं हो सकता" to "अध्याय का शीर्षक खाली नहीं हो सकता"
-    AppLanguage.Hungarian -> "A szám előadója nem lehet üres" to "A fejezet címe nem lehet üres"
-    AppLanguage.Indonesian -> "Artis trek tidak boleh kosong" to "Judul bab tidak boleh kosong"
-    AppLanguage.Italian -> "L’artista della traccia non può essere vuoto" to "Il titolo del capitolo non può essere vuoto"
-    AppLanguage.Japanese -> "トラックのアーティストを入力してください" to "チャプターのタイトルを入力してください"
-    AppLanguage.Korean -> "트랙 아티스트를 입력해야 합니다" to "챕터 제목을 입력해야 합니다"
-    AppLanguage.Latvian -> "Ieraksta izpildītāja lauks nedrīkst būt tukšs" to "Nodaļas nosaukums nedrīkst būt tukšs"
-    AppLanguage.Lithuanian -> "Takelio atlikėjo laukas negali būti tuščias" to "Skyriaus pavadinimas negali būti tuščias"
-    AppLanguage.Macedonian -> "Изведувачот на песната не смее да биде празен" to "Насловот на поглавјето не смее да биде празен"
-    AppLanguage.Malay -> "Artis trek tidak boleh kosong" to "Tajuk bab tidak boleh kosong"
-    AppLanguage.Norwegian -> "Sporartisten kan ikke være tom" to "Kapitteltittelen kan ikke være tom"
-    AppLanguage.Polish -> "Pole wykonawcy utworu nie może być puste" to "Tytuł rozdziału nie może być pusty"
-    AppLanguage.Portuguese -> "O artista da faixa não pode estar vazio" to "O título do capítulo não pode estar vazio"
-    AppLanguage.Punjabi -> "ਟਰੈਕ ਕਲਾਕਾਰ ਦਾ ਨਾਮ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ" to "ਅਧਿਆਇ ਦਾ ਸਿਰਲੇਖ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Artistul piesei nu poate fi gol" to "Titlul capitolului nu poate fi gol"
-    AppLanguage.Russian -> "Имя исполнителя дорожки не может быть пустым" to "Название главы не может быть пустым"
-    AppLanguage.Serbian -> "Извођач нумере не може бити празан" to "Наслов поглавља не може бити празан"
-    AppLanguage.Slovak -> "Interpret skladby nesmie byť prázdny" to "Názov kapitoly nesmie byť prázdny"
-    AppLanguage.Slovenian -> "Izvajalec skladbe ne sme biti prazen" to "Naslov poglavja ne sme biti prazen"
-    AppLanguage.Spanish -> "El artista de la pista no puede estar vacío" to "El título del capítulo no puede estar vacío"
-    AppLanguage.Swedish -> "Spårets artist får inte vara tom" to "Kapitlets titel får inte vara tom"
-    AppLanguage.Thai -> "ชื่อศิลปินของแทร็กต้องไม่ว่างเปล่า" to "ชื่อบทต้องไม่ว่างเปล่า"
-    AppLanguage.Ukrainian -> "Ім’я виконавця доріжки не може бути порожнім" to "Назва розділу не може бути порожньою"
-    AppLanguage.Urdu -> "ٹریک کے فنکار کا نام خالی نہیں ہو سکتا" to "باب کا عنوان خالی نہیں ہو سکتا"
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to EstonianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to FinnishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.French -> FrenchTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to FrenchTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.German -> GermanTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to GermanTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to GreekTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to HindiTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to HungarianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to IndonesianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to ItalianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to JapaneseTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to KoreanTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to LatvianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to LithuanianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to MacedonianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to MalayTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to NorwegianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to PolishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to PortugueseTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to PunjabiTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to RomanianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to RussianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to SerbianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to SlovakTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to SlovenianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to SpanishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to SwedishTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to ThaiTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to UkrainianTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_1 to UrduTranslations.tagFeedback_trackArtistAndChapterTitleErrors_variant_2
 }
 
 private fun trackTitleError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Titulli i pistës nuk mund të jetë bosh"
-    AppLanguage.Bengali -> "ট্র্যাকের শিরোনাম খালি রাখা যাবে না"
-    AppLanguage.Bosnian -> "Naslov pjesme ne može biti prazan"
-    AppLanguage.Bulgarian -> "Заглавието на песента не може да е празно"
-    AppLanguage.Catalan -> "El títol de la pista no pot estar buit"
-    AppLanguage.ChineseSimplified -> "音轨标题不能为空"
-    AppLanguage.Croatian -> "Naslov pjesme ne može biti prazan"
-    AppLanguage.Czech -> "Název skladby nesmí být prázdný"
-    AppLanguage.Danish -> "Sporets titel må ikke være tom"
-    AppLanguage.Dutch -> "Tracktitel mag niet leeg zijn"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_trackTitleError_1
     AppLanguage.English -> TagValidationKind.TrackTitle.english
-    AppLanguage.Estonian -> "Loo pealkiri ei tohi olla tühi"
-    AppLanguage.Finnish -> "Kappaleen nimi ei voi olla tyhjä"
-    AppLanguage.French -> "Le titre du morceau ne peut pas être vide"
-    AppLanguage.German -> "Der Titel des Stücks darf nicht leer sein"
-    AppLanguage.Greek -> "Ο τίτλος του κομματιού δεν μπορεί να είναι κενός"
-    AppLanguage.Hindi -> "ट्रैक का शीर्षक खाली नहीं हो सकता"
-    AppLanguage.Hungarian -> "A szám címe nem lehet üres"
-    AppLanguage.Indonesian -> "Judul trek tidak boleh kosong"
-    AppLanguage.Italian -> "Il titolo della traccia non può essere vuoto"
-    AppLanguage.Japanese -> "トラックのタイトルを入力してください"
-    AppLanguage.Korean -> "트랙 제목을 입력해야 합니다"
-    AppLanguage.Latvian -> "Ieraksta nosaukums nedrīkst būt tukšs"
-    AppLanguage.Lithuanian -> "Takelio pavadinimas negali būti tuščias"
-    AppLanguage.Macedonian -> "Насловот на песната не смее да биде празен"
-    AppLanguage.Malay -> "Tajuk trek tidak boleh kosong"
-    AppLanguage.Norwegian -> "Sportittelen kan ikke være tom"
-    AppLanguage.Polish -> "Tytuł utworu nie może być pusty"
-    AppLanguage.Portuguese -> "O título da faixa não pode estar vazio"
-    AppLanguage.Punjabi -> "ਟਰੈਕ ਦਾ ਸਿਰਲੇਖ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Titlul piesei nu poate fi gol"
-    AppLanguage.Russian -> "Название дорожки не может быть пустым"
-    AppLanguage.Serbian -> "Наслов нумере не може бити празан"
-    AppLanguage.Slovak -> "Názov skladby nesmie byť prázdny"
-    AppLanguage.Slovenian -> "Naslov skladbe ne sme biti prazen"
-    AppLanguage.Spanish -> "El título de la pista no puede estar vacío"
-    AppLanguage.Swedish -> "Spårets titel får inte vara tom"
-    AppLanguage.Thai -> "ชื่อแทร็กต้องไม่ว่างเปล่า"
-    AppLanguage.Ukrainian -> "Назва доріжки не може бути порожньою"
-    AppLanguage.Urdu -> "ٹریک کا عنوان خالی نہیں ہو سکتا"
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_trackTitleError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_trackTitleError_1
 }
 
 private fun trackNumbersError(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Numrat e pistës dhe diskut duhet të jenë nga 1 deri në 9999"
-    AppLanguage.Bengali -> "ট্র্যাক ও ডিস্ক নম্বর ১ থেকে ৯৯৯৯-এর মধ্যে হতে হবে"
-    AppLanguage.Bosnian -> "Brojevi pjesme i diska moraju biti između 1 i 9999"
-    AppLanguage.Bulgarian -> "Номерата на песента и диска трябва да са между 1 и 9999"
-    AppLanguage.Catalan -> "Els números de pista i de disc han d’estar entre 1 i 9999"
-    AppLanguage.ChineseSimplified -> "音轨和碟片编号必须介于 1 和 9999 之间"
-    AppLanguage.Croatian -> "Brojevi pjesme i diska moraju biti između 1 i 9999"
-    AppLanguage.Czech -> "Čísla skladby a disku musí být v rozmezí 1 až 9999"
-    AppLanguage.Danish -> "Spor- og disknummer skal være mellem 1 og 9999"
-    AppLanguage.Dutch -> "Track- en schijfnummers moeten tussen 1 en 9999 liggen"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_trackNumbersError_1
     AppLanguage.English -> TagValidationKind.TrackNumbers.english
-    AppLanguage.Estonian -> "Loo ja plaadi number peavad olema vahemikus 1 kuni 9999"
-    AppLanguage.Finnish -> "Kappaleen ja levyn numeron on oltava välillä 1–9999"
-    AppLanguage.French -> "Les numéros de piste et de disque doivent être compris entre 1 et 9999"
-    AppLanguage.German -> "Titel- und Discnummer müssen zwischen 1 und 9999 liegen"
-    AppLanguage.Greek -> "Οι αριθμοί κομματιού και δίσκου πρέπει να είναι μεταξύ 1 και 9999"
-    AppLanguage.Hindi -> "ट्रैक और डिस्क नंबर 1 से 9999 के बीच होने चाहिए"
-    AppLanguage.Hungarian -> "A szám és a lemez sorszámának 1 és 9999 között kell lennie"
-    AppLanguage.Indonesian -> "Nomor trek dan cakram harus antara 1 dan 9999"
-    AppLanguage.Italian -> "I numeri di traccia e disco devono essere compresi tra 1 e 9999"
-    AppLanguage.Japanese -> "トラック番号とディスク番号は1から9999の間で入力してください"
-    AppLanguage.Korean -> "트랙 번호와 디스크 번호는 1에서 9999 사이여야 합니다"
-    AppLanguage.Latvian -> "Ieraksta un diska numuram jābūt no 1 līdz 9999"
-    AppLanguage.Lithuanian -> "Takelio ir disko numeriai turi būti nuo 1 iki 9999"
-    AppLanguage.Macedonian -> "Броевите на песната и дискот мора да бидат меѓу 1 и 9999"
-    AppLanguage.Malay -> "Nombor trek dan cakera mesti antara 1 hingga 9999"
-    AppLanguage.Norwegian -> "Spor- og platenummer må være mellom 1 og 9999"
-    AppLanguage.Polish -> "Numery utworu i płyty muszą mieścić się w zakresie od 1 do 9999"
-    AppLanguage.Portuguese -> "Os números da faixa e do disco têm de estar entre 1 e 9999"
-    AppLanguage.Punjabi -> "ਟਰੈਕ ਅਤੇ ਡਿਸਕ ਨੰਬਰ 1 ਤੋਂ 9999 ਦੇ ਵਿਚਕਾਰ ਹੋਣੇ ਚਾਹੀਦੇ ਹਨ"
-    AppLanguage.Romanian -> "Numerele piesei și discului trebuie să fie între 1 și 9999"
-    AppLanguage.Russian -> "Номера дорожки и диска должны быть от 1 до 9999"
-    AppLanguage.Serbian -> "Бројеви нумере и диска морају бити између 1 и 9999"
-    AppLanguage.Slovak -> "Čísla skladby a disku musia byť v rozsahu 1 až 9999"
-    AppLanguage.Slovenian -> "Številki skladbe in diska morata biti med 1 in 9999"
-    AppLanguage.Spanish -> "Los números de pista y disco deben estar entre 1 y 9999"
-    AppLanguage.Swedish -> "Spår- och skivnummer måste vara mellan 1 och 9999"
-    AppLanguage.Thai -> "หมายเลขแทร็กและแผ่นต้องอยู่ระหว่าง 1 ถึง 9999"
-    AppLanguage.Ukrainian -> "Номери доріжки та диска мають бути від 1 до 9999"
-    AppLanguage.Urdu -> "ٹریک اور ڈسک نمبر 1 سے 9999 کے درمیان ہونے چاہییں"
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_trackNumbersError_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_trackNumbersError_1
 }
 
 private fun albumRequiredFields(language: AppLanguage): Pair<String, String> = when (language) {
-    AppLanguage.Albanian -> "Titulli i albumit nuk mund të jetë bosh" to "Artisti i albumit nuk mund të jetë bosh"
-    AppLanguage.Bengali -> "অ্যালবামের শিরোনাম খালি রাখা যাবে না" to "অ্যালবামের শিল্পীর নাম খালি রাখা যাবে না"
-    AppLanguage.Bosnian -> "Naslov albuma ne može biti prazan" to "Izvođač albuma ne može biti prazan"
-    AppLanguage.Bulgarian -> "Заглавието на албума не може да е празно" to "Изпълнителят на албума не може да е празен"
-    AppLanguage.Catalan -> "El títol de l’àlbum no pot estar buit" to "L’artista de l’àlbum no pot estar buit"
-    AppLanguage.ChineseSimplified -> "专辑标题不能为空" to "专辑艺人不能为空"
-    AppLanguage.Croatian -> "Naslov albuma ne može biti prazan" to "Izvođač albuma ne može biti prazan"
-    AppLanguage.Czech -> "Název alba nesmí být prázdný" to "Interpret alba nesmí být prázdný"
-    AppLanguage.Danish -> "Albummets titel må ikke være tom" to "Albumkunstneren må ikke være tom"
-    AppLanguage.Dutch -> "Albumtitel mag niet leeg zijn" to "Albumartiest mag niet leeg zijn"
-    AppLanguage.English -> "Album title cannot be empty" to "Album artist cannot be empty"
-    AppLanguage.Estonian -> "Albumi pealkiri ei tohi olla tühi" to "Albumi esitaja ei tohi olla tühi"
-    AppLanguage.Finnish -> "Albumin nimi ei voi olla tyhjä" to "Albumin esittäjä ei voi olla tyhjä"
-    AppLanguage.French -> "Le titre de l’album ne peut pas être vide" to "L’artiste de l’album ne peut pas être vide"
-    AppLanguage.German -> "Der Albumtitel darf nicht leer sein" to "Der Albuminterpret darf nicht leer sein"
-    AppLanguage.Greek -> "Ο τίτλος του άλμπουμ δεν μπορεί να είναι κενός" to "Ο καλλιτέχνης του άλμπουμ δεν μπορεί να είναι κενός"
-    AppLanguage.Hindi -> "एल्बम का शीर्षक खाली नहीं हो सकता" to "एल्बम कलाकार का नाम खाली नहीं हो सकता"
-    AppLanguage.Hungarian -> "Az album címe nem lehet üres" to "Az album előadója nem lehet üres"
-    AppLanguage.Indonesian -> "Judul album tidak boleh kosong" to "Artis album tidak boleh kosong"
-    AppLanguage.Italian -> "Il titolo dell’album non può essere vuoto" to "L’artista dell’album non può essere vuoto"
-    AppLanguage.Japanese -> "アルバム名を入力してください" to "アルバムアーティストを入力してください"
-    AppLanguage.Korean -> "앨범 제목을 입력해야 합니다" to "앨범 아티스트를 입력해야 합니다"
-    AppLanguage.Latvian -> "Albuma nosaukums nedrīkst būt tukšs" to "Albuma izpildītāja lauks nedrīkst būt tukšs"
-    AppLanguage.Lithuanian -> "Albumo pavadinimas negali būti tuščias" to "Albumo atlikėjo laukas negali būti tuščias"
-    AppLanguage.Macedonian -> "Насловот на албумот не смее да биде празен" to "Изведувачот на албумот не смее да биде празен"
-    AppLanguage.Malay -> "Tajuk album tidak boleh kosong" to "Artis album tidak boleh kosong"
-    AppLanguage.Norwegian -> "Albumtittelen kan ikke være tom" to "Albumartisten kan ikke være tom"
-    AppLanguage.Polish -> "Tytuł albumu nie może być pusty" to "Pole wykonawcy albumu nie może być puste"
-    AppLanguage.Portuguese -> "O título do álbum não pode estar vazio" to "O artista do álbum não pode estar vazio"
-    AppLanguage.Punjabi -> "ਐਲਬਮ ਦਾ ਸਿਰਲੇਖ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ" to "ਐਲਬਮ ਕਲਾਕਾਰ ਦਾ ਨਾਮ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Titlul albumului nu poate fi gol" to "Artistul albumului nu poate fi gol"
-    AppLanguage.Russian -> "Название альбома не может быть пустым" to "Имя исполнителя альбома не может быть пустым"
-    AppLanguage.Serbian -> "Наслов албума не може бити празан" to "Извођач албума не може бити празан"
-    AppLanguage.Slovak -> "Názov albumu nesmie byť prázdny" to "Interpret albumu nesmie byť prázdny"
-    AppLanguage.Slovenian -> "Naslov albuma ne sme biti prazen" to "Izvajalec albuma ne sme biti prazen"
-    AppLanguage.Spanish -> "El título del álbum no puede estar vacío" to "El artista del álbum no puede estar vacío"
-    AppLanguage.Swedish -> "Albumets titel får inte vara tom" to "Albumartisten får inte vara tom"
-    AppLanguage.Thai -> "ชื่ออัลบั้มต้องไม่ว่างเปล่า" to "ชื่อศิลปินของอัลบั้มต้องไม่ว่างเปล่า"
-    AppLanguage.Ukrainian -> "Назва альбому не може бути порожньою" to "Ім’я виконавця альбому не може бути порожнім"
-    AppLanguage.Urdu -> "البم کا عنوان خالی نہیں ہو سکتا" to "البم کے فنکار کا نام خالی نہیں ہو سکتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_albumRequiredFields_variant_1 to AlbanianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_albumRequiredFields_variant_1 to BengaliTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_albumRequiredFields_variant_1 to BosnianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_albumRequiredFields_variant_1 to BulgarianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_albumRequiredFields_variant_1 to CatalanTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_albumRequiredFields_variant_1 to ChineseSimplifiedTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_albumRequiredFields_variant_1 to CroatianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_albumRequiredFields_variant_1 to CzechTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_albumRequiredFields_variant_1 to DanishTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_albumRequiredFields_variant_1 to DutchTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.English -> EnglishTranslations.tagFeedback_albumRequiredFields_variant_1 to EnglishTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_albumRequiredFields_variant_1 to EstonianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_albumRequiredFields_variant_1 to FinnishTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.French -> FrenchTranslations.tagFeedback_albumRequiredFields_variant_1 to FrenchTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.German -> GermanTranslations.tagFeedback_albumRequiredFields_variant_1 to GermanTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_albumRequiredFields_variant_1 to GreekTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_albumRequiredFields_variant_1 to HindiTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_albumRequiredFields_variant_1 to HungarianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_albumRequiredFields_variant_1 to IndonesianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_albumRequiredFields_variant_1 to ItalianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_albumRequiredFields_variant_1 to JapaneseTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_albumRequiredFields_variant_1 to KoreanTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_albumRequiredFields_variant_1 to LatvianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_albumRequiredFields_variant_1 to LithuanianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_albumRequiredFields_variant_1 to MacedonianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_albumRequiredFields_variant_1 to MalayTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_albumRequiredFields_variant_1 to NorwegianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_albumRequiredFields_variant_1 to PolishTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_albumRequiredFields_variant_1 to PortugueseTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_albumRequiredFields_variant_1 to PunjabiTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_albumRequiredFields_variant_1 to RomanianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_albumRequiredFields_variant_1 to RussianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_albumRequiredFields_variant_1 to SerbianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_albumRequiredFields_variant_1 to SlovakTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_albumRequiredFields_variant_1 to SlovenianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_albumRequiredFields_variant_1 to SpanishTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_albumRequiredFields_variant_1 to SwedishTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_albumRequiredFields_variant_1 to ThaiTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_albumRequiredFields_variant_1 to UkrainianTranslations.tagFeedback_albumRequiredFields_variant_2
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_albumRequiredFields_variant_1 to UrduTranslations.tagFeedback_albumRequiredFields_variant_2
 }
 
 private fun audiobookRequiredFields(language: AppLanguage): Pair<String, String> = when (language) {
-    AppLanguage.Albanian -> "Titulli i librit nuk mund të jetë bosh" to "Autori nuk mund të jetë bosh"
-    AppLanguage.Bengali -> "বইয়ের শিরোনাম খালি রাখা যাবে না" to "লেখকের নাম খালি রাখা যাবে না"
-    AppLanguage.Bosnian -> "Naslov knjige ne može biti prazan" to "Autor ne može biti prazan"
-    AppLanguage.Bulgarian -> "Заглавието на книгата не може да е празно" to "Авторът не може да е празен"
-    AppLanguage.Catalan -> "El títol del llibre no pot estar buit" to "L’autor no pot estar buit"
-    AppLanguage.ChineseSimplified -> "书名不能为空" to "作者不能为空"
-    AppLanguage.Croatian -> "Naslov knjige ne može biti prazan" to "Autor ne može biti prazan"
-    AppLanguage.Czech -> "Název knihy nesmí být prázdný" to "Autor nesmí být prázdný"
-    AppLanguage.Danish -> "Bogens titel må ikke være tom" to "Forfatteren må ikke være tom"
-    AppLanguage.Dutch -> "Boektitel mag niet leeg zijn" to "Auteur mag niet leeg zijn"
-    AppLanguage.English -> "Book title cannot be empty" to "Author cannot be empty"
-    AppLanguage.Estonian -> "Raamatu pealkiri ei tohi olla tühi" to "Autor ei tohi olla tühi"
-    AppLanguage.Finnish -> "Kirjan nimi ei voi olla tyhjä" to "Tekijä ei voi olla tyhjä"
-    AppLanguage.French -> "Le titre du livre ne peut pas être vide" to "L’auteur ne peut pas être vide"
-    AppLanguage.German -> "Der Buchtitel darf nicht leer sein" to "Der Autor darf nicht leer sein"
-    AppLanguage.Greek -> "Ο τίτλος του βιβλίου δεν μπορεί να είναι κενός" to "Ο συγγραφέας δεν μπορεί να είναι κενός"
-    AppLanguage.Hindi -> "पुस्तक का शीर्षक खाली नहीं हो सकता" to "लेखक का नाम खाली नहीं हो सकता"
-    AppLanguage.Hungarian -> "A könyv címe nem lehet üres" to "A szerző nem lehet üres"
-    AppLanguage.Indonesian -> "Judul buku tidak boleh kosong" to "Penulis tidak boleh kosong"
-    AppLanguage.Italian -> "Il titolo del libro non può essere vuoto" to "L’autore non può essere vuoto"
-    AppLanguage.Japanese -> "本のタイトルを入力してください" to "著者を入力してください"
-    AppLanguage.Korean -> "책 제목을 입력해야 합니다" to "저자를 입력해야 합니다"
-    AppLanguage.Latvian -> "Grāmatas nosaukums nedrīkst būt tukšs" to "Autora lauks nedrīkst būt tukšs"
-    AppLanguage.Lithuanian -> "Knygos pavadinimas negali būti tuščias" to "Autoriaus laukas negali būti tuščias"
-    AppLanguage.Macedonian -> "Насловот на книгата не смее да биде празен" to "Авторот не смее да биде празен"
-    AppLanguage.Malay -> "Tajuk buku tidak boleh kosong" to "Pengarang tidak boleh kosong"
-    AppLanguage.Norwegian -> "Boktittelen kan ikke være tom" to "Forfatteren kan ikke være tom"
-    AppLanguage.Polish -> "Tytuł książki nie może być pusty" to "Pole autora nie może być puste"
-    AppLanguage.Portuguese -> "O título do livro não pode estar vazio" to "O autor não pode estar vazio"
-    AppLanguage.Punjabi -> "ਕਿਤਾਬ ਦਾ ਸਿਰਲੇਖ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ" to "ਲੇਖਕ ਦਾ ਨਾਮ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਦਾ"
-    AppLanguage.Romanian -> "Titlul cărții nu poate fi gol" to "Autorul nu poate fi gol"
-    AppLanguage.Russian -> "Название книги не может быть пустым" to "Имя автора не может быть пустым"
-    AppLanguage.Serbian -> "Наслов књиге не може бити празан" to "Аутор не може бити празан"
-    AppLanguage.Slovak -> "Názov knihy nesmie byť prázdny" to "Autor nesmie byť prázdny"
-    AppLanguage.Slovenian -> "Naslov knjige ne sme biti prazen" to "Avtor ne sme biti prazen"
-    AppLanguage.Spanish -> "El título del libro no puede estar vacío" to "El autor no puede estar vacío"
-    AppLanguage.Swedish -> "Bokens titel får inte vara tom" to "Författaren får inte vara tom"
-    AppLanguage.Thai -> "ชื่อหนังสือต้องไม่ว่างเปล่า" to "ชื่อผู้เขียนต้องไม่ว่างเปล่า"
-    AppLanguage.Ukrainian -> "Назва книги не може бути порожньою" to "Ім’я автора не може бути порожнім"
-    AppLanguage.Urdu -> "کتاب کا عنوان خالی نہیں ہو سکتا" to "مصنف کا نام خالی نہیں ہو سکتا"
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to AlbanianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_audiobookRequiredFields_variant_1 to BengaliTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to BosnianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to BulgarianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_audiobookRequiredFields_variant_1 to CatalanTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_audiobookRequiredFields_variant_1 to ChineseSimplifiedTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to CroatianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_audiobookRequiredFields_variant_1 to CzechTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_audiobookRequiredFields_variant_1 to DanishTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_audiobookRequiredFields_variant_1 to DutchTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.English -> EnglishTranslations.tagFeedback_audiobookRequiredFields_variant_1 to EnglishTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to EstonianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_audiobookRequiredFields_variant_1 to FinnishTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.French -> FrenchTranslations.tagFeedback_audiobookRequiredFields_variant_1 to FrenchTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.German -> GermanTranslations.tagFeedback_audiobookRequiredFields_variant_1 to GermanTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_audiobookRequiredFields_variant_1 to GreekTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_audiobookRequiredFields_variant_1 to HindiTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to HungarianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to IndonesianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to ItalianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_audiobookRequiredFields_variant_1 to JapaneseTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_audiobookRequiredFields_variant_1 to KoreanTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to LatvianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to LithuanianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to MacedonianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_audiobookRequiredFields_variant_1 to MalayTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to NorwegianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_audiobookRequiredFields_variant_1 to PolishTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_audiobookRequiredFields_variant_1 to PortugueseTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_audiobookRequiredFields_variant_1 to PunjabiTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to RomanianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to RussianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to SerbianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_audiobookRequiredFields_variant_1 to SlovakTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to SlovenianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_audiobookRequiredFields_variant_1 to SpanishTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_audiobookRequiredFields_variant_1 to SwedishTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_audiobookRequiredFields_variant_1 to ThaiTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_audiobookRequiredFields_variant_1 to UkrainianTranslations.tagFeedback_audiobookRequiredFields_variant_2
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_audiobookRequiredFields_variant_1 to UrduTranslations.tagFeedback_audiobookRequiredFields_variant_2
 }
 
 internal fun localizedTagValidationError(issue: TagValidationIssue, language: AppLanguage): String {
@@ -2462,46 +2462,46 @@ internal fun localizedTagValidationError(issue: TagValidationIssue, language: Ap
         TagValidationKind.Author -> audiobookRequiredFields(language).second
         TagValidationKind.ChapterAuthor -> if (language == AppLanguage.English) issue.kind.english else audiobookRequiredFields(language).second
         TagValidationKind.ReleaseYear -> when (language) {
-        AppLanguage.Albanian -> "Viti i publikimit duhet të jetë nga 1 deri në 9999"
-        AppLanguage.Bengali -> "প্রকাশের বছর ১ থেকে ৯৯৯৯-এর মধ্যে হতে হবে"
-        AppLanguage.Bosnian -> "Godina izdanja mora biti između 1 i 9999"
-        AppLanguage.Bulgarian -> "Годината на издаване трябва да е между 1 и 9999"
-        AppLanguage.Catalan -> "L’any de publicació ha d’estar entre 1 i 9999"
-        AppLanguage.ChineseSimplified -> "发行年份必须介于 1 和 9999 之间"
-        AppLanguage.Croatian -> "Godina izdanja mora biti između 1 i 9999"
-        AppLanguage.Czech -> "Rok vydání musí být v rozmezí 1 až 9999"
-        AppLanguage.Danish -> "Udgivelsesåret skal være mellem 1 og 9999"
-        AppLanguage.Dutch -> "Het releasejaar moet tussen 1 en 9999 liggen"
+        AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Bengali -> BengaliTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Catalan -> CatalanTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Croatian -> CroatianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Czech -> CzechTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Danish -> DanishTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Dutch -> DutchTranslations.tagFeedback_localizedTagValidationError_1
         AppLanguage.English -> issue.kind.english
-        AppLanguage.Estonian -> "Ilmumisaasta peab olema vahemikus 1 kuni 9999"
-        AppLanguage.Finnish -> "Julkaisuvuoden on oltava välillä 1–9999"
-        AppLanguage.French -> "L’année de sortie doit être comprise entre 1 et 9999"
-        AppLanguage.German -> "Das Veröffentlichungsjahr muss zwischen 1 und 9999 liegen"
-        AppLanguage.Greek -> "Το έτος κυκλοφορίας πρέπει να είναι μεταξύ 1 και 9999"
-        AppLanguage.Hindi -> "रिलीज़ वर्ष 1 से 9999 के बीच होना चाहिए"
-        AppLanguage.Hungarian -> "A megjelenési évnek 1 és 9999 között kell lennie"
-        AppLanguage.Indonesian -> "Tahun rilis harus antara 1 dan 9999"
-        AppLanguage.Italian -> "L’anno di pubblicazione deve essere compreso tra 1 e 9999"
-        AppLanguage.Japanese -> "リリース年は1から9999の間で入力してください"
-        AppLanguage.Korean -> "발매 연도는 1에서 9999 사이여야 합니다"
-        AppLanguage.Latvian -> "Izdošanas gadam jābūt no 1 līdz 9999"
-        AppLanguage.Lithuanian -> "Išleidimo metai turi būti nuo 1 iki 9999"
-        AppLanguage.Macedonian -> "Годината на издавање мора да биде меѓу 1 и 9999"
-        AppLanguage.Malay -> "Tahun keluaran mesti antara 1 hingga 9999"
-        AppLanguage.Norwegian -> "Utgivelsesåret må være mellom 1 og 9999"
-        AppLanguage.Polish -> "Rok wydania musi mieścić się w zakresie od 1 do 9999"
-        AppLanguage.Portuguese -> "O ano de lançamento tem de estar entre 1 e 9999"
-        AppLanguage.Punjabi -> "ਰਿਲੀਜ਼ ਸਾਲ 1 ਤੋਂ 9999 ਦੇ ਵਿਚਕਾਰ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ"
-        AppLanguage.Romanian -> "Anul lansării trebuie să fie între 1 și 9999"
-        AppLanguage.Russian -> "Год выпуска должен быть от 1 до 9999"
-        AppLanguage.Serbian -> "Година издања мора бити између 1 и 9999"
-        AppLanguage.Slovak -> "Rok vydania musí byť v rozsahu 1 až 9999"
-        AppLanguage.Slovenian -> "Leto izdaje mora biti med 1 in 9999"
-        AppLanguage.Spanish -> "El año de lanzamiento debe estar entre 1 y 9999"
-        AppLanguage.Swedish -> "Utgivningsåret måste vara mellan 1 och 9999"
-        AppLanguage.Thai -> "ปีที่เผยแพร่ต้องอยู่ระหว่าง 1 ถึง 9999"
-        AppLanguage.Ukrainian -> "Рік випуску має бути від 1 до 9999"
-        AppLanguage.Urdu -> "اجرا کا سال 1 سے 9999 کے درمیان ہونا چاہیے"
+        AppLanguage.Estonian -> EstonianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Finnish -> FinnishTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.French -> FrenchTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.German -> GermanTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Greek -> GreekTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Hindi -> HindiTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Italian -> ItalianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Korean -> KoreanTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Latvian -> LatvianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Malay -> MalayTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Polish -> PolishTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Romanian -> RomanianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Russian -> RussianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Serbian -> SerbianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Slovak -> SlovakTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Spanish -> SpanishTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Swedish -> SwedishTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Thai -> ThaiTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_localizedTagValidationError_1
+        AppLanguage.Urdu -> UrduTranslations.tagFeedback_localizedTagValidationError_1
         }
     }
     return issue.fileName?.let { "$it: $message" } ?: message
@@ -2510,44 +2510,44 @@ internal fun localizedTagValidationError(issue: TagValidationIssue, language: Ap
 internal data class TagAdditionalIssuesCopy(val validation: String, val save: String)
 
 internal fun tagAdditionalIssuesCopy(language: AppLanguage): TagAdditionalIssuesCopy = when (language) {
-    AppLanguage.Albanian -> TagAdditionalIssuesCopy("Probleme të tjera verifikimi", "Probleme të tjera ruajtjeje")
-    AppLanguage.Bengali -> TagAdditionalIssuesCopy("অতিরিক্ত যাচাই সমস্যা", "সংরক্ষণের অতিরিক্ত সমস্যা")
-    AppLanguage.Bosnian -> TagAdditionalIssuesCopy("Dodatni problemi s provjerom", "Dodatni problemi pri spremanju")
-    AppLanguage.Bulgarian -> TagAdditionalIssuesCopy("Допълнителни проблеми при проверката", "Допълнителни проблеми при запазването")
-    AppLanguage.Catalan -> TagAdditionalIssuesCopy("Altres problemes de validació", "Altres problemes en desar")
-    AppLanguage.ChineseSimplified -> TagAdditionalIssuesCopy("其他验证问题", "其他保存问题")
-    AppLanguage.Croatian -> TagAdditionalIssuesCopy("Dodatni problemi s provjerom", "Dodatni problemi pri spremanju")
-    AppLanguage.Czech -> TagAdditionalIssuesCopy("Další problémy s ověřením", "Další problémy při ukládání")
-    AppLanguage.Danish -> TagAdditionalIssuesCopy("Yderligere valideringsproblemer", "Yderligere problemer med at gemme")
-    AppLanguage.Dutch -> TagAdditionalIssuesCopy("Overige validatieproblemen", "Overige problemen bij opslaan")
-    AppLanguage.English -> TagAdditionalIssuesCopy("Additional validation issues", "Additional save issues")
-    AppLanguage.Estonian -> TagAdditionalIssuesCopy("Muud kontrolliprobleemid", "Muud salvestamisprobleemid")
-    AppLanguage.Finnish -> TagAdditionalIssuesCopy("Muut tarkistusongelmat", "Muut tallennusongelmat")
-    AppLanguage.French -> TagAdditionalIssuesCopy("Autres problèmes de validation", "Autres problèmes d’enregistrement")
-    AppLanguage.German -> TagAdditionalIssuesCopy("Weitere Prüfprobleme", "Weitere Speicherprobleme")
-    AppLanguage.Greek -> TagAdditionalIssuesCopy("Επιπλέον προβλήματα ελέγχου", "Επιπλέον προβλήματα αποθήκευσης")
-    AppLanguage.Hindi -> TagAdditionalIssuesCopy("सत्यापन की अन्य समस्याएँ", "सहेजने की अन्य समस्याएँ")
-    AppLanguage.Hungarian -> TagAdditionalIssuesCopy("További ellenőrzési problémák", "További mentési problémák")
-    AppLanguage.Indonesian -> TagAdditionalIssuesCopy("Masalah validasi lainnya", "Masalah penyimpanan lainnya")
-    AppLanguage.Italian -> TagAdditionalIssuesCopy("Altri problemi di convalida", "Altri problemi di salvataggio")
-    AppLanguage.Japanese -> TagAdditionalIssuesCopy("その他の検証エラー", "その他の保存エラー")
-    AppLanguage.Korean -> TagAdditionalIssuesCopy("추가 검증 문제", "추가 저장 문제")
-    AppLanguage.Latvian -> TagAdditionalIssuesCopy("Citas pārbaudes problēmas", "Citas saglabāšanas problēmas")
-    AppLanguage.Lithuanian -> TagAdditionalIssuesCopy("Kitos tikrinimo problemos", "Kitos išsaugojimo problemos")
-    AppLanguage.Macedonian -> TagAdditionalIssuesCopy("Дополнителни проблеми при проверка", "Дополнителни проблеми при зачувување")
-    AppLanguage.Malay -> TagAdditionalIssuesCopy("Masalah pengesahan lain", "Masalah penyimpanan lain")
-    AppLanguage.Norwegian -> TagAdditionalIssuesCopy("Flere valideringsproblemer", "Flere problemer med lagring")
-    AppLanguage.Polish -> TagAdditionalIssuesCopy("Pozostałe błędy weryfikacji", "Pozostałe błędy zapisu")
-    AppLanguage.Portuguese -> TagAdditionalIssuesCopy("Outros problemas de validação", "Outros problemas ao guardar")
-    AppLanguage.Punjabi -> TagAdditionalIssuesCopy("ਪੜਤਾਲ ਦੀਆਂ ਹੋਰ ਸਮੱਸਿਆਵਾਂ", "ਸੁਰੱਖਿਅਤ ਕਰਨ ਦੀਆਂ ਹੋਰ ਸਮੱਸਿਆਵਾਂ")
-    AppLanguage.Romanian -> TagAdditionalIssuesCopy("Alte probleme de validare", "Alte probleme la salvare")
-    AppLanguage.Russian -> TagAdditionalIssuesCopy("Другие ошибки проверки", "Другие ошибки сохранения")
-    AppLanguage.Serbian -> TagAdditionalIssuesCopy("Додатни проблеми при провери", "Додатни проблеми при чувању")
-    AppLanguage.Slovak -> TagAdditionalIssuesCopy("Ďalšie problémy s overením", "Ďalšie problémy pri ukladaní")
-    AppLanguage.Slovenian -> TagAdditionalIssuesCopy("Dodatne težave pri preverjanju", "Dodatne težave pri shranjevanju")
-    AppLanguage.Spanish -> TagAdditionalIssuesCopy("Otros problemas de validación", "Otros problemas al guardar")
-    AppLanguage.Swedish -> TagAdditionalIssuesCopy("Ytterligare valideringsproblem", "Ytterligare problem med att spara")
-    AppLanguage.Thai -> TagAdditionalIssuesCopy("ปัญหาการตรวจสอบเพิ่มเติม", "ปัญหาการบันทึกเพิ่มเติม")
-    AppLanguage.Ukrainian -> TagAdditionalIssuesCopy("Інші помилки перевірки", "Інші помилки збереження")
-    AppLanguage.Urdu -> TagAdditionalIssuesCopy("جانچ کے مزید مسائل", "محفوظ کرنے کے مزید مسائل")
+    AppLanguage.Albanian -> AlbanianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Czech -> CzechTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Danish -> DanishTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Dutch -> DutchTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.English -> EnglishTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.French -> FrenchTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.German -> GermanTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Greek -> GreekTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Hindi -> HindiTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Italian -> ItalianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Korean -> KoreanTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Malay -> MalayTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Polish -> PolishTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Russian -> RussianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Thai -> ThaiTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.tagFeedback_tagAdditionalIssuesCopy_1
+    AppLanguage.Urdu -> UrduTranslations.tagFeedback_tagAdditionalIssuesCopy_1
 }

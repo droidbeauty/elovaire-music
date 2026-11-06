@@ -45,10 +45,10 @@ internal fun localizedSelectedCount(count: Int, noun: String, language: AppLangu
             count % 10 in 2..4 && count % 100 !in 12..14 -> "wybrane"
             else -> "wybranych"
         }
-        AppLanguage.French -> if (noun == "track") {
+        AppLanguage.French -> if (noun == FrenchTranslations.library_localizedSelectedCount_variant_1) {
             if (count == 1) "sélectionnée" else "sélectionnées"
         } else if (count == 1) "sélectionné" else "sélectionnés"
-        AppLanguage.Italian -> if (noun == "track") {
+        AppLanguage.Italian -> if (noun == ItalianTranslations.library_localizedSelectedCount_variant_1) {
             if (count == 1) "selezionata" else "selezionate"
         } else if (count == 1) "selezionato" else "selezionati"
         AppLanguage.Spanish -> if (feminine) {
@@ -68,453 +68,53 @@ internal fun localizedSelectedCount(count: Int, noun: String, language: AppLangu
             count in 2..4 -> "vybrané"
             else -> "vybraných"
         }
-        AppLanguage.Greek -> if (count == 1) "επιλεγμένο" else "επιλεγμένα"
+        AppLanguage.Greek -> if (count == 1) GreekTranslations.library_localizedSelectedCount_variant_1 else GreekTranslations.library_localizedSelectedCount_variant_2
         else -> miscPhrase(language, MiscPhrase.Selected)
     }
     return "$counted $selected"
 }
 
 internal fun miscPhrase(language: AppLanguage, phrase: MiscPhrase): String = when (language) {
-    AppLanguage.Bulgarian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Наскоро добавени"
-        MiscPhrase.WhatsNew -> "Какво ново?"
-        MiscPhrase.NoSongsYet -> "Все още няма песни"
-        MiscPhrase.AddSongsViaEdit -> "Добавете песни чрез редактиране"
-        MiscPhrase.NothingInHere -> "Тук няма нищо"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Докоснете плюс, за да създадете плейлист"
-        MiscPhrase.Selected -> "Избрани"
-        MiscPhrase.ChooseSongs -> "Изберете песни"
-        MiscPhrase.AddSongs -> "Добави песни"
-    }
-    AppLanguage.Catalan -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Afegits recentment"
-        MiscPhrase.WhatsNew -> "Què hi ha de nou?"
-        MiscPhrase.NoSongsYet -> "Encara no hi ha cançons"
-        MiscPhrase.AddSongsViaEdit -> "Afegeix cançons editant la llista"
-        MiscPhrase.NothingInHere -> "Aquí no hi ha res"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Toca el signe més per crear una llista"
-        MiscPhrase.Selected -> "Seleccionades"
-        MiscPhrase.ChooseSongs -> "Tria cançons"
-        MiscPhrase.AddSongs -> "Afegeix cançons"
-    }
-    AppLanguage.Finnish -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Äskettäin lisätyt"
-        MiscPhrase.WhatsNew -> "Mitä uutta?"
-        MiscPhrase.NoSongsYet -> "Ei vielä kappaleita"
-        MiscPhrase.AddSongsViaEdit -> "Lisää kappaleita muokkaamalla"
-        MiscPhrase.NothingInHere -> "Täällä ei ole mitään"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Luo soittolista pluspainikkeella"
-        MiscPhrase.Selected -> "Valittu"
-        MiscPhrase.ChooseSongs -> "Valitse kappaleet"
-        MiscPhrase.AddSongs -> "Lisää kappaleita"
-    }
-    AppLanguage.Romanian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Adăugate recent"
-        MiscPhrase.WhatsNew -> "Ce este nou?"
-        MiscPhrase.NoSongsYet -> "Nu există încă melodii"
-        MiscPhrase.AddSongsViaEdit -> "Adaugă melodii prin editare"
-        MiscPhrase.NothingInHere -> "Nu este nimic aici"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Atinge plus pentru a crea o listă"
-        MiscPhrase.Selected -> "Selectate"
-        MiscPhrase.ChooseSongs -> "Alege melodiile"
-        MiscPhrase.AddSongs -> "Adaugă melodii"
-    }
-    AppLanguage.Slovenian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nedavno dodano"
-        MiscPhrase.WhatsNew -> "Kaj je novega?"
-        MiscPhrase.NoSongsYet -> "Še ni skladb"
-        MiscPhrase.AddSongsViaEdit -> "Dodajte skladbe z urejanjem"
-        MiscPhrase.NothingInHere -> "Tukaj ni ničesar"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tapnite plus za nov seznam"
-        MiscPhrase.Selected -> "Izbrano"
-        MiscPhrase.ChooseSongs -> "Izberite skladbe"
-        MiscPhrase.AddSongs -> "Dodaj skladbe"
-    }
-    AppLanguage.Bosnian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nedavno dodano"
-        MiscPhrase.WhatsNew -> "Šta je novo?"
-        MiscPhrase.NoSongsYet -> "Još nema pjesama"
-        MiscPhrase.AddSongsViaEdit -> "Dodajte pjesme uređivanjem"
-        MiscPhrase.NothingInHere -> "Ovdje nema ničega"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Dodirnite plus da kreirate plejlistu"
-        MiscPhrase.Selected -> "Odabrano"
-        MiscPhrase.ChooseSongs -> "Odaberite pjesme"
-        MiscPhrase.AddSongs -> "Dodaj pjesme"
-    }
-    AppLanguage.Indonesian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Baru ditambahkan"
-        MiscPhrase.WhatsNew -> "Apa yang baru?"
-        MiscPhrase.NoSongsYet -> "Belum ada lagu"
-        MiscPhrase.AddSongsViaEdit -> "Tambahkan lagu melalui menu edit"
-        MiscPhrase.NothingInHere -> "Belum ada apa pun di sini"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Ketuk plus untuk membuat daftar putar"
-        MiscPhrase.Selected -> "Dipilih"
-        MiscPhrase.ChooseSongs -> "Pilih lagu"
-        MiscPhrase.AddSongs -> "Tambahkan lagu"
-    }
-    AppLanguage.Punjabi -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "ਹਾਲ ਹੀ ਵਿੱਚ ਜੋੜੇ"
-        MiscPhrase.WhatsNew -> "ਨਵਾਂ ਕੀ ਹੈ?"
-        MiscPhrase.NoSongsYet -> "ਹਾਲੇ ਕੋਈ ਗੀਤ ਨਹੀਂ"
-        MiscPhrase.AddSongsViaEdit -> "ਸੋਧ ਰਾਹੀਂ ਗੀਤ ਜੋੜੋ"
-        MiscPhrase.NothingInHere -> "ਇੱਥੇ ਕੁਝ ਵੀ ਨਹੀਂ ਹੈ"
-        MiscPhrase.TapPlusToCreatePlaylist -> "ਪਲੇਲਿਸਟ ਬਣਾਉਣ ਲਈ ਪਲੱਸ ਦਬਾਓ"
-        MiscPhrase.Selected -> "ਚੁਣੇ ਗਏ"
-        MiscPhrase.ChooseSongs -> "ਗੀਤ ਚੁਣੋ"
-        MiscPhrase.AddSongs -> "ਗੀਤ ਜੋੜੋ"
-    }
-    AppLanguage.Polish -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Ostatnio dodane"
-        MiscPhrase.WhatsNew -> "Co nowego?"
-        MiscPhrase.NoSongsYet -> "Nie ma jeszcze utworów"
-        MiscPhrase.AddSongsViaEdit -> "Dodaj tu utwory, stukając przycisk edycji"
-        MiscPhrase.NothingInHere -> "Nic tu nie ma"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Stuknij przycisk \"+\", aby utworzyć nową playlistę"
-        MiscPhrase.Selected -> "wybrane"
-        MiscPhrase.ChooseSongs -> "Wybierz utwory"
-        MiscPhrase.AddSongs -> "Dodaj utwory"
-    }
-    AppLanguage.Albanian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Shtuar së fundi"
-        MiscPhrase.WhatsNew -> "Çfarë ka të re?"
-        MiscPhrase.NoSongsYet -> "Nuk ka ende këngë"
-        MiscPhrase.AddSongsViaEdit -> "Shto këngë këtu duke prekur butonin e modifikimit"
-        MiscPhrase.NothingInHere -> "Asgjë këtu"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Prek butonin \"+\" për të krijuar një playlistë të re"
-        MiscPhrase.Selected -> "zgjedhur"
-        MiscPhrase.ChooseSongs -> "Zgjidh këngë"
-        MiscPhrase.AddSongs -> "Shto këngë"
-    }
-    AppLanguage.ChineseSimplified -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "最近添加"
-        MiscPhrase.WhatsNew -> "有什么新内容？"
-        MiscPhrase.NoSongsYet -> "还没有歌曲"
-        MiscPhrase.AddSongsViaEdit -> "点击编辑按钮在此添加歌曲"
-        MiscPhrase.NothingInHere -> "这里什么都没有"
-        MiscPhrase.TapPlusToCreatePlaylist -> "点按“+”按钮以创建新播放列表"
-        MiscPhrase.Selected -> "已选择"
-        MiscPhrase.ChooseSongs -> "选择歌曲"
-        MiscPhrase.AddSongs -> "添加歌曲"
-    }
-    AppLanguage.Croatian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nedavno dodano"
-        MiscPhrase.WhatsNew -> "Što je novo?"
-        MiscPhrase.NoSongsYet -> "Još nema pjesama"
-        MiscPhrase.AddSongsViaEdit -> "Dodajte pjesme ovdje dodirom na gumb za uređivanje"
-        MiscPhrase.NothingInHere -> "Ovdje nema ničega"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Dodirnite gumb \"+\" za izradu nove playliste"
-        MiscPhrase.Selected -> "odabrano"
-        MiscPhrase.ChooseSongs -> "Odaberi pjesme"
-        MiscPhrase.AddSongs -> "Dodaj pjesme"
-    }
-    AppLanguage.Czech -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nedávno přidané"
-        MiscPhrase.WhatsNew -> "Co je nového?"
-        MiscPhrase.NoSongsYet -> "Zatím žádné skladby"
-        MiscPhrase.AddSongsViaEdit -> "Přidejte sem skladby klepnutím na tlačítko úprav"
-        MiscPhrase.NothingInHere -> "Nic tu není"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Klepnutím na tlačítko \"+\" vytvoříte nový playlist"
-        MiscPhrase.Selected -> "vybráno"
-        MiscPhrase.ChooseSongs -> "Vyberte skladby"
-        MiscPhrase.AddSongs -> "Přidat skladby"
-    }
-    AppLanguage.Danish -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nyligt tilføjet"
-        MiscPhrase.WhatsNew -> "Hvad er nyt?"
-        MiscPhrase.NoSongsYet -> "Ingen sange endnu"
-        MiscPhrase.AddSongsViaEdit -> "Tilføj sange her ved at trykke på redigeringsknappen"
-        MiscPhrase.NothingInHere -> "Her er ingenting"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tryk på \"+\"-knappen for at oprette en ny playliste"
-        MiscPhrase.Selected -> "valgt"
-        MiscPhrase.ChooseSongs -> "Vælg sange"
-        MiscPhrase.AddSongs -> "Tilføj sange"
-    }
-    AppLanguage.Dutch -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Recent toegevoegd"
-        MiscPhrase.WhatsNew -> "Wat is er nieuw?"
-        MiscPhrase.NoSongsYet -> "Nog geen nummers"
-        MiscPhrase.AddSongsViaEdit -> "Voeg hier nummers toe door op de bewerkknop te tikken"
-        MiscPhrase.NothingInHere -> "Hier staat niets"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tik op de knop \"+\" om een nieuwe afspeellijst te maken"
-        MiscPhrase.Selected -> "geselecteerd"
-        MiscPhrase.ChooseSongs -> "Kies nummers"
-        MiscPhrase.AddSongs -> "Nummers toevoegen"
-    }
-    AppLanguage.Estonian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Hiljuti lisatud"
-        MiscPhrase.WhatsNew -> "Mis on uut?"
-        MiscPhrase.NoSongsYet -> "Laule pole veel"
-        MiscPhrase.AddSongsViaEdit -> "Lisa siia lugusid, puudutades muutmisnuppu"
-        MiscPhrase.NothingInHere -> "Siin pole midagi"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Puuduta nuppu \"+\", et luua uus esitusloend"
-        MiscPhrase.Selected -> "valitud"
-        MiscPhrase.ChooseSongs -> "Vali lood"
-        MiscPhrase.AddSongs -> "Lisa lugusid"
-    }
-    AppLanguage.French -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Ajoutés récemment"
-        MiscPhrase.WhatsNew -> "Quoi de neuf ?"
-        MiscPhrase.NoSongsYet -> "Aucun morceau pour le moment"
-        MiscPhrase.AddSongsViaEdit -> "Ajoutez des morceaux ici en touchant le bouton modifier"
-        MiscPhrase.NothingInHere -> "Il n’y a rien ici"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Touchez le bouton \"+\" pour créer une nouvelle playlist"
-        MiscPhrase.Selected -> "sélectionnés"
-        MiscPhrase.ChooseSongs -> "Choisir des morceaux"
-        MiscPhrase.AddSongs -> "Ajouter des morceaux"
-    }
-    AppLanguage.German -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Kürzlich hinzugefügt"
-        MiscPhrase.WhatsNew -> "Was ist neu?"
-        MiscPhrase.NoSongsYet -> "Noch keine Titel"
-        MiscPhrase.AddSongsViaEdit -> "Füge hier Titel hinzu, indem du auf die Bearbeiten-Schaltfläche tippst"
-        MiscPhrase.NothingInHere -> "Hier ist nichts"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tippe auf die Schaltfläche \"+\", um eine neue Playlist zu erstellen"
-        MiscPhrase.Selected -> "ausgewählt"
-        MiscPhrase.ChooseSongs -> "Titel auswählen"
-        MiscPhrase.AddSongs -> "Titel hinzufügen"
-    }
-    AppLanguage.Greek -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Προστέθηκαν πρόσφατα"
-        MiscPhrase.WhatsNew -> "Τι νέο υπάρχει;"
-        MiscPhrase.NoSongsYet -> "Δεν υπάρχουν ακόμη τραγούδια"
-        MiscPhrase.AddSongsViaEdit -> "Προσθέστε τραγούδια εδώ πατώντας το κουμπί επεξεργασίας"
-        MiscPhrase.NothingInHere -> "Δεν υπάρχει τίποτα εδώ"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Πατήστε το κουμπί \"+\" για να δημιουργήσετε νέα λίστα αναπαραγωγής"
-        MiscPhrase.Selected -> "επιλεγμένα"
-        MiscPhrase.ChooseSongs -> "Επιλέξτε τραγούδια"
-        MiscPhrase.AddSongs -> "Προσθήκη τραγουδιών"
-    }
-    AppLanguage.Hindi -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "हाल ही में जोड़े गए"
-        MiscPhrase.WhatsNew -> "नया क्या है?"
-        MiscPhrase.NoSongsYet -> "अभी तक कोई गाने नहीं"
-        MiscPhrase.AddSongsViaEdit -> "एडिट बटन दबाकर यहाँ गाने जोड़ें"
-        MiscPhrase.NothingInHere -> "यहाँ कुछ नहीं है"
-        MiscPhrase.TapPlusToCreatePlaylist -> "नई प्लेलिस्ट बनाने के लिए \"+\" बटन दबाएँ"
-        MiscPhrase.Selected -> "चुने गए"
-        MiscPhrase.ChooseSongs -> "गाने चुनें"
-        MiscPhrase.AddSongs -> "गाने जोड़ें"
-    }
-    AppLanguage.Hungarian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nemrég hozzáadva"
-        MiscPhrase.WhatsNew -> "Mi az újdonság?"
-        MiscPhrase.NoSongsYet -> "Még nincsenek dalok"
-        MiscPhrase.AddSongsViaEdit -> "Adj hozzá dalokat itt a szerkesztés gomb megérintésével"
-        MiscPhrase.NothingInHere -> "Itt nincs semmi"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Érintsd meg a \"+\" gombot új lejátszási lista létrehozásához"
-        MiscPhrase.Selected -> "kiválasztva"
-        MiscPhrase.ChooseSongs -> "Válassz dalokat"
-        MiscPhrase.AddSongs -> "Dalok hozzáadása"
-    }
-    AppLanguage.Italian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Aggiunti di recente"
-        MiscPhrase.WhatsNew -> "Cosa c'è di nuovo?"
-        MiscPhrase.NoSongsYet -> "Nessun brano ancora"
-        MiscPhrase.AddSongsViaEdit -> "Aggiungi qui i brani toccando il pulsante modifica"
-        MiscPhrase.NothingInHere -> "Qui non c’è nulla"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tocca il pulsante \"+\" per creare una nuova playlist"
-        MiscPhrase.Selected -> "selezionati"
-        MiscPhrase.ChooseSongs -> "Scegli brani"
-        MiscPhrase.AddSongs -> "Aggiungi brani"
-    }
-    AppLanguage.Japanese -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "最近追加"
-        MiscPhrase.WhatsNew -> "新着情報"
-        MiscPhrase.NoSongsYet -> "まだ曲がありません"
-        MiscPhrase.AddSongsViaEdit -> "編集ボタンをタップしてここに曲を追加します"
-        MiscPhrase.NothingInHere -> "ここには何もありません"
-        MiscPhrase.TapPlusToCreatePlaylist -> "新しいプレイリストを作成するには「+」ボタンをタップします"
-        MiscPhrase.Selected -> "選択済み"
-        MiscPhrase.ChooseSongs -> "曲を選択"
-        MiscPhrase.AddSongs -> "曲を追加"
-    }
-    AppLanguage.Latvian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nesen pievienots"
-        MiscPhrase.WhatsNew -> "Kas jauns?"
-        MiscPhrase.NoSongsYet -> "Vēl nav dziesmu"
-        MiscPhrase.AddSongsViaEdit -> "Pievieno dziesmas šeit, pieskaroties rediģēšanas pogai"
-        MiscPhrase.NothingInHere -> "Šeit nekā nav"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Pieskarieties pogai \"+\", lai izveidotu jaunu atskaņošanas sarakstu"
-        MiscPhrase.Selected -> "atlasīts"
-        MiscPhrase.ChooseSongs -> "Izvēlies dziesmas"
-        MiscPhrase.AddSongs -> "Pievienot dziesmas"
-    }
-    AppLanguage.Lithuanian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Neseniai pridėta"
-        MiscPhrase.WhatsNew -> "Kas naujo?"
-        MiscPhrase.NoSongsYet -> "Dar nėra dainų"
-        MiscPhrase.AddSongsViaEdit -> "Pridėkite dainas čia paliesdami redagavimo mygtuką"
-        MiscPhrase.NothingInHere -> "Čia nieko nėra"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Palieskite mygtuką \"+\", kad sukurtumėte naują grojaraštį"
-        MiscPhrase.Selected -> "pasirinkta"
-        MiscPhrase.ChooseSongs -> "Pasirinkite dainas"
-        MiscPhrase.AddSongs -> "Pridėti dainas"
-    }
-    AppLanguage.Macedonian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Неодамна додадено"
-        MiscPhrase.WhatsNew -> "Што има ново?"
-        MiscPhrase.NoSongsYet -> "Сè уште нема песни"
-        MiscPhrase.AddSongsViaEdit -> "Додај песни тука со допирање на копчето за уредување"
-        MiscPhrase.NothingInHere -> "Нема ништо тука"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Допрете го копчето \"+\" за да создадете нова плејлиста"
-        MiscPhrase.Selected -> "избрано"
-        MiscPhrase.ChooseSongs -> "Избери песни"
-        MiscPhrase.AddSongs -> "Додај песни"
-    }
-    AppLanguage.Norwegian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nylig lagt til"
-        MiscPhrase.WhatsNew -> "Hva er nytt?"
-        MiscPhrase.NoSongsYet -> "Ingen sanger ennå"
-        MiscPhrase.AddSongsViaEdit -> "Legg til sanger her ved å trykke på redigeringsknappen"
-        MiscPhrase.NothingInHere -> "Det er ingenting her"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Trykk på \"+\"-knappen for å opprette en ny spilleliste"
-        MiscPhrase.Selected -> "valgt"
-        MiscPhrase.ChooseSongs -> "Velg sanger"
-        MiscPhrase.AddSongs -> "Legg til sanger"
-    }
-    AppLanguage.Portuguese -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Adicionados recentemente"
-        MiscPhrase.WhatsNew -> "O que há de novo?"
-        MiscPhrase.NoSongsYet -> "Ainda não há músicas"
-        MiscPhrase.AddSongsViaEdit -> "Adicione músicas aqui tocando no botão editar"
-        MiscPhrase.NothingInHere -> "Não há nada aqui"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Toque no botão \"+\" para criar uma nova playlist"
-        MiscPhrase.Selected -> "selecionados"
-        MiscPhrase.ChooseSongs -> "Escolher músicas"
-        MiscPhrase.AddSongs -> "Adicionar músicas"
-    }
-    AppLanguage.Russian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Недавно добавлено"
-        MiscPhrase.WhatsNew -> "Что нового?"
-        MiscPhrase.NoSongsYet -> "Песен пока нет"
-        MiscPhrase.AddSongsViaEdit -> "Добавьте песни сюда, нажав кнопку редактирования"
-        MiscPhrase.NothingInHere -> "Здесь ничего нет"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Нажмите кнопку \"+\", чтобы создать новый плейлист"
-        MiscPhrase.Selected -> "выбрано"
-        MiscPhrase.ChooseSongs -> "Выберите песни"
-        MiscPhrase.AddSongs -> "Добавить песни"
-    }
-    AppLanguage.Serbian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Недавно додато"
-        MiscPhrase.WhatsNew -> "Шта је ново?"
-        MiscPhrase.NoSongsYet -> "Још нема песама"
-        MiscPhrase.AddSongsViaEdit -> "Додај песме овде додиром на дугме за уређивање"
-        MiscPhrase.NothingInHere -> "Овде нема ничега"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Додирни дугме \"+\" да направиш нову листу песама"
-        MiscPhrase.Selected -> "изабрано"
-        MiscPhrase.ChooseSongs -> "Изабери песме"
-        MiscPhrase.AddSongs -> "Додај песме"
-    }
-    AppLanguage.Spanish -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Añadidos recientemente"
-        MiscPhrase.WhatsNew -> "¿Qué hay de nuevo?"
-        MiscPhrase.NoSongsYet -> "Aún no hay canciones"
-        MiscPhrase.AddSongsViaEdit -> "Añade canciones aquí tocando el botón de editar"
-        MiscPhrase.NothingInHere -> "No hay nada aquí"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Toca el botón \"+\" para crear una nueva playlist"
-        MiscPhrase.Selected -> "seleccionados"
-        MiscPhrase.ChooseSongs -> "Elegir canciones"
-        MiscPhrase.AddSongs -> "Añadir canciones"
-    }
-    AppLanguage.Swedish -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nyligen tillagt"
-        MiscPhrase.WhatsNew -> "Vad är nytt?"
-        MiscPhrase.NoSongsYet -> "Inga låtar ännu"
-        MiscPhrase.AddSongsViaEdit -> "Lägg till låtar här genom att trycka på redigeringsknappen"
-        MiscPhrase.NothingInHere -> "Det finns inget här"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tryck på \"+\"-knappen för att skapa en ny spellista"
-        MiscPhrase.Selected -> "valda"
-        MiscPhrase.ChooseSongs -> "Välj låtar"
-        MiscPhrase.AddSongs -> "Lägg till låtar"
-    }
-    AppLanguage.Thai -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "เพิ่มล่าสุด"
-        MiscPhrase.WhatsNew -> "มีอะไรใหม่?"
-        MiscPhrase.NoSongsYet -> "ยังไม่มีเพลง"
-        MiscPhrase.AddSongsViaEdit -> "เพิ่มเพลงที่นี่ด้วยการแตะปุ่มแก้ไข"
-        MiscPhrase.NothingInHere -> "ที่นี่ไม่มีอะไร"
-        MiscPhrase.TapPlusToCreatePlaylist -> "แตะปุ่ม \"+\" เพื่อสร้างเพลย์ลิสต์ใหม่"
-        MiscPhrase.Selected -> "ที่เลือก"
-        MiscPhrase.ChooseSongs -> "เลือกเพลง"
-        MiscPhrase.AddSongs -> "เพิ่มเพลง"
-    }
-    AppLanguage.Ukrainian -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Нещодавно додано"
-        MiscPhrase.WhatsNew -> "Що нового?"
-        MiscPhrase.NoSongsYet -> "Пісень ще немає"
-        MiscPhrase.AddSongsViaEdit -> "Додайте сюди пісні, натиснувши кнопку редагування"
-        MiscPhrase.NothingInHere -> "Тут нічого немає"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Натисніть кнопку \"+\", щоб створити новий плейлист"
-        MiscPhrase.Selected -> "вибрано"
-        MiscPhrase.ChooseSongs -> "Оберіть пісні"
-        MiscPhrase.AddSongs -> "Додати пісні"
-    }
-    AppLanguage.Slovak -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Nedávno pridané"
-        MiscPhrase.WhatsNew -> "Čo je nové?"
-        MiscPhrase.NoSongsYet -> "Zatiaľ žiadne skladby"
-        MiscPhrase.AddSongsViaEdit -> "Pridajte sem skladby klepnutím na tlačidlo úprav"
-        MiscPhrase.NothingInHere -> "Nie je tu nič"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Klepnutím na tlačidlo \"+\" vytvoríte nový playlist"
-        MiscPhrase.Selected -> "vybrané"
-        MiscPhrase.ChooseSongs -> "Vyberte skladby"
-        MiscPhrase.AddSongs -> "Pridať skladby"
-    }
-    AppLanguage.Korean -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "최근 추가됨"
-        MiscPhrase.WhatsNew -> "새로운 내용"
-        MiscPhrase.NoSongsYet -> "아직 곡이 없습니다"
-        MiscPhrase.AddSongsViaEdit -> "편집 버튼을 눌러 여기에 곡을 추가하세요"
-        MiscPhrase.NothingInHere -> "여기에는 아무것도 없습니다"
-        MiscPhrase.TapPlusToCreatePlaylist -> "새 플레이리스트를 만들려면 \"+\" 버튼을 누르세요"
-        MiscPhrase.Selected -> "선택됨"
-        MiscPhrase.ChooseSongs -> "곡 선택"
-        MiscPhrase.AddSongs -> "곡 추가"
-    }
-    AppLanguage.Malay -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Baru ditambah"
-        MiscPhrase.WhatsNew -> "Apa yang baharu?"
-        MiscPhrase.NoSongsYet -> "Belum ada lagu"
-        MiscPhrase.AddSongsViaEdit -> "Tambah lagu di sini dengan mengetik butang edit"
-        MiscPhrase.NothingInHere -> "Tiada apa-apa di sini"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Ketik butang \"+\" untuk mencipta senarai main baharu"
-        MiscPhrase.Selected -> "dipilih"
-        MiscPhrase.ChooseSongs -> "Pilih lagu"
-        MiscPhrase.AddSongs -> "Tambah lagu"
-    }
-    AppLanguage.Bengali -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "সম্প্রতি যোগ করা"
-        MiscPhrase.WhatsNew -> "নতুন কী?"
-        MiscPhrase.NoSongsYet -> "এখনও কোনো গান নেই"
-        MiscPhrase.AddSongsViaEdit -> "এডিট বোতাম ট্যাপ করে এখানে গান যোগ করুন"
-        MiscPhrase.NothingInHere -> "এখানে কিছুই নেই"
-        MiscPhrase.TapPlusToCreatePlaylist -> "নতুন প্লেলিস্ট তৈরি করতে \"+\" বোতাম ট্যাপ করুন"
-        MiscPhrase.Selected -> "নির্বাচিত"
-        MiscPhrase.ChooseSongs -> "গান বেছে নিন"
-        MiscPhrase.AddSongs -> "গান যোগ করুন"
-    }
-    AppLanguage.Urdu -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "حال ہی میں شامل کردہ"
-        MiscPhrase.WhatsNew -> "نیا کیا ہے؟"
-        MiscPhrase.NoSongsYet -> "ابھی تک کوئی گانا نہیں"
-        MiscPhrase.AddSongsViaEdit -> "ایڈٹ بٹن دبا کر یہاں گانے شامل کریں"
-        MiscPhrase.NothingInHere -> "یہاں کچھ نہیں ہے"
-        MiscPhrase.TapPlusToCreatePlaylist -> "نئی پلے لسٹ بنانے کے لیے \"+\" بٹن دبائیں"
-        MiscPhrase.Selected -> "منتخب"
-        MiscPhrase.ChooseSongs -> "گانے منتخب کریں"
-        MiscPhrase.AddSongs -> "گانے شامل کریں"
-    }
-    AppLanguage.English -> when (phrase) {
-        MiscPhrase.RecentlyAdded -> "Recently added"
-        MiscPhrase.WhatsNew -> "What’s new?"
-        MiscPhrase.NoSongsYet -> "No songs yet"
-        MiscPhrase.AddSongsViaEdit -> "Add songs here by tapping on edit button"
-        MiscPhrase.NothingInHere -> "Nothing in here"
-        MiscPhrase.TapPlusToCreatePlaylist -> "Tap the \"+\" button to create new playlist"
-        MiscPhrase.Selected -> "selected"
-        MiscPhrase.ChooseSongs -> "Choose songs"
-        MiscPhrase.AddSongs -> "Add songs"
-    }
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Catalan -> CatalanTranslations.library_miscPhrase(phrase)
+    AppLanguage.Finnish -> FinnishTranslations.library_miscPhrase(phrase)
+    AppLanguage.Romanian -> RomanianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Slovenian -> SlovenianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Bosnian -> BosnianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Indonesian -> IndonesianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Punjabi -> PunjabiTranslations.library_miscPhrase(phrase)
+    AppLanguage.Polish -> PolishTranslations.library_miscPhrase(phrase)
+    AppLanguage.Albanian -> AlbanianTranslations.library_miscPhrase(phrase)
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_miscPhrase(phrase)
+    AppLanguage.Croatian -> CroatianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Czech -> CzechTranslations.library_miscPhrase(phrase)
+    AppLanguage.Danish -> DanishTranslations.library_miscPhrase(phrase)
+    AppLanguage.Dutch -> DutchTranslations.library_miscPhrase(phrase)
+    AppLanguage.Estonian -> EstonianTranslations.library_miscPhrase(phrase)
+    AppLanguage.French -> FrenchTranslations.library_miscPhrase(phrase)
+    AppLanguage.German -> GermanTranslations.library_miscPhrase(phrase)
+    AppLanguage.Greek -> GreekTranslations.library_miscPhrase(phrase)
+    AppLanguage.Hindi -> HindiTranslations.library_miscPhrase(phrase)
+    AppLanguage.Hungarian -> HungarianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Italian -> ItalianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Japanese -> JapaneseTranslations.library_miscPhrase(phrase)
+    AppLanguage.Latvian -> LatvianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Macedonian -> MacedonianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Norwegian -> NorwegianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Portuguese -> PortugueseTranslations.library_miscPhrase(phrase)
+    AppLanguage.Russian -> RussianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Serbian -> SerbianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Spanish -> SpanishTranslations.library_miscPhrase(phrase)
+    AppLanguage.Swedish -> SwedishTranslations.library_miscPhrase(phrase)
+    AppLanguage.Thai -> ThaiTranslations.library_miscPhrase(phrase)
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_miscPhrase(phrase)
+    AppLanguage.Slovak -> SlovakTranslations.library_miscPhrase(phrase)
+    AppLanguage.Korean -> KoreanTranslations.library_miscPhrase(phrase)
+    AppLanguage.Malay -> MalayTranslations.library_miscPhrase(phrase)
+    AppLanguage.Bengali -> BengaliTranslations.library_miscPhrase(phrase)
+    AppLanguage.Urdu -> UrduTranslations.library_miscPhrase(phrase)
+    AppLanguage.English -> EnglishTranslations.library_miscPhrase(phrase)
 }
 
 internal data class CommonUiCopy(
@@ -539,92 +139,92 @@ internal data class CommonUiCopy(
 internal fun localizedAudioFormat(format: String, language: AppLanguage): String {
     if (format.isNotBlank() && format != "AUDIO") return format
     return when (language) {
-        AppLanguage.Albanian -> "AUDIO"
-        AppLanguage.Bengali -> "অডিও"
-        AppLanguage.Bosnian -> "AUDIO"
-        AppLanguage.Bulgarian -> "АУДИО"
-        AppLanguage.Catalan -> "ÀUDIO"
-        AppLanguage.ChineseSimplified -> "音频"
-        AppLanguage.Croatian -> "AUDIO"
-        AppLanguage.Czech -> "AUDIO"
-        AppLanguage.Danish -> "LYD"
-        AppLanguage.Dutch -> "AUDIO"
-        AppLanguage.English -> "AUDIO"
-        AppLanguage.Estonian -> "HELI"
-        AppLanguage.Finnish -> "ÄÄNI"
-        AppLanguage.French -> "AUDIO"
-        AppLanguage.German -> "AUDIO"
-        AppLanguage.Greek -> "ΗΧΟΣ"
-        AppLanguage.Hindi -> "ऑडियो"
-        AppLanguage.Hungarian -> "HANG"
-        AppLanguage.Indonesian -> "AUDIO"
-        AppLanguage.Italian -> "AUDIO"
-        AppLanguage.Japanese -> "音声"
-        AppLanguage.Korean -> "오디오"
-        AppLanguage.Latvian -> "AUDIO"
-        AppLanguage.Lithuanian -> "GARSAS"
-        AppLanguage.Macedonian -> "АУДИО"
-        AppLanguage.Malay -> "AUDIO"
-        AppLanguage.Norwegian -> "LYD"
-        AppLanguage.Polish -> "DŹWIĘK"
-        AppLanguage.Portuguese -> "ÁUDIO"
-        AppLanguage.Punjabi -> "ਆਡੀਓ"
-        AppLanguage.Romanian -> "AUDIO"
-        AppLanguage.Russian -> "АУДИО"
-        AppLanguage.Serbian -> "АУДИО"
-        AppLanguage.Slovak -> "AUDIO"
-        AppLanguage.Slovenian -> "ZVOK"
-        AppLanguage.Spanish -> "AUDIO"
-        AppLanguage.Swedish -> "LJUD"
-        AppLanguage.Thai -> "เสียง"
-        AppLanguage.Ukrainian -> "АУДІО"
-        AppLanguage.Urdu -> "آڈیو"
+        AppLanguage.Albanian -> AlbanianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Bengali -> BengaliTranslations.library_localizedAudioFormat_1
+        AppLanguage.Bosnian -> BosnianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Catalan -> CatalanTranslations.library_localizedAudioFormat_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_localizedAudioFormat_1
+        AppLanguage.Croatian -> CroatianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Czech -> CzechTranslations.library_localizedAudioFormat_1
+        AppLanguage.Danish -> DanishTranslations.library_localizedAudioFormat_1
+        AppLanguage.Dutch -> DutchTranslations.library_localizedAudioFormat_1
+        AppLanguage.English -> EnglishTranslations.library_localizedAudioFormat_1
+        AppLanguage.Estonian -> EstonianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Finnish -> FinnishTranslations.library_localizedAudioFormat_1
+        AppLanguage.French -> FrenchTranslations.library_localizedAudioFormat_1
+        AppLanguage.German -> GermanTranslations.library_localizedAudioFormat_1
+        AppLanguage.Greek -> GreekTranslations.library_localizedAudioFormat_1
+        AppLanguage.Hindi -> HindiTranslations.library_localizedAudioFormat_1
+        AppLanguage.Hungarian -> HungarianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Indonesian -> IndonesianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Italian -> ItalianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Japanese -> JapaneseTranslations.library_localizedAudioFormat_1
+        AppLanguage.Korean -> KoreanTranslations.library_localizedAudioFormat_1
+        AppLanguage.Latvian -> LatvianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Macedonian -> MacedonianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Malay -> MalayTranslations.library_localizedAudioFormat_1
+        AppLanguage.Norwegian -> NorwegianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Polish -> PolishTranslations.library_localizedAudioFormat_1
+        AppLanguage.Portuguese -> PortugueseTranslations.library_localizedAudioFormat_1
+        AppLanguage.Punjabi -> PunjabiTranslations.library_localizedAudioFormat_1
+        AppLanguage.Romanian -> RomanianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Russian -> RussianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Serbian -> SerbianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Slovak -> SlovakTranslations.library_localizedAudioFormat_1
+        AppLanguage.Slovenian -> SlovenianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Spanish -> SpanishTranslations.library_localizedAudioFormat_1
+        AppLanguage.Swedish -> SwedishTranslations.library_localizedAudioFormat_1
+        AppLanguage.Thai -> ThaiTranslations.library_localizedAudioFormat_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.library_localizedAudioFormat_1
+        AppLanguage.Urdu -> UrduTranslations.library_localizedAudioFormat_1
     }
 }
 
 internal fun localizedAlbumTitle(title: String, language: AppLanguage): String {
     if (title != "Unknown Album") return title
     return when (language) {
-        AppLanguage.Albanian -> "Album i panjohur"
-        AppLanguage.Bengali -> "অজানা অ্যালবাম"
-        AppLanguage.Bosnian -> "Nepoznat album"
-        AppLanguage.Bulgarian -> "Неизвестен албум"
-        AppLanguage.Catalan -> "Àlbum desconegut"
-        AppLanguage.ChineseSimplified -> "未知专辑"
-        AppLanguage.Croatian -> "Nepoznat album"
-        AppLanguage.Czech -> "Neznámé album"
-        AppLanguage.Danish -> "Ukendt album"
-        AppLanguage.Dutch -> "Onbekend album"
-        AppLanguage.English -> "Unknown Album"
-        AppLanguage.Estonian -> "Tundmatu album"
-        AppLanguage.Finnish -> "Tuntematon albumi"
-        AppLanguage.French -> "Album inconnu"
-        AppLanguage.German -> "Unbekanntes Album"
-        AppLanguage.Greek -> "Άγνωστο άλμπουμ"
-        AppLanguage.Hindi -> "अज्ञात एल्बम"
-        AppLanguage.Hungarian -> "Ismeretlen album"
-        AppLanguage.Indonesian -> "Album tidak dikenal"
-        AppLanguage.Italian -> "Album sconosciuto"
-        AppLanguage.Japanese -> "不明なアルバム"
-        AppLanguage.Korean -> "알 수 없는 앨범"
-        AppLanguage.Latvian -> "Nezināms albums"
-        AppLanguage.Lithuanian -> "Nežinomas albumas"
-        AppLanguage.Macedonian -> "Непознат албум"
-        AppLanguage.Malay -> "Album tidak dikenali"
-        AppLanguage.Norwegian -> "Ukjent album"
-        AppLanguage.Polish -> "Nieznany album"
-        AppLanguage.Portuguese -> "Álbum desconhecido"
-        AppLanguage.Punjabi -> "ਅਣਜਾਣ ਐਲਬਮ"
-        AppLanguage.Romanian -> "Album necunoscut"
-        AppLanguage.Russian -> "Неизвестный альбом"
-        AppLanguage.Serbian -> "Непознат албум"
-        AppLanguage.Slovak -> "Neznámy album"
-        AppLanguage.Slovenian -> "Neznan album"
-        AppLanguage.Spanish -> "Álbum desconocido"
-        AppLanguage.Swedish -> "Okänt album"
-        AppLanguage.Thai -> "อัลบั้มไม่ทราบชื่อ"
-        AppLanguage.Ukrainian -> "Невідомий альбом"
-        AppLanguage.Urdu -> "نامعلوم البم"
+        AppLanguage.Albanian -> AlbanianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Bengali -> BengaliTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Bosnian -> BosnianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Catalan -> CatalanTranslations.library_localizedAlbumTitle_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Croatian -> CroatianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Czech -> CzechTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Danish -> DanishTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Dutch -> DutchTranslations.library_localizedAlbumTitle_1
+        AppLanguage.English -> EnglishTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Estonian -> EstonianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Finnish -> FinnishTranslations.library_localizedAlbumTitle_1
+        AppLanguage.French -> FrenchTranslations.library_localizedAlbumTitle_1
+        AppLanguage.German -> GermanTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Greek -> GreekTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Hindi -> HindiTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Hungarian -> HungarianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Indonesian -> IndonesianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Italian -> ItalianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Japanese -> JapaneseTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Korean -> KoreanTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Latvian -> LatvianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Macedonian -> MacedonianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Malay -> MalayTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Norwegian -> NorwegianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Polish -> PolishTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Portuguese -> PortugueseTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Punjabi -> PunjabiTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Romanian -> RomanianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Russian -> RussianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Serbian -> SerbianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Slovak -> SlovakTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Slovenian -> SlovenianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Spanish -> SpanishTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Swedish -> SwedishTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Thai -> ThaiTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.library_localizedAlbumTitle_1
+        AppLanguage.Urdu -> UrduTranslations.library_localizedAlbumTitle_1
     }
 }
 
@@ -648,136 +248,136 @@ internal fun localizedPlaybackSource(source: String, album: String?, playlistId:
 internal fun localizedArtistName(name: String, language: AppLanguage): String {
     if (!name.isBlank() && name != "Unknown Artist") return name
     return when (language) {
-        AppLanguage.Albanian -> "Artist i panjohur"
-        AppLanguage.Bengali -> "অজানা শিল্পী"
-        AppLanguage.Bosnian -> "Nepoznat izvođač"
-        AppLanguage.Bulgarian -> "Неизвестен изпълнител"
-        AppLanguage.Catalan -> "Artista desconegut"
-        AppLanguage.ChineseSimplified -> "未知艺术家"
-        AppLanguage.Croatian -> "Nepoznat izvođač"
-        AppLanguage.Czech -> "Neznámý interpret"
-        AppLanguage.Danish -> "Ukendt kunstner"
-        AppLanguage.Dutch -> "Onbekende artiest"
-        AppLanguage.English -> "Unknown Artist"
-        AppLanguage.Estonian -> "Tundmatu artist"
-        AppLanguage.Finnish -> "Tuntematon esittäjä"
-        AppLanguage.French -> "Artiste inconnu"
-        AppLanguage.German -> "Unbekannter Künstler"
-        AppLanguage.Greek -> "Άγνωστος καλλιτέχνης"
-        AppLanguage.Hindi -> "अज्ञात कलाकार"
-        AppLanguage.Hungarian -> "Ismeretlen előadó"
-        AppLanguage.Indonesian -> "Artis tidak dikenal"
-        AppLanguage.Italian -> "Artista sconosciuto"
-        AppLanguage.Japanese -> "不明なアーティスト"
-        AppLanguage.Korean -> "알 수 없는 아티스트"
-        AppLanguage.Latvian -> "Nezināms izpildītājs"
-        AppLanguage.Lithuanian -> "Nežinomas atlikėjas"
-        AppLanguage.Macedonian -> "Непознат изведувач"
-        AppLanguage.Malay -> "Artis tidak dikenali"
-        AppLanguage.Norwegian -> "Ukjent artist"
-        AppLanguage.Polish -> "Nieznany wykonawca"
-        AppLanguage.Portuguese -> "Artista desconhecido"
-        AppLanguage.Punjabi -> "ਅਣਜਾਣ ਕਲਾਕਾਰ"
-        AppLanguage.Romanian -> "Artist necunoscut"
-        AppLanguage.Russian -> "Неизвестный исполнитель"
-        AppLanguage.Serbian -> "Непознат извођач"
-        AppLanguage.Slovak -> "Neznámy interpret"
-        AppLanguage.Slovenian -> "Neznan izvajalec"
-        AppLanguage.Spanish -> "Artista desconocido"
-        AppLanguage.Swedish -> "Okänd artist"
-        AppLanguage.Thai -> "ศิลปินไม่ทราบชื่อ"
-        AppLanguage.Ukrainian -> "Невідомий виконавець"
-        AppLanguage.Urdu -> "نامعلوم فنکار"
+        AppLanguage.Albanian -> AlbanianTranslations.library_localizedArtistName_1
+        AppLanguage.Bengali -> BengaliTranslations.library_localizedArtistName_1
+        AppLanguage.Bosnian -> BosnianTranslations.library_localizedArtistName_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.library_localizedArtistName_1
+        AppLanguage.Catalan -> CatalanTranslations.library_localizedArtistName_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_localizedArtistName_1
+        AppLanguage.Croatian -> CroatianTranslations.library_localizedArtistName_1
+        AppLanguage.Czech -> CzechTranslations.library_localizedArtistName_1
+        AppLanguage.Danish -> DanishTranslations.library_localizedArtistName_1
+        AppLanguage.Dutch -> DutchTranslations.library_localizedArtistName_1
+        AppLanguage.English -> EnglishTranslations.library_localizedArtistName_1
+        AppLanguage.Estonian -> EstonianTranslations.library_localizedArtistName_1
+        AppLanguage.Finnish -> FinnishTranslations.library_localizedArtistName_1
+        AppLanguage.French -> FrenchTranslations.library_localizedArtistName_1
+        AppLanguage.German -> GermanTranslations.library_localizedArtistName_1
+        AppLanguage.Greek -> GreekTranslations.library_localizedArtistName_1
+        AppLanguage.Hindi -> HindiTranslations.library_localizedArtistName_1
+        AppLanguage.Hungarian -> HungarianTranslations.library_localizedArtistName_1
+        AppLanguage.Indonesian -> IndonesianTranslations.library_localizedArtistName_1
+        AppLanguage.Italian -> ItalianTranslations.library_localizedArtistName_1
+        AppLanguage.Japanese -> JapaneseTranslations.library_localizedArtistName_1
+        AppLanguage.Korean -> KoreanTranslations.library_localizedArtistName_1
+        AppLanguage.Latvian -> LatvianTranslations.library_localizedArtistName_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.library_localizedArtistName_1
+        AppLanguage.Macedonian -> MacedonianTranslations.library_localizedArtistName_1
+        AppLanguage.Malay -> MalayTranslations.library_localizedArtistName_1
+        AppLanguage.Norwegian -> NorwegianTranslations.library_localizedArtistName_1
+        AppLanguage.Polish -> PolishTranslations.library_localizedArtistName_1
+        AppLanguage.Portuguese -> PortugueseTranslations.library_localizedArtistName_1
+        AppLanguage.Punjabi -> PunjabiTranslations.library_localizedArtistName_1
+        AppLanguage.Romanian -> RomanianTranslations.library_localizedArtistName_1
+        AppLanguage.Russian -> RussianTranslations.library_localizedArtistName_1
+        AppLanguage.Serbian -> SerbianTranslations.library_localizedArtistName_1
+        AppLanguage.Slovak -> SlovakTranslations.library_localizedArtistName_1
+        AppLanguage.Slovenian -> SlovenianTranslations.library_localizedArtistName_1
+        AppLanguage.Spanish -> SpanishTranslations.library_localizedArtistName_1
+        AppLanguage.Swedish -> SwedishTranslations.library_localizedArtistName_1
+        AppLanguage.Thai -> ThaiTranslations.library_localizedArtistName_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.library_localizedArtistName_1
+        AppLanguage.Urdu -> UrduTranslations.library_localizedArtistName_1
     }
 }
 
 internal fun unknownGenreLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Zhanër i panjohur"
-    AppLanguage.Bengali -> "অজানা ধরন"
-    AppLanguage.Bosnian -> "Nepoznat žanr"
-    AppLanguage.Bulgarian -> "Неизвестен жанр"
-    AppLanguage.Catalan -> "Gènere desconegut"
-    AppLanguage.ChineseSimplified -> "未知流派"
-    AppLanguage.Croatian -> "Nepoznat žanr"
-    AppLanguage.Czech -> "Neznámý žánr"
-    AppLanguage.Danish -> "Ukendt genre"
-    AppLanguage.Dutch -> "Onbekend genre"
-    AppLanguage.English -> "Unknown Genre"
-    AppLanguage.Estonian -> "Tundmatu žanr"
-    AppLanguage.Finnish -> "Tuntematon tyylilaji"
-    AppLanguage.French -> "Genre inconnu"
-    AppLanguage.German -> "Unbekanntes Genre"
-    AppLanguage.Greek -> "Άγνωστο είδος"
-    AppLanguage.Hindi -> "अज्ञात शैली"
-    AppLanguage.Hungarian -> "Ismeretlen műfaj"
-    AppLanguage.Indonesian -> "Genre tidak dikenal"
-    AppLanguage.Italian -> "Genere sconosciuto"
-    AppLanguage.Japanese -> "不明なジャンル"
-    AppLanguage.Korean -> "알 수 없는 장르"
-    AppLanguage.Latvian -> "Nezināms žanrs"
-    AppLanguage.Lithuanian -> "Nežinomas žanras"
-    AppLanguage.Macedonian -> "Непознат жанр"
-    AppLanguage.Malay -> "Genre tidak diketahui"
-    AppLanguage.Norwegian -> "Ukjent sjanger"
-    AppLanguage.Polish -> "Nieznany gatunek"
-    AppLanguage.Portuguese -> "Género desconhecido"
-    AppLanguage.Punjabi -> "ਅਣਜਾਣ ਸ਼ੈਲੀ"
-    AppLanguage.Romanian -> "Gen necunoscut"
-    AppLanguage.Russian -> "Неизвестный жанр"
-    AppLanguage.Serbian -> "Непознат жанр"
-    AppLanguage.Slovak -> "Neznámy žáner"
-    AppLanguage.Slovenian -> "Neznan žanr"
-    AppLanguage.Spanish -> "Género desconocido"
-    AppLanguage.Swedish -> "Okänd genre"
-    AppLanguage.Thai -> "ไม่ทราบแนวเพลง"
-    AppLanguage.Ukrainian -> "Невідомий жанр"
-    AppLanguage.Urdu -> "نامعلوم صنف"
+    AppLanguage.Albanian -> AlbanianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.library_unknownGenreLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.library_unknownGenreLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_unknownGenreLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Czech -> CzechTranslations.library_unknownGenreLabel_1
+    AppLanguage.Danish -> DanishTranslations.library_unknownGenreLabel_1
+    AppLanguage.Dutch -> DutchTranslations.library_unknownGenreLabel_1
+    AppLanguage.English -> EnglishTranslations.library_unknownGenreLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.library_unknownGenreLabel_1
+    AppLanguage.French -> FrenchTranslations.library_unknownGenreLabel_1
+    AppLanguage.German -> GermanTranslations.library_unknownGenreLabel_1
+    AppLanguage.Greek -> GreekTranslations.library_unknownGenreLabel_1
+    AppLanguage.Hindi -> HindiTranslations.library_unknownGenreLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Italian -> ItalianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_unknownGenreLabel_1
+    AppLanguage.Korean -> KoreanTranslations.library_unknownGenreLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Malay -> MalayTranslations.library_unknownGenreLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Polish -> PolishTranslations.library_unknownGenreLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_unknownGenreLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_unknownGenreLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Russian -> RussianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.library_unknownGenreLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.library_unknownGenreLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.library_unknownGenreLabel_1
+    AppLanguage.Thai -> ThaiTranslations.library_unknownGenreLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_unknownGenreLabel_1
+    AppLanguage.Urdu -> UrduTranslations.library_unknownGenreLabel_1
 }
 
 internal fun localizedGenreName(genre: String, language: AppLanguage): String =
     if (genre.isBlank() || genre == "Unknown Genre") unknownGenreLabel(language) else genre
 
 internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language) {
-    AppLanguage.Bulgarian -> CommonUiCopy("Начало", "Библиотека", "Плейлисти", "Търсене", "Добре дошли", "Песни", "Албуми", "Изпълнители", "Жанрове", "Светла", "Тъмна", "Системна", "в библиотеката", "общо", "намерени", "Вашата музика в елегантно изживяване")
-    AppLanguage.Catalan -> CommonUiCopy("Inici", "Biblioteca", "Llistes", "Cerca", "Benvingut", "Cançons", "Àlbums", "Artistes", "Gèneres", "Clar", "Fosc", "Sistema", "a la biblioteca", "en total", "trobats", "La teva música en una experiència elegant")
-    AppLanguage.Finnish -> CommonUiCopy("Koti", "Kirjasto", "Soittolistat", "Haku", "Tervetuloa", "Kappaleet", "Albumit", "Esittäjät", "Tyylilajit", "Vaalea", "Tumma", "Järjestelmä", "kirjastossasi", "yhteensä", "löytyi", "Musiikkisi tyylikkäänä elämyksenä")
-    AppLanguage.Romanian -> CommonUiCopy("Acasă", "Bibliotecă", "Liste", "Caută", "Bine ai venit", "Melodii", "Albume", "Artiști", "Genuri", "Luminos", "Întunecat", "Sistem", "în biblioteca ta", "în total", "găsite", "Muzica ta într-o experiență elegantă")
-    AppLanguage.Slovenian -> CommonUiCopy("Domov", "Knjižnica", "Seznami", "Iskanje", "Dobrodošli", "Skladbe", "Albumi", "Izvajalci", "Žanri", "Svetla", "Temna", "Sistem", "v vaši knjižnici", "skupaj", "najdeno", "Vaša glasba v elegantni izkušnji")
-    AppLanguage.Bosnian -> CommonUiCopy("Početna", "Biblioteka", "Plejliste", "Pretraži", "Dobro došli", "Pjesme", "Albumi", "Izvođači", "Žanrovi", "Svijetlo", "Tamno", "Sistem", "u tvojoj biblioteci", "ukupno", "pronađeno", "Tvoja muzika, u elegantnom iskustvu")
-    AppLanguage.Indonesian -> CommonUiCopy("Beranda", "Pustaka", "Daftar putar", "Cari", "Selamat datang", "Lagu", "Album", "Artis", "Genre", "Terang", "Gelap", "Sistem", "di pustaka Anda", "total", "ditemukan", "Musik Anda dalam pengalaman yang elegan")
-    AppLanguage.Punjabi -> CommonUiCopy("ਮੁੱਖ ਪੰਨਾ", "ਲਾਇਬ੍ਰੇਰੀ", "ਪਲੇਲਿਸਟਾਂ", "ਖੋਜੋ", "ਜੀ ਆਇਆਂ ਨੂੰ", "ਗੀਤ", "ਐਲਬਮਾਂ", "ਕਲਾਕਾਰ", "ਸ਼ੈਲੀਆਂ", "ਹਲਕਾ", "ਗੂੜ੍ਹਾ", "ਸਿਸਟਮ", "ਤੁਹਾਡੀ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ", "ਕੁੱਲ", "ਮਿਲੇ", "ਤੁਹਾਡਾ ਸੰਗੀਤ, ਇੱਕ ਖੂਬਸੂਰਤ ਅਨੁਭਵ ਵਿੱਚ")
-    AppLanguage.Polish -> CommonUiCopy("Główna", "Biblioteka", "Playlisty", "Szukaj", "Witamy", "Utwory", "Albumy", "Artyści", "Gatunki", "Jasny", "Ciemny", "System", "w Twojej bibliotece", "łącznie", "znaleziono", "Twoja muzyka, dopracowana w eleganckie doświadczenie")
-    AppLanguage.Albanian -> CommonUiCopy("Kreu", "Biblioteka", "Listat", "Kërko", "Mirë se vini", "Këngë", "Albume", "Artistë", "Zhanre", "E çelët", "E errët", "Sistemi", "në bibliotekën tënde", "gjithsej", "u gjetën", "Muzika jote, e rafinuar në një përvojë elegante")
-    AppLanguage.ChineseSimplified -> CommonUiCopy("主页", "媒体库", "播放列表", "搜索", "欢迎", "歌曲", "专辑", "艺人", "流派", "浅色", "深色", "跟随系统", "在你的媒体库中", "总计", "已找到", "你的音乐，被雕琢成优雅的体验")
-    AppLanguage.Croatian -> CommonUiCopy("Početna", "Biblioteka", "Playliste", "Pretraži", "Dobrodošli", "Pjesme", "Albumi", "Izvođači", "Žanrovi", "Svijetlo", "Tamno", "Sustav", "u tvojoj biblioteci", "ukupno", "pronađeno", "Tvoja glazba, profinjena u elegantno iskustvo")
-    AppLanguage.Czech -> CommonUiCopy("Domů", "Knihovna", "Playlisty", "Hledat", "Vítejte", "Skladby", "Alba", "Umělci", "Žánry", "Světlý", "Tmavý", "Systém", "ve vaší knihovně", "celkem", "nalezeno", "Vaše hudba, vytříbená do elegantního zážitku")
-    AppLanguage.Danish -> CommonUiCopy("Hjem", "Bibliotek", "Playlister", "Søg", "Velkommen", "Sange", "Albummer", "Kunstnere", "Genrer", "Lys", "Mørk", "System", "i dit bibliotek", "i alt", "fundet", "Din musik, raffineret til en elegant oplevelse")
-    AppLanguage.Dutch -> CommonUiCopy("Home", "Bibliotheek", "Afspeellijsten", "Zoeken", "Welkom", "Nummers", "Albums", "Artiesten", "Genres", "Licht", "Donker", "Systeem", "in je bibliotheek", "in totaal", "gevonden", "Jouw muziek, verfijnd tot een elegante ervaring")
-    AppLanguage.Estonian -> CommonUiCopy("Avaleht", "Teek", "Esitusloendid", "Otsi", "Tere tulemast", "Lood", "Albumid", "Artistid", "Žanrid", "Hele", "Tume", "Süsteem", "sinu teegis", "kokku", "leitud", "Sinu muusika, viimistletud elegantseks elamuseks")
-    AppLanguage.French -> CommonUiCopy("Accueil", "Bibliothèque", "Listes de lecture", "Recherche", "Bienvenue", "Morceaux", "Albums", "Artistes", "Genres", "Clair", "Sombre", "Système", "dans votre bibliothèque", "au total", "trouvés", "Votre musique, affinée en une expérience élégante")
-    AppLanguage.German -> CommonUiCopy("Start", "Bibliothek", "Wiedergabelisten", "Suche", "Willkommen", "Titel", "Alben", "Künstler", "Genres", "Hell", "Dunkel", "System", "in deiner Bibliothek", "insgesamt", "gefunden", "Deine Musik, veredelt zu einem eleganten Erlebnis")
-    AppLanguage.Greek -> CommonUiCopy("Αρχική", "Βιβλιοθήκη", "Λίστες αναπαραγωγής", "Αναζήτηση", "Καλώς ήρθατε", "Τραγούδια", "Άλμπουμ", "Καλλιτέχνες", "Είδη", "Φωτεινό", "Σκούρο", "Σύστημα", "στη βιβλιοθήκη σας", "συνολικά", "βρέθηκαν", "Η μουσική σας, εκλεπτυσμένη σε μια κομψή εμπειρία")
-    AppLanguage.Hindi -> CommonUiCopy("होम", "लाइब्रेरी", "प्लेलिस्ट", "खोजें", "स्वागत है", "गाने", "एल्बम", "कलाकार", "शैलियाँ", "लाइट", "डार्क", "सिस्टम", "आपकी लाइब्रेरी में", "कुल", "मिले", "आपका संगीत, एक सुरुचिपूर्ण अनुभव में निखरा हुआ")
-    AppLanguage.Hungarian -> CommonUiCopy("Kezdőlap", "Könyvtár", "Lejátszási listák", "Keresés", "Üdvözöljük", "Dalok", "Albumok", "Előadók", "Műfajok", "Világos", "Sötét", "Rendszer", "a könyvtáradban", "összesen", "találat", "A zenéd, kifinomítva elegáns élménnyé")
-    AppLanguage.Italian -> CommonUiCopy("Home", "Libreria", "Playlist", "Cerca", "Benvenuto", "Brani", "Album", "Artisti", "Generi", "Chiaro", "Scuro", "Sistema", "nella tua libreria", "in totale", "trovati", "La tua musica, rifinita in un'esperienza elegante")
-    AppLanguage.Japanese -> CommonUiCopy("ホーム", "ライブラリ", "プレイリスト", "検索", "ようこそ", "曲", "アルバム", "アーティスト", "ジャンル", "ライト", "ダーク", "システム", "ライブラリ内", "合計", "見つかりました", "あなたの音楽を、洗練された体験へ")
-    AppLanguage.Latvian -> CommonUiCopy("Sākums", "Bibliotēka", "Atskaņošanas saraksti", "Meklēt", "Laipni lūdzam", "Dziesmas", "Albumi", "Mākslinieki", "Žanri", "Gaišs", "Tumšs", "Sistēma", "tavā bibliotēkā", "kopā", "atrasts", "Tava mūzika, izsmalcināta elegantā pieredzē")
-    AppLanguage.Lithuanian -> CommonUiCopy("Pradžia", "Biblioteka", "Grojaraščiai", "Paieška", "Sveiki", "Dainos", "Albumai", "Atlikėjai", "Žanrai", "Šviesi", "Tamsi", "Sistema", "jūsų bibliotekoje", "iš viso", "rasta", "Tavo muzika, ištobulinta į elegantišką patirtį")
-    AppLanguage.Macedonian -> CommonUiCopy("Почетна", "Библиотека", "Плејлисти", "Пребарај", "Добредојдовте", "Песни", "Албуми", "Артисти", "Жанрови", "Светла", "Темна", "Систем", "во вашата библиотека", "вкупно", "пронајдени", "Вашата музика, префинета во елегантно доживување")
-    AppLanguage.Norwegian -> CommonUiCopy("Hjem", "Bibliotek", "Spillelister", "Søk", "Velkommen", "Sanger", "Album", "Artister", "Sjangre", "Lys", "Mørk", "System", "i biblioteket ditt", "totalt", "funnet", "Musikken din, raffinert til en elegant opplevelse")
-    AppLanguage.Portuguese -> CommonUiCopy("Início", "Biblioteca", "Listas de reprodução", "Pesquisar", "Bem-vindo", "Músicas", "Álbuns", "Artistas", "Géneros", "Claro", "Escuro", "Sistema", "na sua biblioteca", "no total", "encontrados", "A sua música, refinada numa experiência elegante")
-    AppLanguage.Russian -> CommonUiCopy("Главная", "Библиотека", "Плейлисты", "Поиск", "Добро пожаловать", "Песни", "Альбомы", "Исполнители", "Жанры", "Светлая", "Тёмная", "Система", "в вашей библиотеке", "всего", "найдено", "Ваша музыка, отточенная до элегантного опыта")
-    AppLanguage.Serbian -> CommonUiCopy("Почетна", "Библиотека", "Плејлисте", "Претрага", "Добро дошли", "Песме", "Албуми", "Извођачи", "Жанрови", "Светла", "Тамна", "Систем", "у вашој библиотеци", "укупно", "пронађено", "Ваша музика, префињена у елегантно искуство")
-    AppLanguage.Spanish -> CommonUiCopy("Inicio", "Biblioteca", "Listas de reproducción", "Buscar", "Bienvenido", "Canciones", "Álbumes", "Artistas", "Géneros", "Claro", "Oscuro", "Sistema", "en tu biblioteca", "en total", "encontrados", "Tu música, refinada en una experiencia elegante")
-    AppLanguage.Swedish -> CommonUiCopy("Hem", "Bibliotek", "Spellistor", "Sök", "Välkommen", "Låtar", "Album", "Artister", "Genrer", "Ljust", "Mörkt", "System", "i ditt bibliotek", "totalt", "hittade", "Din musik, förädlad till en elegant upplevelse")
-    AppLanguage.Thai -> CommonUiCopy("หน้าแรก", "คลังเพลง", "เพลย์ลิสต์", "ค้นหา", "ยินดีต้อนรับ", "เพลง", "อัลบั้ม", "ศิลปิน", "แนวเพลง", "สว่าง", "มืด", "ระบบ", "ในคลังของคุณ", "ทั้งหมด", "พบ", "เพลงของคุณ ถูกขัดเกลาให้เป็นประสบการณ์อันสง่างาม")
-    AppLanguage.Ukrainian -> CommonUiCopy("Головна", "Бібліотека", "Плейлисти", "Пошук", "Ласкаво просимо", "Пісні", "Альбоми", "Виконавці", "Жанри", "Світла", "Темна", "Система", "у вашій бібліотеці", "усього", "знайдено", "Ваша музика, відточена до елегантного досвіду")
-    AppLanguage.Slovak -> CommonUiCopy("Domov", "Knižnica", "Playlisty", "Hľadať", "Vitajte", "Skladby", "Albumy", "Interpreti", "Žánre", "Svetlý", "Tmavý", "Systém", "vo vašej knižnici", "celkovo", "nájdené", "Vaša hudba, premenená na elegantný zážitok")
-    AppLanguage.Korean -> CommonUiCopy("홈", "라이브러리", "플레이리스트", "검색", "환영합니다", "곡", "앨범", "아티스트", "장르", "라이트", "다크", "시스템", "라이브러리 안", "전체", "찾음", "당신의 음악을 우아한 경험으로 다듬었습니다")
-    AppLanguage.Malay -> CommonUiCopy("Laman utama", "Pustaka", "Senarai main", "Cari", "Selamat datang", "Lagu", "Album", "Artis", "Genre", "Cerah", "Gelap", "Sistem", "dalam pustaka anda", "jumlah", "ditemui", "Muzik anda, diperhalus menjadi pengalaman yang elegan")
-    AppLanguage.Bengali -> CommonUiCopy("হোম", "লাইব্রেরি", "প্লেলিস্ট", "সার্চ", "স্বাগতম", "গান", "অ্যালবাম", "শিল্পী", "ধরন", "হালকা", "গাঢ়", "সিস্টেম", "আপনার লাইব্রেরিতে", "মোট", "পাওয়া গেছে", "আপনার সঙ্গীত, একে পরিণত করা হয়েছে এক মার্জিত অভিজ্ঞতায়")
-    AppLanguage.Urdu -> CommonUiCopy("ہوم", "لائبریری", "پلے لسٹس", "تلاش", "خوش آمدید", "گانے", "البمز", "آرٹسٹس", "اصناف", "ہلکا", "گہرا", "سسٹم", "آپ کی لائبریری میں", "کل", "ملے", "آپ کی موسیقی، ایک نفیس تجربے میں ڈھلی ہوئی")
-    AppLanguage.English -> CommonUiCopy("Home", "Library", "Playlists", "Search", "Welcome", "Songs", "Albums", "Artists", "Genres", "Light", "Dark", "System", "in your library", "in total", "found", "Your music, refined into an elegant experience")
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_commonUiCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.library_commonUiCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.library_commonUiCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.library_commonUiCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_commonUiCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_commonUiCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_commonUiCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_commonUiCopy_1
+    AppLanguage.Polish -> PolishTranslations.library_commonUiCopy_1
+    AppLanguage.Albanian -> AlbanianTranslations.library_commonUiCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_commonUiCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.library_commonUiCopy_1
+    AppLanguage.Czech -> CzechTranslations.library_commonUiCopy_1
+    AppLanguage.Danish -> DanishTranslations.library_commonUiCopy_1
+    AppLanguage.Dutch -> DutchTranslations.library_commonUiCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.library_commonUiCopy_1
+    AppLanguage.French -> FrenchTranslations.library_commonUiCopy_1
+    AppLanguage.German -> GermanTranslations.library_commonUiCopy_1
+    AppLanguage.Greek -> GreekTranslations.library_commonUiCopy_1
+    AppLanguage.Hindi -> HindiTranslations.library_commonUiCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_commonUiCopy_1
+    AppLanguage.Italian -> ItalianTranslations.library_commonUiCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_commonUiCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.library_commonUiCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_commonUiCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_commonUiCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_commonUiCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_commonUiCopy_1
+    AppLanguage.Russian -> RussianTranslations.library_commonUiCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.library_commonUiCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.library_commonUiCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.library_commonUiCopy_1
+    AppLanguage.Thai -> ThaiTranslations.library_commonUiCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_commonUiCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.library_commonUiCopy_1
+    AppLanguage.Korean -> KoreanTranslations.library_commonUiCopy_1
+    AppLanguage.Malay -> MalayTranslations.library_commonUiCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.library_commonUiCopy_1
+    AppLanguage.Urdu -> UrduTranslations.library_commonUiCopy_1
+    AppLanguage.English -> EnglishTranslations.library_commonUiCopy_1
 }
 
 internal data class PlaylistMainCopy(
@@ -791,89 +391,89 @@ internal fun playlistMainCopy(language: AppLanguage): PlaylistMainCopy = Playlis
 )
 
 private fun smartMixesLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Интелигентни миксове"
-    AppLanguage.Catalan -> "Mescles intel·ligents"
-    AppLanguage.Finnish -> "Älykkäät miksaukset"
-    AppLanguage.Romanian -> "Mixuri inteligente"
-    AppLanguage.Slovenian -> "Pametne mešanice"
-    AppLanguage.Bosnian -> "Pametni miksevi"
-    AppLanguage.Indonesian -> "Campuran pintar"
-    AppLanguage.Punjabi -> "ਸਮਾਰਟ ਮਿਕਸ"
-    AppLanguage.Polish -> "Smart miksy"
-    AppLanguage.Albanian -> "Përzierje smart"
-    AppLanguage.ChineseSimplified -> "智能混音"
-    AppLanguage.Croatian -> "Pametni miksevi"
-    AppLanguage.Czech -> "Chytré mixy"
-    AppLanguage.Danish -> "Smarte miks"
-    AppLanguage.Dutch -> "Slimme mixes"
-    AppLanguage.Estonian -> "Nutikad miksid"
-    AppLanguage.French -> "Mix intelligents"
-    AppLanguage.German -> "Smarte Mixe"
-    AppLanguage.Greek -> "Έξυπνες μίξεις"
-    AppLanguage.Hindi -> "स्मार्ट मिक्स"
-    AppLanguage.Hungarian -> "Okos mixek"
-    AppLanguage.Italian -> "Mix smart"
-    AppLanguage.Japanese -> "スマートミックス"
-    AppLanguage.Latvian -> "Viedie miksi"
-    AppLanguage.Lithuanian -> "Išmanūs miksai"
-    AppLanguage.Macedonian -> "Паметни миксови"
-    AppLanguage.Norwegian -> "Smarte mikser"
-    AppLanguage.Portuguese -> "Misturas inteligentes"
-    AppLanguage.Russian -> "Умные миксы"
-    AppLanguage.Serbian -> "Паметни миксеви"
-    AppLanguage.Spanish -> "Mezclas inteligentes"
-    AppLanguage.Swedish -> "Smarta mixar"
-    AppLanguage.Thai -> "มิกซ์อัจฉริยะ"
-    AppLanguage.Ukrainian -> "Розумні мікси"
-    AppLanguage.Slovak -> "Smart mixy"
-    AppLanguage.Korean -> "스마트 믹스"
-    AppLanguage.Malay -> "Campuran pintar"
-    AppLanguage.Bengali -> "স্মার্ট মিক্স"
-    AppLanguage.Urdu -> "اسمارٹ مکسز"
-    AppLanguage.English -> "Smart mixes"
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_smartMixesLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.library_smartMixesLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.library_smartMixesLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.library_smartMixesLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_smartMixesLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_smartMixesLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_smartMixesLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_smartMixesLabel_1
+    AppLanguage.Polish -> PolishTranslations.library_smartMixesLabel_1
+    AppLanguage.Albanian -> AlbanianTranslations.library_smartMixesLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_smartMixesLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.library_smartMixesLabel_1
+    AppLanguage.Czech -> CzechTranslations.library_smartMixesLabel_1
+    AppLanguage.Danish -> DanishTranslations.library_smartMixesLabel_1
+    AppLanguage.Dutch -> DutchTranslations.library_smartMixesLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.library_smartMixesLabel_1
+    AppLanguage.French -> FrenchTranslations.library_smartMixesLabel_1
+    AppLanguage.German -> GermanTranslations.library_smartMixesLabel_1
+    AppLanguage.Greek -> GreekTranslations.library_smartMixesLabel_1
+    AppLanguage.Hindi -> HindiTranslations.library_smartMixesLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_smartMixesLabel_1
+    AppLanguage.Italian -> ItalianTranslations.library_smartMixesLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_smartMixesLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.library_smartMixesLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_smartMixesLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_smartMixesLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_smartMixesLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_smartMixesLabel_1
+    AppLanguage.Russian -> RussianTranslations.library_smartMixesLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.library_smartMixesLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.library_smartMixesLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.library_smartMixesLabel_1
+    AppLanguage.Thai -> ThaiTranslations.library_smartMixesLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_smartMixesLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.library_smartMixesLabel_1
+    AppLanguage.Korean -> KoreanTranslations.library_smartMixesLabel_1
+    AppLanguage.Malay -> MalayTranslations.library_smartMixesLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.library_smartMixesLabel_1
+    AppLanguage.Urdu -> UrduTranslations.library_smartMixesLabel_1
+    AppLanguage.English -> EnglishTranslations.library_smartMixesLabel_1
 }
 
 private fun autoUpdatingLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Обновява се автоматично"
-    AppLanguage.Catalan -> "S’actualitza automàticament"
-    AppLanguage.Finnish -> "Päivittyy automaattisesti"
-    AppLanguage.Romanian -> "Se actualizează automat"
-    AppLanguage.Slovenian -> "Samodejno posodabljanje"
-    AppLanguage.Bosnian -> "Automatski se ažurira"
-    AppLanguage.Indonesian -> "Diperbarui otomatis"
-    AppLanguage.Punjabi -> "ਆਪਣੇ ਆਪ ਅੱਪਡੇਟ ਹੁੰਦਾ ਹੈ"
-    AppLanguage.Polish -> "Aktualizuje się automatycznie"
-    AppLanguage.Albanian -> "Përditësohet automatikisht"
-    AppLanguage.ChineseSimplified -> "自动更新"
-    AppLanguage.Croatian -> "Automatski se ažurira"
-    AppLanguage.Czech -> "Automaticky se aktualizuje"
-    AppLanguage.Danish -> "Opdateres automatisk"
-    AppLanguage.Dutch -> "Wordt automatisch bijgewerkt"
-    AppLanguage.Estonian -> "Uueneb automaatselt"
-    AppLanguage.French -> "Mise à jour automatique"
-    AppLanguage.German -> "Aktualisiert sich automatisch"
-    AppLanguage.Greek -> "Ενημερώνεται αυτόματα"
-    AppLanguage.Hindi -> "अपने आप अपडेट होता है"
-    AppLanguage.Hungarian -> "Automatikusan frissül"
-    AppLanguage.Italian -> "Si aggiorna automaticamente"
-    AppLanguage.Japanese -> "自動更新"
-    AppLanguage.Latvian -> "Atjauninās automātiski"
-    AppLanguage.Lithuanian -> "Atnaujinama automatiškai"
-    AppLanguage.Macedonian -> "Се ажурира автоматски"
-    AppLanguage.Norwegian -> "Oppdateres automatisk"
-    AppLanguage.Portuguese -> "Atualiza automaticamente"
-    AppLanguage.Russian -> "Обновляется автоматически"
-    AppLanguage.Serbian -> "Аутоматски се ажурира"
-    AppLanguage.Spanish -> "Se actualiza automáticamente"
-    AppLanguage.Swedish -> "Uppdateras automatiskt"
-    AppLanguage.Thai -> "อัปเดตอัตโนมัติ"
-    AppLanguage.Ukrainian -> "Оновлюється автоматично"
-    AppLanguage.Slovak -> "Aktualizuje sa automaticky"
-    AppLanguage.Korean -> "자동 업데이트"
-    AppLanguage.Malay -> "Dikemas kini automatik"
-    AppLanguage.Bengali -> "স্বয়ংক্রিয়ভাবে আপডেট হয়"
-    AppLanguage.Urdu -> "خودکار طور پر اپ ڈیٹ ہوتا ہے"
-    AppLanguage.English -> "Auto-updating"
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Polish -> PolishTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Albanian -> AlbanianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Czech -> CzechTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Danish -> DanishTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Dutch -> DutchTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.French -> FrenchTranslations.library_autoUpdatingLabel_1
+    AppLanguage.German -> GermanTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Greek -> GreekTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Hindi -> HindiTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Italian -> ItalianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Russian -> RussianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Thai -> ThaiTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Korean -> KoreanTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Malay -> MalayTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.library_autoUpdatingLabel_1
+    AppLanguage.Urdu -> UrduTranslations.library_autoUpdatingLabel_1
+    AppLanguage.English -> EnglishTranslations.library_autoUpdatingLabel_1
 }
 
 internal fun smartPlaylistSortLabel(language: AppLanguage, field: SmartPlaylistSortField): String {
@@ -890,389 +490,389 @@ internal fun smartPlaylistSortLabel(language: AppLanguage, field: SmartPlaylistS
 }
 
 private fun sortedByLabel(language: AppLanguage, field: String): String = when (language) {
-    AppLanguage.Bulgarian -> "Подредено по: $field"
-    AppLanguage.Catalan -> "Ordenat per: $field"
-    AppLanguage.Finnish -> "Järjestys: $field"
-    AppLanguage.Romanian -> "Sortat după: $field"
-    AppLanguage.Slovenian -> "Razvrščeno po: $field"
-    AppLanguage.Bosnian -> "Sortirano po: $field"
-    AppLanguage.Indonesian -> "Diurutkan menurut: $field"
-    AppLanguage.Punjabi -> "ਕ੍ਰਮਬੱਧ: $field"
-    AppLanguage.Polish -> "Sortowane według: $field"
-    AppLanguage.Albanian -> "Renditur sipas: $field"
-    AppLanguage.ChineseSimplified -> "排序依据：$field"
-    AppLanguage.Croatian -> "Sortirano po: $field"
-    AppLanguage.Czech -> "Seřazeno podle: $field"
-    AppLanguage.Danish -> "Sorteret efter: $field"
-    AppLanguage.Dutch -> "Gesorteerd op: $field"
-    AppLanguage.Estonian -> "Sorditud: $field"
-    AppLanguage.French -> "Trié par : $field"
-    AppLanguage.German -> "Sortiert nach: $field"
-    AppLanguage.Greek -> "Ταξινόμηση κατά: $field"
-    AppLanguage.Hindi -> "इसके अनुसार क्रमबद्ध: $field"
-    AppLanguage.Hungarian -> "Rendezés: $field"
-    AppLanguage.Italian -> "Ordinato per: $field"
-    AppLanguage.Japanese -> "並び替え: $field"
-    AppLanguage.Latvian -> "Kārtots pēc: $field"
-    AppLanguage.Lithuanian -> "Rikiuojama pagal: $field"
-    AppLanguage.Macedonian -> "Сортирано според: $field"
-    AppLanguage.Norwegian -> "Sortert etter: $field"
-    AppLanguage.Portuguese -> "Ordenado por: $field"
-    AppLanguage.Russian -> "Сортировка: $field"
-    AppLanguage.Serbian -> "Сортирано по: $field"
-    AppLanguage.Spanish -> "Ordenado por: $field"
-    AppLanguage.Swedish -> "Sorterat efter: $field"
-    AppLanguage.Thai -> "จัดเรียงตาม: $field"
-    AppLanguage.Ukrainian -> "Сортування: $field"
-    AppLanguage.Slovak -> "Zoradené podľa: $field"
-    AppLanguage.Korean -> "정렬 기준: $field"
-    AppLanguage.Malay -> "Diisih mengikut: $field"
-    AppLanguage.Bengali -> "যেভাবে সাজানো: $field"
-    AppLanguage.Urdu -> "ترتیب: $field"
-    AppLanguage.English -> "Sorted by $field"
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Catalan -> CatalanTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Finnish -> FinnishTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Romanian -> RomanianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Slovenian -> SlovenianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Bosnian -> BosnianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Indonesian -> IndonesianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Punjabi -> PunjabiTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Polish -> PolishTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Albanian -> AlbanianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Croatian -> CroatianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Czech -> CzechTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Danish -> DanishTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Dutch -> DutchTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Estonian -> EstonianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.French -> FrenchTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.German -> GermanTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Greek -> GreekTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Hindi -> HindiTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Hungarian -> HungarianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Italian -> ItalianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Japanese -> JapaneseTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Latvian -> LatvianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Macedonian -> MacedonianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Norwegian -> NorwegianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Portuguese -> PortugueseTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Russian -> RussianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Serbian -> SerbianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Spanish -> SpanishTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Swedish -> SwedishTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Thai -> ThaiTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Slovak -> SlovakTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Korean -> KoreanTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Malay -> MalayTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Bengali -> BengaliTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.Urdu -> UrduTranslations.library_sortedByLabel_dynamic_1(field)
+    AppLanguage.English -> EnglishTranslations.library_sortedByLabel_dynamic_1(field)
 }
 
 private fun titleName(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "titullit"
-    AppLanguage.Croatian -> "naslovu"
-    AppLanguage.Czech -> "názvu"
-    AppLanguage.Danish -> "titel"
-    AppLanguage.Dutch -> "titel"
-    AppLanguage.Estonian -> "pealkiri"
-    AppLanguage.French -> "titre"
-    AppLanguage.German -> "Titel"
-    AppLanguage.Greek -> "τίτλο"
-    AppLanguage.Hindi -> "शीर्षक"
-    AppLanguage.Hungarian -> "cím"
-    AppLanguage.Italian -> "titolo"
-    AppLanguage.Japanese -> "タイトル"
-    AppLanguage.Latvian -> "nosaukuma"
-    AppLanguage.Lithuanian -> "pavadinimą"
-    AppLanguage.Macedonian -> "наслов"
-    AppLanguage.Norwegian -> "tittel"
-    AppLanguage.Portuguese -> "título"
-    AppLanguage.Russian -> "название"
-    AppLanguage.Serbian -> "наслову"
-    AppLanguage.Slovak -> "názvu"
-    AppLanguage.Spanish -> "título"
-    AppLanguage.Swedish -> "titel"
-    AppLanguage.Thai -> "ชื่อ"
-    AppLanguage.Ukrainian -> "назва"
-    AppLanguage.Bulgarian -> "заглавие"
-    AppLanguage.Catalan -> "títol"
-    AppLanguage.Finnish -> "nimi"
-    AppLanguage.Romanian -> "titlu"
-    AppLanguage.Slovenian -> "naslovu"
-    AppLanguage.Bosnian -> "nazivu"
-    AppLanguage.Indonesian -> "judul"
-    AppLanguage.Punjabi -> "ਸਿਰਲੇਖ"
-    AppLanguage.Polish -> "tytułu"
-    AppLanguage.ChineseSimplified -> "标题"
-    AppLanguage.Korean -> "제목"
-    AppLanguage.Malay -> "tajuk"
-    AppLanguage.Bengali -> "শিরোনাম"
-    AppLanguage.Urdu -> "عنوان"
-    AppLanguage.English -> "title"
+    AppLanguage.Albanian -> AlbanianTranslations.library_titleName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_titleName_1
+    AppLanguage.Czech -> CzechTranslations.library_titleName_1
+    AppLanguage.Danish -> DanishTranslations.library_titleName_1
+    AppLanguage.Dutch -> DutchTranslations.library_titleName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_titleName_1
+    AppLanguage.French -> FrenchTranslations.library_titleName_1
+    AppLanguage.German -> GermanTranslations.library_titleName_1
+    AppLanguage.Greek -> GreekTranslations.library_titleName_1
+    AppLanguage.Hindi -> HindiTranslations.library_titleName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_titleName_1
+    AppLanguage.Italian -> ItalianTranslations.library_titleName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_titleName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_titleName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_titleName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_titleName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_titleName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_titleName_1
+    AppLanguage.Russian -> RussianTranslations.library_titleName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_titleName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_titleName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_titleName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_titleName_1
+    AppLanguage.Thai -> ThaiTranslations.library_titleName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_titleName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_titleName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_titleName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_titleName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_titleName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_titleName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_titleName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_titleName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_titleName_1
+    AppLanguage.Polish -> PolishTranslations.library_titleName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_titleName_1
+    AppLanguage.Korean -> KoreanTranslations.library_titleName_1
+    AppLanguage.Malay -> MalayTranslations.library_titleName_1
+    AppLanguage.Bengali -> BengaliTranslations.library_titleName_1
+    AppLanguage.Urdu -> UrduTranslations.library_titleName_1
+    AppLanguage.English -> EnglishTranslations.library_titleName_1
 }
 
 private fun artistName(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "artistit"
-    AppLanguage.Croatian -> "izvođaču"
-    AppLanguage.Czech -> "interpreta"
-    AppLanguage.Danish -> "kunstner"
-    AppLanguage.Dutch -> "artiest"
-    AppLanguage.Estonian -> "esitaja"
-    AppLanguage.French -> "artiste"
-    AppLanguage.German -> "Interpret"
-    AppLanguage.Greek -> "καλλιτέχνη"
-    AppLanguage.Hindi -> "कलाकार"
-    AppLanguage.Hungarian -> "előadó"
-    AppLanguage.Italian -> "artista"
-    AppLanguage.Japanese -> "アーティスト"
-    AppLanguage.Latvian -> "izpildītāja"
-    AppLanguage.Lithuanian -> "atlikėją"
-    AppLanguage.Macedonian -> "изведувач"
-    AppLanguage.Norwegian -> "artist"
-    AppLanguage.Portuguese -> "artista"
-    AppLanguage.Russian -> "исполнитель"
-    AppLanguage.Serbian -> "извођачу"
-    AppLanguage.Slovak -> "interpreta"
-    AppLanguage.Spanish -> "artista"
-    AppLanguage.Swedish -> "artist"
-    AppLanguage.Thai -> "ศิลปิน"
-    AppLanguage.Ukrainian -> "виконавець"
-    AppLanguage.Bulgarian -> "изпълнител"
-    AppLanguage.Catalan -> "artista"
-    AppLanguage.Finnish -> "esittäjä"
-    AppLanguage.Romanian -> "artist"
-    AppLanguage.Slovenian -> "izvajalcu"
-    AppLanguage.Bosnian -> "izvođaču"
-    AppLanguage.Indonesian -> "artis"
-    AppLanguage.Punjabi -> "ਕਲਾਕਾਰ"
-    AppLanguage.Polish -> "wykonawcy"
-    AppLanguage.ChineseSimplified -> "艺人"
-    AppLanguage.Korean -> "아티스트"
-    AppLanguage.Malay -> "artis"
-    AppLanguage.Bengali -> "শিল্পী"
-    AppLanguage.Urdu -> "آرٹسٹ"
-    AppLanguage.English -> "artist"
+    AppLanguage.Albanian -> AlbanianTranslations.library_artistName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_artistName_1
+    AppLanguage.Czech -> CzechTranslations.library_artistName_1
+    AppLanguage.Danish -> DanishTranslations.library_artistName_1
+    AppLanguage.Dutch -> DutchTranslations.library_artistName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_artistName_1
+    AppLanguage.French -> FrenchTranslations.library_artistName_1
+    AppLanguage.German -> GermanTranslations.library_artistName_1
+    AppLanguage.Greek -> GreekTranslations.library_artistName_1
+    AppLanguage.Hindi -> HindiTranslations.library_artistName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_artistName_1
+    AppLanguage.Italian -> ItalianTranslations.library_artistName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_artistName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_artistName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_artistName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_artistName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_artistName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_artistName_1
+    AppLanguage.Russian -> RussianTranslations.library_artistName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_artistName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_artistName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_artistName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_artistName_1
+    AppLanguage.Thai -> ThaiTranslations.library_artistName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_artistName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_artistName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_artistName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_artistName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_artistName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_artistName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_artistName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_artistName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_artistName_1
+    AppLanguage.Polish -> PolishTranslations.library_artistName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_artistName_1
+    AppLanguage.Korean -> KoreanTranslations.library_artistName_1
+    AppLanguage.Malay -> MalayTranslations.library_artistName_1
+    AppLanguage.Bengali -> BengaliTranslations.library_artistName_1
+    AppLanguage.Urdu -> UrduTranslations.library_artistName_1
+    AppLanguage.English -> EnglishTranslations.library_artistName_1
 }
 
 private fun albumName(language: AppLanguage): String = when (language) {
-    AppLanguage.Bengali -> "অ্যালবাম"
-    AppLanguage.ChineseSimplified -> "专辑"
-    AppLanguage.Indonesian -> "album"
-    AppLanguage.Korean -> "앨범"
-    AppLanguage.Malay -> "album"
-    AppLanguage.Punjabi -> "ਐਲਬਮ"
-    AppLanguage.Urdu -> "البم"
-    AppLanguage.Albanian -> "albumit"
-    AppLanguage.Croatian -> "albumu"
-    AppLanguage.Czech -> "alba"
-    AppLanguage.Danish -> "album"
-    AppLanguage.Dutch -> "album"
-    AppLanguage.Estonian -> "album"
-    AppLanguage.French -> "album"
-    AppLanguage.German -> "Album"
-    AppLanguage.Greek -> "άλμπουμ"
-    AppLanguage.Hindi -> "एल्बम"
-    AppLanguage.Hungarian -> "album"
-    AppLanguage.Italian -> "album"
-    AppLanguage.Japanese -> "アルバム"
-    AppLanguage.Latvian -> "albuma"
-    AppLanguage.Lithuanian -> "albumą"
-    AppLanguage.Macedonian -> "албум"
-    AppLanguage.Norwegian -> "album"
-    AppLanguage.Portuguese -> "álbum"
-    AppLanguage.Russian -> "альбом"
-    AppLanguage.Serbian -> "албуму"
-    AppLanguage.Slovak -> "albumu"
-    AppLanguage.Spanish -> "álbum"
-    AppLanguage.Swedish -> "album"
-    AppLanguage.Thai -> "อัลบั้ม"
-    AppLanguage.Ukrainian -> "альбом"
-    AppLanguage.Bosnian -> "albumu"
-    AppLanguage.Bulgarian -> "албум"
-    AppLanguage.Catalan -> "àlbum"
-    AppLanguage.Finnish -> "albumi"
-    AppLanguage.Polish -> "albumu"
-    AppLanguage.Romanian -> "album"
-    AppLanguage.Slovenian -> "albumu"
-    AppLanguage.English -> "album"
+    AppLanguage.Bengali -> BengaliTranslations.library_albumName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_albumName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_albumName_1
+    AppLanguage.Korean -> KoreanTranslations.library_albumName_1
+    AppLanguage.Malay -> MalayTranslations.library_albumName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_albumName_1
+    AppLanguage.Urdu -> UrduTranslations.library_albumName_1
+    AppLanguage.Albanian -> AlbanianTranslations.library_albumName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_albumName_1
+    AppLanguage.Czech -> CzechTranslations.library_albumName_1
+    AppLanguage.Danish -> DanishTranslations.library_albumName_1
+    AppLanguage.Dutch -> DutchTranslations.library_albumName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_albumName_1
+    AppLanguage.French -> FrenchTranslations.library_albumName_1
+    AppLanguage.German -> GermanTranslations.library_albumName_1
+    AppLanguage.Greek -> GreekTranslations.library_albumName_1
+    AppLanguage.Hindi -> HindiTranslations.library_albumName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_albumName_1
+    AppLanguage.Italian -> ItalianTranslations.library_albumName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_albumName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_albumName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_albumName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_albumName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_albumName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_albumName_1
+    AppLanguage.Russian -> RussianTranslations.library_albumName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_albumName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_albumName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_albumName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_albumName_1
+    AppLanguage.Thai -> ThaiTranslations.library_albumName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_albumName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_albumName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_albumName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_albumName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_albumName_1
+    AppLanguage.Polish -> PolishTranslations.library_albumName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_albumName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_albumName_1
+    AppLanguage.English -> EnglishTranslations.library_albumName_1
 }
 
 private fun genreName(language: AppLanguage): String = when (language) {
-    AppLanguage.Bengali -> "ধরন"
-    AppLanguage.ChineseSimplified -> "流派"
-    AppLanguage.Indonesian -> "genre"
-    AppLanguage.Korean -> "장르"
-    AppLanguage.Malay -> "genre"
-    AppLanguage.Punjabi -> "ਸ਼ੈਲੀ"
-    AppLanguage.Urdu -> "صنف"
-    AppLanguage.Albanian -> "zhanrit"
-    AppLanguage.Croatian -> "žanru"
-    AppLanguage.Czech -> "žánru"
-    AppLanguage.Danish -> "genre"
-    AppLanguage.Dutch -> "genre"
-    AppLanguage.Estonian -> "žanr"
-    AppLanguage.French -> "genre"
-    AppLanguage.German -> "Genre"
-    AppLanguage.Greek -> "είδος"
-    AppLanguage.Hindi -> "शैली"
-    AppLanguage.Hungarian -> "műfaj"
-    AppLanguage.Italian -> "genere"
-    AppLanguage.Japanese -> "ジャンル"
-    AppLanguage.Latvian -> "žanra"
-    AppLanguage.Lithuanian -> "žanrą"
-    AppLanguage.Macedonian -> "жанр"
-    AppLanguage.Norwegian -> "sjanger"
-    AppLanguage.Portuguese -> "género"
-    AppLanguage.Russian -> "жанр"
-    AppLanguage.Serbian -> "жанру"
-    AppLanguage.Slovak -> "žánru"
-    AppLanguage.Spanish -> "género"
-    AppLanguage.Swedish -> "genre"
-    AppLanguage.Thai -> "แนวเพลง"
-    AppLanguage.Ukrainian -> "жанр"
-    AppLanguage.Bosnian -> "žanru"
-    AppLanguage.Bulgarian -> "жанр"
-    AppLanguage.Catalan -> "gènere"
-    AppLanguage.Finnish -> "tyylilaji"
-    AppLanguage.Polish -> "gatunku"
-    AppLanguage.Romanian -> "gen"
-    AppLanguage.Slovenian -> "žanru"
-    AppLanguage.English -> "genre"
+    AppLanguage.Bengali -> BengaliTranslations.library_genreName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_genreName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_genreName_1
+    AppLanguage.Korean -> KoreanTranslations.library_genreName_1
+    AppLanguage.Malay -> MalayTranslations.library_genreName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_genreName_1
+    AppLanguage.Urdu -> UrduTranslations.library_genreName_1
+    AppLanguage.Albanian -> AlbanianTranslations.library_genreName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_genreName_1
+    AppLanguage.Czech -> CzechTranslations.library_genreName_1
+    AppLanguage.Danish -> DanishTranslations.library_genreName_1
+    AppLanguage.Dutch -> DutchTranslations.library_genreName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_genreName_1
+    AppLanguage.French -> FrenchTranslations.library_genreName_1
+    AppLanguage.German -> GermanTranslations.library_genreName_1
+    AppLanguage.Greek -> GreekTranslations.library_genreName_1
+    AppLanguage.Hindi -> HindiTranslations.library_genreName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_genreName_1
+    AppLanguage.Italian -> ItalianTranslations.library_genreName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_genreName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_genreName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_genreName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_genreName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_genreName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_genreName_1
+    AppLanguage.Russian -> RussianTranslations.library_genreName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_genreName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_genreName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_genreName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_genreName_1
+    AppLanguage.Thai -> ThaiTranslations.library_genreName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_genreName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_genreName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_genreName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_genreName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_genreName_1
+    AppLanguage.Polish -> PolishTranslations.library_genreName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_genreName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_genreName_1
+    AppLanguage.English -> EnglishTranslations.library_genreName_1
 }
 
 private fun durationName(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "kohëzgjatjes"
-    AppLanguage.Croatian -> "trajanju"
-    AppLanguage.Czech -> "délky"
-    AppLanguage.Danish -> "varighed"
-    AppLanguage.Dutch -> "duur"
-    AppLanguage.Estonian -> "kestus"
-    AppLanguage.French -> "durée"
-    AppLanguage.German -> "Dauer"
-    AppLanguage.Greek -> "διάρκεια"
-    AppLanguage.Hindi -> "अवधि"
-    AppLanguage.Hungarian -> "időtartam"
-    AppLanguage.Italian -> "durata"
-    AppLanguage.Japanese -> "再生時間"
-    AppLanguage.Latvian -> "ilguma"
-    AppLanguage.Lithuanian -> "trukmę"
-    AppLanguage.Macedonian -> "времетраење"
-    AppLanguage.Norwegian -> "varighet"
-    AppLanguage.Portuguese -> "duração"
-    AppLanguage.Russian -> "длительность"
-    AppLanguage.Serbian -> "трајању"
-    AppLanguage.Slovak -> "dĺžky"
-    AppLanguage.Spanish -> "duración"
-    AppLanguage.Swedish -> "längd"
-    AppLanguage.Thai -> "ระยะเวลา"
-    AppLanguage.Ukrainian -> "тривалість"
-    AppLanguage.Bulgarian -> "продължителност"
-    AppLanguage.Catalan -> "durada"
-    AppLanguage.Finnish -> "kesto"
-    AppLanguage.Romanian -> "durată"
-    AppLanguage.Slovenian -> "trajanju"
-    AppLanguage.Bosnian -> "trajanju"
-    AppLanguage.Indonesian -> "durasi"
-    AppLanguage.Punjabi -> "ਮਿਆਦ"
-    AppLanguage.Polish -> "czasu trwania"
-    AppLanguage.ChineseSimplified -> "时长"
-    AppLanguage.Korean -> "길이"
-    AppLanguage.Malay -> "tempoh"
-    AppLanguage.Bengali -> "সময়কাল"
-    AppLanguage.Urdu -> "دورانیہ"
-    AppLanguage.English -> "duration"
+    AppLanguage.Albanian -> AlbanianTranslations.library_durationName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_durationName_1
+    AppLanguage.Czech -> CzechTranslations.library_durationName_1
+    AppLanguage.Danish -> DanishTranslations.library_durationName_1
+    AppLanguage.Dutch -> DutchTranslations.library_durationName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_durationName_1
+    AppLanguage.French -> FrenchTranslations.library_durationName_1
+    AppLanguage.German -> GermanTranslations.library_durationName_1
+    AppLanguage.Greek -> GreekTranslations.library_durationName_1
+    AppLanguage.Hindi -> HindiTranslations.library_durationName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_durationName_1
+    AppLanguage.Italian -> ItalianTranslations.library_durationName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_durationName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_durationName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_durationName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_durationName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_durationName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_durationName_1
+    AppLanguage.Russian -> RussianTranslations.library_durationName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_durationName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_durationName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_durationName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_durationName_1
+    AppLanguage.Thai -> ThaiTranslations.library_durationName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_durationName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_durationName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_durationName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_durationName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_durationName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_durationName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_durationName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_durationName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_durationName_1
+    AppLanguage.Polish -> PolishTranslations.library_durationName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_durationName_1
+    AppLanguage.Korean -> KoreanTranslations.library_durationName_1
+    AppLanguage.Malay -> MalayTranslations.library_durationName_1
+    AppLanguage.Bengali -> BengaliTranslations.library_durationName_1
+    AppLanguage.Urdu -> UrduTranslations.library_durationName_1
+    AppLanguage.English -> EnglishTranslations.library_durationName_1
 }
 
 private fun dateAddedName(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "datës së shtimit"
-    AppLanguage.Croatian -> "datumu dodavanja"
-    AppLanguage.Czech -> "data přidání"
-    AppLanguage.Danish -> "tilføjelsesdato"
-    AppLanguage.Dutch -> "toevoegdatum"
-    AppLanguage.Estonian -> "lisamiskuupäev"
-    AppLanguage.French -> "date d’ajout"
-    AppLanguage.German -> "Hinzugefügt am"
-    AppLanguage.Greek -> "ημερομηνία προσθήκης"
-    AppLanguage.Hindi -> "जोड़े जाने की तारीख"
-    AppLanguage.Hungarian -> "hozzáadás dátuma"
-    AppLanguage.Italian -> "data di aggiunta"
-    AppLanguage.Japanese -> "追加日"
-    AppLanguage.Latvian -> "pievienošanas datuma"
-    AppLanguage.Lithuanian -> "pridėjimo datą"
-    AppLanguage.Macedonian -> "датум на додавање"
-    AppLanguage.Norwegian -> "dato lagt til"
-    AppLanguage.Portuguese -> "data de adição"
-    AppLanguage.Russian -> "дата добавления"
-    AppLanguage.Serbian -> "датуму додавања"
-    AppLanguage.Slovak -> "dátumu pridania"
-    AppLanguage.Spanish -> "fecha de incorporación"
-    AppLanguage.Swedish -> "datum tillagt"
-    AppLanguage.Thai -> "วันที่เพิ่ม"
-    AppLanguage.Ukrainian -> "дата додавання"
-    AppLanguage.Bulgarian -> "дата на добавяне"
-    AppLanguage.Catalan -> "data d’addició"
-    AppLanguage.Finnish -> "lisäyspäivä"
-    AppLanguage.Romanian -> "data adăugării"
-    AppLanguage.Slovenian -> "datumu dodajanja"
-    AppLanguage.Bosnian -> "datumu dodavanja"
-    AppLanguage.Indonesian -> "tanggal ditambahkan"
-    AppLanguage.Punjabi -> "ਜੋੜਨ ਦੀ ਮਿਤੀ"
-    AppLanguage.Polish -> "daty dodania"
-    AppLanguage.ChineseSimplified -> "添加日期"
-    AppLanguage.Korean -> "추가 날짜"
-    AppLanguage.Malay -> "tarikh ditambah"
-    AppLanguage.Bengali -> "যোগ করার তারিখ"
-    AppLanguage.Urdu -> "شامل کرنے کی تاریخ"
-    AppLanguage.English -> "date added"
+    AppLanguage.Albanian -> AlbanianTranslations.library_dateAddedName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_dateAddedName_1
+    AppLanguage.Czech -> CzechTranslations.library_dateAddedName_1
+    AppLanguage.Danish -> DanishTranslations.library_dateAddedName_1
+    AppLanguage.Dutch -> DutchTranslations.library_dateAddedName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_dateAddedName_1
+    AppLanguage.French -> FrenchTranslations.library_dateAddedName_1
+    AppLanguage.German -> GermanTranslations.library_dateAddedName_1
+    AppLanguage.Greek -> GreekTranslations.library_dateAddedName_1
+    AppLanguage.Hindi -> HindiTranslations.library_dateAddedName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_dateAddedName_1
+    AppLanguage.Italian -> ItalianTranslations.library_dateAddedName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_dateAddedName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_dateAddedName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_dateAddedName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_dateAddedName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_dateAddedName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_dateAddedName_1
+    AppLanguage.Russian -> RussianTranslations.library_dateAddedName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_dateAddedName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_dateAddedName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_dateAddedName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_dateAddedName_1
+    AppLanguage.Thai -> ThaiTranslations.library_dateAddedName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_dateAddedName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_dateAddedName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_dateAddedName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_dateAddedName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_dateAddedName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_dateAddedName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_dateAddedName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_dateAddedName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_dateAddedName_1
+    AppLanguage.Polish -> PolishTranslations.library_dateAddedName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_dateAddedName_1
+    AppLanguage.Korean -> KoreanTranslations.library_dateAddedName_1
+    AppLanguage.Malay -> MalayTranslations.library_dateAddedName_1
+    AppLanguage.Bengali -> BengaliTranslations.library_dateAddedName_1
+    AppLanguage.Urdu -> UrduTranslations.library_dateAddedName_1
+    AppLanguage.English -> EnglishTranslations.library_dateAddedName_1
 }
 
 private fun playCountName(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "numrit të dëgjimeve"
-    AppLanguage.Croatian -> "broju reprodukcija"
-    AppLanguage.Czech -> "počtu přehrání"
-    AppLanguage.Danish -> "antal afspilninger"
-    AppLanguage.Dutch -> "aantal keer afgespeeld"
-    AppLanguage.Estonian -> "esituste arv"
-    AppLanguage.French -> "nombre d’écoutes"
-    AppLanguage.German -> "Wiedergaben"
-    AppLanguage.Greek -> "αριθμό αναπαραγωγών"
-    AppLanguage.Hindi -> "चलने की संख्या"
-    AppLanguage.Hungarian -> "lejátszások száma"
-    AppLanguage.Italian -> "numero di riproduzioni"
-    AppLanguage.Japanese -> "再生回数"
-    AppLanguage.Latvian -> "atskaņošanas skaita"
-    AppLanguage.Lithuanian -> "atkūrimų skaičių"
-    AppLanguage.Macedonian -> "број на репродукции"
-    AppLanguage.Norwegian -> "antall avspillinger"
-    AppLanguage.Portuguese -> "número de reproduções"
-    AppLanguage.Russian -> "число воспроизведений"
-    AppLanguage.Serbian -> "броју репродукција"
-    AppLanguage.Slovak -> "počtu prehratí"
-    AppLanguage.Spanish -> "número de reproducciones"
-    AppLanguage.Swedish -> "antal uppspelningar"
-    AppLanguage.Thai -> "จำนวนครั้งที่เล่น"
-    AppLanguage.Ukrainian -> "кількість відтворень"
-    AppLanguage.Bulgarian -> "брой възпроизвеждания"
-    AppLanguage.Catalan -> "nombre de reproduccions"
-    AppLanguage.Finnish -> "toistokerrat"
-    AppLanguage.Romanian -> "numărul de redări"
-    AppLanguage.Slovenian -> "številu predvajanj"
-    AppLanguage.Bosnian -> "broju reprodukcija"
-    AppLanguage.Indonesian -> "jumlah pemutaran"
-    AppLanguage.Punjabi -> "ਚਲਾਉਣ ਦੀ ਗਿਣਤੀ"
-    AppLanguage.Polish -> "liczby odtworzeń"
-    AppLanguage.ChineseSimplified -> "播放次数"
-    AppLanguage.Korean -> "재생 횟수"
-    AppLanguage.Malay -> "bilangan main"
-    AppLanguage.Bengali -> "চালানোর সংখ্যা"
-    AppLanguage.Urdu -> "چلانے کی تعداد"
-    AppLanguage.English -> "play count"
+    AppLanguage.Albanian -> AlbanianTranslations.library_playCountName_1
+    AppLanguage.Croatian -> CroatianTranslations.library_playCountName_1
+    AppLanguage.Czech -> CzechTranslations.library_playCountName_1
+    AppLanguage.Danish -> DanishTranslations.library_playCountName_1
+    AppLanguage.Dutch -> DutchTranslations.library_playCountName_1
+    AppLanguage.Estonian -> EstonianTranslations.library_playCountName_1
+    AppLanguage.French -> FrenchTranslations.library_playCountName_1
+    AppLanguage.German -> GermanTranslations.library_playCountName_1
+    AppLanguage.Greek -> GreekTranslations.library_playCountName_1
+    AppLanguage.Hindi -> HindiTranslations.library_playCountName_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_playCountName_1
+    AppLanguage.Italian -> ItalianTranslations.library_playCountName_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_playCountName_1
+    AppLanguage.Latvian -> LatvianTranslations.library_playCountName_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_playCountName_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_playCountName_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_playCountName_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_playCountName_1
+    AppLanguage.Russian -> RussianTranslations.library_playCountName_1
+    AppLanguage.Serbian -> SerbianTranslations.library_playCountName_1
+    AppLanguage.Slovak -> SlovakTranslations.library_playCountName_1
+    AppLanguage.Spanish -> SpanishTranslations.library_playCountName_1
+    AppLanguage.Swedish -> SwedishTranslations.library_playCountName_1
+    AppLanguage.Thai -> ThaiTranslations.library_playCountName_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_playCountName_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_playCountName_1
+    AppLanguage.Catalan -> CatalanTranslations.library_playCountName_1
+    AppLanguage.Finnish -> FinnishTranslations.library_playCountName_1
+    AppLanguage.Romanian -> RomanianTranslations.library_playCountName_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_playCountName_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_playCountName_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_playCountName_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_playCountName_1
+    AppLanguage.Polish -> PolishTranslations.library_playCountName_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_playCountName_1
+    AppLanguage.Korean -> KoreanTranslations.library_playCountName_1
+    AppLanguage.Malay -> MalayTranslations.library_playCountName_1
+    AppLanguage.Bengali -> BengaliTranslations.library_playCountName_1
+    AppLanguage.Urdu -> UrduTranslations.library_playCountName_1
+    AppLanguage.English -> EnglishTranslations.library_playCountName_1
 }
 
 private fun randomOrderLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Случаен ред"
-    AppLanguage.Catalan -> "Ordre aleatori"
-    AppLanguage.Finnish -> "Satunnainen järjestys"
-    AppLanguage.Romanian -> "Ordine aleatorie"
-    AppLanguage.Slovenian -> "Naključni vrstni red"
-    AppLanguage.Bosnian -> "Nasumičan redoslijed"
-    AppLanguage.Indonesian -> "Urutan acak"
-    AppLanguage.Punjabi -> "ਬੇਤਰਤੀਬ ਕ੍ਰਮ"
-    AppLanguage.Polish -> "Losowa kolejność"
-    AppLanguage.Albanian -> "Rend i rastësishëm"
-    AppLanguage.ChineseSimplified -> "随机顺序"
-    AppLanguage.Croatian -> "Nasumičan redoslijed"
-    AppLanguage.Czech -> "Náhodné pořadí"
-    AppLanguage.Danish -> "Tilfældig rækkefølge"
-    AppLanguage.Dutch -> "Willekeurige volgorde"
-    AppLanguage.Estonian -> "Juhuslik järjestus"
-    AppLanguage.French -> "Ordre aléatoire"
-    AppLanguage.German -> "Zufällige Reihenfolge"
-    AppLanguage.Greek -> "Τυχαία σειρά"
-    AppLanguage.Hindi -> "यादृच्छिक क्रम"
-    AppLanguage.Hungarian -> "Véletlen sorrend"
-    AppLanguage.Italian -> "Ordine casuale"
-    AppLanguage.Japanese -> "ランダム順"
-    AppLanguage.Latvian -> "Nejauša secība"
-    AppLanguage.Lithuanian -> "Atsitiktinė tvarka"
-    AppLanguage.Macedonian -> "Случаен редослед"
-    AppLanguage.Norwegian -> "Tilfeldig rekkefølge"
-    AppLanguage.Portuguese -> "Ordem aleatória"
-    AppLanguage.Russian -> "Случайный порядок"
-    AppLanguage.Serbian -> "Насумичан редослед"
-    AppLanguage.Spanish -> "Orden aleatorio"
-    AppLanguage.Swedish -> "Slumpmässig ordning"
-    AppLanguage.Thai -> "ลำดับแบบสุ่ม"
-    AppLanguage.Ukrainian -> "Випадковий порядок"
-    AppLanguage.Slovak -> "Náhodné poradie"
-    AppLanguage.Korean -> "무작위 순서"
-    AppLanguage.Malay -> "Susunan rawak"
-    AppLanguage.Bengali -> "এলোমেলো ক্রম"
-    AppLanguage.Urdu -> "بے ترتیب ترتیب"
-    AppLanguage.English -> "Random order"
+    AppLanguage.Bulgarian -> BulgarianTranslations.library_randomOrderLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.library_randomOrderLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.library_randomOrderLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.library_randomOrderLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.library_randomOrderLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.library_randomOrderLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.library_randomOrderLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.library_randomOrderLabel_1
+    AppLanguage.Polish -> PolishTranslations.library_randomOrderLabel_1
+    AppLanguage.Albanian -> AlbanianTranslations.library_randomOrderLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.library_randomOrderLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.library_randomOrderLabel_1
+    AppLanguage.Czech -> CzechTranslations.library_randomOrderLabel_1
+    AppLanguage.Danish -> DanishTranslations.library_randomOrderLabel_1
+    AppLanguage.Dutch -> DutchTranslations.library_randomOrderLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.library_randomOrderLabel_1
+    AppLanguage.French -> FrenchTranslations.library_randomOrderLabel_1
+    AppLanguage.German -> GermanTranslations.library_randomOrderLabel_1
+    AppLanguage.Greek -> GreekTranslations.library_randomOrderLabel_1
+    AppLanguage.Hindi -> HindiTranslations.library_randomOrderLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.library_randomOrderLabel_1
+    AppLanguage.Italian -> ItalianTranslations.library_randomOrderLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.library_randomOrderLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.library_randomOrderLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.library_randomOrderLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.library_randomOrderLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.library_randomOrderLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.library_randomOrderLabel_1
+    AppLanguage.Russian -> RussianTranslations.library_randomOrderLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.library_randomOrderLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.library_randomOrderLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.library_randomOrderLabel_1
+    AppLanguage.Thai -> ThaiTranslations.library_randomOrderLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.library_randomOrderLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.library_randomOrderLabel_1
+    AppLanguage.Korean -> KoreanTranslations.library_randomOrderLabel_1
+    AppLanguage.Malay -> MalayTranslations.library_randomOrderLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.library_randomOrderLabel_1
+    AppLanguage.Urdu -> UrduTranslations.library_randomOrderLabel_1
+    AppLanguage.English -> EnglishTranslations.library_randomOrderLabel_1
 }
 

@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import elovaire.music.droidbeauty.app.ui.i18n.*
+
 import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -86,134 +88,134 @@ internal fun moveHomeModule(order: List<HomeModule>, module: HomeModule, directi
 }
 
 internal fun homeLayoutTitle(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Оформление на началната страница"
-    AppLanguage.Catalan -> "Disseny de la pàgina inicial"
-    AppLanguage.Finnish -> "Etusivun asettelu"
-    AppLanguage.Romanian -> "Aspectul paginii principale"
-    AppLanguage.Slovenian -> "Postavitev domače strani"
-    AppLanguage.Bosnian -> "Raspored početne stranice"
-    AppLanguage.Indonesian -> "Tata letak halaman utama"
-    AppLanguage.Punjabi -> "ਮੁੱਖ ਪੰਨੇ ਦਾ ਖਾਕਾ"
-    AppLanguage.Albanian -> "Pamja e faqes kryesore"
-    AppLanguage.ChineseSimplified -> "首页布局"
-    AppLanguage.Croatian -> "Raspored početne stranice"
-    AppLanguage.Czech -> "Rozložení domovské stránky"
-    AppLanguage.Danish -> "Startsidens layout"
-    AppLanguage.Dutch -> "Indeling van startpagina"
-    AppLanguage.Bengali -> "হোম পৃষ্ঠার বিন্যাস"
-    AppLanguage.Estonian -> "Avalehe paigutus"
-    AppLanguage.Polish -> "Układ ekranu głównego"
-    AppLanguage.German -> "Startseitenlayout"
-    AppLanguage.French -> "Disposition de l’accueil"
-    AppLanguage.Spanish -> "Diseño de inicio"
-    AppLanguage.Greek -> "Διάταξη αρχικής σελίδας"
-    AppLanguage.Hindi -> "होम पेज का लेआउट"
-    AppLanguage.Hungarian -> "Kezdőlap elrendezése"
-    AppLanguage.Italian -> "Layout della pagina iniziale"
-    AppLanguage.Japanese -> "ホーム画面のレイアウト"
-    AppLanguage.Korean -> "홈 화면 레이아웃"
-    AppLanguage.Latvian -> "Sākumlapas izkārtojums"
-    AppLanguage.Lithuanian -> "Pradžios puslapio išdėstymas"
-    AppLanguage.Malay -> "Susun atur halaman utama"
-    AppLanguage.Macedonian -> "Распоред на почетната страница"
-    AppLanguage.Norwegian -> "Oppsett av startsiden"
-    AppLanguage.Portuguese -> "Esquema da página inicial"
-    AppLanguage.Russian -> "Расположение главного экрана"
-    AppLanguage.Slovak -> "Rozloženie domovskej stránky"
-    AppLanguage.Serbian -> "Распоред почетне странице"
-    AppLanguage.Swedish -> "Startsidelayout"
-    AppLanguage.Thai -> "การจัดวางหน้าหลัก"
-    AppLanguage.Ukrainian -> "Розташування головного екрана"
-    AppLanguage.Urdu -> "ہوم صفحے کی ترتیب"
-    AppLanguage.English -> "Home page layout"
+    AppLanguage.Bulgarian -> BulgarianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Catalan -> CatalanTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Finnish -> FinnishTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Romanian -> RomanianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Slovenian -> SlovenianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Bosnian -> BosnianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Indonesian -> IndonesianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Punjabi -> PunjabiTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Albanian -> AlbanianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Croatian -> CroatianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Czech -> CzechTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Danish -> DanishTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Dutch -> DutchTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Bengali -> BengaliTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Estonian -> EstonianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Polish -> PolishTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.German -> GermanTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.French -> FrenchTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Spanish -> SpanishTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Greek -> GreekTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Hindi -> HindiTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Hungarian -> HungarianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Italian -> ItalianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Japanese -> JapaneseTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Korean -> KoreanTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Latvian -> LatvianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Malay -> MalayTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Macedonian -> MacedonianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Norwegian -> NorwegianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Portuguese -> PortugueseTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Russian -> RussianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Slovak -> SlovakTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Serbian -> SerbianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Swedish -> SwedishTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Thai -> ThaiTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.Urdu -> UrduTranslations.homeLayoutScreen_homeLayoutTitle_1
+    AppLanguage.English -> EnglishTranslations.homeLayoutScreen_homeLayoutTitle_1
 }
 
 internal fun homeLayoutSubtitle(language: AppLanguage): String = when (language) {
-    AppLanguage.Bulgarian -> "Променете изгледа на началния екран"
-    AppLanguage.Catalan -> "Personalitza l’aspecte de la pantalla principal"
-    AppLanguage.Finnish -> "Mukauta aloitusnäytön ulkoasua"
-    AppLanguage.Romanian -> "Personalizează aspectul ecranului principal"
-    AppLanguage.Slovenian -> "Prilagodite videz začetnega zaslona"
-    AppLanguage.Bosnian -> "Prilagodite izgled početnog ekrana"
-    AppLanguage.Indonesian -> "Sesuaikan tampilan halaman utama"
-    AppLanguage.Punjabi -> "ਮੁੱਖ ਸਕ੍ਰੀਨ ਦੀ ਦਿੱਖ ਬਦਲੋ"
-    AppLanguage.Albanian -> "Përshtat pamjen e ekranit kryesor"
-    AppLanguage.ChineseSimplified -> "自定义主屏幕的外观"
-    AppLanguage.Croatian -> "Prilagodite izgled glavnog zaslona"
-    AppLanguage.Czech -> "Upravte vzhled hlavní obrazovky"
-    AppLanguage.Danish -> "Tilpas hovedskærmens udseende"
-    AppLanguage.Dutch -> "Pas de weergave van het hoofdscherm aan"
-    AppLanguage.Bengali -> "মূল পর্দার চেহারা সাজান"
-    AppLanguage.Estonian -> "Kohanda põhikuva välimust"
-    AppLanguage.Polish -> "Dostosuj wygląd ekranu głównego"
-    AppLanguage.German -> "Das Aussehen der Startseite anpassen"
-    AppLanguage.French -> "Personnaliser l’écran d’accueil"
-    AppLanguage.Spanish -> "Personaliza la pantalla de inicio"
-    AppLanguage.Greek -> "Προσαρμόστε την εμφάνιση της κύριας οθόνης"
-    AppLanguage.Hindi -> "मुख्य स्क्रीन का रूप बदलें"
-    AppLanguage.Hungarian -> "A főképernyő megjelenésének testreszabása"
-    AppLanguage.Italian -> "Personalizza l’aspetto della schermata principale"
-    AppLanguage.Japanese -> "メイン画面の表示をカスタマイズ"
-    AppLanguage.Korean -> "메인 화면의 모습을 설정합니다"
-    AppLanguage.Latvian -> "Pielāgojiet galvenā ekrāna izskatu"
-    AppLanguage.Lithuanian -> "Tinkinkite pagrindinio ekrano išvaizdą"
-    AppLanguage.Malay -> "Sesuaikan rupa skrin utama"
-    AppLanguage.Macedonian -> "Приспособете го изгледот на главниот екран"
-    AppLanguage.Norwegian -> "Tilpass utseendet på hovedskjermen"
-    AppLanguage.Portuguese -> "Personalize o aspeto do ecrã principal"
-    AppLanguage.Russian -> "Настройте вид главного экрана"
-    AppLanguage.Slovak -> "Upravte vzhľad hlavnej obrazovky"
-    AppLanguage.Serbian -> "Прилагодите изглед главног екрана"
-    AppLanguage.Swedish -> "Anpassa huvudskärmens utseende"
-    AppLanguage.Thai -> "ปรับแต่งรูปลักษณ์ของหน้าจอหลัก"
-    AppLanguage.Ukrainian -> "Налаштуйте вигляд головного екрана"
-    AppLanguage.Urdu -> "مرکزی اسکرین کی شکل حسبِ ضرورت بنائیں"
-    AppLanguage.English -> "Adjust how the main screen looks"
+    AppLanguage.Bulgarian -> BulgarianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Catalan -> CatalanTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Finnish -> FinnishTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Romanian -> RomanianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Slovenian -> SlovenianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Bosnian -> BosnianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Indonesian -> IndonesianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Punjabi -> PunjabiTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Albanian -> AlbanianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Croatian -> CroatianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Czech -> CzechTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Danish -> DanishTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Dutch -> DutchTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Bengali -> BengaliTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Estonian -> EstonianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Polish -> PolishTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.German -> GermanTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.French -> FrenchTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Spanish -> SpanishTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Greek -> GreekTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Hindi -> HindiTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Hungarian -> HungarianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Italian -> ItalianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Japanese -> JapaneseTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Korean -> KoreanTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Latvian -> LatvianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Malay -> MalayTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Macedonian -> MacedonianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Norwegian -> NorwegianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Portuguese -> PortugueseTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Russian -> RussianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Slovak -> SlovakTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Serbian -> SerbianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Swedish -> SwedishTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Thai -> ThaiTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.Urdu -> UrduTranslations.homeLayoutScreen_homeLayoutSubtitle_1
+    AppLanguage.English -> EnglishTranslations.homeLayoutScreen_homeLayoutSubtitle_1
 }
 
 internal data class HomeLayoutEditorCopy(val hint: String, val lastPlayed: String, val fixed: String, val up: String, val down: String, val reorder: String)
 
 internal fun homeLayoutEditorCopy(language: AppLanguage): HomeLayoutEditorCopy = when (language) {
-    AppLanguage.Estonian -> HomeLayoutEditorCopy("Hoia jaotist all ja lohista selle järjestuse muutmiseks", "Viimati esitatud", "Fikseeritud asukoht", "Liiguta üles", "Liiguta alla", "Muuda järjestust")
-    AppLanguage.Greek -> HomeLayoutEditorCopy("Κρατήστε πατημένη μια ενότητα και σύρετέ την για αλλαγή σειράς", "Τελευταία αναπαραγωγή", "Σταθερή θέση", "Μετακίνηση πάνω", "Μετακίνηση κάτω", "Αλλαγή σειράς")
-    AppLanguage.Hindi -> HomeLayoutEditorCopy("क्रम बदलने के लिए किसी अनुभाग को दबाकर खींचें", "पिछली बार चलाया गया", "निश्चित स्थान", "ऊपर ले जाएँ", "नीचे ले जाएँ", "क्रम बदलें")
-    AppLanguage.Hungarian -> HomeLayoutEditorCopy("Tarts lenyomva egy szakaszt, majd húzd a kívánt helyre", "Legutóbb lejátszott", "Rögzített hely", "Mozgatás fel", "Mozgatás le", "Sorrend módosítása")
-    AppLanguage.Latvian -> HomeLayoutEditorCopy("Turi sadaļu un velc to, lai mainītu secību", "Pēdējoreiz atskaņotais", "Fiksēta pozīcija", "Pārvietot augšup", "Pārvietot lejup", "Mainīt secību")
-    AppLanguage.Lithuanian -> HomeLayoutEditorCopy("Palaikykite skiltį ir vilkite, kad pakeistumėte jos vietą", "Paskutinį kartą leista", "Fiksuota vieta", "Perkelti aukštyn", "Perkelti žemyn", "Keisti tvarką")
-    AppLanguage.Malay -> HomeLayoutEditorCopy("Sentuh dan tahan bahagian, kemudian seret untuk mengubah susunan", "Terakhir dimainkan", "Kedudukan tetap", "Alih ke atas", "Alih ke bawah", "Susun semula")
-    AppLanguage.Macedonian -> HomeLayoutEditorCopy("Задржете дел и повлечете го за да го промените редоследот", "Последно пуштено", "Фиксна положба", "Помести нагоре", "Помести надолу", "Промени редослед")
-    AppLanguage.Thai -> HomeLayoutEditorCopy("แตะส่วนค้างไว้แล้วลากเพื่อเปลี่ยนลำดับ", "เล่นล่าสุด", "ตำแหน่งคงที่", "เลื่อนขึ้น", "เลื่อนลง", "จัดลำดับใหม่")
-    AppLanguage.ChineseSimplified -> HomeLayoutEditorCopy("长按并拖动模块以调整顺序", "上次播放", "固定位置", "上移", "下移", "调整顺序")
-    AppLanguage.Czech -> HomeLayoutEditorCopy("Podržte část a přetažením změňte její pořadí", "Naposledy přehrané", "Pevná pozice", "Přesunout nahoru", "Přesunout dolů", "Změnit pořadí")
-    AppLanguage.Danish -> HomeLayoutEditorCopy("Hold et afsnit nede, og træk det for at ændre rækkefølgen", "Senest afspillet", "Fast placering", "Flyt op", "Flyt ned", "Omarranger")
-    AppLanguage.Dutch -> HomeLayoutEditorCopy("Houd een onderdeel vast en sleep om de volgorde te wijzigen", "Laatst afgespeeld", "Vaste positie", "Omhoog", "Omlaag", "Volgorde wijzigen")
-    AppLanguage.Italian -> HomeLayoutEditorCopy("Tieni premuta una sezione e trascinala per riordinarla", "Ultima riproduzione", "Posizione fissa", "Sposta su", "Sposta giù", "Riordina")
-    AppLanguage.Japanese -> HomeLayoutEditorCopy("セクションを長押ししてドラッグすると並べ替えられます", "最後に再生", "固定位置", "上へ移動", "下へ移動", "並べ替え")
-    AppLanguage.Korean -> HomeLayoutEditorCopy("항목을 길게 누른 뒤 드래그하여 순서를 바꾸세요", "최근 재생", "고정 위치", "위로 이동", "아래로 이동", "순서 변경")
-    AppLanguage.Norwegian -> HomeLayoutEditorCopy("Hold på en seksjon og dra den for å endre rekkefølgen", "Sist spilt", "Fast plassering", "Flytt opp", "Flytt ned", "Endre rekkefølge")
-    AppLanguage.Portuguese -> HomeLayoutEditorCopy("Mantenha uma secção premida e arraste-a para alterar a ordem", "Última reprodução", "Posição fixa", "Mover para cima", "Mover para baixo", "Reordenar")
-    AppLanguage.Russian -> HomeLayoutEditorCopy("Удерживайте раздел и перетащите его, чтобы изменить порядок", "Последнее воспроизведение", "Закреплённая позиция", "Переместить вверх", "Переместить вниз", "Изменить порядок")
-    AppLanguage.Slovak -> HomeLayoutEditorCopy("Podržte sekciu a presunutím zmeňte jej poradie", "Naposledy prehrané", "Pevná pozícia", "Presunúť nahor", "Presunúť nadol", "Zmeniť poradie")
-    AppLanguage.Swedish -> HomeLayoutEditorCopy("Håll ned en sektion och dra den för att ändra ordningen", "Senast spelat", "Fast position", "Flytta upp", "Flytta ned", "Ändra ordning")
-    AppLanguage.Ukrainian -> HomeLayoutEditorCopy("Утримуйте розділ і перетягніть його, щоб змінити порядок", "Востаннє відтворено", "Фіксована позиція", "Перемістити вгору", "Перемістити вниз", "Змінити порядок")
-    AppLanguage.Bulgarian -> HomeLayoutEditorCopy("Задръжте и плъзнете раздел, за да го преместите", "Последно възпроизведено", "Фиксирана позиция", "Премести нагоре", "Премести надолу", "Промени реда")
-    AppLanguage.Catalan -> HomeLayoutEditorCopy("Mantén premuda una secció i arrossega-la per reordenar-la", "Última reproducció", "Posició fixa", "Mou amunt", "Mou avall", "Reordena")
-    AppLanguage.Finnish -> HomeLayoutEditorCopy("Pidä osiota painettuna ja järjestä se vetämällä", "Viimeksi soitettu", "Kiinteä sijainti", "Siirrä ylös", "Siirrä alas", "Järjestä")
-    AppLanguage.Romanian -> HomeLayoutEditorCopy("Ține apăsată o secțiune și trage-o pentru a o muta", "Redat ultima dată", "Poziție fixă", "Mută în sus", "Mută în jos", "Reordonează")
-    AppLanguage.Slovenian -> HomeLayoutEditorCopy("Pridržite razdelek in ga povlecite na drugo mesto", "Nazadnje predvajano", "Fiksen položaj", "Premakni navzgor", "Premakni navzdol", "Spremeni vrstni red")
-    AppLanguage.Albanian -> HomeLayoutEditorCopy("Mbaje shtypur një seksion dhe tërhiqe për ta zhvendosur", "Dëgjuar së fundi", "Pozicion i fiksuar", "Zhvendos lart", "Zhvendos poshtë", "Rendit")
-    AppLanguage.Bengali -> HomeLayoutEditorCopy("ক্রম বদলাতে একটি অংশ চেপে ধরে টেনে নিন", "সর্বশেষ চালানো", "স্থির অবস্থান", "উপরে সরান", "নিচে সরান", "ক্রম বদলান")
-    AppLanguage.Croatian -> HomeLayoutEditorCopy("Pritisnite i zadržite odjeljak pa ga povucite na novo mjesto", "Posljednje reproducirano", "Fiksni položaj", "Premjesti gore", "Premjesti dolje", "Promijeni redoslijed")
-    AppLanguage.Serbian -> HomeLayoutEditorCopy("Притисните и задржите одељак, па га превуците на ново место", "Последње пуштено", "Фиксни положај", "Помери горе", "Помери доле", "Промени редослед")
-    AppLanguage.Urdu -> HomeLayoutEditorCopy("ترتیب بدلنے کے لیے حصے کو دبائے رکھیں اور کھینچیں", "آخری بار چلایا گیا", "مقررہ جگہ", "اوپر لے جائیں", "نیچے لے جائیں", "ترتیب بدلیں")
-    AppLanguage.Bosnian -> HomeLayoutEditorCopy("Zadržite i povucite odjeljak da mu promijenite položaj", "Zadnje slušano", "Fiksna pozicija", "Pomjeri gore", "Pomjeri dolje", "Promijeni redoslijed")
-    AppLanguage.Indonesian -> HomeLayoutEditorCopy("Sentuh dan tahan bagian, lalu geser untuk mengurutkannya", "Terakhir diputar", "Posisi tetap", "Pindah ke atas", "Pindah ke bawah", "Ubah urutan")
-    AppLanguage.Punjabi -> HomeLayoutEditorCopy("ਕ੍ਰਮ ਬਦਲਣ ਲਈ ਭਾਗ ਨੂੰ ਦਬਾਈ ਰੱਖ ਕੇ ਖਿੱਚੋ", "ਪਿਛਲੀ ਵਾਰ ਚਲਾਇਆ", "ਪੱਕੀ ਥਾਂ", "ਉੱਪਰ ਲਿਜਾਓ", "ਹੇਠਾਂ ਲਿਜਾਓ", "ਕ੍ਰਮ ਬਦਲੋ")
-    AppLanguage.Polish -> HomeLayoutEditorCopy("Przytrzymaj sekcję i przeciągnij, aby zmienić jej położenie", "Ostatni album lub playlista", "Stała pozycja", "Przenieś w górę", "Przenieś w dół", "Zmień położenie")
-    AppLanguage.German -> HomeLayoutEditorCopy("Halte einen Abschnitt gedrückt und ziehe ihn an eine neue Position", "Letztes Album oder letzte Playlist", "Feste Position", "Nach oben", "Nach unten", "Anordnen")
-    AppLanguage.French -> HomeLayoutEditorCopy("Maintenez une section puis faites-la glisser pour la déplacer", "Dernière lecture", "Position fixe", "Monter", "Descendre", "Déplacer")
-    AppLanguage.Spanish -> HomeLayoutEditorCopy("Mantén pulsada una sección y arrástrala para cambiar su orden", "Última reproducción", "Posición fija", "Subir", "Bajar", "Mover")
-    AppLanguage.English -> HomeLayoutEditorCopy("Touch and hold a section, then drag to reorder it", "Last played", "Fixed position", "Move up", "Move down", "Reorder")
+    AppLanguage.Estonian -> EstonianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Greek -> GreekTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Hindi -> HindiTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Malay -> MalayTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Thai -> ThaiTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Czech -> CzechTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Danish -> DanishTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Dutch -> DutchTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Italian -> ItalianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Korean -> KoreanTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Russian -> RussianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Albanian -> AlbanianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Urdu -> UrduTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Polish -> PolishTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.German -> GermanTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.French -> FrenchTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
+    AppLanguage.English -> EnglishTranslations.homeLayoutScreen_homeLayoutEditorCopy_1
 }
 
 @Composable

@@ -5,134 +5,134 @@ import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 internal fun localizedResourceTitle(title: String, language: AppLanguage): String {
     if (title != "Lucide icons" && title != "Geist font") return title
     val (icons, font) = when (language) {
-        AppLanguage.Albanian -> "Ikonat Lucide" to "Shkronjat Geist"
-        AppLanguage.Bengali -> "Lucide আইকন" to "Geist ফন্ট"
-        AppLanguage.Bosnian -> "Lucide ikone" to "Geist font"
-        AppLanguage.Bulgarian -> "Икони Lucide" to "Шрифт Geist"
-        AppLanguage.Catalan -> "Icones Lucide" to "Tipografia Geist"
-        AppLanguage.ChineseSimplified -> "Lucide 图标" to "Geist 字体"
-        AppLanguage.Croatian -> "Lucide ikone" to "Pismo Geist"
-        AppLanguage.Czech -> "Ikony Lucide" to "Písmo Geist"
-        AppLanguage.Danish -> "Lucide-ikoner" to "Geist-skrifttype"
-        AppLanguage.Dutch -> "Lucide-pictogrammen" to "Geist-lettertype"
-        AppLanguage.English -> "Lucide icons" to "Geist font"
-        AppLanguage.Estonian -> "Lucide ikoonid" to "Geisti kirjatüüp"
-        AppLanguage.Finnish -> "Lucide-kuvakkeet" to "Geist-kirjasin"
-        AppLanguage.French -> "Icônes Lucide" to "Police Geist"
-        AppLanguage.German -> "Lucide-Symbole" to "Geist-Schriftart"
-        AppLanguage.Greek -> "Εικονίδια Lucide" to "Γραμματοσειρά Geist"
-        AppLanguage.Hindi -> "Lucide आइकन" to "Geist फ़ॉन्ट"
-        AppLanguage.Hungarian -> "Lucide-ikonok" to "Geist-betűtípus"
-        AppLanguage.Indonesian -> "Ikon Lucide" to "Font Geist"
-        AppLanguage.Italian -> "Icone Lucide" to "Carattere Geist"
-        AppLanguage.Japanese -> "Lucide アイコン" to "Geist フォント"
-        AppLanguage.Korean -> "Lucide 아이콘" to "Geist 글꼴"
-        AppLanguage.Latvian -> "Lucide ikonas" to "Geist fonts"
-        AppLanguage.Lithuanian -> "Lucide piktogramos" to "Geist šriftas"
-        AppLanguage.Macedonian -> "Икони Lucide" to "Фонт Geist"
-        AppLanguage.Malay -> "Ikon Lucide" to "Fon Geist"
-        AppLanguage.Norwegian -> "Lucide-ikoner" to "Geist-skrifttype"
-        AppLanguage.Polish -> "Ikony Lucide" to "Krój pisma Geist"
-        AppLanguage.Portuguese -> "Ícones Lucide" to "Tipo de letra Geist"
-        AppLanguage.Punjabi -> "Lucide ਆਈਕਨ" to "Geist ਫੌਂਟ"
-        AppLanguage.Romanian -> "Pictograme Lucide" to "Fontul Geist"
-        AppLanguage.Russian -> "Иконки Lucide" to "Шрифт Geist"
-        AppLanguage.Serbian -> "Иконе Lucide" to "Фонт Geist"
-        AppLanguage.Slovak -> "Ikony Lucide" to "Písmo Geist"
-        AppLanguage.Slovenian -> "Ikone Lucide" to "Pisava Geist"
-        AppLanguage.Spanish -> "Iconos Lucide" to "Tipografía Geist"
-        AppLanguage.Swedish -> "Lucide-ikoner" to "Typsnittet Geist"
-        AppLanguage.Thai -> "ไอคอน Lucide" to "แบบอักษร Geist"
-        AppLanguage.Ukrainian -> "Іконки Lucide" to "Шрифт Geist"
-        AppLanguage.Urdu -> "Lucide آئیکنز" to "Geist فونٹ"
+        AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to AlbanianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_localizedResourceTitle_variant_1 to BengaliTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to BosnianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to BulgarianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_localizedResourceTitle_variant_1 to CatalanTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_localizedResourceTitle_variant_1 to ChineseSimplifiedTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to CroatianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Czech -> CzechTranslations.aboutUpdate_localizedResourceTitle_variant_1 to CzechTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Danish -> DanishTranslations.aboutUpdate_localizedResourceTitle_variant_1 to DanishTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Dutch -> DutchTranslations.aboutUpdate_localizedResourceTitle_variant_1 to DutchTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.English -> EnglishTranslations.aboutUpdate_localizedResourceTitle_variant_1 to EnglishTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to EstonianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_localizedResourceTitle_variant_1 to FinnishTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.French -> FrenchTranslations.aboutUpdate_localizedResourceTitle_variant_1 to FrenchTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.German -> GermanTranslations.aboutUpdate_localizedResourceTitle_variant_1 to GermanTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Greek -> GreekTranslations.aboutUpdate_localizedResourceTitle_variant_1 to GreekTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Hindi -> HindiTranslations.aboutUpdate_localizedResourceTitle_variant_1 to HindiTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to HungarianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to IndonesianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Italian -> ItalianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to ItalianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_localizedResourceTitle_variant_1 to JapaneseTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Korean -> KoreanTranslations.aboutUpdate_localizedResourceTitle_variant_1 to KoreanTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to LatvianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to LithuanianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to MacedonianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Malay -> MalayTranslations.aboutUpdate_localizedResourceTitle_variant_1 to MalayTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to NorwegianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Polish -> PolishTranslations.aboutUpdate_localizedResourceTitle_variant_1 to PolishTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_localizedResourceTitle_variant_1 to PortugueseTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_localizedResourceTitle_variant_1 to PunjabiTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to RomanianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Russian -> RussianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to RussianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to SerbianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_localizedResourceTitle_variant_1 to SlovakTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to SlovenianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_localizedResourceTitle_variant_1 to SpanishTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_localizedResourceTitle_variant_1 to SwedishTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Thai -> ThaiTranslations.aboutUpdate_localizedResourceTitle_variant_1 to ThaiTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_localizedResourceTitle_variant_1 to UkrainianTranslations.aboutUpdate_localizedResourceTitle_variant_2
+        AppLanguage.Urdu -> UrduTranslations.aboutUpdate_localizedResourceTitle_variant_1 to UrduTranslations.aboutUpdate_localizedResourceTitle_variant_2
     }
     return if (title == "Lucide icons") icons else font
 }
 
 internal fun droidBeautyDescription(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Miniaplikacione dhe tema të kuruara për ta zbukuruar ekranin kryesor të Android. Jam gjithashtu krijuesi i këtij luajtësi muzikor që po përdor tani"
-    AppLanguage.Bengali -> "Android-এর হোম স্ক্রিন সুন্দর করার জন্য যত্ন নিয়ে তৈরি উইজেট ও থিম। আপনি এখন যে মিউজিক প্লেয়ারটি ব্যবহার করছেন, সেটিও আমার তৈরি"
-    AppLanguage.Bosnian -> "Pažljivo dizajnirani widgeti i teme za ljepši Android početni ekran. Također sam autor ovog muzičkog plejera koji upravo koristite"
-    AppLanguage.Bulgarian -> "Красиво създадени джаджи и теми за впечатляващ начален екран на Android. Аз съм и създателят на музикалния плейър, който използвате сега"
-    AppLanguage.Catalan -> "Ginys i temes dissenyats amb cura per embellir la pantalla d’inici d’Android. També soc el creador del reproductor de música que fas servir ara mateix"
-    AppLanguage.ChineseSimplified -> "精心设计的 Android 小组件和主题，让你的主屏幕更加出色。我也是你正在使用的这款音乐播放器的开发者"
-    AppLanguage.Croatian -> "Pažljivo dizajnirani widgeti i teme za ljepši početni zaslon Androida. Također sam autor ovog glazbenog reproduktora koji upravo koristite"
-    AppLanguage.Czech -> "Pečlivě navržené widgety a motivy pro krásnější domovskou obrazovku Androidu. Jsem také tvůrcem hudebního přehrávače, který právě používáte"
-    AppLanguage.Danish -> "Smukt designede widgets og temaer til en flottere Android-startskærm. Jeg har også skabt den musikafspiller, du bruger lige nu"
-    AppLanguage.Dutch -> "Fraai ontworpen widgets en thema’s voor een prachtig Android-startscherm. Ik ben ook de maker van de muziekspeler die je nu gebruikt"
-    AppLanguage.English -> "Beautifully designed Android widgets and themes to make your home screen stand out. I also created the music player you’re using right now"
-    AppLanguage.Estonian -> "Kaunilt kujundatud vidinad ja teemad Androidi avakuva ilmestamiseks. Olen ka selle muusikapleieri looja, mida praegu kasutad"
-    AppLanguage.Finnish -> "Kauniisti suunniteltuja widgettejä ja teemoja Androidin aloitusnäytön piristämiseen. Olen myös tämän käyttämäsi musiikkisoittimen kehittäjä"
-    AppLanguage.French -> "Des widgets et des thèmes soignés pour embellir votre écran d’accueil Android. Je suis aussi le créateur du lecteur musical que vous utilisez actuellement"
-    AppLanguage.German -> "Schön gestaltete Widgets und Designs für einen beeindruckenden Android-Startbildschirm. Ich habe auch den Musikplayer entwickelt, den du gerade verwendest"
-    AppLanguage.Greek -> "Καλαίσθητα γραφικά στοιχεία και θέματα για μια εντυπωσιακή αρχική οθόνη Android. Είμαι επίσης ο δημιουργός του προγράμματος μουσικής που χρησιμοποιείτε τώρα"
-    AppLanguage.Hindi -> "Android की होम स्क्रीन को खूबसूरत बनाने के लिए आकर्षक विजेट और थीम। आप अभी जिस म्यूज़िक प्लेयर का उपयोग कर रहे हैं, उसे भी मैंने बनाया है"
-    AppLanguage.Hungarian -> "Gondosan tervezett widgetek és témák a szebb Android-kezdőképernyőért. A most használt zenelejátszót is én készítettem"
-    AppLanguage.Indonesian -> "Widget dan tema yang dirancang dengan indah untuk mempercantik layar utama Android. Saya juga pembuat pemutar musik yang sedang Anda gunakan"
-    AppLanguage.Italian -> "Widget e temi dal design curato per rendere splendida la schermata Home di Android. Sono anche il creatore del lettore musicale che stai usando"
-    AppLanguage.Japanese -> "Android のホーム画面を美しく彩る、丁寧にデザインされたウィジェットとテーマ。今お使いの音楽プレーヤーも私が制作しました"
-    AppLanguage.Korean -> "Android 홈 화면을 아름답게 꾸며 주는 세심하게 디자인된 위젯과 테마. 지금 사용 중인 음악 플레이어도 제가 만들었습니다"
-    AppLanguage.Latvian -> "Gaumīgi veidoti logrīki un motīvi skaistākam Android sākuma ekrānam. Esmu arī šī mūzikas atskaņotāja veidotājs, kuru pašlaik lietojat"
-    AppLanguage.Lithuanian -> "Kruopščiai sukurti valdikliai ir temos gražesniam „Android“ pradžios ekranui. Taip pat sukūriau šį dabar naudojamą muzikos grotuvą"
-    AppLanguage.Macedonian -> "Внимателно дизајнирани виџети и теми за поубав почетен екран на Android. Јас сум и креаторот на музичкиот плеер што го користите сега"
-    AppLanguage.Malay -> "Widget dan tema yang direka dengan indah untuk mencantikkan skrin utama Android. Saya juga pencipta pemain muzik yang sedang anda gunakan"
-    AppLanguage.Norwegian -> "Flott utformede widgeter og temaer for en vakrere Android-startskjerm. Jeg har også laget musikkspilleren du bruker nå"
-    AppLanguage.Polish -> "Dopracowane widżety i motywy, które upiększą ekran główny Androida. Jestem również twórcą odtwarzacza muzyki, z którego teraz korzystasz"
-    AppLanguage.Portuguese -> "Widgets e temas cuidadosamente desenhados para embelezar o ecrã inicial do Android. Também sou o criador do leitor de música que está a usar agora"
-    AppLanguage.Punjabi -> "Android ਦੀ ਹੋਮ ਸਕ੍ਰੀਨ ਨੂੰ ਖੂਬਸੂਰਤ ਬਣਾਉਣ ਲਈ ਸੁੰਦਰ ਵਿਜਟ ਅਤੇ ਥੀਮ। ਮੈਂ ਇਸ ਮਿਊਜ਼ਿਕ ਪਲੇਅਰ ਦਾ ਸਿਰਜਣਹਾਰ ਵੀ ਹਾਂ ਜੋ ਤੁਸੀਂ ਹੁਣ ਵਰਤ ਰਹੇ ਹੋ"
-    AppLanguage.Romanian -> "Widgeturi și teme atent concepute pentru un ecran principal Android mai frumos. Sunt și creatorul playerului muzical pe care îl folosești acum"
-    AppLanguage.Russian -> "Красиво оформленные виджеты и темы для эффектного домашнего экрана Android. Я также создатель музыкального проигрывателя, которым вы сейчас пользуетесь"
-    AppLanguage.Serbian -> "Пажљиво дизајнирани виџети и теме за лепши почетни екран Android-а. Такође сам аутор музичког плејера који управо користите"
-    AppLanguage.Slovak -> "Starostlivo navrhnuté widgety a motívy pre krajšiu domovskú obrazovku Androidu. Som aj tvorcom hudobného prehrávača, ktorý práve používate"
-    AppLanguage.Slovenian -> "Skrbno oblikovani pripomočki in teme za lepši domači zaslon Androida. Sem tudi ustvarjalec predvajalnika glasbe, ki ga pravkar uporabljate"
-    AppLanguage.Spanish -> "Widgets y temas cuidadosamente diseñados para embellecer la pantalla de inicio de Android. También soy el creador del reproductor de música que estás usando ahora"
-    AppLanguage.Swedish -> "Vackert utformade widgetar och teman för en snyggare Android-startskärm. Jag har också skapat musikspelaren som du använder just nu"
-    AppLanguage.Thai -> "วิดเจ็ตและธีมที่ออกแบบอย่างสวยงามเพื่อให้หน้าจอหลัก Android โดดเด่นยิ่งขึ้น ฉันยังเป็นผู้สร้างแอปเล่นเพลงที่คุณกำลังใช้อยู่"
-    AppLanguage.Ukrainian -> "Ретельно оформлені віджети й теми для красивішого головного екрана Android. Я також створив музичний програвач, яким ви зараз користуєтеся"
-    AppLanguage.Urdu -> "Android کی ہوم اسکرین کو خوبصورت بنانے کے لیے نفاست سے تیار کردہ وجیٹس اور تھیمز۔ میں اس میوزک پلیئر کا بھی خالق ہوں جو آپ ابھی استعمال کر رہے ہیں"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_droidBeautyDescription_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_droidBeautyDescription_1
 }
 
 internal fun bundledLicensesLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Tekstet e plota të licencave përfshihen në aplikacion"
-    AppLanguage.Bengali -> "লাইসেন্সের সম্পূর্ণ পাঠ অ্যাপের সঙ্গে অন্তর্ভুক্ত আছে"
-    AppLanguage.Bosnian -> "Puni tekstovi licenci uključeni su u aplikaciju"
-    AppLanguage.Bulgarian -> "Пълните текстове на лицензите са включени в приложението"
-    AppLanguage.Catalan -> "Els textos complets de les llicències s’inclouen a l’aplicació"
-    AppLanguage.ChineseSimplified -> "应用内附有完整的许可证文本"
-    AppLanguage.Croatian -> "Puni tekstovi licenci uključeni su u aplikaciju"
-    AppLanguage.Czech -> "Úplná znění licencí jsou součástí aplikace"
-    AppLanguage.Danish -> "De fulde licenstekster følger med appen"
-    AppLanguage.Dutch -> "De volledige licentieteksten zijn in de app opgenomen"
-    AppLanguage.English -> "Full license texts are bundled with the app"
-    AppLanguage.Estonian -> "Litsentside täistekstid on rakendusega kaasas"
-    AppLanguage.Finnish -> "Lisenssien koko tekstit sisältyvät sovellukseen"
-    AppLanguage.French -> "Les textes complets des licences sont inclus dans l’application"
-    AppLanguage.German -> "Die vollständigen Lizenztexte sind in der App enthalten"
-    AppLanguage.Greek -> "Τα πλήρη κείμενα των αδειών περιλαμβάνονται στην εφαρμογή"
-    AppLanguage.Hindi -> "लाइसेंस के पूरे पाठ ऐप में शामिल हैं"
-    AppLanguage.Hungarian -> "A licencek teljes szövege megtalálható az alkalmazásban"
-    AppLanguage.Indonesian -> "Teks lengkap lisensi disertakan dalam aplikasi"
-    AppLanguage.Italian -> "I testi completi delle licenze sono inclusi nell’app"
-    AppLanguage.Japanese -> "ライセンスの全文はアプリに含まれています"
-    AppLanguage.Korean -> "전체 라이선스 문서는 앱에 포함되어 있습니다"
-    AppLanguage.Latvian -> "Pilni licenču teksti ir iekļauti lietotnē"
-    AppLanguage.Lithuanian -> "Visi licencijų tekstai pateikti programėlėje"
-    AppLanguage.Macedonian -> "Целосните текстови на лиценците се вклучени во апликацијата"
-    AppLanguage.Malay -> "Teks penuh lesen disertakan dalam aplikasi"
-    AppLanguage.Norwegian -> "De fullstendige lisenstekstene følger med appen"
-    AppLanguage.Polish -> "Pełne teksty licencji są dołączone do aplikacji"
-    AppLanguage.Portuguese -> "Os textos completos das licenças estão incluídos na aplicação"
-    AppLanguage.Punjabi -> "ਲਾਇਸੈਂਸਾਂ ਦੇ ਪੂਰੇ ਪਾਠ ਐਪ ਵਿੱਚ ਸ਼ਾਮਲ ਹਨ"
-    AppLanguage.Romanian -> "Textele complete ale licențelor sunt incluse în aplicație"
-    AppLanguage.Russian -> "Полные тексты лицензий включены в приложение"
-    AppLanguage.Serbian -> "Пуни текстови лиценци укључени су у апликацију"
-    AppLanguage.Slovak -> "Úplné znenia licencií sú súčasťou aplikácie"
-    AppLanguage.Slovenian -> "Celotna besedila licenc so priložena aplikaciji"
-    AppLanguage.Spanish -> "Los textos completos de las licencias se incluyen en la aplicación"
-    AppLanguage.Swedish -> "De fullständiga licenstexterna ingår i appen"
-    AppLanguage.Thai -> "มีข้อความใบอนุญาตฉบับเต็มรวมอยู่ในแอป"
-    AppLanguage.Ukrainian -> "Повні тексти ліцензій включено до застосунку"
-    AppLanguage.Urdu -> "لائسنس کے مکمل متن ایپ میں شامل ہیں"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_bundledLicensesLabel_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_bundledLicensesLabel_1
 }
 
 internal fun localizedUpdateError(message: String, language: AppLanguage): String {
@@ -159,950 +159,950 @@ internal fun localizedUpdateError(message: String, language: AppLanguage): Strin
     if (message == "Downloaded update is signed by an unknown certificate") return updateUnknownCertificate(language)
     if (message != "The update was not installed") return message
     return when (language) {
-        AppLanguage.Albanian -> "Përditësimi nuk u instalua"
-        AppLanguage.Bengali -> "আপডেট ইনস্টল করা হয়নি"
-        AppLanguage.Bosnian -> "Ažuriranje nije instalirano"
-        AppLanguage.Bulgarian -> "Актуализацията не е инсталирана"
-        AppLanguage.Catalan -> "L’actualització no s’ha instal·lat"
-        AppLanguage.ChineseSimplified -> "更新未安装"
-        AppLanguage.Croatian -> "Ažuriranje nije instalirano"
-        AppLanguage.Czech -> "Aktualizace nebyla nainstalována"
-        AppLanguage.Danish -> "Opdateringen blev ikke installeret"
-        AppLanguage.Dutch -> "De update is niet geïnstalleerd"
-        AppLanguage.English -> "The update was not installed"
-        AppLanguage.Estonian -> "Värskendust ei installitud"
-        AppLanguage.Finnish -> "Päivitystä ei asennettu"
-        AppLanguage.French -> "La mise à jour n’a pas été installée"
-        AppLanguage.German -> "Das Update wurde nicht installiert"
-        AppLanguage.Greek -> "Η ενημέρωση δεν εγκαταστάθηκε"
-        AppLanguage.Hindi -> "अपडेट इंस्टॉल नहीं हुआ"
-        AppLanguage.Hungarian -> "A frissítés nem lett telepítve"
-        AppLanguage.Indonesian -> "Pembaruan tidak dipasang"
-        AppLanguage.Italian -> "L’aggiornamento non è stato installato"
-        AppLanguage.Japanese -> "アップデートはインストールされませんでした"
-        AppLanguage.Korean -> "업데이트가 설치되지 않았습니다"
-        AppLanguage.Latvian -> "Atjauninājums netika instalēts"
-        AppLanguage.Lithuanian -> "Naujinimas nebuvo įdiegtas"
-        AppLanguage.Macedonian -> "Ажурирањето не беше инсталирано"
-        AppLanguage.Malay -> "Kemas kini tidak dipasang"
-        AppLanguage.Norwegian -> "Oppdateringen ble ikke installert"
-        AppLanguage.Polish -> "Aktualizacja nie została zainstalowana"
-        AppLanguage.Portuguese -> "A atualização não foi instalada"
-        AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਇੰਸਟਾਲ ਨਹੀਂ ਹੋਇਆ"
-        AppLanguage.Romanian -> "Actualizarea nu a fost instalată"
-        AppLanguage.Russian -> "Обновление не было установлено"
-        AppLanguage.Serbian -> "Ажурирање није инсталирано"
-        AppLanguage.Slovak -> "Aktualizácia nebola nainštalovaná"
-        AppLanguage.Slovenian -> "Posodobitev ni bila nameščena"
-        AppLanguage.Spanish -> "La actualización no se instaló"
-        AppLanguage.Swedish -> "Uppdateringen installerades inte"
-        AppLanguage.Thai -> "ไม่ได้ติดตั้งการอัปเดต"
-        AppLanguage.Ukrainian -> "Оновлення не було встановлено"
-        AppLanguage.Urdu -> "اپ ڈیٹ انسٹال نہیں ہوئی"
+        AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Czech -> CzechTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Danish -> DanishTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Dutch -> DutchTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.English -> EnglishTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.French -> FrenchTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.German -> GermanTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Greek -> GreekTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Hindi -> HindiTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Italian -> ItalianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Korean -> KoreanTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Malay -> MalayTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Polish -> PolishTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Russian -> RussianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Thai -> ThaiTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_localizedUpdateError_1
+        AppLanguage.Urdu -> UrduTranslations.aboutUpdate_localizedUpdateError_1
     }
 }
 
 private fun updateDownloadTooLarge(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Shkarkimi i përditësimit tejkalon madhësinë e lejuar"
-    AppLanguage.Bengali -> "আপডেট ডাউনলোডের আকার অনুমোদিত সীমা ছাড়িয়েছে"
-    AppLanguage.Bosnian -> "Preuzimanje ažuriranja premašuje dozvoljenu veličinu"
-    AppLanguage.Bulgarian -> "Изтеглянето на актуализацията надвишава разрешения размер"
-    AppLanguage.Catalan -> "La baixada de l’actualització supera la mida permesa"
-    AppLanguage.ChineseSimplified -> "更新下载大小超过允许的限制"
-    AppLanguage.Croatian -> "Preuzimanje ažuriranja premašuje dopuštenu veličinu"
-    AppLanguage.Czech -> "Stahovaná aktualizace překračuje povolenou velikost"
-    AppLanguage.Danish -> "Opdateringen overskrider den tilladte downloadstørrelse"
-    AppLanguage.Dutch -> "De update overschrijdt de toegestane downloadgrootte"
-    AppLanguage.English -> "The update exceeds the allowed download size"
-    AppLanguage.Estonian -> "Värskenduse allalaaditav maht ületab lubatud piiri"
-    AppLanguage.Finnish -> "Päivityksen latauskoko ylittää sallitun rajan"
-    AppLanguage.French -> "Le téléchargement de la mise à jour dépasse la taille autorisée"
-    AppLanguage.German -> "Der Update-Download überschreitet die zulässige Größe"
-    AppLanguage.Greek -> "Η λήψη της ενημέρωσης υπερβαίνει το επιτρεπόμενο μέγεθος"
-    AppLanguage.Hindi -> "अपडेट डाउनलोड का आकार अनुमत सीमा से अधिक है"
-    AppLanguage.Hungarian -> "A frissítés letöltési mérete meghaladja a megengedett határt"
-    AppLanguage.Indonesian -> "Ukuran unduhan pembaruan melebihi batas yang diizinkan"
-    AppLanguage.Italian -> "Il download dell’aggiornamento supera la dimensione consentita"
-    AppLanguage.Japanese -> "アップデートのダウンロードサイズが上限を超えています"
-    AppLanguage.Korean -> "업데이트 다운로드 크기가 허용 한도를 초과했습니다"
-    AppLanguage.Latvian -> "Atjauninājuma lejupielādes apjoms pārsniedz atļauto"
-    AppLanguage.Lithuanian -> "Atsisiunčiamo naujinimo dydis viršija leistiną ribą"
-    AppLanguage.Macedonian -> "Преземањето на ажурирањето ја надминува дозволената големина"
-    AppLanguage.Malay -> "Saiz muat turun kemas kini melebihi had yang dibenarkan"
-    AppLanguage.Norwegian -> "Oppdateringen overskrider tillatt nedlastingsstørrelse"
-    AppLanguage.Polish -> "Rozmiar pobieranej aktualizacji przekracza dozwolony limit"
-    AppLanguage.Portuguese -> "A transferência da atualização excede o tamanho permitido"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਡਾਊਨਲੋਡ ਦਾ ਆਕਾਰ ਮਨਜ਼ੂਰਸ਼ੁਦਾ ਹੱਦ ਤੋਂ ਵੱਧ ਹੈ"
-    AppLanguage.Romanian -> "Descărcarea actualizării depășește dimensiunea permisă"
-    AppLanguage.Russian -> "Размер загружаемого обновления превышает допустимый предел"
-    AppLanguage.Serbian -> "Преузимање ажурирања премашује дозвољену величину"
-    AppLanguage.Slovak -> "Sťahovaná aktualizácia prekračuje povolenú veľkosť"
-    AppLanguage.Slovenian -> "Prenos posodobitve presega dovoljeno velikost"
-    AppLanguage.Spanish -> "La descarga de la actualización supera el tamaño permitido"
-    AppLanguage.Swedish -> "Uppdateringen överskrider tillåten nedladdningsstorlek"
-    AppLanguage.Thai -> "ขนาดการดาวน์โหลดอัปเดตเกินขีดจำกัดที่อนุญาต"
-    AppLanguage.Ukrainian -> "Розмір завантаження оновлення перевищує дозволену межу"
-    AppLanguage.Urdu -> "اپ ڈیٹ کا ڈاؤن لوڈ اجازت یافتہ حجم سے زیادہ ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateDownloadTooLarge_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateDownloadTooLarge_1
 }
 
 private fun updateHandoffSaveFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Nuk mund të ruhet gjendja e kalimit te instaluesi i përditësimit"
-    AppLanguage.Bengali -> "আপডেট ইনস্টলারে হস্তান্তরের অবস্থা সংরক্ষণ করা যায়নি"
-    AppLanguage.Bosnian -> "Nije moguće sačuvati stanje predaje instalateru ažuriranja"
-    AppLanguage.Bulgarian -> "Състоянието на предаването към инсталатора на актуализацията не може да бъде запазено"
-    AppLanguage.Catalan -> "No es pot desar l’estat del traspàs a l’instal·lador de l’actualització"
-    AppLanguage.ChineseSimplified -> "无法保存向更新安装程序移交的状态"
-    AppLanguage.Croatian -> "Nije moguće spremiti stanje predaje instalacijskom programu ažuriranja"
-    AppLanguage.Czech -> "Stav předání instalačnímu programu aktualizace nelze uložit"
-    AppLanguage.Danish -> "Tilstanden for overdragelse til opdateringsinstallationen kunne ikke gemmes"
-    AppLanguage.Dutch -> "De overdrachtsstatus naar het update-installatieprogramma kon niet worden opgeslagen"
-    AppLanguage.English -> "Unable to save the update installer handoff"
-    AppLanguage.Estonian -> "Värskenduse installijale üleandmise olekut ei saa salvestada"
-    AppLanguage.Finnish -> "Päivityksen asentajalle siirtämisen tilaa ei voi tallentaa"
-    AppLanguage.French -> "Impossible d’enregistrer l’état du transfert vers le programme d’installation"
-    AppLanguage.German -> "Der Status der Übergabe an das Update-Installationsprogramm kann nicht gespeichert werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η αποθήκευση της κατάστασης παράδοσης στο πρόγραμμα εγκατάστασης ενημέρωσης"
-    AppLanguage.Hindi -> "अपडेट इंस्टॉलर को सौंपने की स्थिति सहेजी नहीं जा सकी"
-    AppLanguage.Hungarian -> "A frissítés telepítőjének való átadás állapotát nem lehet menteni"
-    AppLanguage.Indonesian -> "Status penyerahan ke pemasang pembaruan tidak dapat disimpan"
-    AppLanguage.Italian -> "Impossibile salvare lo stato del passaggio al programma di installazione dell’aggiornamento"
-    AppLanguage.Japanese -> "アップデートインストーラへの引き渡し状態を保存できません"
-    AppLanguage.Korean -> "업데이트 설치 프로그램으로 전달하는 상태를 저장할 수 없습니다"
-    AppLanguage.Latvian -> "Nevar saglabāt nodošanas atjauninājuma instalētājam stāvokli"
-    AppLanguage.Lithuanian -> "Nepavyko išsaugoti perdavimo naujinimo diegimo programai būsenos"
-    AppLanguage.Macedonian -> "Не може да се зачува состојбата на предавање на инсталерот за ажурирање"
-    AppLanguage.Malay -> "Keadaan penyerahan kepada pemasang kemas kini tidak dapat disimpan"
-    AppLanguage.Norwegian -> "Tilstanden for overføring til oppdateringsinstallasjonen kunne ikke lagres"
-    AppLanguage.Polish -> "Nie można zapisać stanu przekazania aktualizacji do instalatora"
-    AppLanguage.Portuguese -> "Não é possível guardar o estado da passagem para o instalador da atualização"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਇੰਸਟਾਲਰ ਨੂੰ ਸੌਂਪਣ ਦੀ ਸਥਿਤੀ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ"
-    AppLanguage.Romanian -> "Nu se poate salva starea predării către programul de instalare a actualizării"
-    AppLanguage.Russian -> "Не удалось сохранить состояние передачи обновления установщику"
-    AppLanguage.Serbian -> "Није могуће сачувати стање предаје инсталатеру ажурирања"
-    AppLanguage.Slovak -> "Stav odovzdania inštalátoru aktualizácie nemožno uložiť"
-    AppLanguage.Slovenian -> "Stanja predaje namestitvenemu programu posodobitve ni mogoče shraniti"
-    AppLanguage.Spanish -> "No se puede guardar el estado de la transferencia al instalador de la actualización"
-    AppLanguage.Swedish -> "Statusen för överlämningen till uppdateringsinstalleraren kunde inte sparas"
-    AppLanguage.Thai -> "ไม่สามารถบันทึกสถานะการส่งต่อไปยังตัวติดตั้งการอัปเดตได้"
-    AppLanguage.Ukrainian -> "Не вдалося зберегти стан передавання оновлення інсталятору"
-    AppLanguage.Urdu -> "اپ ڈیٹ انسٹالر کو حوالے کرنے کی حالت محفوظ نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateHandoffSaveFailed_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateHandoffSaveFailed_1
 }
 
 private fun updatePermissionSettingsUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Cilësimet e lejes së instalimit nuk mund të hapen"
-    AppLanguage.Bengali -> "ইনস্টল করার অনুমতির সেটিংস খোলা যায়নি"
-    AppLanguage.Bosnian -> "Postavke dozvole za instalaciju nije moguće otvoriti"
-    AppLanguage.Bulgarian -> "Настройките за разрешение за инсталиране не могат да бъдат отворени"
-    AppLanguage.Catalan -> "No es poden obrir els paràmetres del permís d’instal·lació"
-    AppLanguage.ChineseSimplified -> "无法打开安装权限设置"
-    AppLanguage.Croatian -> "Postavke dopuštenja za instalaciju nije moguće otvoriti"
-    AppLanguage.Czech -> "Nastavení oprávnění k instalaci nelze otevřít"
-    AppLanguage.Danish -> "Indstillingerne for installationstilladelse kunne ikke åbnes"
-    AppLanguage.Dutch -> "De instellingen voor installatietoestemming konden niet worden geopend"
-    AppLanguage.English -> "Unable to open install permission settings"
-    AppLanguage.Estonian -> "Installimisõiguse seadeid ei saa avada"
-    AppLanguage.Finnish -> "Asennusluvan asetuksia ei voi avata"
-    AppLanguage.French -> "Impossible d’ouvrir les paramètres d’autorisation d’installation"
-    AppLanguage.German -> "Die Einstellungen für die Installationsberechtigung können nicht geöffnet werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατό το άνοιγμα των ρυθμίσεων άδειας εγκατάστασης"
-    AppLanguage.Hindi -> "इंस्टॉल की अनुमति वाली सेटिंग नहीं खोली जा सकी"
-    AppLanguage.Hungarian -> "A telepítési engedély beállításait nem lehet megnyitni"
-    AppLanguage.Indonesian -> "Pengaturan izin pemasangan tidak dapat dibuka"
-    AppLanguage.Italian -> "Impossibile aprire le impostazioni del permesso di installazione"
-    AppLanguage.Japanese -> "インストール権限の設定を開けません"
-    AppLanguage.Korean -> "설치 권한 설정을 열 수 없습니다"
-    AppLanguage.Latvian -> "Nevar atvērt instalēšanas atļaujas iestatījumus"
-    AppLanguage.Lithuanian -> "Nepavyko atverti diegimo leidimo nustatymų"
-    AppLanguage.Macedonian -> "Поставките за дозвола за инсталирање не може да се отворат"
-    AppLanguage.Malay -> "Tetapan kebenaran pemasangan tidak dapat dibuka"
-    AppLanguage.Norwegian -> "Innstillingene for installasjonstillatelse kunne ikke åpnes"
-    AppLanguage.Polish -> "Nie można otworzyć ustawień zezwolenia na instalację"
-    AppLanguage.Portuguese -> "Não é possível abrir as definições de permissão de instalação"
-    AppLanguage.Punjabi -> "ਇੰਸਟਾਲ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਵਾਲੀਆਂ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੀਆਂ ਨਹੀਂ ਜਾ ਸਕੀਆਂ"
-    AppLanguage.Romanian -> "Setările permisiunii de instalare nu pot fi deschise"
-    AppLanguage.Russian -> "Не удалось открыть настройки разрешения на установку"
-    AppLanguage.Serbian -> "Подешавања дозволе за инсталацију не могу да се отворе"
-    AppLanguage.Slovak -> "Nastavenia povolenia na inštaláciu nemožno otvoriť"
-    AppLanguage.Slovenian -> "Nastavitev dovoljenja za namestitev ni mogoče odpreti"
-    AppLanguage.Spanish -> "No se pueden abrir los ajustes de permiso de instalación"
-    AppLanguage.Swedish -> "Inställningarna för installationstillstånd kunde inte öppnas"
-    AppLanguage.Thai -> "ไม่สามารถเปิดการตั้งค่าสิทธิ์การติดตั้งได้"
-    AppLanguage.Ukrainian -> "Не вдалося відкрити налаштування дозволу на встановлення"
-    AppLanguage.Urdu -> "انسٹال کرنے کی اجازت کی ترتیبات کھولی نہیں جا سکیں"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updatePermissionSettingsUnavailable_1
 }
 
 private fun updateRedirectInvalid(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Ridrejtimi i burimit të përditësimit është i pavlefshëm"
-    AppLanguage.Bengali -> "আপডেটের উৎসের পুনর্নির্দেশ অবৈধ"
-    AppLanguage.Bosnian -> "Preusmjeravanje izvora ažuriranja nije ispravno"
-    AppLanguage.Bulgarian -> "Пренасочването на източника на актуализацията е невалидно"
-    AppLanguage.Catalan -> "La redirecció de la font d’actualització no és vàlida"
-    AppLanguage.ChineseSimplified -> "更新来源的重定向无效"
-    AppLanguage.Croatian -> "Preusmjeravanje izvora ažuriranja nije valjano"
-    AppLanguage.Czech -> "Přesměrování zdroje aktualizace je neplatné"
-    AppLanguage.Danish -> "Omdirigeringen af opdateringskilden er ugyldig"
-    AppLanguage.Dutch -> "De omleiding van de updatebron is ongeldig"
-    AppLanguage.English -> "Update source redirect is invalid"
-    AppLanguage.Estonian -> "Värskenduse allika ümbersuunamine ei kehti"
-    AppLanguage.Finnish -> "Päivityslähteen uudelleenohjaus ei kelpaa"
-    AppLanguage.French -> "La redirection de la source de mise à jour n’est pas valide"
-    AppLanguage.German -> "Die Weiterleitung der Updatequelle ist ungültig"
-    AppLanguage.Greek -> "Η ανακατεύθυνση της πηγής ενημέρωσης δεν είναι έγκυρη"
-    AppLanguage.Hindi -> "अपडेट स्रोत का रीडायरेक्ट अमान्य है"
-    AppLanguage.Hungarian -> "A frissítési forrás átirányítása érvénytelen"
-    AppLanguage.Indonesian -> "Pengalihan sumber pembaruan tidak valid"
-    AppLanguage.Italian -> "Il reindirizzamento dell’origine dell’aggiornamento non è valido"
-    AppLanguage.Japanese -> "アップデート提供元のリダイレクトが無効です"
-    AppLanguage.Korean -> "업데이트 출처 리디렉션이 유효하지 않습니다"
-    AppLanguage.Latvian -> "Atjauninājuma avota pāradresācija nav derīga"
-    AppLanguage.Lithuanian -> "Naujinimo šaltinio peradresavimas negalioja"
-    AppLanguage.Macedonian -> "Пренасочувањето на изворот на ажурирањето не е валидно"
-    AppLanguage.Malay -> "Pengalihan sumber kemas kini tidak sah"
-    AppLanguage.Norwegian -> "Omdirigeringen av oppdateringskilden er ugyldig"
-    AppLanguage.Polish -> "Przekierowanie źródła aktualizacji jest nieprawidłowe"
-    AppLanguage.Portuguese -> "O redirecionamento da origem da atualização é inválido"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਸਰੋਤ ਦਾ ਰੀਡਾਇਰੈਕਟ ਅਵੈਧ ਹੈ"
-    AppLanguage.Romanian -> "Redirecționarea sursei actualizării nu este validă"
-    AppLanguage.Russian -> "Перенаправление источника обновления недействительно"
-    AppLanguage.Serbian -> "Преусмеравање извора ажурирања није исправно"
-    AppLanguage.Slovak -> "Presmerovanie zdroja aktualizácie je neplatné"
-    AppLanguage.Slovenian -> "Preusmeritev vira posodobitve ni veljavna"
-    AppLanguage.Spanish -> "La redirección de la fuente de actualización no es válida"
-    AppLanguage.Swedish -> "Omdirigeringen av uppdateringskällan är ogiltig"
-    AppLanguage.Thai -> "การเปลี่ยนเส้นทางแหล่งที่มาของการอัปเดตไม่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Перенаправлення джерела оновлення недійсне"
-    AppLanguage.Urdu -> "اپ ڈیٹ کے ذریعے کا ری ڈائریکٹ درست نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateRedirectInvalid_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateRedirectInvalid_1
 }
 
 private fun tooManyUpdateRedirects(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Shumë ridrejtime gjatë përditësimit"
-    AppLanguage.Bengali -> "আপডেটের জন্য অতিরিক্ত পুনর্নির্দেশ হয়েছে"
-    AppLanguage.Bosnian -> "Previše preusmjeravanja pri ažuriranju"
-    AppLanguage.Bulgarian -> "Твърде много пренасочвания при актуализирането"
-    AppLanguage.Catalan -> "Massa redireccions durant l’actualització"
-    AppLanguage.ChineseSimplified -> "更新重定向次数过多"
-    AppLanguage.Croatian -> "Previše preusmjeravanja pri ažuriranju"
-    AppLanguage.Czech -> "Příliš mnoho přesměrování při aktualizaci"
-    AppLanguage.Danish -> "For mange omdirigeringer under opdateringen"
-    AppLanguage.Dutch -> "Te veel omleidingen tijdens het bijwerken"
-    AppLanguage.English -> "Too many update redirects"
-    AppLanguage.Estonian -> "Värskendamisel oli liiga palju ümbersuunamisi"
-    AppLanguage.Finnish -> "Päivityksessä on liikaa uudelleenohjauksia"
-    AppLanguage.French -> "Trop de redirections lors de la mise à jour"
-    AppLanguage.German -> "Zu viele Weiterleitungen beim Update"
-    AppLanguage.Greek -> "Πάρα πολλές ανακατευθύνσεις κατά την ενημέρωση"
-    AppLanguage.Hindi -> "अपडेट के दौरान बहुत अधिक रीडायरेक्ट हुए"
-    AppLanguage.Hungarian -> "Túl sok átirányítás a frissítés során"
-    AppLanguage.Indonesian -> "Terlalu banyak pengalihan saat pembaruan"
-    AppLanguage.Italian -> "Troppi reindirizzamenti durante l’aggiornamento"
-    AppLanguage.Japanese -> "アップデートのリダイレクトが多すぎます"
-    AppLanguage.Korean -> "업데이트 리디렉션이 너무 많습니다"
-    AppLanguage.Latvian -> "Pārāk daudz pāradresāciju atjaunināšanas laikā"
-    AppLanguage.Lithuanian -> "Per daug naujinimo peradresavimų"
-    AppLanguage.Macedonian -> "Премногу пренасочувања при ажурирањето"
-    AppLanguage.Malay -> "Terlalu banyak pengalihan semasa kemas kini"
-    AppLanguage.Norwegian -> "For mange omdirigeringer under oppdateringen"
-    AppLanguage.Polish -> "Zbyt wiele przekierowań podczas aktualizacji"
-    AppLanguage.Portuguese -> "Demasiados redirecionamentos durante a atualização"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਦੌਰਾਨ ਬਹੁਤ ਜ਼ਿਆਦਾ ਰੀਡਾਇਰੈਕਟ ਹੋਏ"
-    AppLanguage.Romanian -> "Prea multe redirecționări în timpul actualizării"
-    AppLanguage.Russian -> "Слишком много перенаправлений при обновлении"
-    AppLanguage.Serbian -> "Превише преусмеравања током ажурирања"
-    AppLanguage.Slovak -> "Príliš veľa presmerovaní pri aktualizácii"
-    AppLanguage.Slovenian -> "Preveč preusmeritev med posodabljanjem"
-    AppLanguage.Spanish -> "Demasiadas redirecciones durante la actualización"
-    AppLanguage.Swedish -> "För många omdirigeringar under uppdateringen"
-    AppLanguage.Thai -> "มีการเปลี่ยนเส้นทางการอัปเดตมากเกินไป"
-    AppLanguage.Ukrainian -> "Забагато перенаправлень під час оновлення"
-    AppLanguage.Urdu -> "اپ ڈیٹ کے دوران بہت زیادہ ری ڈائریکشنز ہوئیں"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_tooManyUpdateRedirects_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_tooManyUpdateRedirects_1
 }
 
 private fun updateFileNameInvalid(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Emri i skedarit të përditësimit është i pavlefshëm"
-    AppLanguage.Bengali -> "আপডেট ফাইলের নাম অবৈধ"
-    AppLanguage.Bosnian -> "Naziv datoteke ažuriranja nije ispravan"
-    AppLanguage.Bulgarian -> "Името на файла за актуализация е невалидно"
-    AppLanguage.Catalan -> "El nom del fitxer d’actualització no és vàlid"
-    AppLanguage.ChineseSimplified -> "更新文件名无效"
-    AppLanguage.Croatian -> "Naziv datoteke ažuriranja nije valjan"
-    AppLanguage.Czech -> "Název souboru aktualizace je neplatný"
-    AppLanguage.Danish -> "Opdateringsfilens navn er ugyldigt"
-    AppLanguage.Dutch -> "De naam van het updatebestand is ongeldig"
-    AppLanguage.English -> "Update asset name is invalid"
-    AppLanguage.Estonian -> "Värskendusfaili nimi ei kehti"
-    AppLanguage.Finnish -> "Päivitystiedoston nimi ei kelpaa"
-    AppLanguage.French -> "Le nom du fichier de mise à jour n’est pas valide"
-    AppLanguage.German -> "Der Name der Updatedatei ist ungültig"
-    AppLanguage.Greek -> "Το όνομα του αρχείου ενημέρωσης δεν είναι έγκυρο"
-    AppLanguage.Hindi -> "अपडेट फ़ाइल का नाम अमान्य है"
-    AppLanguage.Hungarian -> "A frissítési fájl neve érvénytelen"
-    AppLanguage.Indonesian -> "Nama berkas pembaruan tidak valid"
-    AppLanguage.Italian -> "Il nome del file di aggiornamento non è valido"
-    AppLanguage.Japanese -> "アップデートファイルの名前が無効です"
-    AppLanguage.Korean -> "업데이트 파일 이름이 유효하지 않습니다"
-    AppLanguage.Latvian -> "Atjauninājuma faila nosaukums nav derīgs"
-    AppLanguage.Lithuanian -> "Naujinimo failo pavadinimas negalioja"
-    AppLanguage.Macedonian -> "Името на датотеката за ажурирање не е валидно"
-    AppLanguage.Malay -> "Nama fail kemas kini tidak sah"
-    AppLanguage.Norwegian -> "Navnet på oppdateringsfilen er ugyldig"
-    AppLanguage.Polish -> "Nazwa pliku aktualizacji jest nieprawidłowa"
-    AppLanguage.Portuguese -> "O nome do ficheiro de atualização é inválido"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਫਾਈਲ ਦਾ ਨਾਮ ਅਵੈਧ ਹੈ"
-    AppLanguage.Romanian -> "Numele fișierului de actualizare nu este valid"
-    AppLanguage.Russian -> "Имя файла обновления недействительно"
-    AppLanguage.Serbian -> "Назив датотеке ажурирања није исправан"
-    AppLanguage.Slovak -> "Názov súboru aktualizácie je neplatný"
-    AppLanguage.Slovenian -> "Ime datoteke posodobitve ni veljavno"
-    AppLanguage.Spanish -> "El nombre del archivo de actualización no es válido"
-    AppLanguage.Swedish -> "Uppdateringsfilens namn är ogiltigt"
-    AppLanguage.Thai -> "ชื่อไฟล์อัปเดตไม่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Назва файлу оновлення недійсна"
-    AppLanguage.Urdu -> "اپ ڈیٹ فائل کا نام درست نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateFileNameInvalid_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateFileNameInvalid_1
 }
 
 private fun updateSourceInvalid(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Burimi i përditësimit është i pavlefshëm"
-    AppLanguage.Bengali -> "আপডেটের উৎসটি অবৈধ"
-    AppLanguage.Bosnian -> "Izvor ažuriranja nije ispravan"
-    AppLanguage.Bulgarian -> "Източникът на актуализацията е невалиден"
-    AppLanguage.Catalan -> "La font de l’actualització no és vàlida"
-    AppLanguage.ChineseSimplified -> "更新来源无效"
-    AppLanguage.Croatian -> "Izvor ažuriranja nije valjan"
-    AppLanguage.Czech -> "Zdroj aktualizace je neplatný"
-    AppLanguage.Danish -> "Opdateringens kilde er ugyldig"
-    AppLanguage.Dutch -> "De updatebron is ongeldig"
-    AppLanguage.English -> "Update source is invalid"
-    AppLanguage.Estonian -> "Värskenduse allikas ei kehti"
-    AppLanguage.Finnish -> "Päivityksen lähde ei kelpaa"
-    AppLanguage.French -> "La source de la mise à jour n’est pas valide"
-    AppLanguage.German -> "Die Updatequelle ist ungültig"
-    AppLanguage.Greek -> "Η πηγή της ενημέρωσης δεν είναι έγκυρη"
-    AppLanguage.Hindi -> "अपडेट का स्रोत अमान्य है"
-    AppLanguage.Hungarian -> "A frissítés forrása érvénytelen"
-    AppLanguage.Indonesian -> "Sumber pembaruan tidak valid"
-    AppLanguage.Italian -> "L’origine dell’aggiornamento non è valida"
-    AppLanguage.Japanese -> "アップデートの提供元が無効です"
-    AppLanguage.Korean -> "업데이트 출처가 유효하지 않습니다"
-    AppLanguage.Latvian -> "Atjauninājuma avots nav derīgs"
-    AppLanguage.Lithuanian -> "Naujinimo šaltinis negalioja"
-    AppLanguage.Macedonian -> "Изворот на ажурирањето не е валиден"
-    AppLanguage.Malay -> "Sumber kemas kini tidak sah"
-    AppLanguage.Norwegian -> "Oppdateringskilden er ugyldig"
-    AppLanguage.Polish -> "Źródło aktualizacji jest nieprawidłowe"
-    AppLanguage.Portuguese -> "A origem da atualização é inválida"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਦਾ ਸਰੋਤ ਅਵੈਧ ਹੈ"
-    AppLanguage.Romanian -> "Sursa actualizării nu este validă"
-    AppLanguage.Russian -> "Источник обновления недействителен"
-    AppLanguage.Serbian -> "Извор ажурирања није исправан"
-    AppLanguage.Slovak -> "Zdroj aktualizácie je neplatný"
-    AppLanguage.Slovenian -> "Vir posodobitve ni veljaven"
-    AppLanguage.Spanish -> "La fuente de la actualización no es válida"
-    AppLanguage.Swedish -> "Uppdateringskällan är ogiltig"
-    AppLanguage.Thai -> "แหล่งที่มาของการอัปเดตไม่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Джерело оновлення недійсне"
-    AppLanguage.Urdu -> "اپ ڈیٹ کا ذریعہ درست نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateSourceInvalid_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateSourceInvalid_1
 }
 
 private fun githubUpdateCheckFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Kontrolli i përditësimeve në GitHub dështoi"
-    AppLanguage.Bengali -> "GitHub-এ আপডেট পরীক্ষা ব্যর্থ হয়েছে"
-    AppLanguage.Bosnian -> "Provjera ažuriranja na GitHubu nije uspjela"
-    AppLanguage.Bulgarian -> "Проверката за актуализации в GitHub е неуспешна"
-    AppLanguage.Catalan -> "Ha fallat la cerca d’actualitzacions a GitHub"
-    AppLanguage.ChineseSimplified -> "GitHub 更新检查失败"
-    AppLanguage.Croatian -> "Provjera ažuriranja na GitHubu nije uspjela"
-    AppLanguage.Czech -> "Kontrola aktualizací na GitHubu se nezdařila"
-    AppLanguage.Danish -> "Søgning efter opdateringer på GitHub mislykkedes"
-    AppLanguage.Dutch -> "Controleren op updates via GitHub is mislukt"
-    AppLanguage.English -> "GitHub update check failed"
-    AppLanguage.Estonian -> "Värskenduste kontrollimine GitHubis nurjus"
-    AppLanguage.Finnish -> "Päivitysten tarkistaminen GitHubista epäonnistui"
-    AppLanguage.French -> "La recherche de mises à jour sur GitHub a échoué"
-    AppLanguage.German -> "Die Suche nach Updates auf GitHub ist fehlgeschlagen"
-    AppLanguage.Greek -> "Ο έλεγχος ενημερώσεων στο GitHub απέτυχε"
-    AppLanguage.Hindi -> "GitHub पर अपडेट की जाँच विफल हुई"
-    AppLanguage.Hungarian -> "A GitHub-frissítések keresése sikertelen"
-    AppLanguage.Indonesian -> "Pemeriksaan pembaruan GitHub gagal"
-    AppLanguage.Italian -> "Ricerca degli aggiornamenti su GitHub non riuscita"
-    AppLanguage.Japanese -> "GitHub のアップデート確認に失敗しました"
-    AppLanguage.Korean -> "GitHub 업데이트 확인에 실패했습니다"
-    AppLanguage.Latvian -> "GitHub atjauninājumu pārbaude neizdevās"
-    AppLanguage.Lithuanian -> "Nepavyko patikrinti naujinimų „GitHub“"
-    AppLanguage.Macedonian -> "Проверката за ажурирања на GitHub не успеа"
-    AppLanguage.Malay -> "Semakan kemas kini GitHub gagal"
-    AppLanguage.Norwegian -> "Søk etter oppdateringer på GitHub mislyktes"
-    AppLanguage.Polish -> "Sprawdzanie aktualizacji na GitHubie nie powiodło się"
-    AppLanguage.Portuguese -> "A procura de atualizações no GitHub falhou"
-    AppLanguage.Punjabi -> "GitHub ਉੱਤੇ ਅੱਪਡੇਟਾਂ ਦੀ ਜਾਂਚ ਅਸਫਲ ਰਹੀ"
-    AppLanguage.Romanian -> "Verificarea actualizărilor pe GitHub a eșuat"
-    AppLanguage.Russian -> "Не удалось проверить обновления на GitHub"
-    AppLanguage.Serbian -> "Провера ажурирања на GitHub-у није успела"
-    AppLanguage.Slovak -> "Kontrola aktualizácií na GitHube zlyhala"
-    AppLanguage.Slovenian -> "Preverjanje posodobitev na GitHubu ni uspelo"
-    AppLanguage.Spanish -> "Falló la búsqueda de actualizaciones en GitHub"
-    AppLanguage.Swedish -> "Sökningen efter uppdateringar på GitHub misslyckades"
-    AppLanguage.Thai -> "การตรวจสอบการอัปเดตบน GitHub ล้มเหลว"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити оновлення на GitHub"
-    AppLanguage.Urdu -> "GitHub پر اپ ڈیٹس کی جانچ ناکام ہو گئی"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_githubUpdateCheckFailed_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_githubUpdateCheckFailed_1
 }
 
 private fun updateCheckUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Nuk mund të kontrollohen përditësimet"
-    AppLanguage.Bengali -> "আপডেটের জন্য পরীক্ষা করা যায়নি"
-    AppLanguage.Bosnian -> "Nije moguće provjeriti ažuriranja"
-    AppLanguage.Bulgarian -> "Не може да се провери за актуализации"
-    AppLanguage.Catalan -> "No es poden cercar actualitzacions"
-    AppLanguage.ChineseSimplified -> "无法检查更新"
-    AppLanguage.Croatian -> "Nije moguće provjeriti ažuriranja"
-    AppLanguage.Czech -> "Nelze zkontrolovat aktualizace"
-    AppLanguage.Danish -> "Der kunne ikke søges efter opdateringer"
-    AppLanguage.Dutch -> "Er kon niet op updates worden gecontroleerd"
-    AppLanguage.English -> "Unable to check for updates"
-    AppLanguage.Estonian -> "Värskendusi ei saa kontrollida"
-    AppLanguage.Finnish -> "Päivityksiä ei voi tarkistaa"
-    AppLanguage.French -> "Impossible de rechercher des mises à jour"
-    AppLanguage.German -> "Es kann nicht nach Updates gesucht werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατός ο έλεγχος για ενημερώσεις"
-    AppLanguage.Hindi -> "अपडेट की जाँच नहीं की जा सकी"
-    AppLanguage.Hungarian -> "Nem lehet ellenőrizni a frissítéseket"
-    AppLanguage.Indonesian -> "Tidak dapat memeriksa pembaruan"
-    AppLanguage.Italian -> "Impossibile verificare la disponibilità di aggiornamenti"
-    AppLanguage.Japanese -> "アップデートを確認できません"
-    AppLanguage.Korean -> "업데이트를 확인할 수 없습니다"
-    AppLanguage.Latvian -> "Nevar pārbaudīt atjauninājumus"
-    AppLanguage.Lithuanian -> "Nepavyko patikrinti, ar yra naujinimų"
-    AppLanguage.Macedonian -> "Не може да се проверат ажурирања"
-    AppLanguage.Malay -> "Tidak dapat menyemak kemas kini"
-    AppLanguage.Norwegian -> "Kunne ikke se etter oppdateringer"
-    AppLanguage.Polish -> "Nie można sprawdzić dostępności aktualizacji"
-    AppLanguage.Portuguese -> "Não é possível procurar atualizações"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟਾਂ ਦੀ ਜਾਂਚ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ"
-    AppLanguage.Romanian -> "Nu se pot verifica actualizările"
-    AppLanguage.Russian -> "Не удалось проверить наличие обновлений"
-    AppLanguage.Serbian -> "Није могуће проверити ажурирања"
-    AppLanguage.Slovak -> "Nemožno skontrolovať aktualizácie"
-    AppLanguage.Slovenian -> "Posodobitev ni mogoče preveriti"
-    AppLanguage.Spanish -> "No se pueden buscar actualizaciones"
-    AppLanguage.Swedish -> "Det gick inte att söka efter uppdateringar"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบการอัปเดตได้"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити наявність оновлень"
-    AppLanguage.Urdu -> "اپ ڈیٹس کی جانچ نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateCheckUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateCheckUnavailable_1
 }
 
 private fun updateDownloadInvalid(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i shkarkuar është i pavlefshëm"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটটি অবৈধ"
-    AppLanguage.Bosnian -> "Preuzeto ažuriranje nije ispravno"
-    AppLanguage.Bulgarian -> "Изтеглената актуализация е невалидна"
-    AppLanguage.Catalan -> "L’actualització baixada no és vàlida"
-    AppLanguage.ChineseSimplified -> "下载的更新无效"
-    AppLanguage.Croatian -> "Preuzeto ažuriranje nije valjano"
-    AppLanguage.Czech -> "Stažená aktualizace je neplatná"
-    AppLanguage.Danish -> "Den downloadede opdatering er ugyldig"
-    AppLanguage.Dutch -> "De gedownloade update is ongeldig"
-    AppLanguage.English -> "Downloaded update is invalid"
-    AppLanguage.Estonian -> "Allalaaditud värskendus ei kehti"
-    AppLanguage.Finnish -> "Ladattu päivitys ei kelpaa"
-    AppLanguage.French -> "La mise à jour téléchargée n’est pas valide"
-    AppLanguage.German -> "Das heruntergeladene Update ist ungültig"
-    AppLanguage.Greek -> "Η ενημέρωση που λήφθηκε δεν είναι έγκυρη"
-    AppLanguage.Hindi -> "डाउनलोड किया गया अपडेट अमान्य है"
-    AppLanguage.Hungarian -> "A letöltött frissítés érvénytelen"
-    AppLanguage.Indonesian -> "Pembaruan yang diunduh tidak valid"
-    AppLanguage.Italian -> "L’aggiornamento scaricato non è valido"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートは無効です"
-    AppLanguage.Korean -> "다운로드한 업데이트가 유효하지 않습니다"
-    AppLanguage.Latvian -> "Lejupielādētais atjauninājums nav derīgs"
-    AppLanguage.Lithuanian -> "Atsisiųstas naujinimas negalioja"
-    AppLanguage.Macedonian -> "Преземеното ажурирање не е валидно"
-    AppLanguage.Malay -> "Kemas kini yang dimuat turun tidak sah"
-    AppLanguage.Norwegian -> "Den nedlastede oppdateringen er ugyldig"
-    AppLanguage.Polish -> "Pobrana aktualizacja jest nieprawidłowa"
-    AppLanguage.Portuguese -> "A atualização transferida é inválida"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤਾ ਅੱਪਡੇਟ ਅਵੈਧ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea descărcată nu este validă"
-    AppLanguage.Russian -> "Скачанное обновление недействительно"
-    AppLanguage.Serbian -> "Преузето ажурирање није исправно"
-    AppLanguage.Slovak -> "Stiahnutá aktualizácia je neplatná"
-    AppLanguage.Slovenian -> "Prenesena posodobitev ni veljavna"
-    AppLanguage.Spanish -> "La actualización descargada no es válida"
-    AppLanguage.Swedish -> "Den hämtade uppdateringen är ogiltig"
-    AppLanguage.Thai -> "การอัปเดตที่ดาวน์โหลดมาไม่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Завантажене оновлення недійсне"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ درست نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateDownloadInvalid_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateDownloadInvalid_1
 }
 
 private fun updateNotValidApp(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i shkarkuar nuk është një aplikacion i vlefshëm"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটটি একটি বৈধ অ্যাপ নয়"
-    AppLanguage.Bosnian -> "Preuzeto ažuriranje nije ispravna aplikacija"
-    AppLanguage.Bulgarian -> "Изтеглената актуализация не е валидно приложение"
-    AppLanguage.Catalan -> "L’actualització baixada no és una aplicació vàlida"
-    AppLanguage.ChineseSimplified -> "下载的更新不是有效的应用"
-    AppLanguage.Croatian -> "Preuzeto ažuriranje nije valjana aplikacija"
-    AppLanguage.Czech -> "Stažená aktualizace není platná aplikace"
-    AppLanguage.Danish -> "Den downloadede opdatering er ikke en gyldig app"
-    AppLanguage.Dutch -> "De gedownloade update is geen geldige app"
-    AppLanguage.English -> "Downloaded update is not a valid app"
-    AppLanguage.Estonian -> "Allalaaditud värskendus ei ole kehtiv rakendus"
-    AppLanguage.Finnish -> "Ladattu päivitys ei ole kelvollinen sovellus"
-    AppLanguage.French -> "La mise à jour téléchargée n’est pas une application valide"
-    AppLanguage.German -> "Das heruntergeladene Update ist keine gültige App"
-    AppLanguage.Greek -> "Η ενημέρωση που λήφθηκε δεν είναι έγκυρη εφαρμογή"
-    AppLanguage.Hindi -> "डाउनलोड किया गया अपडेट मान्य ऐप नहीं है"
-    AppLanguage.Hungarian -> "A letöltött frissítés nem érvényes alkalmazás"
-    AppLanguage.Indonesian -> "Pembaruan yang diunduh bukan aplikasi yang valid"
-    AppLanguage.Italian -> "L’aggiornamento scaricato non è un’app valida"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートは有効なアプリではありません"
-    AppLanguage.Korean -> "다운로드한 업데이트가 유효한 앱이 아닙니다"
-    AppLanguage.Latvian -> "Lejupielādētais atjauninājums nav derīga lietotne"
-    AppLanguage.Lithuanian -> "Atsisiųstas naujinimas nėra tinkama programa"
-    AppLanguage.Macedonian -> "Преземеното ажурирање не е валидна апликација"
-    AppLanguage.Malay -> "Kemas kini yang dimuat turun bukan aplikasi yang sah"
-    AppLanguage.Norwegian -> "Den nedlastede oppdateringen er ikke en gyldig app"
-    AppLanguage.Polish -> "Pobrana aktualizacja nie jest prawidłową aplikacją"
-    AppLanguage.Portuguese -> "A atualização transferida não é uma aplicação válida"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤਾ ਅੱਪਡੇਟ ਵੈਧ ਐਪ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea descărcată nu este o aplicație validă"
-    AppLanguage.Russian -> "Скачанное обновление не является действительным приложением"
-    AppLanguage.Serbian -> "Преузето ажурирање није исправна апликација"
-    AppLanguage.Slovak -> "Stiahnutá aktualizácia nie je platná aplikácia"
-    AppLanguage.Slovenian -> "Prenesena posodobitev ni veljavna aplikacija"
-    AppLanguage.Spanish -> "La actualización descargada no es una aplicación válida"
-    AppLanguage.Swedish -> "Den hämtade uppdateringen är inte en giltig app"
-    AppLanguage.Thai -> "การอัปเดตที่ดาวน์โหลดมาไม่ใช่แอปที่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Завантажене оновлення не є дійсним застосунком"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ درست ایپ نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateNotValidApp_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateNotValidApp_1
 }
 
 private fun updateNotNewer(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i shkarkuar nuk është më i ri"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটটি নতুন সংস্করণ নয়"
-    AppLanguage.Bosnian -> "Preuzeto ažuriranje nije novije"
-    AppLanguage.Bulgarian -> "Изтеглената актуализация не е по-нова"
-    AppLanguage.Catalan -> "L’actualització baixada no és més recent"
-    AppLanguage.ChineseSimplified -> "下载的更新不是较新版本"
-    AppLanguage.Croatian -> "Preuzeto ažuriranje nije novije"
-    AppLanguage.Czech -> "Stažená aktualizace není novější"
-    AppLanguage.Danish -> "Den downloadede opdatering er ikke nyere"
-    AppLanguage.Dutch -> "De gedownloade update is niet nieuwer"
-    AppLanguage.English -> "Downloaded update is not newer"
-    AppLanguage.Estonian -> "Allalaaditud värskendus ei ole uuem"
-    AppLanguage.Finnish -> "Ladattu päivitys ei ole uudempi"
-    AppLanguage.French -> "La mise à jour téléchargée n’est pas plus récente"
-    AppLanguage.German -> "Das heruntergeladene Update ist nicht neuer"
-    AppLanguage.Greek -> "Η ενημέρωση που λήφθηκε δεν είναι νεότερη"
-    AppLanguage.Hindi -> "डाउनलोड किया गया अपडेट नया संस्करण नहीं है"
-    AppLanguage.Hungarian -> "A letöltött frissítés nem újabb"
-    AppLanguage.Indonesian -> "Pembaruan yang diunduh bukan versi yang lebih baru"
-    AppLanguage.Italian -> "L’aggiornamento scaricato non è più recente"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートは新しいバージョンではありません"
-    AppLanguage.Korean -> "다운로드한 업데이트가 더 최신 버전이 아닙니다"
-    AppLanguage.Latvian -> "Lejupielādētais atjauninājums nav jaunāks"
-    AppLanguage.Lithuanian -> "Atsisiųstas naujinimas nėra naujesnis"
-    AppLanguage.Macedonian -> "Преземеното ажурирање не е поново"
-    AppLanguage.Malay -> "Kemas kini yang dimuat turun bukan versi yang lebih baharu"
-    AppLanguage.Norwegian -> "Den nedlastede oppdateringen er ikke nyere"
-    AppLanguage.Polish -> "Pobrana aktualizacja nie jest nowsza"
-    AppLanguage.Portuguese -> "A atualização transferida não é mais recente"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤਾ ਅੱਪਡੇਟ ਨਵਾਂ ਸੰਸਕਰਣ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea descărcată nu este mai nouă"
-    AppLanguage.Russian -> "Скачанное обновление не является более новой версией"
-    AppLanguage.Serbian -> "Преузето ажурирање није новије"
-    AppLanguage.Slovak -> "Stiahnutá aktualizácia nie je novšia"
-    AppLanguage.Slovenian -> "Prenesena posodobitev ni novejša"
-    AppLanguage.Spanish -> "La actualización descargada no es más reciente"
-    AppLanguage.Swedish -> "Den hämtade uppdateringen är inte nyare"
-    AppLanguage.Thai -> "การอัปเดตที่ดาวน์โหลดมาไม่ใช่เวอร์ชันที่ใหม่กว่า"
-    AppLanguage.Ukrainian -> "Завантажене оновлення не є новішою версією"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ نیا ورژن نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateNotNewer_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateNotNewer_1
 }
 
 private fun updateVersionInvalid(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Versioni i përditësimit të shkarkuar është i pavlefshëm"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটের সংস্করণটি অবৈধ"
-    AppLanguage.Bosnian -> "Verzija preuzetog ažuriranja nije ispravna"
-    AppLanguage.Bulgarian -> "Версията на изтеглената актуализация е невалидна"
-    AppLanguage.Catalan -> "La versió de l’actualització baixada no és vàlida"
-    AppLanguage.ChineseSimplified -> "下载的更新版本无效"
-    AppLanguage.Croatian -> "Verzija preuzetog ažuriranja nije valjana"
-    AppLanguage.Czech -> "Verze stažené aktualizace je neplatná"
-    AppLanguage.Danish -> "Den downloadede opdaterings version er ugyldig"
-    AppLanguage.Dutch -> "De versie van de gedownloade update is ongeldig"
-    AppLanguage.English -> "Downloaded update version is invalid"
-    AppLanguage.Estonian -> "Allalaaditud värskenduse versioon ei sobi"
-    AppLanguage.Finnish -> "Ladatun päivityksen versio ei kelpaa"
-    AppLanguage.French -> "La version de la mise à jour téléchargée n’est pas valide"
-    AppLanguage.German -> "Die Version des heruntergeladenen Updates ist ungültig"
-    AppLanguage.Greek -> "Η έκδοση της ενημέρωσης που λήφθηκε δεν είναι έγκυρη"
-    AppLanguage.Hindi -> "डाउनलोड किए गए अपडेट का संस्करण अमान्य है"
-    AppLanguage.Hungarian -> "A letöltött frissítés verziója érvénytelen"
-    AppLanguage.Indonesian -> "Versi pembaruan yang diunduh tidak valid"
-    AppLanguage.Italian -> "La versione dell’aggiornamento scaricato non è valida"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートのバージョンが無効です"
-    AppLanguage.Korean -> "다운로드한 업데이트의 버전이 올바르지 않습니다"
-    AppLanguage.Latvian -> "Lejupielādētā atjauninājuma versija nav derīga"
-    AppLanguage.Lithuanian -> "Atsisiųsto naujinimo versija negalioja"
-    AppLanguage.Macedonian -> "Верзијата на преземеното ажурирање е неважечка"
-    AppLanguage.Malay -> "Versi kemas kini yang dimuat turun tidak sah"
-    AppLanguage.Norwegian -> "Versjonen av den nedlastede oppdateringen er ugyldig"
-    AppLanguage.Polish -> "Wersja pobranej aktualizacji jest nieprawidłowa"
-    AppLanguage.Portuguese -> "A versão da atualização transferida é inválida"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤੇ ਅੱਪਡੇਟ ਦਾ ਸੰਸਕਰਣ ਅਵੈਧ ਹੈ"
-    AppLanguage.Romanian -> "Versiunea actualizării descărcate nu este validă"
-    AppLanguage.Russian -> "Версия скачанного обновления недействительна"
-    AppLanguage.Serbian -> "Верзија преузетог ажурирања није исправна"
-    AppLanguage.Slovak -> "Verzia stiahnutej aktualizácie je neplatná"
-    AppLanguage.Slovenian -> "Različica prenesene posodobitve ni veljavna"
-    AppLanguage.Spanish -> "La versión de la actualización descargada no es válida"
-    AppLanguage.Swedish -> "Versionen av den hämtade uppdateringen är ogiltig"
-    AppLanguage.Thai -> "เวอร์ชันของการอัปเดตที่ดาวน์โหลดมาไม่ถูกต้อง"
-    AppLanguage.Ukrainian -> "Версія завантаженого оновлення недійсна"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ کا ورژن درست نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateVersionInvalid_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateVersionInvalid_1
 }
 
 private fun updateTargetsAnotherApp(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i shkarkuar është për një aplikacion tjetër"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটটি অন্য একটি অ্যাপের জন্য"
-    AppLanguage.Bosnian -> "Preuzeto ažuriranje namijenjeno je drugoj aplikaciji"
-    AppLanguage.Bulgarian -> "Изтеглената актуализация е предназначена за друго приложение"
-    AppLanguage.Catalan -> "L’actualització baixada és per a una altra aplicació"
-    AppLanguage.ChineseSimplified -> "下载的更新属于其他应用"
-    AppLanguage.Croatian -> "Preuzeto ažuriranje namijenjeno je drugoj aplikaciji"
-    AppLanguage.Czech -> "Stažená aktualizace je určena pro jinou aplikaci"
-    AppLanguage.Danish -> "Den downloadede opdatering er til en anden app"
-    AppLanguage.Dutch -> "De gedownloade update is bedoeld voor een andere app"
-    AppLanguage.English -> "Downloaded update targets another app"
-    AppLanguage.Estonian -> "Allalaaditud värskendus on mõeldud teisele rakendusele"
-    AppLanguage.Finnish -> "Ladattu päivitys on tarkoitettu toiselle sovellukselle"
-    AppLanguage.French -> "La mise à jour téléchargée est destinée à une autre application"
-    AppLanguage.German -> "Das heruntergeladene Update ist für eine andere App bestimmt"
-    AppLanguage.Greek -> "Η ενημέρωση που λήφθηκε προορίζεται για άλλη εφαρμογή"
-    AppLanguage.Hindi -> "डाउनलोड किया गया अपडेट किसी अन्य ऐप के लिए है"
-    AppLanguage.Hungarian -> "A letöltött frissítés egy másik alkalmazáshoz készült"
-    AppLanguage.Indonesian -> "Pembaruan yang diunduh ditujukan untuk aplikasi lain"
-    AppLanguage.Italian -> "L’aggiornamento scaricato è destinato a un’altra app"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートは別のアプリ用です"
-    AppLanguage.Korean -> "다운로드한 업데이트는 다른 앱용입니다"
-    AppLanguage.Latvian -> "Lejupielādētais atjauninājums ir paredzēts citai lietotnei"
-    AppLanguage.Lithuanian -> "Atsisiųstas naujinimas skirtas kitai programai"
-    AppLanguage.Macedonian -> "Преземеното ажурирање е наменето за друга апликација"
-    AppLanguage.Malay -> "Kemas kini yang dimuat turun adalah untuk aplikasi lain"
-    AppLanguage.Norwegian -> "Den nedlastede oppdateringen er for en annen app"
-    AppLanguage.Polish -> "Pobrana aktualizacja jest przeznaczona dla innej aplikacji"
-    AppLanguage.Portuguese -> "A atualização transferida destina-se a outra aplicação"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤਾ ਅੱਪਡੇਟ ਕਿਸੇ ਹੋਰ ਐਪ ਲਈ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea descărcată este destinată altei aplicații"
-    AppLanguage.Russian -> "Скачанное обновление предназначено для другого приложения"
-    AppLanguage.Serbian -> "Преузето ажурирање је намењено другој апликацији"
-    AppLanguage.Slovak -> "Stiahnutá aktualizácia je určená pre inú aplikáciu"
-    AppLanguage.Slovenian -> "Prenesena posodobitev je namenjena drugi aplikaciji"
-    AppLanguage.Spanish -> "La actualización descargada es para otra aplicación"
-    AppLanguage.Swedish -> "Den hämtade uppdateringen är avsedd för en annan app"
-    AppLanguage.Thai -> "การอัปเดตที่ดาวน์โหลดมาสำหรับแอปอื่น"
-    AppLanguage.Ukrainian -> "Завантажене оновлення призначене для іншого застосунку"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ کسی اور ایپ کے لیے ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateTargetsAnotherApp_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateTargetsAnotherApp_1
 }
 
 private fun updateVerificationUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi nuk mund të verifikohet"
-    AppLanguage.Bengali -> "আপডেট যাচাই করা যায়নি"
-    AppLanguage.Bosnian -> "Ažuriranje nije moguće provjeriti"
-    AppLanguage.Bulgarian -> "Актуализацията не може да бъде проверена"
-    AppLanguage.Catalan -> "No es pot verificar l’actualització"
-    AppLanguage.ChineseSimplified -> "无法验证更新"
-    AppLanguage.Croatian -> "Ažuriranje nije moguće provjeriti"
-    AppLanguage.Czech -> "Aktualizaci nelze ověřit"
-    AppLanguage.Danish -> "Opdateringen kunne ikke verificeres"
-    AppLanguage.Dutch -> "De update kon niet worden geverifieerd"
-    AppLanguage.English -> "Unable to verify update"
-    AppLanguage.Estonian -> "Värskendust ei saa kontrollida"
-    AppLanguage.Finnish -> "Päivitystä ei voi vahvistaa"
-    AppLanguage.French -> "Impossible de vérifier la mise à jour"
-    AppLanguage.German -> "Das Update kann nicht überprüft werden"
-    AppLanguage.Greek -> "Δεν είναι δυνατή η επαλήθευση της ενημέρωσης"
-    AppLanguage.Hindi -> "अपडेट सत्यापित नहीं किया जा सका"
-    AppLanguage.Hungarian -> "A frissítést nem lehet ellenőrizni"
-    AppLanguage.Indonesian -> "Pembaruan tidak dapat diverifikasi"
-    AppLanguage.Italian -> "Impossibile verificare l’aggiornamento"
-    AppLanguage.Japanese -> "アップデートを検証できません"
-    AppLanguage.Korean -> "업데이트를 검증할 수 없습니다"
-    AppLanguage.Latvian -> "Atjauninājumu nevar pārbaudīt"
-    AppLanguage.Lithuanian -> "Naujinimo patikrinti negalima"
-    AppLanguage.Macedonian -> "Ажурирањето не може да се провери"
-    AppLanguage.Malay -> "Kemas kini tidak dapat disahkan"
-    AppLanguage.Norwegian -> "Oppdateringen kunne ikke verifiseres"
-    AppLanguage.Polish -> "Nie można zweryfikować aktualizacji"
-    AppLanguage.Portuguese -> "Não é possível verificar a atualização"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਦੀ ਤਸਦੀਕ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ"
-    AppLanguage.Romanian -> "Actualizarea nu poate fi verificată"
-    AppLanguage.Russian -> "Не удалось проверить обновление"
-    AppLanguage.Serbian -> "Ажурирање не може да се провери"
-    AppLanguage.Slovak -> "Aktualizáciu nemožno overiť"
-    AppLanguage.Slovenian -> "Posodobitve ni mogoče preveriti"
-    AppLanguage.Spanish -> "No se puede verificar la actualización"
-    AppLanguage.Swedish -> "Uppdateringen kunde inte verifieras"
-    AppLanguage.Thai -> "ไม่สามารถตรวจสอบการอัปเดตได้"
-    AppLanguage.Ukrainian -> "Не вдалося перевірити оновлення"
-    AppLanguage.Urdu -> "اپ ڈیٹ کی تصدیق نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateVerificationUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateVerificationUnavailable_1
 }
 
 private fun updateUnknownCertificate(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i shkarkuar është nënshkruar me një certifikatë të panjohur"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটটি একটি অজানা সার্টিফিকেট দিয়ে স্বাক্ষরিত"
-    AppLanguage.Bosnian -> "Preuzeto ažuriranje potpisano je nepoznatim certifikatom"
-    AppLanguage.Bulgarian -> "Изтеглената актуализация е подписана с непознат сертификат"
-    AppLanguage.Catalan -> "L’actualització baixada està signada amb un certificat desconegut"
-    AppLanguage.ChineseSimplified -> "下载的更新使用未知证书签名"
-    AppLanguage.Croatian -> "Preuzeto ažuriranje potpisano je nepoznatim certifikatom"
-    AppLanguage.Czech -> "Stažená aktualizace je podepsána neznámým certifikátem"
-    AppLanguage.Danish -> "Den downloadede opdatering er signeret med et ukendt certifikat"
-    AppLanguage.Dutch -> "De gedownloade update is ondertekend met een onbekend certificaat"
-    AppLanguage.English -> "Downloaded update is signed by an unknown certificate"
-    AppLanguage.Estonian -> "Allalaaditud värskendus on allkirjastatud tundmatu sertifikaadiga"
-    AppLanguage.Finnish -> "Ladattu päivitys on allekirjoitettu tuntemattomalla varmenteella"
-    AppLanguage.French -> "La mise à jour téléchargée est signée avec un certificat inconnu"
-    AppLanguage.German -> "Das heruntergeladene Update ist mit einem unbekannten Zertifikat signiert"
-    AppLanguage.Greek -> "Η ενημέρωση που λήφθηκε έχει υπογραφεί με άγνωστο πιστοποιητικό"
-    AppLanguage.Hindi -> "डाउनलोड किया गया अपडेट अज्ञात प्रमाणपत्र से हस्ताक्षरित है"
-    AppLanguage.Hungarian -> "A letöltött frissítést ismeretlen tanúsítvánnyal írták alá"
-    AppLanguage.Indonesian -> "Pembaruan yang diunduh ditandatangani dengan sertifikat tidak dikenal"
-    AppLanguage.Italian -> "L’aggiornamento scaricato è firmato con un certificato sconosciuto"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートは不明な証明書で署名されています"
-    AppLanguage.Korean -> "다운로드한 업데이트가 알 수 없는 인증서로 서명되어 있습니다"
-    AppLanguage.Latvian -> "Lejupielādētais atjauninājums ir parakstīts ar nezināmu sertifikātu"
-    AppLanguage.Lithuanian -> "Atsisiųstas naujinimas pasirašytas nežinomu sertifikatu"
-    AppLanguage.Macedonian -> "Преземеното ажурирање е потпишано со непознат сертификат"
-    AppLanguage.Malay -> "Kemas kini yang dimuat turun ditandatangani dengan sijil yang tidak dikenali"
-    AppLanguage.Norwegian -> "Den nedlastede oppdateringen er signert med et ukjent sertifikat"
-    AppLanguage.Polish -> "Pobrana aktualizacja jest podpisana nieznanym certyfikatem"
-    AppLanguage.Portuguese -> "A atualização transferida está assinada com um certificado desconhecido"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤਾ ਅੱਪਡੇਟ ਕਿਸੇ ਅਣਜਾਣ ਸਰਟੀਫਿਕੇਟ ਨਾਲ ਦਸਤਖਤ ਕੀਤਾ ਹੋਇਆ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea descărcată este semnată cu un certificat necunoscut"
-    AppLanguage.Russian -> "Скачанное обновление подписано неизвестным сертификатом"
-    AppLanguage.Serbian -> "Преузето ажурирање је потписано непознатим сертификатом"
-    AppLanguage.Slovak -> "Stiahnutá aktualizácia je podpísaná neznámym certifikátom"
-    AppLanguage.Slovenian -> "Prenesena posodobitev je podpisana z neznanim potrdilom"
-    AppLanguage.Spanish -> "La actualización descargada está firmada con un certificado desconocido"
-    AppLanguage.Swedish -> "Den hämtade uppdateringen är signerad med ett okänt certifikat"
-    AppLanguage.Thai -> "การอัปเดตที่ดาวน์โหลดมาลงนามด้วยใบรับรองที่ไม่รู้จัก"
-    AppLanguage.Ukrainian -> "Завантажене оновлення підписано невідомим сертифікатом"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ پر نامعلوم سرٹیفکیٹ سے دستخط کیے گئے ہیں"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateUnknownCertificate_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateUnknownCertificate_1
 }
 
 private fun updateVerificationFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Verifikimi i përditësimit dështoi"
-    AppLanguage.Bengali -> "আপডেট যাচাই ব্যর্থ হয়েছে"
-    AppLanguage.Bosnian -> "Provjera ažuriranja nije uspjela"
-    AppLanguage.Bulgarian -> "Проверката на актуализацията е неуспешна"
-    AppLanguage.Catalan -> "La verificació de l’actualització ha fallat"
-    AppLanguage.ChineseSimplified -> "更新验证失败"
-    AppLanguage.Croatian -> "Provjera ažuriranja nije uspjela"
-    AppLanguage.Czech -> "Ověření aktualizace se nezdařilo"
-    AppLanguage.Danish -> "Verificering af opdateringen mislykkedes"
-    AppLanguage.Dutch -> "De verificatie van de update is mislukt"
-    AppLanguage.English -> "Update verification failed"
-    AppLanguage.Estonian -> "Värskenduse kontrollimine nurjus"
-    AppLanguage.Finnish -> "Päivityksen vahvistaminen epäonnistui"
-    AppLanguage.French -> "La vérification de la mise à jour a échoué"
-    AppLanguage.German -> "Die Überprüfung des Updates ist fehlgeschlagen"
-    AppLanguage.Greek -> "Η επαλήθευση της ενημέρωσης απέτυχε"
-    AppLanguage.Hindi -> "अपडेट का सत्यापन विफल हुआ"
-    AppLanguage.Hungarian -> "A frissítés ellenőrzése sikertelen"
-    AppLanguage.Indonesian -> "Verifikasi pembaruan gagal"
-    AppLanguage.Italian -> "Verifica dell’aggiornamento non riuscita"
-    AppLanguage.Japanese -> "アップデートの検証に失敗しました"
-    AppLanguage.Korean -> "업데이트 검증에 실패했습니다"
-    AppLanguage.Latvian -> "Atjauninājuma pārbaude neizdevās"
-    AppLanguage.Lithuanian -> "Naujinimo patikra nepavyko"
-    AppLanguage.Macedonian -> "Проверката на ажурирањето не успеа"
-    AppLanguage.Malay -> "Pengesahan kemas kini gagal"
-    AppLanguage.Norwegian -> "Verifisering av oppdateringen mislyktes"
-    AppLanguage.Polish -> "Weryfikacja aktualizacji nie powiodła się"
-    AppLanguage.Portuguese -> "A verificação da atualização falhou"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਦੀ ਤਸਦੀਕ ਅਸਫਲ ਰਹੀ"
-    AppLanguage.Romanian -> "Verificarea actualizării a eșuat"
-    AppLanguage.Russian -> "Проверка обновления не пройдена"
-    AppLanguage.Serbian -> "Провера ажурирања није успела"
-    AppLanguage.Slovak -> "Overenie aktualizácie zlyhalo"
-    AppLanguage.Slovenian -> "Preverjanje posodobitve ni uspelo"
-    AppLanguage.Spanish -> "Falló la verificación de la actualización"
-    AppLanguage.Swedish -> "Verifieringen av uppdateringen misslyckades"
-    AppLanguage.Thai -> "การตรวจสอบการอัปเดตล้มเหลว"
-    AppLanguage.Ukrainian -> "Перевірка оновлення не пройдена"
-    AppLanguage.Urdu -> "اپ ڈیٹ کی تصدیق ناکام ہو گئی"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateVerificationFailed_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateVerificationFailed_1
 }
 
 private fun updateDownloadIncomplete(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i shkarkuar është i paplotë"
-    AppLanguage.Bengali -> "ডাউনলোড করা আপডেটটি অসম্পূর্ণ"
-    AppLanguage.Bosnian -> "Preuzeto ažuriranje nije potpuno"
-    AppLanguage.Bulgarian -> "Изтеглената актуализация е непълна"
-    AppLanguage.Catalan -> "L’actualització baixada és incompleta"
-    AppLanguage.ChineseSimplified -> "下载的更新不完整"
-    AppLanguage.Croatian -> "Preuzeto ažuriranje nije potpuno"
-    AppLanguage.Czech -> "Stažená aktualizace je neúplná"
-    AppLanguage.Danish -> "Den downloadede opdatering er ufuldstændig"
-    AppLanguage.Dutch -> "De gedownloade update is onvolledig"
-    AppLanguage.English -> "Downloaded update is incomplete"
-    AppLanguage.Estonian -> "Allalaaditud värskendus on puudulik"
-    AppLanguage.Finnish -> "Ladattu päivitys on puutteellinen"
-    AppLanguage.French -> "La mise à jour téléchargée est incomplète"
-    AppLanguage.German -> "Das heruntergeladene Update ist unvollständig"
-    AppLanguage.Greek -> "Η ενημέρωση που λήφθηκε είναι ελλιπής"
-    AppLanguage.Hindi -> "डाउनलोड किया गया अपडेट अधूरा है"
-    AppLanguage.Hungarian -> "A letöltött frissítés hiányos"
-    AppLanguage.Indonesian -> "Pembaruan yang diunduh tidak lengkap"
-    AppLanguage.Italian -> "L’aggiornamento scaricato è incompleto"
-    AppLanguage.Japanese -> "ダウンロードしたアップデートが不完全です"
-    AppLanguage.Korean -> "다운로드한 업데이트가 불완전합니다"
-    AppLanguage.Latvian -> "Lejupielādētais atjauninājums ir nepilnīgs"
-    AppLanguage.Lithuanian -> "Atsisiųstas naujinimas yra neišsamus"
-    AppLanguage.Macedonian -> "Преземеното ажурирање е нецелосно"
-    AppLanguage.Malay -> "Kemas kini yang dimuat turun tidak lengkap"
-    AppLanguage.Norwegian -> "Den nedlastede oppdateringen er ufullstendig"
-    AppLanguage.Polish -> "Pobrana aktualizacja jest niekompletna"
-    AppLanguage.Portuguese -> "A atualização transferida está incompleta"
-    AppLanguage.Punjabi -> "ਡਾਊਨਲੋਡ ਕੀਤਾ ਅੱਪਡੇਟ ਅਧੂਰਾ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea descărcată este incompletă"
-    AppLanguage.Russian -> "Скачанное обновление неполное"
-    AppLanguage.Serbian -> "Преузето ажурирање није потпуно"
-    AppLanguage.Slovak -> "Stiahnutá aktualizácia je neúplná"
-    AppLanguage.Slovenian -> "Prenesena posodobitev je nepopolna"
-    AppLanguage.Spanish -> "La actualización descargada está incompleta"
-    AppLanguage.Swedish -> "Den hämtade uppdateringen är ofullständig"
-    AppLanguage.Thai -> "การอัปเดตที่ดาวน์โหลดมาไม่สมบูรณ์"
-    AppLanguage.Ukrainian -> "Завантажене оновлення неповне"
-    AppLanguage.Urdu -> "ڈاؤن لوڈ کردہ اپ ڈیٹ نامکمل ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateDownloadIncomplete_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateDownloadIncomplete_1
 }
 
 private fun updateDownloadFailed(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Shkarkimi i përditësimit dështoi"
-    AppLanguage.Bengali -> "আপডেট ডাউনলোড ব্যর্থ হয়েছে"
-    AppLanguage.Bosnian -> "Preuzimanje ažuriranja nije uspjelo"
-    AppLanguage.Bulgarian -> "Изтеглянето на актуализацията е неуспешно"
-    AppLanguage.Catalan -> "No s’ha pogut baixar l’actualització"
-    AppLanguage.ChineseSimplified -> "更新下载失败"
-    AppLanguage.Croatian -> "Preuzimanje ažuriranja nije uspjelo"
-    AppLanguage.Czech -> "Stažení aktualizace se nezdařilo"
-    AppLanguage.Danish -> "Download af opdateringen mislykkedes"
-    AppLanguage.Dutch -> "Het downloaden van de update is mislukt"
-    AppLanguage.English -> "Update download failed"
-    AppLanguage.Estonian -> "Värskenduse allalaadimine nurjus"
-    AppLanguage.Finnish -> "Päivityksen lataaminen epäonnistui"
-    AppLanguage.French -> "Le téléchargement de la mise à jour a échoué"
-    AppLanguage.German -> "Der Download des Updates ist fehlgeschlagen"
-    AppLanguage.Greek -> "Η λήψη της ενημέρωσης απέτυχε"
-    AppLanguage.Hindi -> "अपडेट डाउनलोड नहीं हो सका"
-    AppLanguage.Hungarian -> "A frissítés letöltése sikertelen"
-    AppLanguage.Indonesian -> "Pengunduhan pembaruan gagal"
-    AppLanguage.Italian -> "Download dell’aggiornamento non riuscito"
-    AppLanguage.Japanese -> "アップデートのダウンロードに失敗しました"
-    AppLanguage.Korean -> "업데이트 다운로드에 실패했습니다"
-    AppLanguage.Latvian -> "Atjauninājumu neizdevās lejupielādēt"
-    AppLanguage.Lithuanian -> "Nepavyko atsisiųsti naujinimo"
-    AppLanguage.Macedonian -> "Преземањето на ажурирањето не успеа"
-    AppLanguage.Malay -> "Muat turun kemas kini gagal"
-    AppLanguage.Norwegian -> "Nedlasting av oppdateringen mislyktes"
-    AppLanguage.Polish -> "Nie udało się pobrać aktualizacji"
-    AppLanguage.Portuguese -> "A transferência da atualização falhou"
-    AppLanguage.Punjabi -> "ਅੱਪਡੇਟ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ"
-    AppLanguage.Romanian -> "Descărcarea actualizării a eșuat"
-    AppLanguage.Russian -> "Не удалось скачать обновление"
-    AppLanguage.Serbian -> "Преузимање ажурирања није успело"
-    AppLanguage.Slovak -> "Stiahnutie aktualizácie zlyhalo"
-    AppLanguage.Slovenian -> "Prenos posodobitve ni uspel"
-    AppLanguage.Spanish -> "No se pudo descargar la actualización"
-    AppLanguage.Swedish -> "Hämtningen av uppdateringen misslyckades"
-    AppLanguage.Thai -> "ดาวน์โหลดการอัปเดตไม่สำเร็จ"
-    AppLanguage.Ukrainian -> "Не вдалося завантажити оновлення"
-    AppLanguage.Urdu -> "اپ ڈیٹ ڈاؤن لوڈ نہیں ہو سکی"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateDownloadFailed_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateDownloadFailed_1
 }
 
 private fun updateInstallPermission(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Lejo fillimisht instalimin e përditësimeve nga ky burim"
-    AppLanguage.Bengali -> "প্রথমে এই উৎস থেকে আপডেট ইনস্টল করার অনুমতি দিন"
-    AppLanguage.Bosnian -> "Najprije dozvolite instaliranje ažuriranja iz ovog izvora"
-    AppLanguage.Bulgarian -> "Първо разрешете инсталирането на актуализации от този източник"
-    AppLanguage.Catalan -> "Permet primer la instal·lació d’actualitzacions d’aquesta font"
-    AppLanguage.ChineseSimplified -> "请先允许从此来源安装更新"
-    AppLanguage.Croatian -> "Najprije dopustite instaliranje ažuriranja iz ovog izvora"
-    AppLanguage.Czech -> "Nejprve povolte instalaci aktualizací z tohoto zdroje"
-    AppLanguage.Danish -> "Tillad først installation af opdateringer fra denne kilde"
-    AppLanguage.Dutch -> "Sta eerst toe dat updates uit deze bron worden geïnstalleerd"
-    AppLanguage.English -> "Allow installing updates from this source first"
-    AppLanguage.Estonian -> "Luba esmalt sellest allikast värskenduste installimine"
-    AppLanguage.Finnish -> "Salli ensin päivitysten asentaminen tästä lähteestä"
-    AppLanguage.French -> "Autorisez d’abord l’installation de mises à jour depuis cette source"
-    AppLanguage.German -> "Erlaube zuerst die Installation von Updates aus dieser Quelle"
-    AppLanguage.Greek -> "Επίτρεψε πρώτα την εγκατάσταση ενημερώσεων από αυτή την πηγή"
-    AppLanguage.Hindi -> "पहले इस स्रोत से अपडेट इंस्टॉल करने की अनुमति दें"
-    AppLanguage.Hungarian -> "Először engedélyezd a frissítések telepítését ebből a forrásból"
-    AppLanguage.Indonesian -> "Izinkan pemasangan pembaruan dari sumber ini terlebih dahulu"
-    AppLanguage.Italian -> "Consenti prima l’installazione degli aggiornamenti da questa origine"
-    AppLanguage.Japanese -> "まずこの提供元からのアップデートのインストールを許可してください"
-    AppLanguage.Korean -> "먼저 이 출처의 업데이트 설치를 허용하세요"
-    AppLanguage.Latvian -> "Vispirms atļaujiet atjauninājumu instalēšanu no šī avota"
-    AppLanguage.Lithuanian -> "Pirmiausia leiskite diegti naujinimus iš šio šaltinio"
-    AppLanguage.Macedonian -> "Прво дозволете инсталирање ажурирања од овој извор"
-    AppLanguage.Malay -> "Benarkan pemasangan kemas kini daripada sumber ini dahulu"
-    AppLanguage.Norwegian -> "Tillat først installering av oppdateringer fra denne kilden"
-    AppLanguage.Polish -> "Najpierw zezwól na instalowanie aktualizacji z tego źródła"
-    AppLanguage.Portuguese -> "Permite primeiro a instalação de atualizações desta origem"
-    AppLanguage.Punjabi -> "ਪਹਿਲਾਂ ਇਸ ਸਰੋਤ ਤੋਂ ਅੱਪਡੇਟ ਇੰਸਟਾਲ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ"
-    AppLanguage.Romanian -> "Permite mai întâi instalarea actualizărilor din această sursă"
-    AppLanguage.Russian -> "Сначала разрешите установку обновлений из этого источника"
-    AppLanguage.Serbian -> "Прво дозволите инсталирање ажурирања из овог извора"
-    AppLanguage.Slovak -> "Najprv povoľte inštaláciu aktualizácií z tohto zdroja"
-    AppLanguage.Slovenian -> "Najprej dovolite namestitev posodobitev iz tega vira"
-    AppLanguage.Spanish -> "Permite primero instalar actualizaciones de esta fuente"
-    AppLanguage.Swedish -> "Tillåt först installation av uppdateringar från den här källan"
-    AppLanguage.Thai -> "อนุญาตให้ติดตั้งการอัปเดตจากแหล่งนี้ก่อน"
-    AppLanguage.Ukrainian -> "Спочатку дозвольте встановлення оновлень із цього джерела"
-    AppLanguage.Urdu -> "پہلے اس ذریعے سے اپ ڈیٹس انسٹال کرنے کی اجازت دیں"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateInstallPermission_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateInstallPermission_1
 }
 
 private fun stagedUpdateUnavailable(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Përditësimi i përgatitur nuk është më i disponueshëm"
-    AppLanguage.Bengali -> "প্রস্তুত করা আপডেটটি আর উপলব্ধ নেই"
-    AppLanguage.Bosnian -> "Pripremljeno ažuriranje više nije dostupno"
-    AppLanguage.Bulgarian -> "Подготвената актуализация вече не е налична"
-    AppLanguage.Catalan -> "L’actualització preparada ja no està disponible"
-    AppLanguage.ChineseSimplified -> "已准备的更新不再可用"
-    AppLanguage.Croatian -> "Pripremljeno ažuriranje više nije dostupno"
-    AppLanguage.Czech -> "Připravená aktualizace již není dostupná"
-    AppLanguage.Danish -> "Den klargjorte opdatering er ikke længere tilgængelig"
-    AppLanguage.Dutch -> "De voorbereide update is niet meer beschikbaar"
-    AppLanguage.English -> "The staged update is no longer available"
-    AppLanguage.Estonian -> "Ettevalmistatud värskendus pole enam saadaval"
-    AppLanguage.Finnish -> "Valmisteltu päivitys ei ole enää saatavilla"
-    AppLanguage.French -> "La mise à jour préparée n’est plus disponible"
-    AppLanguage.German -> "Das vorbereitete Update ist nicht mehr verfügbar"
-    AppLanguage.Greek -> "Η προετοιμασμένη ενημέρωση δεν είναι πλέον διαθέσιμη"
-    AppLanguage.Hindi -> "तैयार किया गया अपडेट अब उपलब्ध नहीं है"
-    AppLanguage.Hungarian -> "Az előkészített frissítés már nem érhető el"
-    AppLanguage.Indonesian -> "Pembaruan yang disiapkan tidak lagi tersedia"
-    AppLanguage.Italian -> "L’aggiornamento preparato non è più disponibile"
-    AppLanguage.Japanese -> "準備されたアップデートは利用できなくなりました"
-    AppLanguage.Korean -> "준비된 업데이트를 더 이상 사용할 수 없습니다"
-    AppLanguage.Latvian -> "Sagatavotais atjauninājums vairs nav pieejams"
-    AppLanguage.Lithuanian -> "Parengtas naujinimas nebepasiekiamas"
-    AppLanguage.Macedonian -> "Подготвеното ажурирање повеќе не е достапно"
-    AppLanguage.Malay -> "Kemas kini yang disediakan tidak lagi tersedia"
-    AppLanguage.Norwegian -> "Den klargjorte oppdateringen er ikke lenger tilgjengelig"
-    AppLanguage.Polish -> "Przygotowana aktualizacja nie jest już dostępna"
-    AppLanguage.Portuguese -> "A atualização preparada já não está disponível"
-    AppLanguage.Punjabi -> "ਤਿਆਰ ਕੀਤਾ ਅੱਪਡੇਟ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ"
-    AppLanguage.Romanian -> "Actualizarea pregătită nu mai este disponibilă"
-    AppLanguage.Russian -> "Подготовленное обновление больше недоступно"
-    AppLanguage.Serbian -> "Припремљено ажурирање више није доступно"
-    AppLanguage.Slovak -> "Pripravená aktualizácia už nie je dostupná"
-    AppLanguage.Slovenian -> "Pripravljena posodobitev ni več na voljo"
-    AppLanguage.Spanish -> "La actualización preparada ya no está disponible"
-    AppLanguage.Swedish -> "Den förberedda uppdateringen är inte längre tillgänglig"
-    AppLanguage.Thai -> "การอัปเดตที่เตรียมไว้ไม่พร้อมใช้งานแล้ว"
-    AppLanguage.Ukrainian -> "Підготовлене оновлення більше недоступне"
-    AppLanguage.Urdu -> "تیار کردہ اپ ڈیٹ اب دستیاب نہیں ہے"
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_stagedUpdateUnavailable_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_stagedUpdateUnavailable_1
 }
 
 internal data class AboutUpdateCopy(
@@ -1115,46 +1115,46 @@ internal data class AboutUpdateCopy(
 )
 
 internal fun aboutUpdateCopy(language: AppLanguage): AboutUpdateCopy = when (language) {
-    AppLanguage.Albanian -> AboutUpdateCopy("Përditësim i disponueshëm", "Versioni", "Më vonë", "Shkarko", "Mbyll ndryshimet", "Ende nuk ka ndryshime")
-    AppLanguage.Bengali -> AboutUpdateCopy("আপডেট উপলভ্য", "সংস্করণ", "পরে", "ডাউনলোড", "পরিবর্তনপঞ্জি বন্ধ করুন", "এখনও কোনো পরিবর্তন নেই")
-    AppLanguage.Bosnian -> AboutUpdateCopy("Dostupno je ažuriranje", "Verzija", "Kasnije", "Preuzmi", "Zatvori listu promjena", "Još nema promjena")
-    AppLanguage.Bulgarian -> AboutUpdateCopy("Налична е актуализация", "Версия", "По-късно", "Изтегли", "Затвори списъка с промени", "Все още няма промени")
-    AppLanguage.Catalan -> AboutUpdateCopy("Actualització disponible", "Versió", "Més tard", "Baixa", "Tanca les novetats", "Encara no hi ha novetats")
-    AppLanguage.ChineseSimplified -> AboutUpdateCopy("有可用更新", "版本", "稍后", "下载", "关闭更新日志", "暂无更新记录")
-    AppLanguage.Croatian -> AboutUpdateCopy("Dostupno je ažuriranje", "Verzija", "Kasnije", "Preuzmi", "Zatvori popis promjena", "Još nema promjena")
-    AppLanguage.Czech -> AboutUpdateCopy("Je k dispozici aktualizace", "Verze", "Později", "Stáhnout", "Zavřít přehled změn", "Zatím žádné změny")
-    AppLanguage.Danish -> AboutUpdateCopy("Opdatering tilgængelig", "Version", "Senere", "Download", "Luk ændringsloggen", "Ingen ændringer endnu")
-    AppLanguage.Dutch -> AboutUpdateCopy("Update beschikbaar", "Versie", "Later", "Downloaden", "Wijzigingen sluiten", "Nog geen wijzigingen")
-    AppLanguage.English -> AboutUpdateCopy("Update available", "Version", "Later", "Download", "Close changelog", "No changelog entries yet")
-    AppLanguage.Estonian -> AboutUpdateCopy("Värskendus on saadaval", "Versioon", "Hiljem", "Laadi alla", "Sulge muudatuste loend", "Muudatusi veel pole")
-    AppLanguage.Finnish -> AboutUpdateCopy("Päivitys saatavilla", "Versio", "Myöhemmin", "Lataa", "Sulje muutosloki", "Ei vielä muutoksia")
-    AppLanguage.French -> AboutUpdateCopy("Mise à jour disponible", "Version", "Plus tard", "Télécharger", "Fermer les nouveautés", "Aucune nouveauté pour le moment")
-    AppLanguage.German -> AboutUpdateCopy("Update verfügbar", "Version", "Später", "Herunterladen", "Änderungsprotokoll schließen", "Noch keine Änderungen")
-    AppLanguage.Greek -> AboutUpdateCopy("Διαθέσιμη ενημέρωση", "Έκδοση", "Αργότερα", "Λήψη", "Κλείσιμο αλλαγών", "Δεν υπάρχουν ακόμα αλλαγές")
-    AppLanguage.Hindi -> AboutUpdateCopy("अपडेट उपलब्ध है", "संस्करण", "बाद में", "डाउनलोड करें", "बदलाव सूची बंद करें", "अभी कोई बदलाव नहीं")
-    AppLanguage.Hungarian -> AboutUpdateCopy("Frissítés érhető el", "Verzió", "Később", "Letöltés", "Változások bezárása", "Még nincsenek változások")
-    AppLanguage.Indonesian -> AboutUpdateCopy("Pembaruan tersedia", "Versi", "Nanti", "Unduh", "Tutup riwayat perubahan", "Belum ada perubahan")
-    AppLanguage.Italian -> AboutUpdateCopy("Aggiornamento disponibile", "Versione", "Più tardi", "Scarica", "Chiudi le novità", "Nessuna novità per ora")
-    AppLanguage.Japanese -> AboutUpdateCopy("アップデートがあります", "バージョン", "後で", "ダウンロード", "更新履歴を閉じる", "更新履歴はまだありません")
-    AppLanguage.Korean -> AboutUpdateCopy("업데이트가 있습니다", "버전", "나중에", "다운로드", "변경 사항 닫기", "아직 변경 사항이 없습니다")
-    AppLanguage.Latvian -> AboutUpdateCopy("Pieejams atjauninājums", "Versija", "Vēlāk", "Lejupielādēt", "Aizvērt izmaiņu sarakstu", "Vēl nav izmaiņu")
-    AppLanguage.Lithuanian -> AboutUpdateCopy("Yra naujinys", "Versija", "Vėliau", "Atsisiųsti", "Uždaryti pakeitimų sąrašą", "Pakeitimų dar nėra")
-    AppLanguage.Macedonian -> AboutUpdateCopy("Достапно е ажурирање", "Верзија", "Подоцна", "Преземи", "Затвори ги промените", "Сè уште нема промени")
-    AppLanguage.Malay -> AboutUpdateCopy("Kemas kini tersedia", "Versi", "Kemudian", "Muat turun", "Tutup log perubahan", "Belum ada perubahan")
-    AppLanguage.Norwegian -> AboutUpdateCopy("Oppdatering tilgjengelig", "Versjon", "Senere", "Last ned", "Lukk endringsloggen", "Ingen endringer ennå")
-    AppLanguage.Polish -> AboutUpdateCopy("Dostępna aktualizacja", "Wersja", "Później", "Pobierz", "Zamknij listę zmian", "Nie ma jeszcze żadnych zmian")
-    AppLanguage.Portuguese -> AboutUpdateCopy("Atualização disponível", "Versão", "Mais tarde", "Transferir", "Fechar novidades", "Ainda não há alterações")
-    AppLanguage.Punjabi -> AboutUpdateCopy("ਅੱਪਡੇਟ ਉਪਲਬਧ ਹੈ", "ਵਰਜਨ", "ਬਾਅਦ ਵਿੱਚ", "ਡਾਊਨਲੋਡ ਕਰੋ", "ਤਬਦੀਲੀਆਂ ਦੀ ਸੂਚੀ ਬੰਦ ਕਰੋ", "ਹਾਲੇ ਕੋਈ ਤਬਦੀਲੀ ਨਹੀਂ")
-    AppLanguage.Romanian -> AboutUpdateCopy("Actualizare disponibilă", "Versiunea", "Mai târziu", "Descarcă", "Închide lista de modificări", "Nu există încă modificări")
-    AppLanguage.Russian -> AboutUpdateCopy("Доступно обновление", "Версия", "Позже", "Скачать", "Закрыть список изменений", "Изменений пока нет")
-    AppLanguage.Serbian -> AboutUpdateCopy("Доступно је ажурирање", "Верзија", "Касније", "Преузми", "Затвори списак промена", "Још нема промена")
-    AppLanguage.Slovak -> AboutUpdateCopy("Aktualizácia je dostupná", "Verzia", "Neskôr", "Stiahnuť", "Zavrieť prehľad zmien", "Zatiaľ žiadne zmeny")
-    AppLanguage.Slovenian -> AboutUpdateCopy("Posodobitev je na voljo", "Različica", "Pozneje", "Prenesi", "Zapri seznam sprememb", "Sprememb še ni")
-    AppLanguage.Spanish -> AboutUpdateCopy("Actualización disponible", "Versión", "Más tarde", "Descargar", "Cerrar novedades", "Todavía no hay novedades")
-    AppLanguage.Swedish -> AboutUpdateCopy("Uppdatering tillgänglig", "Version", "Senare", "Ladda ner", "Stäng ändringsloggen", "Inga ändringar än")
-    AppLanguage.Thai -> AboutUpdateCopy("มีอัปเดตพร้อมใช้งาน", "เวอร์ชัน", "ภายหลัง", "ดาวน์โหลด", "ปิดบันทึกการเปลี่ยนแปลง", "ยังไม่มีรายการเปลี่ยนแปลง")
-    AppLanguage.Ukrainian -> AboutUpdateCopy("Доступне оновлення", "Версія", "Пізніше", "Завантажити", "Закрити список змін", "Змін поки немає")
-    AppLanguage.Urdu -> AboutUpdateCopy("اپ ڈیٹ دستیاب ہے", "ورژن", "بعد میں", "ڈاؤن لوڈ کریں", "تبدیلیوں کی فہرست بند کریں", "ابھی کوئی تبدیلی نہیں")
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_aboutUpdateCopy_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_aboutUpdateCopy_1
 }
 
 internal data class UpdateActionCopy(
@@ -1167,44 +1167,44 @@ internal data class UpdateActionCopy(
 )
 
 internal fun updateActionCopy(language: AppLanguage): UpdateActionCopy = when (language) {
-    AppLanguage.Albanian -> UpdateActionCopy("Po kontrollohet…", "Po shkarkohet…", "Po instalohet…", "Lejo instalimin", "Përditëso", "Provo përsëri")
-    AppLanguage.Bengali -> UpdateActionCopy("পরীক্ষা করা হচ্ছে…", "ডাউনলোড হচ্ছে…", "ইনস্টল হচ্ছে…", "ইনস্টলের অনুমতি দিন", "আপডেট করুন", "আবার চেষ্টা করুন")
-    AppLanguage.Bosnian -> UpdateActionCopy("Provjera…", "Preuzimanje…", "Instaliranje…", "Dozvoli instalaciju", "Ažuriraj", "Pokušaj ponovo")
-    AppLanguage.Bulgarian -> UpdateActionCopy("Проверка…", "Изтегляне…", "Инсталиране…", "Разреши инсталацията", "Актуализирай", "Опитай отново")
-    AppLanguage.Catalan -> UpdateActionCopy("S’està comprovant…", "S’està baixant…", "S’està instal·lant…", "Permet la instal·lació", "Actualitza", "Torna-ho a provar")
-    AppLanguage.ChineseSimplified -> UpdateActionCopy("正在检查…", "正在下载…", "正在安装…", "允许安装", "更新", "重试")
-    AppLanguage.Croatian -> UpdateActionCopy("Provjera…", "Preuzimanje…", "Instaliranje…", "Dopusti instalaciju", "Ažuriraj", "Pokušaj ponovno")
-    AppLanguage.Czech -> UpdateActionCopy("Kontrola…", "Stahování…", "Instalace…", "Povolit instalaci", "Aktualizovat", "Zkusit znovu")
-    AppLanguage.Danish -> UpdateActionCopy("Kontrollerer…", "Downloader…", "Installerer…", "Tillad installation", "Opdater", "Prøv igen")
-    AppLanguage.Dutch -> UpdateActionCopy("Controleren…", "Downloaden…", "Installeren…", "Installatie toestaan", "Bijwerken", "Opnieuw proberen")
-    AppLanguage.English -> UpdateActionCopy("Checking...", "Downloading...", "Installing...", "Allow install", "Update", "Retry")
-    AppLanguage.Estonian -> UpdateActionCopy("Kontrollimine…", "Allalaadimine…", "Installimine…", "Luba installimine", "Värskenda", "Proovi uuesti")
-    AppLanguage.Finnish -> UpdateActionCopy("Tarkistetaan…", "Ladataan…", "Asennetaan…", "Salli asennus", "Päivitä", "Yritä uudelleen")
-    AppLanguage.French -> UpdateActionCopy("Vérification…", "Téléchargement…", "Installation…", "Autoriser l’installation", "Mettre à jour", "Réessayer")
-    AppLanguage.German -> UpdateActionCopy("Prüfung läuft…", "Wird heruntergeladen…", "Wird installiert…", "Installation erlauben", "Aktualisieren", "Erneut versuchen")
-    AppLanguage.Greek -> UpdateActionCopy("Έλεγχος…", "Λήψη…", "Εγκατάσταση…", "Να επιτραπεί η εγκατάσταση", "Ενημέρωση", "Δοκιμάστε ξανά")
-    AppLanguage.Hindi -> UpdateActionCopy("जाँच हो रही है…", "डाउनलोड हो रहा है…", "इंस्टॉल हो रहा है…", "इंस्टॉल की अनुमति दें", "अपडेट करें", "फिर कोशिश करें")
-    AppLanguage.Hungarian -> UpdateActionCopy("Ellenőrzés…", "Letöltés…", "Telepítés…", "Telepítés engedélyezése", "Frissítés", "Újra")
-    AppLanguage.Indonesian -> UpdateActionCopy("Memeriksa…", "Mengunduh…", "Memasang…", "Izinkan pemasangan", "Perbarui", "Coba lagi")
-    AppLanguage.Italian -> UpdateActionCopy("Verifica…", "Download…", "Installazione…", "Consenti installazione", "Aggiorna", "Riprova")
-    AppLanguage.Japanese -> UpdateActionCopy("確認中…", "ダウンロード中…", "インストール中…", "インストールを許可", "更新", "再試行")
-    AppLanguage.Korean -> UpdateActionCopy("확인 중…", "다운로드 중…", "설치 중…", "설치 허용", "업데이트", "다시 시도")
-    AppLanguage.Latvian -> UpdateActionCopy("Pārbauda…", "Lejupielādē…", "Instalē…", "Atļaut instalēšanu", "Atjaunināt", "Mēģināt vēlreiz")
-    AppLanguage.Lithuanian -> UpdateActionCopy("Tikrinama…", "Atsisiunčiama…", "Diegiama…", "Leisti diegti", "Atnaujinti", "Bandyti dar kartą")
-    AppLanguage.Macedonian -> UpdateActionCopy("Се проверува…", "Се презема…", "Се инсталира…", "Дозволи инсталација", "Ажурирај", "Обиди се повторно")
-    AppLanguage.Malay -> UpdateActionCopy("Menyemak…", "Memuat turun…", "Memasang…", "Benarkan pemasangan", "Kemas kini", "Cuba lagi")
-    AppLanguage.Norwegian -> UpdateActionCopy("Sjekker…", "Laster ned…", "Installerer…", "Tillat installasjon", "Oppdater", "Prøv igjen")
-    AppLanguage.Polish -> UpdateActionCopy("Sprawdzanie…", "Pobieranie…", "Instalowanie…", "Zezwól na instalację", "Aktualizuj", "Spróbuj ponownie")
-    AppLanguage.Portuguese -> UpdateActionCopy("A verificar…", "A transferir…", "A instalar…", "Permitir instalação", "Atualizar", "Tentar novamente")
-    AppLanguage.Punjabi -> UpdateActionCopy("ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…", "ਡਾਊਨਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…", "ਇੰਸਟਾਲ ਹੋ ਰਿਹਾ ਹੈ…", "ਇੰਸਟਾਲ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ", "ਅੱਪਡੇਟ ਕਰੋ", "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ")
-    AppLanguage.Romanian -> UpdateActionCopy("Se verifică…", "Se descarcă…", "Se instalează…", "Permite instalarea", "Actualizează", "Încearcă din nou")
-    AppLanguage.Russian -> UpdateActionCopy("Проверка…", "Загрузка…", "Установка…", "Разрешить установку", "Обновить", "Повторить")
-    AppLanguage.Serbian -> UpdateActionCopy("Провера…", "Преузимање…", "Инсталација…", "Дозволи инсталацију", "Ажурирај", "Покушај поново")
-    AppLanguage.Slovak -> UpdateActionCopy("Kontrola…", "Sťahovanie…", "Inštalácia…", "Povoliť inštaláciu", "Aktualizovať", "Skúsiť znova")
-    AppLanguage.Slovenian -> UpdateActionCopy("Preverjanje…", "Prenašanje…", "Nameščanje…", "Dovoli namestitev", "Posodobi", "Poskusi znova")
-    AppLanguage.Spanish -> UpdateActionCopy("Comprobando…", "Descargando…", "Instalando…", "Permitir instalación", "Actualizar", "Reintentar")
-    AppLanguage.Swedish -> UpdateActionCopy("Kontrollerar…", "Laddar ner…", "Installerar…", "Tillåt installation", "Uppdatera", "Försök igen")
-    AppLanguage.Thai -> UpdateActionCopy("กำลังตรวจสอบ…", "กำลังดาวน์โหลด…", "กำลังติดตั้ง…", "อนุญาตการติดตั้ง", "อัปเดต", "ลองอีกครั้ง")
-    AppLanguage.Ukrainian -> UpdateActionCopy("Перевірка…", "Завантаження…", "Установлення…", "Дозволити встановлення", "Оновити", "Спробувати ще раз")
-    AppLanguage.Urdu -> UpdateActionCopy("جانچ جاری ہے…", "ڈاؤن لوڈ ہو رہا ہے…", "انسٹال ہو رہا ہے…", "انسٹال کی اجازت دیں", "اپ ڈیٹ کریں", "دوبارہ کوشش کریں")
+    AppLanguage.Albanian -> AlbanianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Bengali -> BengaliTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Bosnian -> BosnianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Catalan -> CatalanTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Croatian -> CroatianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Czech -> CzechTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Danish -> DanishTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Dutch -> DutchTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.English -> EnglishTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Estonian -> EstonianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Finnish -> FinnishTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.French -> FrenchTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.German -> GermanTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Greek -> GreekTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Hindi -> HindiTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Hungarian -> HungarianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Indonesian -> IndonesianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Italian -> ItalianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Japanese -> JapaneseTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Korean -> KoreanTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Latvian -> LatvianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Macedonian -> MacedonianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Malay -> MalayTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Norwegian -> NorwegianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Polish -> PolishTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Portuguese -> PortugueseTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Punjabi -> PunjabiTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Romanian -> RomanianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Russian -> RussianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Serbian -> SerbianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Slovak -> SlovakTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Slovenian -> SlovenianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Spanish -> SpanishTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Swedish -> SwedishTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Thai -> ThaiTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.aboutUpdate_updateActionCopy_1
+    AppLanguage.Urdu -> UrduTranslations.aboutUpdate_updateActionCopy_1
 }

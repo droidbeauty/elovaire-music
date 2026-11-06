@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import elovaire.music.droidbeauty.app.ui.i18n.*
+
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -134,21 +136,21 @@ internal fun formatPlaylistDuration(durationMs: Long, language: AppLanguage): St
     val hours = durationMs / 3_600_000
     val minutes = (durationMs % 3_600_000) / 60_000
     val (hourUnit, minuteUnit) = when (language) {
-        AppLanguage.Bengali -> "ঘ" to "মি"
+        AppLanguage.Bengali -> BengaliTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to BengaliTranslations.playlistUiModels_formatPlaylistDuration_variant_2
         AppLanguage.Bulgarian, AppLanguage.Macedonian, AppLanguage.Russian, AppLanguage.Serbian -> "ч" to "мин"
-        AppLanguage.ChineseSimplified -> "小时" to "分钟"
-        AppLanguage.Finnish -> "t" to "min"
-        AppLanguage.Greek -> "ώ" to "λεπ"
-        AppLanguage.Hindi -> "घं" to "मि"
-        AppLanguage.Japanese -> "時間" to "分"
-        AppLanguage.Korean -> "시간" to "분"
-        AppLanguage.Lithuanian -> "val" to "min"
-        AppLanguage.Polish -> "godz" to "min"
-        AppLanguage.Punjabi -> "ਘੰ" to "ਮਿੰ"
-        AppLanguage.Thai -> "ชม" to "นาที"
-        AppLanguage.Ukrainian -> "год" to "хв"
-        AppLanguage.Urdu -> (if (hours == 1L) "گھنٹہ" else "گھنٹے") to "منٹ"
-        AppLanguage.English -> "h" to "m"
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to ChineseSimplifiedTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Finnish -> FinnishTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to FinnishTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Greek -> GreekTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to GreekTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Hindi -> HindiTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to HindiTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Japanese -> JapaneseTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to JapaneseTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Korean -> KoreanTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to KoreanTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Lithuanian -> LithuanianTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to LithuanianTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Polish -> PolishTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to PolishTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Punjabi -> PunjabiTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to PunjabiTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Thai -> ThaiTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to ThaiTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Ukrainian -> UkrainianTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to UkrainianTranslations.playlistUiModels_formatPlaylistDuration_variant_2
+        AppLanguage.Urdu -> (if (hours == 1L) UrduTranslations.playlistUiModels_formatPlaylistDuration_variant_1 else UrduTranslations.playlistUiModels_formatPlaylistDuration_variant_2) to UrduTranslations.playlistUiModels_formatPlaylistDuration_variant_3
+        AppLanguage.English -> EnglishTranslations.playlistUiModels_formatPlaylistDuration_variant_1 to EnglishTranslations.playlistUiModels_formatPlaylistDuration_variant_2
         else -> "h" to "min"
     }
     val unitSeparator = when (language) {

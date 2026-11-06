@@ -7,44 +7,44 @@ internal fun localizedExternalAudioText(text: String, songId: Long?, language: A
     if (songId != null && isExternalAudioSongId(songId) && text == "External audio") externalAudioLabel(language) else text
 
 internal fun externalAudioLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.Albanian -> "Audio e jashtme"
-    AppLanguage.Bengali -> "বাহ্যিক অডিও"
-    AppLanguage.Bosnian -> "Vanjski audio"
-    AppLanguage.Bulgarian -> "Външно аудио"
-    AppLanguage.Catalan -> "Àudio extern"
-    AppLanguage.ChineseSimplified -> "外部音频"
-    AppLanguage.Croatian -> "Vanjski zvuk"
-    AppLanguage.Czech -> "Externí zvuk"
-    AppLanguage.Danish -> "Ekstern lyd"
-    AppLanguage.Dutch -> "Externe audio"
-    AppLanguage.English -> "External audio"
-    AppLanguage.Estonian -> "Väline heli"
-    AppLanguage.Finnish -> "Ulkoinen äänitiedosto"
-    AppLanguage.French -> "Audio externe"
-    AppLanguage.German -> "Externe Audiodatei"
-    AppLanguage.Greek -> "Εξωτερικός ήχος"
-    AppLanguage.Hindi -> "बाहरी ऑडियो"
-    AppLanguage.Hungarian -> "Külső hangfájl"
-    AppLanguage.Indonesian -> "Audio eksternal"
-    AppLanguage.Italian -> "Audio esterno"
-    AppLanguage.Japanese -> "外部オーディオ"
-    AppLanguage.Korean -> "외부 오디오"
-    AppLanguage.Latvian -> "Ārējs audio"
-    AppLanguage.Lithuanian -> "Išorinis garso įrašas"
-    AppLanguage.Macedonian -> "Надворешно аудио"
-    AppLanguage.Malay -> "Audio luaran"
-    AppLanguage.Norwegian -> "Ekstern lyd"
-    AppLanguage.Polish -> "Zewnętrzny plik audio"
-    AppLanguage.Portuguese -> "Áudio externo"
-    AppLanguage.Punjabi -> "ਬਾਹਰੀ ਆਡੀਓ"
-    AppLanguage.Romanian -> "Audio extern"
-    AppLanguage.Russian -> "Внешний аудиофайл"
-    AppLanguage.Serbian -> "Спољни аудио"
-    AppLanguage.Slovak -> "Externý zvuk"
-    AppLanguage.Slovenian -> "Zunanji zvok"
-    AppLanguage.Spanish -> "Audio externo"
-    AppLanguage.Swedish -> "Externt ljud"
-    AppLanguage.Thai -> "เสียงภายนอก"
-    AppLanguage.Ukrainian -> "Зовнішній аудіофайл"
-    AppLanguage.Urdu -> "بیرونی آڈیو"
+    AppLanguage.Albanian -> AlbanianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Bengali -> BengaliTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Bosnian -> BosnianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Bulgarian -> BulgarianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Catalan -> CatalanTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Croatian -> CroatianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Czech -> CzechTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Danish -> DanishTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Dutch -> DutchTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.English -> EnglishTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Estonian -> EstonianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Finnish -> FinnishTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.French -> FrenchTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.German -> GermanTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Greek -> GreekTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Hindi -> HindiTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Hungarian -> HungarianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Indonesian -> IndonesianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Italian -> ItalianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Japanese -> JapaneseTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Korean -> KoreanTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Latvian -> LatvianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Lithuanian -> LithuanianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Macedonian -> MacedonianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Malay -> MalayTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Norwegian -> NorwegianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Polish -> PolishTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Portuguese -> PortugueseTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Punjabi -> PunjabiTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Romanian -> RomanianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Russian -> RussianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Serbian -> SerbianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Slovak -> SlovakTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Slovenian -> SlovenianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Spanish -> SpanishTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Swedish -> SwedishTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Thai -> ThaiTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Ukrainian -> UkrainianTranslations.externalAudio_externalAudioLabel_1
+    AppLanguage.Urdu -> UrduTranslations.externalAudio_externalAudioLabel_1
 }

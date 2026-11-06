@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+
+import elovaire.music.droidbeauty.app.ui.i18n.*
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireClickable
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
@@ -1187,45 +1189,45 @@ internal fun localizedAboutTitle(
     "Elovaire" -> title
     "Lucide icons", "Geist font" -> elovaire.music.droidbeauty.app.ui.i18n.localizedResourceTitle(title, language)
     "Resources" -> when (language) {
-        AppLanguage.Bulgarian -> "Ресурси"
-        AppLanguage.Albanian -> "Burimet"
-        AppLanguage.Danish -> "Ressourcer"
-        AppLanguage.Dutch -> "Bronnen"
-        AppLanguage.Estonian -> "Ressursid"
-        AppLanguage.Greek -> "Πόροι"
-        AppLanguage.Hindi -> "संसाधन"
-        AppLanguage.Hungarian -> "Erőforrások"
-        AppLanguage.Latvian -> "Resursi"
-        AppLanguage.Lithuanian -> "Ištekliai"
-        AppLanguage.Macedonian -> "Ресурси"
-        AppLanguage.Norwegian -> "Ressurser"
-        AppLanguage.Serbian -> "Ресурси"
-        AppLanguage.Swedish -> "Resurser"
-        AppLanguage.Thai -> "แหล่งข้อมูล"
-        AppLanguage.Catalan -> "Recursos"
-        AppLanguage.Finnish -> "Resurssit"
-        AppLanguage.Romanian -> "Resurse"
-        AppLanguage.Slovenian -> "Viri"
-        AppLanguage.Bosnian -> "Resursi"
-        AppLanguage.Indonesian -> "Sumber daya"
-        AppLanguage.Punjabi -> "ਸਰੋਤ"
-        AppLanguage.Polish -> "Zasoby"
-        AppLanguage.ChineseSimplified -> "资源"
-        AppLanguage.Croatian -> "Resursi"
-        AppLanguage.Czech -> "Zdroje"
-        AppLanguage.French -> "Ressources"
-        AppLanguage.German -> "Ressourcen"
-        AppLanguage.Italian -> "Risorse"
-        AppLanguage.Japanese -> "リソース"
-        AppLanguage.Korean -> "리소스"
-        AppLanguage.Malay -> "Sumber"
-        AppLanguage.Portuguese -> "Recursos"
-        AppLanguage.Russian -> "Ресурсы"
-        AppLanguage.Slovak -> "Zdroje"
-        AppLanguage.Spanish -> "Recursos"
-        AppLanguage.Ukrainian -> "Ресурси"
-        AppLanguage.Bengali -> "রিসোর্স"
-        AppLanguage.Urdu -> "وسائل"
+        AppLanguage.Bulgarian -> BulgarianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Albanian -> AlbanianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Danish -> DanishTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Dutch -> DutchTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Estonian -> EstonianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Greek -> GreekTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Hindi -> HindiTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Hungarian -> HungarianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Latvian -> LatvianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Macedonian -> MacedonianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Norwegian -> NorwegianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Serbian -> SerbianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Swedish -> SwedishTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Thai -> ThaiTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Catalan -> CatalanTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Finnish -> FinnishTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Romanian -> RomanianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Slovenian -> SlovenianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Bosnian -> BosnianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Indonesian -> IndonesianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Punjabi -> PunjabiTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Polish -> PolishTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Croatian -> CroatianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Czech -> CzechTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.French -> FrenchTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.German -> GermanTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Italian -> ItalianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Japanese -> JapaneseTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Korean -> KoreanTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Malay -> MalayTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Portuguese -> PortugueseTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Russian -> RussianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Slovak -> SlovakTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Spanish -> SpanishTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Bengali -> BengaliTranslations.aboutScreens_localizedAboutTitle_1
+        AppLanguage.Urdu -> UrduTranslations.aboutScreens_localizedAboutTitle_1
         AppLanguage.English -> title
     }
     else -> title
@@ -1238,87 +1240,87 @@ internal fun localizedAboutDescription(
 ): String = when (title) {
     "Droid Beauty" -> if (language == AppLanguage.English) description else elovaire.music.droidbeauty.app.ui.i18n.droidBeautyDescription(language)
     "Elovaire" -> when (language) {
-        AppLanguage.Bulgarian -> "Елегантен офлайн плейър за вашата локална музика"
-        AppLanguage.Albanian -> "Një luajtës elegant jashtë linje për muzikën tënde lokale"
-        AppLanguage.Danish -> "En elegant offlineafspiller til din lokale musik"
-        AppLanguage.Dutch -> "Een elegante offlinespeler voor je lokale muziek"
-        AppLanguage.Estonian -> "Elegantne võrguühenduseta pleier sinu kohalikule muusikale"
-        AppLanguage.Greek -> "Ένα κομψό πρόγραμμα αναπαραγωγής εκτός σύνδεσης για την τοπική σας μουσική"
-        AppLanguage.Hindi -> "आपके स्थानीय संगीत के लिए एक शानदार ऑफ़लाइन प्लेयर"
-        AppLanguage.Hungarian -> "Elegáns offline lejátszó a helyi zenéidhez"
-        AppLanguage.Latvian -> "Elegants bezsaistes atskaņotājs tavai ierīcē esošajai mūzikai"
-        AppLanguage.Lithuanian -> "Elegantiškas neprisijungęs grotuvas jūsų įrenginio muzikai"
-        AppLanguage.Macedonian -> "Елегантен офлајн плеер за вашата локална музика"
-        AppLanguage.Norwegian -> "En elegant frakoblet spiller for din lokale musikk"
-        AppLanguage.Serbian -> "Елегантан офлајн плејер за вашу локалну музику"
-        AppLanguage.Swedish -> "En elegant offlinespelare för din lokala musik"
-        AppLanguage.Thai -> "เครื่องเล่นออฟไลน์ที่สวยงามสำหรับเพลงในเครื่องของคุณ"
-        AppLanguage.Catalan -> "Un reproductor fora de línia elegant per a la teva música local"
-        AppLanguage.Finnish -> "Tyylikäs offline-soitin paikalliselle musiikillesi"
-        AppLanguage.Romanian -> "Un player offline elegant pentru muzica ta locală"
-        AppLanguage.Slovenian -> "Eleganten predvajalnik brez povezave za vašo lokalno glasbo"
-        AppLanguage.Bosnian -> "Elegantan offline player napravljen za vašu lokalnu muziku"
-        AppLanguage.Indonesian -> "Pemutar offline elegan yang dibuat untuk musik lokal Anda"
-        AppLanguage.Punjabi -> "ਤੁਹਾਡੇ ਸਥਾਨਕ ਸੰਗੀਤ ਲਈ ਬਣਾਇਆ ਸ਼ਾਨਦਾਰ ਆਫਲਾਈਨ ਪਲੇਅਰ"
-        AppLanguage.Polish -> "Elegancki odtwarzacz offline stworzony z myślą o Twojej lokalnej muzyce"
-        AppLanguage.ChineseSimplified -> "为你的本地音乐打造的优雅离线播放器"
-        AppLanguage.Croatian -> "Elegantni offline reproduktor stvoren za vašu lokalnu glazbu"
-        AppLanguage.Czech -> "Elegantní offline přehrávač vytvořený pro vaši místní hudbu"
-        AppLanguage.French -> "Un lecteur hors ligne élégant conçu pour votre musique locale"
-        AppLanguage.German -> "Ein eleganter Offline-Player für deine lokale Musik"
-        AppLanguage.Italian -> "Un player offline elegante creato per la tua musica locale"
-        AppLanguage.Japanese -> "ローカル音楽のために作られた、エレガントなオフラインプレーヤー"
-        AppLanguage.Korean -> "로컬 음악을 위해 만들어진 우아한 오프라인 플레이어"
-        AppLanguage.Malay -> "Pemain luar talian yang elegan untuk muzik tempatan anda"
-        AppLanguage.Portuguese -> "Um reprodutor offline elegante feito para a sua música local"
-        AppLanguage.Russian -> "Элегантный офлайн-плеер для вашей локальной музыки"
-        AppLanguage.Slovak -> "Elegantný offline prehrávač vytvorený pre vašu lokálnu hudbu"
-        AppLanguage.Spanish -> "Un reproductor sin conexión elegante hecho para tu música local"
-        AppLanguage.Ukrainian -> "Елегантний офлайн-програвач для вашої локальної музики"
-        AppLanguage.Bengali -> "আপনার লোকাল সঙ্গীতের জন্য তৈরি একটি মার্জিত অফলাইন প্লেয়ার"
-        AppLanguage.Urdu -> "آپ کی مقامی موسیقی کے لیے بنایا گیا ایک نفیس آف لائن پلیئر"
+        AppLanguage.Bulgarian -> BulgarianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Albanian -> AlbanianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Danish -> DanishTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Dutch -> DutchTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Estonian -> EstonianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Greek -> GreekTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Hindi -> HindiTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Hungarian -> HungarianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Latvian -> LatvianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Lithuanian -> LithuanianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Macedonian -> MacedonianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Norwegian -> NorwegianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Serbian -> SerbianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Swedish -> SwedishTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Thai -> ThaiTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Catalan -> CatalanTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Finnish -> FinnishTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Romanian -> RomanianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Slovenian -> SlovenianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Bosnian -> BosnianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Indonesian -> IndonesianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Punjabi -> PunjabiTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Polish -> PolishTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Croatian -> CroatianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Czech -> CzechTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.French -> FrenchTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.German -> GermanTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Italian -> ItalianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Japanese -> JapaneseTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Korean -> KoreanTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Malay -> MalayTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Portuguese -> PortugueseTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Russian -> RussianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Slovak -> SlovakTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Spanish -> SpanishTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Ukrainian -> UkrainianTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Bengali -> BengaliTranslations.aboutScreens_localizedAboutDescription_1
+        AppLanguage.Urdu -> UrduTranslations.aboutScreens_localizedAboutDescription_1
         AppLanguage.English -> description
     }
     "Resources" -> when (language) {
-        AppLanguage.Bulgarian -> "Проектите, инструментите и библиотеките, които помагат за създаването на Elovaire"
-        AppLanguage.Albanian -> "Projektet, mjetet dhe bibliotekat që ndihmojnë në krijimin e Elovaire"
-        AppLanguage.Danish -> "Projekter, værktøjer og biblioteker, der hjælper med at skabe Elovaire"
-        AppLanguage.Dutch -> "Projecten, hulpmiddelen en bibliotheken die Elovaire mogelijk maken"
-        AppLanguage.Estonian -> "Projektid, tööriistad ja teegid, mis aitavad Elovaire’i luua"
-        AppLanguage.Greek -> "Έργα, εργαλεία και βιβλιοθήκες που συμβάλλουν στη δημιουργία του Elovaire"
-        AppLanguage.Hindi -> "वे प्रोजेक्ट, टूल और लाइब्रेरी जो Elovaire बनाने में मदद करते हैं"
-        AppLanguage.Hungarian -> "Az Elovaire létrehozását segítő projektek, eszközök és könyvtárak"
-        AppLanguage.Latvian -> "Projekti, rīki un bibliotēkas, kas palīdz radīt Elovaire"
-        AppLanguage.Lithuanian -> "Projektai, įrankiai ir bibliotekos, padedantys kurti Elovaire"
-        AppLanguage.Macedonian -> "Проекти, алатки и библиотеки што помагаат во создавањето на Elovaire"
-        AppLanguage.Norwegian -> "Prosjekter, verktøy og biblioteker som bidrar til å skape Elovaire"
-        AppLanguage.Serbian -> "Пројекти, алати и библиотеке који помажу у стварању Elovaire-а"
-        AppLanguage.Swedish -> "Projekt, verktyg och bibliotek som hjälper till att skapa Elovaire"
-        AppLanguage.Thai -> "โครงการ เครื่องมือ และไลบรารีที่ช่วยสร้าง Elovaire"
-        AppLanguage.Catalan -> "Projectes, eines i biblioteques que ajuden a crear Elovaire"
-        AppLanguage.Finnish -> "Projektit, työkalut ja kirjastot, jotka auttavat Elovairen luomisessa"
-        AppLanguage.Romanian -> "Proiectele, instrumentele și bibliotecile care ajută la crearea Elovaire"
-        AppLanguage.Slovenian -> "Projekti, orodja in knjižnice, ki pomagajo ustvarjati Elovaire"
-        AppLanguage.Bosnian -> "Projekti, alati i biblioteke koji pomažu u stvaranju Elovairea"
-        AppLanguage.Indonesian -> "Proyek, alat, dan pustaka yang membantu membuat Elovaire"
-        AppLanguage.Punjabi -> "Elovaire ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰਨ ਵਾਲੇ ਪ੍ਰੋਜੈਕਟ, ਔਜ਼ਾਰ ਅਤੇ ਲਾਇਬ੍ਰੇਰੀਆਂ"
-        AppLanguage.Polish -> "Projekty, narzędzia i biblioteki, które pomagają tworzyć Elovaire"
-        AppLanguage.ChineseSimplified -> "帮助打造 Elovaire 的项目、工具和库"
-        AppLanguage.Croatian -> "Projekti, alati i biblioteke koji pomažu stvarati Elovaire"
-        AppLanguage.Czech -> "Projekty, nástroje a knihovny, které pomáhají tvořit Elovaire"
-        AppLanguage.French -> "Projets, outils et bibliothèques qui aident à créer Elovaire"
-        AppLanguage.German -> "Projekte, Werkzeuge und Bibliotheken, die Elovaire ermöglichen"
-        AppLanguage.Italian -> "Progetti, strumenti e librerie che aiutano a creare Elovaire"
-        AppLanguage.Japanese -> "Elovaire の制作を支えるプロジェクト、ツール、ライブラリ"
-        AppLanguage.Korean -> "Elovaire를 만드는 데 도움을 주는 프로젝트, 도구, 라이브러리"
-        AppLanguage.Malay -> "Projek, alat dan pustaka yang membantu membina Elovaire"
-        AppLanguage.Portuguese -> "Projetos, ferramentas e bibliotecas que ajudam a criar o Elovaire"
-        AppLanguage.Russian -> "Проекты, инструменты и библиотеки, которые помогают создавать Elovaire"
-        AppLanguage.Slovak -> "Projekty, nástroje a knižnice, ktoré pomáhajú vytvárať Elovaire"
-        AppLanguage.Spanish -> "Proyectos, herramientas y bibliotecas que ayudan a crear Elovaire"
-        AppLanguage.Ukrainian -> "Проєкти, інструменти та бібліотеки, що допомагають створювати Elovaire"
-        AppLanguage.Bengali -> "Elovaire তৈরিতে সহায়ক প্রকল্প, টুল এবং লাইব্রেরি"
-        AppLanguage.Urdu -> "وہ منصوبے، اوزار اور لائبریریاں جو Elovaire بنانے میں مدد کرتی ہیں"
+        AppLanguage.Bulgarian -> BulgarianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Albanian -> AlbanianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Danish -> DanishTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Dutch -> DutchTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Estonian -> EstonianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Greek -> GreekTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Hindi -> HindiTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Hungarian -> HungarianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Latvian -> LatvianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Lithuanian -> LithuanianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Macedonian -> MacedonianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Norwegian -> NorwegianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Serbian -> SerbianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Swedish -> SwedishTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Thai -> ThaiTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Catalan -> CatalanTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Finnish -> FinnishTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Romanian -> RomanianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Slovenian -> SlovenianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Bosnian -> BosnianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Indonesian -> IndonesianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Punjabi -> PunjabiTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Polish -> PolishTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.ChineseSimplified -> ChineseSimplifiedTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Croatian -> CroatianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Czech -> CzechTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.French -> FrenchTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.German -> GermanTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Italian -> ItalianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Japanese -> JapaneseTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Korean -> KoreanTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Malay -> MalayTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Portuguese -> PortugueseTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Russian -> RussianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Slovak -> SlovakTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Spanish -> SpanishTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Ukrainian -> UkrainianTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Bengali -> BengaliTranslations.aboutScreens_localizedAboutDescription_2
+        AppLanguage.Urdu -> UrduTranslations.aboutScreens_localizedAboutDescription_2
         AppLanguage.English -> description
     }.let { summary ->
         if (language == AppLanguage.English) summary else
@@ -1332,45 +1334,45 @@ internal fun localizedAboutLinkLabel(
     language: AppLanguage,
 ): String = when (label.lowercase()) {
     "website", "play store" -> when (language) {
-        AppLanguage.Bulgarian -> if (label.equals("Play Store", true)) "Play Store" else "Уебсайт"
-        AppLanguage.Albanian -> if (label.equals("Play Store", true)) "Play Store" else "Faqja web"
-        AppLanguage.Danish -> if (label.equals("Play Store", true)) "Play Butik" else "Websted"
-        AppLanguage.Dutch -> if (label.equals("Play Store", true)) "Play Store" else "Website"
-        AppLanguage.Estonian -> if (label.equals("Play Store", true)) "Play pood" else "Veebileht"
-        AppLanguage.Greek -> if (label.equals("Play Store", true)) "Play Store" else "Ιστότοπος"
-        AppLanguage.Hindi -> if (label.equals("Play Store", true)) "Play Store" else "वेबसाइट"
-        AppLanguage.Hungarian -> if (label.equals("Play Store", true)) "Play Áruház" else "Weboldal"
-        AppLanguage.Latvian -> if (label.equals("Play Store", true)) "Play veikals" else "Tīmekļvietne"
-        AppLanguage.Lithuanian -> if (label.equals("Play Store", true)) "Play parduotuvė" else "Svetainė"
-        AppLanguage.Macedonian -> if (label.equals("Play Store", true)) "Play Store" else "Веб-страница"
-        AppLanguage.Norwegian -> if (label.equals("Play Store", true)) "Play Butikk" else "Nettside"
-        AppLanguage.Serbian -> if (label.equals("Play Store", true)) "Play продавница" else "Веб-сајт"
-        AppLanguage.Swedish -> if (label.equals("Play Store", true)) "Play Butik" else "Webbplats"
-        AppLanguage.Thai -> if (label.equals("Play Store", true)) "Play Store" else "เว็บไซต์"
-        AppLanguage.Catalan -> if (label.equals("Play Store", true)) "Play Store" else "Lloc web"
-        AppLanguage.Finnish -> if (label.equals("Play Store", true)) "Play Kauppa" else "Verkkosivusto"
-        AppLanguage.Romanian -> if (label.equals("Play Store", true)) "Play Store" else "Site web"
-        AppLanguage.Slovenian -> if (label.equals("Play Store", true)) "Trgovina Play" else "Spletna stran"
-        AppLanguage.Bosnian -> if (label.equals("Play Store", true)) "Play prodavnica" else "Web stranica"
-        AppLanguage.Indonesian -> if (label.equals("Play Store", true)) "Play Store" else "Situs web"
-        AppLanguage.Punjabi -> if (label.equals("Play Store", true)) "ਪਲੇ ਸਟੋਰ" else "ਵੈੱਬਸਾਈਟ"
-        AppLanguage.Polish -> if (label.equals("Play Store", true)) "Sklep Play" else "Strona"
-        AppLanguage.ChineseSimplified -> if (label.equals("Play Store", true)) "Play 商店" else "网站"
-        AppLanguage.Croatian -> if (label.equals("Play Store", true)) "Play trgovina" else "Web"
-        AppLanguage.Czech -> if (label.equals("Play Store", true)) "Obchod Play" else "Web"
-        AppLanguage.French -> if (label.equals("Play Store", true)) "Play Store" else "Site web"
-        AppLanguage.German -> if (label.equals("Play Store", true)) "Play Store" else "Website"
-        AppLanguage.Italian -> if (label.equals("Play Store", true)) "Play Store" else "Sito web"
-        AppLanguage.Japanese -> if (label.equals("Play Store", true)) "Play ストア" else "ウェブサイト"
-        AppLanguage.Korean -> if (label.equals("Play Store", true)) "Play 스토어" else "웹사이트"
-        AppLanguage.Malay -> if (label.equals("Play Store", true)) "Play Store" else "Laman web"
-        AppLanguage.Portuguese -> if (label.equals("Play Store", true)) "Play Store" else "Site"
-        AppLanguage.Russian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
-        AppLanguage.Slovak -> if (label.equals("Play Store", true)) "Obchod Play" else "Web"
-        AppLanguage.Spanish -> if (label.equals("Play Store", true)) "Play Store" else "Sitio web"
-        AppLanguage.Ukrainian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
-        AppLanguage.Bengali -> if (label.equals("Play Store", true)) "Play Store" else "ওয়েবসাইট"
-        AppLanguage.Urdu -> if (label.equals("Play Store", true)) "پلے اسٹور" else "ویب سائٹ"
+        AppLanguage.Bulgarian -> if (label.equals("Play Store", true)) BulgarianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else BulgarianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Albanian -> if (label.equals("Play Store", true)) AlbanianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else AlbanianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Danish -> if (label.equals("Play Store", true)) DanishTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else DanishTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Dutch -> if (label.equals("Play Store", true)) DutchTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else DutchTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Estonian -> if (label.equals("Play Store", true)) EstonianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else EstonianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Greek -> if (label.equals("Play Store", true)) GreekTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else GreekTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Hindi -> if (label.equals("Play Store", true)) HindiTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else HindiTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Hungarian -> if (label.equals("Play Store", true)) HungarianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else HungarianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Latvian -> if (label.equals("Play Store", true)) LatvianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else LatvianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Lithuanian -> if (label.equals("Play Store", true)) LithuanianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else LithuanianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Macedonian -> if (label.equals("Play Store", true)) MacedonianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else MacedonianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Norwegian -> if (label.equals("Play Store", true)) NorwegianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else NorwegianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Serbian -> if (label.equals("Play Store", true)) SerbianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else SerbianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Swedish -> if (label.equals("Play Store", true)) SwedishTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else SwedishTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Thai -> if (label.equals("Play Store", true)) ThaiTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else ThaiTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Catalan -> if (label.equals("Play Store", true)) CatalanTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else CatalanTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Finnish -> if (label.equals("Play Store", true)) FinnishTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else FinnishTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Romanian -> if (label.equals("Play Store", true)) RomanianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else RomanianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Slovenian -> if (label.equals("Play Store", true)) SlovenianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else SlovenianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Bosnian -> if (label.equals("Play Store", true)) BosnianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else BosnianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Indonesian -> if (label.equals("Play Store", true)) IndonesianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else IndonesianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Punjabi -> if (label.equals("Play Store", true)) PunjabiTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else PunjabiTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Polish -> if (label.equals("Play Store", true)) PolishTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else PolishTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.ChineseSimplified -> if (label.equals("Play Store", true)) ChineseSimplifiedTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else ChineseSimplifiedTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Croatian -> if (label.equals("Play Store", true)) CroatianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else CroatianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Czech -> if (label.equals("Play Store", true)) CzechTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else CzechTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.French -> if (label.equals("Play Store", true)) FrenchTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else FrenchTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.German -> if (label.equals("Play Store", true)) GermanTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else GermanTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Italian -> if (label.equals("Play Store", true)) ItalianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else ItalianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Japanese -> if (label.equals("Play Store", true)) JapaneseTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else JapaneseTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Korean -> if (label.equals("Play Store", true)) KoreanTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else KoreanTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Malay -> if (label.equals("Play Store", true)) MalayTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else MalayTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Portuguese -> if (label.equals("Play Store", true)) PortugueseTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else PortugueseTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Russian -> if (label.equals("Play Store", true)) RussianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else RussianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Slovak -> if (label.equals("Play Store", true)) SlovakTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else SlovakTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Spanish -> if (label.equals("Play Store", true)) SpanishTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else SpanishTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Ukrainian -> if (label.equals("Play Store", true)) UkrainianTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else UkrainianTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Bengali -> if (label.equals("Play Store", true)) BengaliTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else BengaliTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
+        AppLanguage.Urdu -> if (label.equals("Play Store", true)) UrduTranslations.aboutScreens_localizedAboutLinkLabel_variant_1 else UrduTranslations.aboutScreens_localizedAboutLinkLabel_variant_2
         AppLanguage.English -> label
     }
     "twitter" -> if (language == AppLanguage.Japanese) "X" else label

@@ -1,0 +1,294 @@
+package elovaire.music.droidbeauty.app.ui.i18n
+
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+
+internal object FrenchTranslations {
+    const val aboutScreens_localizedAboutDescription_1 = "Un lecteur hors ligne élégant conçu pour votre musique locale"
+    const val aboutScreens_localizedAboutDescription_2 = "Projets, outils et bibliothèques qui aident à créer Elovaire"
+    const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
+    const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Site web"
+    const val aboutScreens_localizedAboutTitle_1 = "Ressources"
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Mise à jour disponible", "Version", "Plus tard", "Télécharger", "Fermer les nouveautés", "Aucune nouveauté pour le moment")
+    const val aboutUpdate_bundledLicensesLabel_1 = "Les textes complets des licences sont inclus dans l’application"
+    const val aboutUpdate_droidBeautyDescription_1 = "Des widgets et des thèmes soignés pour embellir votre écran d’accueil Android. Je suis aussi le créateur du lecteur musical que vous utilisez actuellement"
+    const val aboutUpdate_githubUpdateCheckFailed_1 = "La recherche de mises à jour sur GitHub a échoué"
+    const val aboutUpdate_localizedResourceTitle_variant_1 = "Icônes Lucide"
+    const val aboutUpdate_localizedResourceTitle_variant_2 = "Police Geist"
+    const val aboutUpdate_localizedUpdateError_1 = "La mise à jour n’a pas été installée"
+    const val aboutUpdate_stagedUpdateUnavailable_1 = "La mise à jour préparée n’est plus disponible"
+    const val aboutUpdate_tooManyUpdateRedirects_1 = "Trop de redirections lors de la mise à jour"
+    val aboutUpdate_updateActionCopy_1 get() = UpdateActionCopy("Vérification…", "Téléchargement…", "Installation…", "Autoriser l’installation", "Mettre à jour", "Réessayer")
+    const val aboutUpdate_updateCheckUnavailable_1 = "Impossible de rechercher des mises à jour"
+    const val aboutUpdate_updateDownloadFailed_1 = "Le téléchargement de la mise à jour a échoué"
+    const val aboutUpdate_updateDownloadIncomplete_1 = "La mise à jour téléchargée est incomplète"
+    const val aboutUpdate_updateDownloadInvalid_1 = "La mise à jour téléchargée n’est pas valide"
+    const val aboutUpdate_updateDownloadTooLarge_1 = "Le téléchargement de la mise à jour dépasse la taille autorisée"
+    const val aboutUpdate_updateFileNameInvalid_1 = "Le nom du fichier de mise à jour n’est pas valide"
+    const val aboutUpdate_updateHandoffSaveFailed_1 = "Impossible d’enregistrer l’état du transfert vers le programme d’installation"
+    const val aboutUpdate_updateInstallPermission_1 = "Autorisez d’abord l’installation de mises à jour depuis cette source"
+    const val aboutUpdate_updateNotNewer_1 = "La mise à jour téléchargée n’est pas plus récente"
+    const val aboutUpdate_updateNotValidApp_1 = "La mise à jour téléchargée n’est pas une application valide"
+    const val aboutUpdate_updatePermissionSettingsUnavailable_1 = "Impossible d’ouvrir les paramètres d’autorisation d’installation"
+    const val aboutUpdate_updateRedirectInvalid_1 = "La redirection de la source de mise à jour n’est pas valide"
+    const val aboutUpdate_updateSourceInvalid_1 = "La source de la mise à jour n’est pas valide"
+    const val aboutUpdate_updateTargetsAnotherApp_1 = "La mise à jour téléchargée est destinée à une autre application"
+    const val aboutUpdate_updateUnknownCertificate_1 = "La mise à jour téléchargée est signée avec un certificat inconnu"
+    const val aboutUpdate_updateVerificationFailed_1 = "La vérification de la mise à jour a échoué"
+    const val aboutUpdate_updateVerificationUnavailable_1 = "Impossible de vérifier la mise à jour"
+    const val aboutUpdate_updateVersionInvalid_1 = "La version de la mise à jour téléchargée n’est pas valide"
+    const val accessibility_artworkPlaceholderLabel_1 = "Image de couverture de remplacement"
+    const val accessibility_closeQueueAccessibilityLabel_1 = "Fermer la file d’attente"
+    const val accessibility_crossfadeToggleAccessibilityLabel_variant_1 = "Activer le fondu enchaîné"
+    const val accessibility_crossfadeToggleAccessibilityLabel_variant_2 = "Désactiver le fondu enchaîné"
+    const val accessibility_editLyricsAccessibilityLabel_1 = "Modifier les paroles"
+    val accessibility_lyricsAccessibilityCopy_1 get() = LyricsAccessibilityCopy("Paroles", "Ajouter les paroles")
+    val accessibility_mediaOptionsAccessibilityCopy_1 get() = MediaOptionsAccessibilityCopy("Options du morceau dans la file", "Options de l’album", "Options du morceau")
+    val accessibility_navigationAccessibilityCopy_1 get() = NavigationAccessibilityCopy("Retour", "Menu")
+    val accessibility_playbackNavigationAccessibilityCopy_1 get() = PlaybackNavigationAccessibilityCopy("Précédent", "Suivant", "Reculer", "Avancer")
+    val accessibility_playerControlAccessibilityCopy_1 get() = PlayerControlAccessibilityCopy("Réduire", "Réinitialiser la minuterie", "Son coupé", "Volume maximal")
+    val accessibility_playlistAccessibilityCopy_1 get() = PlaylistAccessibilityCopy("Confirmer les morceaux ajoutés", "Modifier l’ordre du morceau")
+    val accessibility_settingsAccessibilityCopy_1 get() = SettingsAccessibilityCopy("Fermer le choix de langue", "Texte plus petit", "Texte plus grand")
+    const val accessibility_showAllSongResultsLabel_1 = "Afficher tous les morceaux trouvés"
+    val accessibility_shuffleAccessibilityCopy_1 get() = ShuffleAccessibilityCopy("Mélanger la playlist", "Mélanger les morceaux de l’artiste")
+    const val accessibility_songFavoriteAccessibilityLabel_variant_1 = "Ajouter le morceau aux favoris"
+    const val accessibility_songFavoriteAccessibilityLabel_variant_2 = "Retirer le morceau des favoris"
+    val accessibility_viewModeAccessibilityCopy_1 get() = ViewModeAccessibilityCopy("Liste", "Liste compacte", "Grille", "Grille dense")
+    val albumTagEditorScreen_tagEditorCopy_1 get() = elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorCopy("Modifier les tags", "Album introuvable", "Tags de l’album", "Titre de l’album", "Artiste de l’album", "Année de sortie", "Genre", "Changer la pochette", "Appuyez pour choisir une nouvelle pochette", "Morceaux", "Piste", "Titre du morceau", "Artiste du morceau", "Numéro de piste", "Numéro de disque")
+    val artistInfo_artistInfoCopy_1 get() = ArtistInfoCopy("Informations sur l’artiste", "Discographie", "Chargement de la discographie…", "Discographie indisponible", "Date de sortie")
+    const val artistInfo_closeArtistInfoLabel_1 = "Fermer les informations sur l’artiste"
+    val audiobookTagEditorScreen_audiobookTagEditorCopy_1 get() = elovaire.music.droidbeauty.app.ui.screens.tags.AudiobookTagEditorCopy("Modifier le livre audio", "Livre audio introuvable", "Informations sur le livre", "Titre du livre", "Auteur", "Description", "Année de sortie", "Genre", "Appuyez sur la couverture pour la modifier", "Parties", "Titre de la partie", "Artiste de la partie", "Numéro de partie", "Numéro de disque", "Enregistrer")
+    val audiobook_audiobookCopy_1 get() = AudiobookUiCopy("Livres audio", "Reprendre l’écoute", "Tous les livres audio", "Auteur", "Reprendre", "Lire", "Lire à nouveau", "Recommencer", "Chapitres", "Terminé", "Non commencé", "Écoute en cours", "Vitesse", "Parties", "Reculer de 15 secondes", "Avancer de 15 secondes", "Modifier les tags du livre audio")
+    val audiobook_audiobookDescriptionCopy_1 get() = AudiobookDescriptionCopy("À propos de ce livre", "Chargement de la description…", "Aucune description", "PLUS", "Fermer la description")
+    const val audiobook_audiobookFinishedLabel_1 = "Terminé"
+    const val audiobook_audiobookPartsCount_variant_1 = "partie"
+    const val audiobook_audiobookPartsCount_variant_2 = "parties"
+    val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Livre audio indisponible", "Ce livre audio n’est plus disponible", "Actualisez votre bibliothèque et réessayez")
+    const val audiobook_localizedAudiobookAuthor_1 = "Auteur inconnu"
+    val carMedia_carMediaCopy_1 get() = CarMediaCopy("Ouvrez Elovaire sur le téléphone", "Autorisez l’accès à la musique pour la parcourir dans Android Auto", "Ajoutez de la musique sur le téléphone pour la parcourir dans Android Auto")
+    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Ajustements de la configuration NAS, de l’édition des tags et de la présentation des paramètres", "Prise en charge de 11 nouvelles langues", "Corrections générales de bugs")
+    const val changelog_localizedSetupChangelogItem_1 = "Ajustements de l’écran de configuration initiale"
+    val equalizer_equalizerCopy_1 get() = EqualizerCopy("Préréglages", "Enregistrer", "Nom du préréglage", "Vos préréglages", "Remplacer", "Ce nom est déjà utilisé ; l’enregistrement remplacera ce préréglage")
+    const val equalizer_preampLabel_1 = "Préamplification"
+    const val externalAudio_externalAudioLabel_1 = "Audio externe"
+    val homeLayoutScreen_homeLayoutEditorCopy_1 get() = elovaire.music.droidbeauty.app.ui.screens.HomeLayoutEditorCopy("Maintenez une section puis faites-la glisser pour la déplacer", "Dernière lecture", "Position fixe", "Monter", "Descendre", "Déplacer")
+    const val homeLayoutScreen_homeLayoutSubtitle_1 = "Personnaliser l’écran d’accueil"
+    const val homeLayoutScreen_homeLayoutTitle_1 = "Disposition de l’accueil"
+    const val home_albumOfDayTitle_1 = "Album du jour"
+    const val home_availableReleasesLabel_variant_1 = "publication disponible"
+    const val home_availableReleasesLabel_variant_2 = "publications disponibles"
+    const val home_firstLaunchPermissionButton_1 = "Autoriser l’accès au stockage"
+    const val home_firstLaunchPermissionMessage_1 = "L’application analyse par défaut le dossier Music pour trouver la musique sur l’appareil"
+    const val home_firstLaunchPermissionTitle_1 = "Accès au stockage requis pour commencer"
+    val home_homeUiCopy_multiline_1 get() = HomeUiCopy(
+        indexingTitle = "Indexation de la bibliothèque",
+        indexingMessage = "Les morceaux et les albums apparaîtront une fois l’indexation terminée",
+        emptyLibraryTitle = "Aucune musique trouvée",
+        emptyLibraryMessage = "Les morceaux et les albums apparaîtront ici dès que vous ajouterez de la musique au dossier Music par défaut de l’appareil",
+        noRecentAdditionsTitle = "Aucun ajout récent",
+        noRecentAdditionsMessage = "Ajoutez des albums au dossier Music de l’appareil et les plus récents apparaîtront ici automatiquement",
+        recentlyPlayedSongsTitle = "Récemment lus",
+        recentlyPlayedSongsEmpty = "Les morceaux apparaîtront bientôt ici",
+        favoriteAlbumsTitle = "Vos albums favoris",
+        favoriteAlbumsSubtitle = "La musique vers laquelle vous revenez souvent",
+        noFavoriteAlbumsTitle = "Aucun album n’a encore été ouvert",
+        noFavoriteAlbumsMessage = "Ouvrez ou lisez un album et il apparaîtra ici avec sa pochette bien en évidence",
+    )
+    const val home_localizedCountLabel_plural_1 = "morceau"
+    const val home_localizedCountLabel_plural_10 = "artistes"
+    const val home_localizedCountLabel_plural_11 = "genre"
+    const val home_localizedCountLabel_plural_12 = "genres"
+    const val home_localizedCountLabel_plural_2 = "morceaux"
+    const val home_localizedCountLabel_plural_3 = "piste"
+    const val home_localizedCountLabel_plural_4 = "pistes"
+    const val home_localizedCountLabel_plural_5 = "livre audio"
+    const val home_localizedCountLabel_plural_6 = "livres audio"
+    const val home_localizedCountLabel_plural_7 = "album"
+    const val home_localizedCountLabel_plural_8 = "albums"
+    const val home_localizedCountLabel_plural_9 = "artiste"
+    val home_localizedPlaylistCountLabel_1 get() = Triple("playlist", "playlists", "playlists")
+    val home_repeatModeLabel_1 get() = Triple("Ordre", "Répéter un titre", "Tout répéter")
+    val home_rootUiCopy_1 get() = RootUiCopy("Accès au stockage requis", "L’application recherche la musique dans le dossier Music", "Autoriser l’accès", "Elovaire", "Tous les albums", "Par artiste puis par titre d’album", "Renommer la playlist", "Enregistrer", "Nouvelle playlist", "Pochette de la playlist", "Créer une playlist", "Appuyez pour créer une playlist", "Nom de la playlist", "Effacer le nom", "Aucun morceau dans cette playlist", "Rechercher dans la bibliothèque", "Ajouter des morceaux", "Chargement des paroles…", "Ce morceau ne semble pas avoir de paroles", "Masquer les paroles", "OK", "Album introuvable", "Playlist introuvable", "Morceaux les plus écoutés", "publications disponibles", "Lire l’album", "Lire l’album aléatoirement", "Modifier les tags", "Enregistrer les modifications", "Modifier la playlist")
+    const val library_albumName_1 = "album"
+    const val library_artistName_1 = "artiste"
+    const val library_autoUpdatingLabel_1 = "Mise à jour automatique"
+    val library_commonUiCopy_1 get() = CommonUiCopy("Accueil", "Bibliothèque", "Listes de lecture", "Recherche", "Bienvenue", "Morceaux", "Albums", "Artistes", "Genres", "Clair", "Sombre", "Système", "dans votre bibliothèque", "au total", "trouvés", "Votre musique, affinée en une expérience élégante")
+    const val library_dateAddedName_1 = "date d’ajout"
+    const val library_durationName_1 = "durée"
+    const val library_genreName_1 = "genre"
+    const val library_localizedAlbumTitle_1 = "Album inconnu"
+    const val library_localizedArtistName_1 = "Artiste inconnu"
+    const val library_localizedAudioFormat_1 = "AUDIO"
+    const val library_localizedSelectedCount_variant_1 = "track"
+    fun library_miscPhrase(phrase: MiscPhrase) = when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Ajoutés récemment"
+        MiscPhrase.WhatsNew -> "Quoi de neuf ?"
+        MiscPhrase.NoSongsYet -> "Aucun morceau pour le moment"
+        MiscPhrase.AddSongsViaEdit -> "Ajoutez des morceaux ici en touchant le bouton modifier"
+        MiscPhrase.NothingInHere -> "Il n’y a rien ici"
+        MiscPhrase.TapPlusToCreatePlaylist -> "Touchez le bouton \"+\" pour créer une nouvelle playlist"
+        MiscPhrase.Selected -> "sélectionnés"
+        MiscPhrase.ChooseSongs -> "Choisir des morceaux"
+        MiscPhrase.AddSongs -> "Ajouter des morceaux"
+    }
+    const val library_playCountName_1 = "nombre d’écoutes"
+    const val library_randomOrderLabel_1 = "Ordre aléatoire"
+    const val library_smartMixesLabel_1 = "Mix intelligents"
+    fun library_sortedByLabel_dynamic_1(field: String) = "Trié par : $field"
+    const val library_titleName_1 = "titre"
+    const val library_unknownGenreLabel_1 = "Genre inconnu"
+    const val phrase_displayLabel_1 = "Largeur stéréo"
+    const val phrase_displayLabel_2 = "Crossfeed"
+    const val phrase_displayLabel_3 = "Pièce"
+    const val phrase_displayLabel_4 = "Philharmonie"
+    const val phrase_displayLabel_5 = "Espace Haas"
+    const val phrase_displayLabel_6 = "Air harmonique"
+    val phrase_uiPhraseTranslations get() = mapOf(UiPhrase.About to "À propos", UiPhrase.AddToPlaylist to "Ajouter à une playlist", UiPhrase.AddToQueue to "Ajouter à la file", UiPhrase.GoToAlbum to "Aller à l’album", UiPhrase.DeleteFromLibrary to "Supprimer de la bibliothèque", UiPhrase.DeleteAlbum to "Supprimer l’album", UiPhrase.Delete to "Supprimer", UiPhrase.Rename to "Renommer", UiPhrase.RemoveFromList to "Retirer de la liste", UiPhrase.NewPlaylist to "Nouvelle playlist", UiPhrase.Cancel to "Annuler", UiPhrase.Create to "Créer", UiPhrase.Reset to "Réinitialiser", UiPhrase.Dry to "Sec", UiPhrase.Wet to "Humide", UiPhrase.Off to "Désactivé", UiPhrase.Reverb to "Réverbération", UiPhrase.ToneShaping to "Modelage du son", UiPhrase.Bass to "Basses", UiPhrase.Midrange to "Médiums", UiPhrase.Treble to "Aigus", UiPhrase.EffectStrength to "Intensité de l’effet")
+    const val playback_artistTopTracksSubtitle_1 = "que vous écoutez le plus souvent"
+    const val playback_builtInSmartPlaylistTitle_1 = "Les plus écoutés"
+    const val playback_builtInSmartPlaylistTitle_2 = "Favoris"
+    const val playback_discLabel_1 = "Disque"
+    const val playback_equalizerCustomLabel_1 = "Personnalisé"
+    const val playback_equalizerStatusLabel_1 = "Actuellement désactivé"
+    fun playback_equalizerStatusLabel_dynamic_1(presetName: String) = "Réglé sur $presetName"
+    const val playback_localizedAllSongsSource_1 = "tous les titres"
+    val playback_localizedEqualizerPreset_1 get() = listOf("Électronique", "Classique", "Acoustique", "Voix")
+    const val playback_localizedSearchResultsSource_1 = "résultats de recherche"
+    const val playback_pauseLabel_1 = "Pause"
+    const val playback_playLabel_1 = "Lire"
+    const val playback_playingFromPrefix_1 = "Lecture depuis"
+    const val playback_privacyPolicySettingsSubtitle_1 = "Comment Elovaire gère les fichiers, autorisations, requêtes réseau et données de l’app"
+    const val playback_queueTitle_1 = "File"
+    val playback_sleepTimerCopy_1 get() = SleepTimerCopy("Minuteur de veille", "Désactivé", "Fin du morceau", "Confirmer", "Fermer le minuteur")
+    const val playlistFeedback_localizedPlaylistCreateError_1 = "La file d’opérations sur les données utilisateur est pleine"
+    const val playlistFeedback_playlistDatabaseFailure_1 = "L’opération sur la base de données a échoué"
+    const val playlistFeedback_playlistMutationNoResult_1 = "La modification n’a produit aucun résultat"
+    const val playlistFeedback_playlistUserDataOperationFailure_1 = "L’opération sur les données utilisateur a échoué"
+    const val playlistFeedback_playlistUserDataStoreClosed_1 = "Le stockage des données utilisateur est fermé"
+    const val playlistFeedback_playlistUserDataStoreFailure_1 = "Le stockage des données utilisateur a rencontré une erreur"
+    const val privacy_libraryFoldersCopy_variant_1 = "Dossiers de bibliothèque"
+    const val privacy_libraryFoldersCopy_variant_10 = "L’accès au dossier est indisponible"
+    const val privacy_libraryFoldersCopy_variant_11 = "Retirer un dossier le retire seulement de l’analyse de la bibliothèque d’Elovaire. Vos fichiers audio restent sur votre appareil."
+    const val privacy_libraryFoldersCopy_variant_2 = "Choisir les dossiers analysés pour la musique"
+    const val privacy_libraryFoldersCopy_variant_3 = "Ajouter un dossier"
+    const val privacy_libraryFoldersCopy_variant_4 = "Modifier"
+    const val privacy_libraryFoldersCopy_variant_5 = "Terminé"
+    const val privacy_libraryFoldersCopy_variant_6 = "Actualiser"
+    const val privacy_libraryFoldersCopy_variant_7 = "Aucun dossier de bibliothèque sélectionné"
+    const val privacy_libraryFoldersCopy_variant_8 = "Ajoutez un dossier pour faire apparaître la musique dans votre bibliothèque."
+    const val privacy_libraryFoldersCopy_variant_9 = "Indisponible"
+    val privacy_listOf_multiline_1 get() = listOf(
+            privacyPolicySection("Vue d’ensemble", "Elovaire est un lecteur de musique local distribué via GitHub. Aucun compte, profil publicitaire, outil d’analyse ou bibliothèque musicale cloud n’est requis."),
+            privacyPolicySection("Fichiers musicaux et multimédias", "Elovaire lit les fichiers audio, tags, pochettes et paroles uniquement dans les dossiers ou documents auxquels vous lui accordez l’accès. Les tags et les paroles ne sont modifiés qu’après votre demande et l’autorisation d’écriture d’Android. Les fichiers audio complets ne sont jamais envoyés."),
+            privacyPolicySection("Services en ligne facultatifs", "Lorsqu’une fonction en ligne est activée ou nécessaire à une action demandée, Elovaire peut envoyer des métadonnées limitées d’un titre, d’un artiste ou d’un livre à LRCLIB, YouTube Music ou Google Books pour obtenir des paroles, des images d’artistes ou des descriptions de livres audio. Ces services ne reçoivent pas vos fichiers audio ; leurs propres politiques de confidentialité s’appliquent. Désactivez les fonctions en ligne pour empêcher ces requêtes."),
+            privacyPolicySection("Données locales de l’application", "Les playlists, mixes intelligents, favoris, historique et compteurs de lecture, historique de recherche, réglages, index de bibliothèque, caches de pochettes et de métadonnées et préférences de mise à jour restent sur l’appareil. La sauvegarde Android peut inclure des réglages transportables ; les fichiers musicaux, autorisations, caches et journaux d’opérations sont exclus."),
+            privacyPolicySection("Dossiers réseau et autorisations", "Elovaire peut demander l’accès aux médias audio, aux notifications de lecture, aux documents des dossiers choisis, au réseau local pour les sources SMB/WebDAV, à l’USB pour les appareils audio compatibles et l’autorisation d’installer les mises à jour GitHub. Chaque autorisation sert uniquement à la fonction concernée."),
+            privacyPolicySection("Réseau", "À l’exception des fonctions en ligne facultatives et des mises à jour GitHub, l’application n’a pas besoin de connexion réseau. Elovaire n’envoie pas votre musique, vos playlists ou votre historique de recherche à ses serveurs."),
+            privacyPolicySection("Mises à jour GitHub", "Le programme de mise à jour, limité à GitHub, vérifie les versions publiques et télécharge un APK avec sa somme de contrôle lorsque vous recherchez une mise à jour ou qu’un contrôle automatique au premier plan est prévu. GitHub reçoit les informations normales de la requête, comme votre adresse IP. Elovaire vérifie la somme de contrôle, le nom du paquet, la version et le certificat de signature avant de demander à Android d’installer la mise à jour."),
+            privacyPolicySection("Partage, conservation et suppression", "Elovaire ne vend ni ne partage vos données musicales locales. Elles restent sur l’appareil jusqu’à l’effacement des données de l’application, leur suppression via une fonction intégrée ou la désinstallation. Les fichiers temporaires de mise à jour sont supprimés lorsqu’ils ne sont plus nécessaires. Le code source et les APK publiés sont disponibles sur github.com/droidbeauty/elovaire-music."),
+        )
+    val privacy_networkSourcesCopy_1 get() = NetworkSourcesCopy("Sources réseau", "Disponible", "Test en cours…", "Se connecter", "Autoriser le réseau local", "Ajouter une source", "Fermer le sélecteur de source", "Choisissez un dossier sur cet appareil", "NAS ou WebDAV", "Connectez-vous à une source de musique réseau", "Retirer la source réseau ?", "Cette action retire uniquement la source de la bibliothèque. Les fichiers du réseau ne sont pas supprimés.", "Retirer", "Source réseau", "Enregistrer la source réseau", "Nom", "Serveur", "Serveur HTTPS", "Partage / chemin", "Chemin", "Nom d’utilisateur", "Domaine / groupe de travail (facultatif)", "Mot de passe", "Connexion disponible", "Autorisez l’accès au réseau local dans les réglages Android", "Authentification requise", "Hôte inaccessible", "Vérifiez le serveur et le chemin", "Source réseau indisponible", "Test de la connexion…")
+    const val privacy_privacyPolicyCopy_1 = "Politique de confidentialité"
+    val search_nowPlayingBarStyleCopy_1 get() = NowPlayingBarStyleCopy("Style de la barre de lecture", "Personnalisez le module de lecture", "Flottant", "Compact")
+    const val search_nowPlayingStyleDescription_variant_1 = "Un lecteur bord à bord juste au-dessus de la barre de navigation"
+    const val search_nowPlayingStyleDescription_variant_2 = "Un lecteur flottant au-dessus de la barre de navigation"
+    const val search_recentAdditionsEmptyMessage_1 = "Ajoutez de la musique sur votre appareil pour la voir ici"
+    val search_searchCopy_1 get() = SearchUiCopy("Artistes, albums et plus", "Effacer la recherche", "Aucune recherche pour l’instant", "Plus de résultats apparaîtront pendant la recherche de morceaux et d’albums", "Albums suggérés", "Vous aimerez peut-être les réécouter", "Recherches récentes", "Effacer l’historique", "Aucun résultat", "Rien dans la bibliothèque hors ligne actuelle ne correspond à", "pour l’instant", "artistes correspondants", "albums correspondants", "morceaux correspondants")
+    val settingsFeature_audiobookExtraCopy_1 get() = AudiobookExtraCopy("Vitesse de lecture", "Ajuster le rythme de narration du livre audio", "Reculer à la reprise", "Reculer de la durée réglée lors de la reprise")
+    const val settingsFeature_audiobookPlaybackCategory_1 = "Lecture"
+    val settingsFeature_audiobookSettingsCopy_1 get() = AudiobookSettingsCopy("Réglages des livres audio", "Personnaliser la lecture des livres audio", "Retour", "Avance", "s", "Reprendre la lecture des livres audio", "Reprendre depuis la dernière position enregistrée")
+    const val settingsFeature_smartPlaylistDescription_1 = "Les morceaux récemment ajoutés à votre bibliothèque"
+    const val settingsFeature_smartPlaylistDescription_2 = "Les morceaux que vous écoutez le plus souvent"
+    const val settingsFeature_smartPlaylistDescription_3 = "Les morceaux que vous avez ajoutés à vos favoris"
+    val settingsFeature_smartPlaylistSettingsCopy_1 get() = SmartPlaylistSettingsCopy("Playlists intelligentes", "Personnaliser le comportement des playlists intelligentes", "Mix disponibles", "Nombre maximal de morceaux par mix", "Choisissez le nombre de morceaux affichés par chaque mix intelligent")
+    fun settingsScreen_crossfadeSummary_dynamic_1(formattedDuration: String, silence: Int) = "$formattedDuration s de fondu · silence $silence dB"
+    const val settingsScreen_languageFlag_1 = "🇫🇷"
+    const val settingsScreen_updateActionLabel_1 = "Vérifier"
+    val settings_crossfadeCopy_1 get() = CrossfadeCopy("Durée du fondu", "Détermine combien de temps les morceaux se chevauchent pendant la transition", "Détection du silence", "Détermine quelle durée de silence ignorer pour trouver la fin d’un morceau")
+    val settings_libraryScanStatusCopy_1 get() = LibraryScanStatusCopy("Analyse en cours", "Terminé")
+    val settings_playlistManagementCopy_1 get() = listOf("Importer", "Tout exporter", "Vous n’avez aucune playlist", "Créez au moins une playlist pour pouvoir l’exporter", "Exporter")
+    fun settings_settingsCopy_dynamic_1(language: elovaire.music.droidbeauty.app.domain.model.AppLanguage) = SettingsLanguageCopy("Réglages", "Apparence", "Thème", "Taille du texte", "Langue", "Actuellement utilisé : ${language.nativeName}", "Son", "Renfort des basses", "Spatialisation", "Égaliseur", "Autres réglages", "Analyser la bibliothèque", "Actualise l’index pour trouver de nouveaux médias", "Analyser", "Nouveautés", "Conçu avec passion pour la musique et le beau design")
+    const val settings_volumeNormalizationSubtitle_1 = "Réduit les écarts de volume entre les morceaux quand les métadonnées du fichier le permettent"
+    const val settings_volumeNormalizationTitle_1 = "Normalisation du volume"
+    val settings_withLocalizedSettingsEntries_1 get() = SettingsEntryCopy("Fondu enchaîné", "Régler la transition entre les morceaux", "Gérer les playlists", "Importer et exporter vos playlists", "Paroles en ligne", "Récupérer les paroles depuis LRCLIB", "Rechercher des mises à jour", "Vérifier si une version plus récente est disponible")
+    val smartPlaylistDetail_smartPlaylistActionCopy_1 get() = SmartPlaylistActionCopy("Lire la playlist intelligente aléatoirement", "Supprimer la playlist intelligente")
+    val smartPlaylistDetail_smartPlaylistDeleteCopy_1 get() = SmartPlaylistDeleteCopy("Supprimer la playlist intelligente ?", "Seules les règles enregistrées seront supprimées")
+    const val smartPlaylistDetail_smartPlaylistEditRulesLabel_1 = "Modifier les règles"
+    val smartPlaylistDetail_smartPlaylistEditorHeadingCopy_1 get() = SmartPlaylistEditorHeadingCopy("Nouvelle playlist intelligente", "Modifier la playlist intelligente", "Enregistrer la playlist intelligente")
+    val smartPlaylistDetail_smartPlaylistEmptyCopy_1 get() = SmartPlaylistEmptyCopy("Aucun morceau ne correspond à ces règles", "Modifiez les filtres ou actualisez votre bibliothèque")
+    val smartPlaylistDetail_smartPlaylistMatchCopy_1 get() = SmartPlaylistMatchCopy("Correspondance", "Respecter toutes les règles", "Respecter au moins une règle", "Ajouter une règle")
+    val smartPlaylistDetail_smartPlaylistMissingCopy_1 get() = SmartPlaylistMissingCopy("Playlist intelligente", "Playlist intelligente introuvable")
+    const val smartPlaylistDetail_smartPlaylistPreviewLabel_1 = "Aperçu"
+    const val smartPlaylistDetail_smartPlaylistRemoveRuleLabel_1 = "Retirer la règle"
+    val smartPlaylistRule_smartPlaylistInputCopy_1 get() = SmartPlaylistInputCopy("Nombre", "Extension", "Texte du dossier", "Limite")
+    val smartPlaylistRule_smartPlaylistOrderCopy_1 get() = SmartPlaylistOrderCopy("Tri", "Ordre", "Croissant", "Décroissant")
+    val smartPlaylistRule_smartPlaylistOtherRuleCopy_1 get() = SmartPlaylistOtherRuleCopy("Est un favori", "Durée supérieure à", "Nombre de lectures", "Le format est")
+    val smartPlaylistRule_smartPlaylistTextRuleCopy_1 get() = SmartPlaylistTextRuleCopy("Le titre contient", "Le nom de l’artiste contient", "Le nom de l’album contient", "Le genre contient", "Le dossier contient")
+    val smartPlaylistRule_smartPlaylistValueCopy_1 get() = SmartPlaylistValueCopy("Valeur", "Oui", "Non", "Secondes")
+    val sort_sortNames_1 get() = SortNames("Titre du morceau", "Nom de l’artiste", "Album", "Titre de l’album")
+    const val tagFeedback_albumRequiredFields_variant_1 = "Le titre de l’album ne peut pas être vide"
+    const val tagFeedback_albumRequiredFields_variant_2 = "L’artiste de l’album ne peut pas être vide"
+    const val tagFeedback_artworkTooLargeError_1 = "La pochette sélectionnée est trop volumineuse pour être intégrée en toute sécurité"
+    const val tagFeedback_audiobookRequiredFields_variant_1 = "Le titre du livre ne peut pas être vide"
+    const val tagFeedback_audiobookRequiredFields_variant_2 = "L’auteur ne peut pas être vide"
+    const val tagFeedback_cannotReadArtworkError_1 = "Impossible de lire la pochette sélectionnée"
+    const val tagFeedback_emptyTagSource_1 = "Le fichier du morceau est vide"
+    const val tagFeedback_fileWriteOpenError_1 = "Impossible d’ouvrir le fichier en écriture"
+    const val tagFeedback_insufficientTagStorage_1 = "L’espace libre est insuffisant pour modifier ce morceau en toute sécurité"
+    const val tagFeedback_invalidTrackSelectionError_1 = "Les pistes sélectionnées ne sont plus valides pour cette collection"
+    const val tagFeedback_localizedTagSaveFailure_1 = "Les tags de ce format audio ne peuvent pas être modifiés en toute sécurité"
+    const val tagFeedback_localizedTagSaveStatus_1 = "Enregistré avec des problèmes"
+    const val tagFeedback_localizedTagValidationError_1 = "L’année de sortie doit être comprise entre 1 et 9999"
+    const val tagFeedback_lyricsFolderAccessLost_1 = "L’accès à ce dossier musical a été perdu. Ajoutez à nouveau le dossier pour enregistrer les paroles"
+    const val tagFeedback_lyricsInvalidMediaAddress_1 = "Ce morceau ne possède pas d’adresse d’élément MediaStore valide"
+    const val tagFeedback_lyricsMetadataUpdateFailed_1 = "Les métadonnées des paroles de ce morceau n’ont pas pu être mises à jour"
+    const val tagFeedback_lyricsPreparationFailed_1 = "Impossible de préparer ce morceau pour modifier ses paroles"
+    const val tagFeedback_lyricsProviderRejectsReplacement_1 = "Le fournisseur de stockage ne permet pas de remplacer ce morceau en toute sécurité"
+    const val tagFeedback_lyricsRollbackFailure_1 = "Le morceau n’a pas pu être restauré après l’échec de l’enregistrement des paroles"
+    const val tagFeedback_lyricsSourceReadFailed_1 = "Impossible de lire ce morceau pour modifier ses paroles"
+    const val tagFeedback_lyricsTooLargeError_1 = "Ces paroles sont trop longues pour être enregistrées en toute sécurité"
+    const val tagFeedback_lyricsUnsupportedFormat_1 = "Ce format audio ne permet pas d’enregistrer les paroles en toute sécurité"
+    const val tagFeedback_lyricsUnsupportedSynced_1 = "Ce format audio ne permet pas d’enregistrer les paroles synchronisées en toute sécurité"
+    const val tagFeedback_lyricsVerificationAfterSave_1 = "Les paroles n’ont pas pu être vérifiées après l’enregistrement"
+    const val tagFeedback_lyricsVerificationBeforeSave_1 = "Les métadonnées des paroles n’ont pas pu être vérifiées avant l’enregistrement"
+    const val tagFeedback_lyricsWriteAccessUnavailable_1 = "Android n’a pas pu ouvrir ce morceau pour le modifier"
+    const val tagFeedback_lyricsWriteFailed_1 = "Impossible d’enregistrer les paroles dans le fichier du morceau"
+    const val tagFeedback_noTagsSaved_1 = "Aucun tag n’a été enregistré"
+    const val tagFeedback_sourceFileOpenError_1 = "Impossible d’ouvrir le fichier source"
+    val tagFeedback_tagAdditionalIssuesCopy_1 get() = TagAdditionalIssuesCopy("Autres problèmes de validation", "Autres problèmes d’enregistrement")
+    const val tagFeedback_tagDocumentWriteAccessMissing_1 = "Le document sélectionné ne dispose pas d’une autorisation d’écriture permanente"
+    const val tagFeedback_tagDocumentWriteCapabilityError_1 = "Impossible de vérifier si le document accepte l’écriture"
+    const val tagFeedback_tagFolderWriteAccessMissing_1 = "Le dossier sélectionné n’a pas accordé d’autorisation d’écriture permanente"
+    const val tagFeedback_tagNotReadyError_1 = "Ce morceau n’est pas prêt pour une modification sécurisée des tags"
+    const val tagFeedback_tagOutputWriteError_1 = "Impossible d’enregistrer les tags dans le fichier du morceau"
+    const val tagFeedback_tagPermissionDeniedAfterGrant_1 = "Le système n’a pas autorisé la mise à jour du fichier après l’octroi de l’accès en écriture"
+    const val tagFeedback_tagProviderDoesNotAllowEditing_1 = "Le fournisseur de documents sélectionné n’autorise pas la modification des tags"
+    const val tagFeedback_tagProviderDoesNotSupportWriting_1 = "Le fournisseur de documents sélectionné ne permet pas d’écrire dans ce fichier"
+    const val tagFeedback_tagRollbackFailure_1 = "Le morceau n’a pas pu être restauré après l’échec de l’écriture des tags"
+    const val tagFeedback_tagSaveAwaitingAccess_1 = "Une autorisation d’écriture supplémentaire est nécessaire pour terminer l’enregistrement"
+    const val tagFeedback_tagSourceAlreadyBeingEdited_1 = "Le morceau est déjà en cours de modification"
+    const val tagFeedback_tagSourceLocationUnavailable_1 = "L’emplacement du fichier du morceau est indisponible"
+    const val tagFeedback_tagSourceNotWritable_1 = "Le fichier du morceau ne peut pas être modifié"
+    const val tagFeedback_tagSourceReadError_1 = "Impossible de lire ce morceau pour modifier ses tags"
+    const val tagFeedback_tagTemporaryWriteFailure_1 = "Impossible d’écrire les tags en toute sécurité"
+    const val tagFeedback_tagTextTooLongError_1 = "Une ou plusieurs valeurs de tag sont trop longues pour être enregistrées en toute sécurité"
+    const val tagFeedback_tagVerificationAfterSaveError_1 = "Les tags modifiés n’ont pas pu être vérifiés après l’enregistrement"
+    const val tagFeedback_tagVerificationBeforeSaveError_1 = "Les tags modifiés n’ont pas pu être vérifiés avant l’enregistrement"
+    const val tagFeedback_tagWriteAccessNotGranted_1 = "L’autorisation d’écriture n’a pas été accordée"
+    const val tagFeedback_tagWritePermissionRequired_1 = "Une autorisation d’écriture supplémentaire est nécessaire pour ce fichier"
+    const val tagFeedback_tagWriteRequestPending_1 = "Une demande d’autorisation d’écriture est déjà en attente"
+    const val tagFeedback_tagWriteRequestUnavailable_1 = "Android n’a pas pu ouvrir la demande d’autorisation d’écriture"
+    const val tagFeedback_trackArtistAndChapterTitleErrors_variant_1 = "L’artiste du morceau ne peut pas être vide"
+    const val tagFeedback_trackArtistAndChapterTitleErrors_variant_2 = "Le titre du chapitre ne peut pas être vide"
+    const val tagFeedback_trackNumbersError_1 = "Les numéros de piste et de disque doivent être compris entre 1 et 9999"
+    const val tagFeedback_trackTitleError_1 = "Le titre du morceau ne peut pas être vide"
+    const val tagFeedback_unableToSaveAudiobookTags_1 = "Impossible d’enregistrer les tags du livre audio"
+    const val tagFeedback_unableToSaveTags_1 = "Impossible d’enregistrer les tags"
+    const val tagFeedback_unsupportedArtworkError_1 = "La pochette ne peut pas être intégrée en toute sécurité dans ce format audio"
+    const val tagFeedback_unsupportedTagUriError_1 = "L’adresse du fichier n’est pas prise en charge"
+    val upscaler_upscalerCopy_1 get() = UpscalerCopy("Suréchantillonnage audio", "Activer le suréchantillonnage", "Conversion filtrée de la fréquence d’échantillonnage pendant la lecture", "Désactivé", "Facteur de suréchantillonnage", "Filtre haute précision", "Un filtre plus précis qui consomme davantage de batterie. Désactivé, un filtre équilibré est utilisé", "Marge de niveau", "Réduit le niveau de sortie pour laisser de la place aux pics créés par l’interpolation", "Le suréchantillonnage préserve la hauteur, la durée et les canaux audio. Il ne restaure pas les détails perdus lors de la compression ; le facteur pris en charge le plus élevé est utilisé jusqu’à 384 kHz, sinon la fréquence d’origine est conservée ; Android peut reconvertir la sortie et l’activation utilise un traitement logiciel plutôt qu’une lecture directe ou déléguée")
+    const val upscaler_upscalerSetToDefault_1 = "Rétablir les valeurs par défaut"
+    val widgetCopy_widgetCopy_1 get() = listOf("Titre précédent", "Titre suivant")
+}
+
+internal fun frenchMatchingCount(count: Int, noun: String): String =
+    "${localizedCountLabel(count, noun, AppLanguage.French)} ${if (count == 1) "correspondant" else "correspondants"}"
