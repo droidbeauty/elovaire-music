@@ -8,7 +8,7 @@ internal object CzechTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Obchod Play"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Web"
     const val aboutScreens_localizedAboutTitle_1 = "Zdroje"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Je k dispozici aktualizace", "Verze", "Později", "Stáhnout", "Zavřít přehled změn", "Zatím žádné změny")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Je k dispozici aktualizace", "Verze", "Později", "Stáhnout", "Zavřít přehled změn", "V přehledu změn zatím nejsou žádné záznamy")
     const val aboutUpdate_bundledLicensesLabel_1 = "Úplná znění licencí jsou součástí aplikace"
     const val aboutUpdate_droidBeautyDescription_1 = "Pečlivě navržené widgety a motivy pro krásnější domovskou obrazovku Androidu. Jsem také tvůrcem hudebního přehrávače, který právě používáte"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Kontrola aktualizací na GitHubu se nezdařila"
@@ -122,7 +122,7 @@ internal object CzechTranslations {
     const val home_localizedCountLabel_plural_9 = "žánr"
     val home_localizedPlaylistCountLabel_1 get() = Triple("playlist", "playlisty", "playlistů")
     val home_repeatModeLabel_1 get() = Triple("Pořadí", "Opakovat skladbu", "Opakovat vše")
-    val home_rootUiCopy_1 get() = RootUiCopy("Je nutný přístup k úložišti", "Aplikace hledá hudbu ve složce Music", "Povolit přístup", "Elovaire", "Všechna alba", "Abecedně podle interpreta a názvu alba", "Přejmenovat playlist", "Uložit", "Nový playlist", "Obal playlistu", "Vytvořit playlist", "Klepnutím vytvoříte playlist", "Název playlistu", "Vymazat název", "V playlistu zatím nejsou žádné skladby", "Hledat v knihovně", "Přidat skladby", "Načítání textu…", "Tato skladba zřejmě nemá text", "Skrýt text", "OK", "Album nebylo nalezeno", "Playlist nebyl nalezen", "Nejhranější skladby", "dostupných vydání", "Přehrát album", "Náhodně přehrát album", "Upravit značky", "Uložit změny", "Upravit playlist")
+    val home_rootUiCopy_1 get() = RootUiCopy("Je nutný přístup k úložišti", "Aplikace hledá hudbu ve složce Music", "Povolit přístup", "Elovaire", "Všechna alba", "Abecedně podle interpreta a názvu alba", "Přejmenovat playlist", "Uložit", "Nový playlist", "Zástupný obrázek obalu playlistu", "Vytvořit playlist", "Klepnutím vytvoříte playlist", "Název playlistu", "Vymazat název", "V playlistu zatím nejsou žádné skladby", "Hledat v knihovně", "Přidat skladby", "Načítání textu…", "Tato skladba zřejmě nemá text", "Skrýt text", "OK", "Album nebylo nalezeno", "Playlist nebyl nalezen", "Nejhranější skladby", "dostupných vydání", "Přehrát album", "Náhodně přehrát album", "Upravit značky", "Uložit změny", "Upravit playlist")
     const val library_albumName_1 = "alba"
     const val library_artistName_1 = "interpreta"
     const val library_autoUpdatingLabel_1 = "Automaticky se aktualizuje"

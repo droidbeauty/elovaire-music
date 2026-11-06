@@ -6,7 +6,7 @@ internal object IndonesianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Situs web"
     const val aboutScreens_localizedAboutTitle_1 = "Sumber daya"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Pembaruan tersedia", "Versi", "Nanti", "Unduh", "Tutup riwayat perubahan", "Belum ada perubahan")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Pembaruan tersedia", "Versi", "Nanti", "Unduh", "Tutup riwayat perubahan", "Belum ada entri riwayat perubahan")
     const val aboutUpdate_bundledLicensesLabel_1 = "Teks lengkap lisensi disertakan dalam aplikasi"
     const val aboutUpdate_droidBeautyDescription_1 = "Widget dan tema yang dirancang dengan indah untuk mempercantik layar utama Android. Saya juga pembuat pemutar musik yang sedang Anda gunakan"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Pemeriksaan pembaruan GitHub gagal"
@@ -74,7 +74,7 @@ internal object IndonesianTranslations {
     const val home_firstLaunchPermissionButton_1 = "Izinkan akses penyimpanan"
     const val home_firstLaunchPermissionMessage_1 = "Secara default, aplikasi memindai folder Music untuk mencari musik di perangkat"
     const val home_firstLaunchPermissionTitle_1 = "Akses penyimpanan diperlukan untuk memulai"
-    val home_homeCopy_1 get() = HomeUiCopy("Mengindeks pustaka", "Mencari musik di perangkat", "Pustaka kosong", "Tambahkan musik ke perangkat", "Belum ada album yang baru ditambahkan", "Album yang baru ditambahkan akan muncul di sini", "Baru diputar", "Lagu akan segera muncul di sini", "Album favorit Anda", "Musik yang sering Anda dengarkan", "Belum ada album yang dibuka", "Buka atau putar album dan album itu akan muncul di sini dengan sampulnya di bagian depan")
+    val home_homeCopy_1 get() = HomeUiCopy("Mengindeks pustaka", "Lagu dan album akan muncul setelah pengindeksan selesai", "Musik tidak ditemukan", "Lagu dan album akan muncul di sini saat Anda menambahkan musik ke folder Music bawaan perangkat", "Belum ada tambahan terbaru", "Tambahkan album ke folder Music di perangkat dan yang terbaru akan muncul di sini secara otomatis", "Baru diputar", "Lagu akan segera muncul di sini", "Album favorit Anda", "Musik yang sering Anda putar kembali", "Belum ada album yang dibuka", "Buka atau putar album dan album itu akan muncul di sini dengan sampulnya di bagian depan")
     const val home_localizedCountLabel_plural_1 = "lagu"
     const val home_localizedCountLabel_plural_10 = "genre"
     const val home_localizedCountLabel_plural_2 = "lagu"
@@ -87,7 +87,7 @@ internal object IndonesianTranslations {
     const val home_localizedCountLabel_plural_9 = "genre"
     val home_localizedPlaylistCountLabel_1 get() = Triple("daftar putar", "daftar putar", "daftar putar")
     val home_repeatModeLabel_1 get() = Triple("Urutan", "Ulangi satu", "Ulangi semua")
-    val home_rootUiCopy_1 get() = RootUiCopy("Akses penyimpanan diperlukan", "Aplikasi mencari musik di folder Music", "Izinkan akses penyimpanan", "Elovaire", "Semua album", "Urut menurut artis album, lalu judul album", "Ganti nama daftar putar", "Simpan", "Daftar putar baru", "Sampul daftar putar", "Buat daftar putar", "Ketuk untuk membuat daftar putar", "Nama daftar putar", "Hapus nama daftar putar", "Belum ada lagu dalam daftar putar ini", "Cari di pustaka", "Tambahkan lagu", "Memuat lirik…", "Lagu ini tampaknya tidak memiliki lirik", "Sembunyikan lirik", "OK", "Album tidak ditemukan", "Daftar putar tidak ditemukan", "Lagu paling sering diputar", "rilisan tersedia", "Putar album", "Acak album", "Edit tag", "Simpan perubahan daftar putar", "Edit daftar putar")
+    val home_rootUiCopy_1 get() = RootUiCopy("Akses penyimpanan diperlukan", "Aplikasi mencari musik di folder Music", "Izinkan akses penyimpanan", "Elovaire", "Semua album", "Secara alfabetis menurut artis album, lalu judul album", "Ganti nama daftar putar", "Simpan", "Daftar putar baru", "Gambar pengganti sampul daftar putar", "Buat daftar putar", "Ketuk untuk membuat daftar putar", "Nama daftar putar", "Hapus nama daftar putar", "Belum ada lagu dalam daftar putar ini", "Cari di pustaka", "Tambahkan lagu", "Memuat lirik…", "Lagu ini tampaknya tidak memiliki lirik", "Sembunyikan lirik", "OK", "Album tidak ditemukan", "Daftar putar tidak ditemukan", "Lagu paling sering diputar", "rilisan tersedia", "Putar album", "Acak album", "Edit tag", "Simpan perubahan daftar putar", "Edit daftar putar")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "artis"
     const val library_autoUpdatingLabel_1 = "Diperbarui otomatis"

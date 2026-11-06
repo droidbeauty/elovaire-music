@@ -1072,6 +1072,44 @@ class ElovaireStringsTest {
             if (language != AppLanguage.English) assertFalse(label == "Edit lyrics")
         }
     }
+
+    @Test
+    fun playlistArtworkPlaceholderDescribesTheReplacementImage() {
+        val english = rootUiCopy(AppLanguage.English).playlistArtworkPlaceholder
+        AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+            val label = rootUiCopy(language).playlistArtworkPlaceholder
+            assertTrue("Missing playlist artwork placeholder in $language", label.isNotBlank())
+            assertFalse("Untranslated playlist artwork placeholder in $language", label == english)
+        }
+        val placeholderTerms = mapOf(
+            AppLanguage.German to "Platzhalter",
+            AppLanguage.Spanish to "provisional",
+            AppLanguage.French to "remplacement",
+            AppLanguage.Italian to "segnaposto",
+            AppLanguage.Portuguese to "provisória",
+            AppLanguage.Dutch to "Tijdelijke",
+            AppLanguage.Swedish to "Platshållarbild",
+            AppLanguage.Danish to "Pladsholderbillede",
+            AppLanguage.Norwegian to "Plassholderbilde",
+            AppLanguage.Ukrainian to "заповнювач",
+            AppLanguage.Czech to "Zástupný",
+            AppLanguage.Estonian to "asenduskujutis",
+            AppLanguage.ChineseSimplified to "占位图",
+            AppLanguage.Croatian to "Zamjenska",
+            AppLanguage.Hungarian to "helyőrző",
+            AppLanguage.Thai to "ตัวแทน",
+            AppLanguage.Macedonian to "Замена",
+            AppLanguage.Lithuanian to "pakaitinis",
+            AppLanguage.Latvian to "aizstājējattēls",
+            AppLanguage.Russian to "заполнитель",
+            AppLanguage.Japanese to "プレースホルダー",
+            AppLanguage.Greek to "αντικατάστασης",
+            AppLanguage.Hindi to "स्थानापन्न",
+        )
+        placeholderTerms.forEach { (language, term) ->
+            assertTrue("Missing placeholder context in $language", rootUiCopy(language).playlistArtworkPlaceholder.contains(term))
+        }
+    }
     @Test
     fun unknownAlbumFallbackIsLocalizedWithoutChangingRealTitles() {
         AppLanguage.entries.forEach { language ->
@@ -1215,6 +1253,10 @@ class ElovaireStringsTest {
                 assertFalse("$message is empty for $language", translated.isBlank())
                 assertFalse("$message is untranslated for $language", translated == english || translated == message)
             }
+        }
+        val providerDetail = "Storage provider returned an unknown error"
+        AppLanguage.entries.forEach { language ->
+            assertEquals(providerDetail, localizedPlaylistCreateError(providerDetail, language))
         }
     }
     @Test
@@ -2561,7 +2603,32 @@ class ElovaireStringsTest {
     }
 
     @Test
+    fun albumOrderingDescriptionsIncludeAlphabeticalOrdering() {
+        val alphabeticalTerms = mapOf(
+            AppLanguage.Indonesian to "alfabetis",
+            AppLanguage.Punjabi to "ਅੱਖਰਕ੍ਰਮ",
+            AppLanguage.Spanish to "alfabético",
+            AppLanguage.French to "alphabétique",
+            AppLanguage.ChineseSimplified to "字母顺序",
+            AppLanguage.Thai to "ลำดับตัวอักษร",
+            AppLanguage.Russian to "алфавиту",
+            AppLanguage.Japanese to "アルファベット順",
+            AppLanguage.Hindi to "वर्णक्रम",
+            AppLanguage.Ukrainian to "абеткою",
+        )
+        alphabeticalTerms.forEach { (language, term) ->
+            assertTrue("Missing alphabetical ordering in $language", rootUiCopy(language).allAlbumsSubtitle.contains(term))
+        }
+    }
+
+    @Test
     fun firstLaunchMessageExplainsThatMusicFolderIsTheDefault() {
+        AppLanguage.entries.forEach { language ->
+            assertTrue(
+                "Missing Music folder in $language",
+                rootUiCopy(language).firstLaunchPermissionMessage.contains("Music"),
+            )
+        }
         val defaultTerms = mapOf(
             AppLanguage.Bulgarian to "по подразбиране",
             AppLanguage.Catalan to "per defecte",
@@ -2571,6 +2638,7 @@ class ElovaireStringsTest {
             AppLanguage.Bosnian to "prema zadanim postavkama",
             AppLanguage.Indonesian to "default",
             AppLanguage.Punjabi to "ਮੂਲ ਰੂਪ ਵਿੱਚ",
+            AppLanguage.Polish to "domyślnie",
         )
         defaultTerms.forEach { (language, term) ->
             val message = rootUiCopy(language).firstLaunchPermissionMessage
@@ -2580,11 +2648,101 @@ class ElovaireStringsTest {
     }
 
     @Test
+    fun homeEmptyStatesRetainMusicFolderAndOpenedAlbumContext() {
+        assertEquals("Nie dodano ostatnio żadnych albumów", homeCopy(AppLanguage.Polish).noRecentAdditionsTitle)
+        assertEquals("Вашите любими албуми", homeCopy(AppLanguage.Bulgarian).favoriteAlbumsTitle)
+        assertEquals("Els teus àlbums preferits", homeCopy(AppLanguage.Catalan).favoriteAlbumsTitle)
+        val albumOpenTerms = mapOf(
+            AppLanguage.Bulgarian to "отворени", AppLanguage.Catalan to "obert",
+            AppLanguage.Finnish to "avattu", AppLanguage.Romanian to "deschis",
+            AppLanguage.Slovenian to "odprt", AppLanguage.Bosnian to "otvorili",
+            AppLanguage.Indonesian to "dibuka", AppLanguage.Punjabi to "ਖੋਲ੍ਹੀ",
+        )
+        albumOpenTerms.forEach { (language, term) ->
+            val copy = homeCopy(language)
+            assertTrue("Missing default Music folder for $language", copy.emptyLibraryMessage.contains("Music"))
+            assertTrue("Missing Music folder for recent albums in $language", copy.noRecentAdditionsMessage.contains("Music"))
+            assertTrue("Missing opened-album context for $language", copy.noFavoriteAlbumsTitle.contains(term, ignoreCase = true))
+        }
+        val artworkTerms = mapOf(
+            AppLanguage.Bulgarian to "обложката", AppLanguage.Catalan to "portada",
+            AppLanguage.Finnish to "kansikuva", AppLanguage.Romanian to "coperta",
+            AppLanguage.Slovenian to "naslovnico", AppLanguage.Bosnian to "omotom",
+            AppLanguage.Indonesian to "sampulnya", AppLanguage.Punjabi to "ਤਸਵੀਰ",
+        )
+        artworkTerms.forEach { (language, term) ->
+            assertTrue("Missing artwork context for $language", homeCopy(language).noFavoriteAlbumsMessage.contains(term, ignoreCase = true))
+        }
+        val indexingTerms = mapOf(
+            AppLanguage.Bulgarian to "индексирането", AppLanguage.Catalan to "indexació",
+            AppLanguage.Finnish to "indeksointi", AppLanguage.Romanian to "indexării",
+            AppLanguage.Slovenian to "indeksiranje", AppLanguage.Bosnian to "indeksiranje",
+            AppLanguage.Indonesian to "pengindeksan", AppLanguage.Punjabi to "ਸੂਚੀ",
+        )
+        indexingTerms.forEach { (language, term) ->
+            assertTrue("Missing indexing context for $language", homeCopy(language).indexingMessage.contains(term, ignoreCase = true))
+        }
+        val repeatListeningTerms = mapOf(
+            AppLanguage.Catalan to "tornes", AppLanguage.Romanian to "revii",
+            AppLanguage.Indonesian to "kembali", AppLanguage.Punjabi to "ਮੁੜ",
+        )
+        repeatListeningTerms.forEach { (language, term) ->
+            assertTrue("Missing returning-listener context for $language", homeCopy(language).favoriteAlbumsSubtitle.contains(term, ignoreCase = true))
+        }
+    }
+
+    @Test
+    fun homeLoadingAndEmptyMessagesAreLocalized() {
+        val english = homeCopy(AppLanguage.English)
+        AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+            val copy = homeCopy(language)
+            assertFalse("English indexing message for $language", copy.indexingMessage == english.indexingMessage)
+            assertFalse("English empty-library message for $language", copy.emptyLibraryMessage == english.emptyLibraryMessage)
+            assertFalse("English recent-additions message for $language", copy.noRecentAdditionsMessage == english.noRecentAdditionsMessage)
+            assertFalse("English album empty message for $language", copy.noFavoriteAlbumsMessage == english.noFavoriteAlbumsMessage)
+        }
+    }
+
+    @Test
     fun sharedPhrasesAreExplicitlyTranslatedForEveryLanguage() {
         AppLanguage.entries.forEach { language ->
             UiPhrase.entries.forEach { phrase ->
                 org.junit.Assert.assertTrue("Missing $phrase in $language", hasUiPhraseTranslation(language, phrase))
             }
+        }
+    }
+
+    @Test
+    fun smartMixAutoUpdatingLabelIsLocalized() {
+        val english = playlistMainCopy(AppLanguage.English).autoUpdating
+        AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+            val translated = playlistMainCopy(language).autoUpdating
+            assertTrue("Missing automatic-update label for $language", translated.isNotBlank())
+            assertFalse("English automatic-update label for $language", translated == english)
+        }
+    }
+
+    @Test
+    fun emptyChangelogCopyRefersToTheChangelog() {
+        val terms = mapOf(
+            AppLanguage.Bulgarian to "списъка с промени", AppLanguage.Catalan to "registre de canvis",
+            AppLanguage.Finnish to "Muutoslokissa", AppLanguage.Romanian to "jurnalul de modificări",
+            AppLanguage.Slovenian to "dnevniku sprememb", AppLanguage.Bosnian to "listi promjena",
+            AppLanguage.Indonesian to "riwayat perubahan", AppLanguage.Punjabi to "ਤਬਦੀਲੀਆਂ ਦੀ ਸੂਚੀ",
+            AppLanguage.French to "journal des modifications", AppLanguage.Spanish to "registro de cambios",
+            AppLanguage.Polish to "liście zmian", AppLanguage.German to "Änderungsprotokoll",
+            AppLanguage.Russian to "списке изменений", AppLanguage.Japanese to "更新履歴",
+            AppLanguage.ChineseSimplified to "更新日志", AppLanguage.Hindi to "बदलाव सूची",
+        )
+        terms.forEach { (language, term) ->
+            assertTrue("Missing changelog context for $language", aboutUpdateCopy(language).noChangelog.contains(term, ignoreCase = true))
+        }
+        val english = aboutUpdateCopy(AppLanguage.English).noChangelog
+        AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
+            val translated = aboutUpdateCopy(language).noChangelog
+            assertTrue("Missing empty changelog text for $language", translated.isNotBlank())
+            assertFalse("English empty changelog text for $language", translated == english)
+            assertFalse("English close changelog label for $language", aboutUpdateCopy(language).closeChangelog == aboutUpdateCopy(AppLanguage.English).closeChangelog)
         }
     }
 

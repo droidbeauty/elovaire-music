@@ -8,7 +8,7 @@ internal object DutchTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Website"
     const val aboutScreens_localizedAboutTitle_1 = "Bronnen"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Update beschikbaar", "Versie", "Later", "Downloaden", "Wijzigingen sluiten", "Nog geen wijzigingen")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Update beschikbaar", "Versie", "Later", "Downloaden", "Wijzigingsoverzicht sluiten", "Nog geen vermeldingen in het wijzigingsoverzicht")
     const val aboutUpdate_bundledLicensesLabel_1 = "De volledige licentieteksten zijn in de app opgenomen"
     const val aboutUpdate_droidBeautyDescription_1 = "Fraai ontworpen widgets en thema’s voor een prachtig Android-startscherm. Ik ben ook de maker van de muziekspeler die je nu gebruikt"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Controleren op updates via GitHub is mislukt"
@@ -107,7 +107,7 @@ internal object DutchTranslations {
     const val home_localizedCountLabel_plural_9 = "artiest"
     val home_localizedPlaylistCountLabel_1 get() = Triple("afspeellijst", "afspeellijsten", "afspeellijsten")
     val home_repeatModeLabel_1 get() = Triple("Volgorde", "Herhaal één", "Herhaal alles")
-    val home_rootUiCopy_1 get() = RootUiCopy("Opslagtoegang vereist", "De app zoekt muziek in de map Music", "Toegang toestaan", "Elovaire", "Alle albums", "Alfabetisch op albumartiest en albumtitel", "Afspeellijst hernoemen", "Opslaan", "Nieuwe afspeellijst", "Omslag van afspeellijst", "Afspeellijst maken", "Tik om een afspeellijst te maken", "Naam van afspeellijst", "Naam wissen", "Deze afspeellijst bevat nog geen nummers", "Zoeken in bibliotheek", "Nummers toevoegen", "Songtekst laden…", "Dit nummer lijkt geen songtekst te hebben", "Songtekst verbergen", "OK", "Album niet gevonden", "Afspeellijst niet gevonden", "Meest afgespeelde nummers", "uitgaven beschikbaar", "Album afspelen", "Album in willekeurige volgorde afspelen", "Tags bewerken", "Wijzigingen opslaan", "Afspeellijst bewerken")
+    val home_rootUiCopy_1 get() = RootUiCopy("Opslagtoegang vereist", "De app zoekt muziek in de map Music", "Toegang toestaan", "Elovaire", "Alle albums", "Alfabetisch op albumartiest en albumtitel", "Afspeellijst hernoemen", "Opslaan", "Nieuwe afspeellijst", "Tijdelijke afbeelding voor de omslag van de afspeellijst", "Afspeellijst maken", "Tik om een afspeellijst te maken", "Naam van afspeellijst", "Naam wissen", "Deze afspeellijst bevat nog geen nummers", "Zoeken in bibliotheek", "Nummers toevoegen", "Songtekst laden…", "Dit nummer lijkt geen songtekst te hebben", "Songtekst verbergen", "OK", "Album niet gevonden", "Afspeellijst niet gevonden", "Meest afgespeelde nummers", "uitgaven beschikbaar", "Album afspelen", "Album in willekeurige volgorde afspelen", "Tags bewerken", "Wijzigingen opslaan", "Afspeellijst bewerken")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "artiest"
     const val library_autoUpdatingLabel_1 = "Wordt automatisch bijgewerkt"

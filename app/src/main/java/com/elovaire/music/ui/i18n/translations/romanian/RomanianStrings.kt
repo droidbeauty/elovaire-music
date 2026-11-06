@@ -8,7 +8,7 @@ internal object RomanianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Site web"
     const val aboutScreens_localizedAboutTitle_1 = "Resurse"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Actualizare disponibilă", "Versiunea", "Mai târziu", "Descarcă", "Închide lista de modificări", "Nu există încă modificări")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Actualizare disponibilă", "Versiunea", "Mai târziu", "Descarcă", "Închide lista de modificări", "Nu există încă intrări în jurnalul de modificări")
     const val aboutUpdate_bundledLicensesLabel_1 = "Textele complete ale licențelor sunt incluse în aplicație"
     const val aboutUpdate_droidBeautyDescription_1 = "Widgeturi și teme atent concepute pentru un ecran principal Android mai frumos. Sunt și creatorul playerului muzical pe care îl folosești acum"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Verificarea actualizărilor pe GitHub a eșuat"
@@ -81,7 +81,7 @@ internal object RomanianTranslations {
     const val home_firstLaunchPermissionButton_1 = "Permite accesul"
     const val home_firstLaunchPermissionMessage_1 = "Aplicația caută în mod implicit muzică în folderul Music al dispozitivului"
     const val home_firstLaunchPermissionTitle_1 = "Este necesar accesul la stocare pentru a începe"
-    val home_homeCopy_1 get() = HomeUiCopy("Se indexează biblioteca", "Se caută muzică pe dispozitiv", "Biblioteca este goală", "Adaugă muzică pe dispozitiv", "Nu există albume adăugate recent", "Albumele adăugate recent vor apărea aici", "Redate recent", "Melodiile vor apărea aici în curând", "Albumele tale preferate", "Muzica pe care o asculți des", "Nu ai deschis încă niciun album", "Deschide sau redă orice album și va apărea aici cu coperta în prim-plan")
+    val home_homeCopy_1 get() = HomeUiCopy("Se indexează biblioteca", "Melodiile și albumele vor apărea după încheierea indexării", "Nu a fost găsită muzică", "Melodiile și albumele vor apărea aici când adaugi muzică în folderul implicit Music al dispozitivului", "Nu există încă adăugări recente", "Adaugă albume în folderul Music al dispozitivului, iar cele mai noi vor apărea aici automat", "Redate recent", "Melodiile vor apărea aici în curând", "Albumele tale preferate", "Muzica la care revii des", "Nu ai deschis încă niciun album", "Deschide sau redă orice album și va apărea aici cu coperta în prim-plan")
     const val home_localizedCountLabel_plural_1 = "melodie"
     const val home_localizedCountLabel_plural_10 = "genuri"
     const val home_localizedCountLabel_plural_2 = "melodii"
@@ -94,7 +94,7 @@ internal object RomanianTranslations {
     const val home_localizedCountLabel_plural_9 = "gen"
     val home_localizedPlaylistCountLabel_1 get() = Triple("listă", "liste", "liste")
     val home_repeatModeLabel_1 get() = Triple("Ordine", "Repetă una", "Repetă toate")
-    val home_rootUiCopy_1 get() = RootUiCopy("Este necesar accesul la stocare", "Aplicația caută muzică în dosarul Music", "Permite accesul", "Elovaire", "Toate albumele", "În ordine alfabetică după artistul albumului, apoi după titlul albumului", "Redenumește lista", "Salvează", "Listă nouă", "Coperta listei", "Creează o listă", "Atinge pentru a crea o listă", "Numele listei", "Șterge numele", "Lista nu conține încă melodii", "Caută în bibliotecă", "Adaugă melodii", "Se încarcă versurile…", "Această melodie pare să nu aibă versuri", "Ascunde versurile", "OK", "Albumul nu a fost găsit", "Lista nu a fost găsită", "Cele mai ascultate melodii", "lansări disponibile", "Redă albumul", "Amestecă albumul", "Editează etichetele", "Salvează modificările", "Editează lista")
+    val home_rootUiCopy_1 get() = RootUiCopy("Este necesar accesul la stocare", "Aplicația caută muzică în dosarul Music", "Permite accesul", "Elovaire", "Toate albumele", "În ordine alfabetică după artistul albumului, apoi după titlul albumului", "Redenumește lista", "Salvează", "Listă nouă", "Imagine substituentă pentru coperta listei", "Creează o listă", "Atinge pentru a crea o listă", "Numele listei", "Șterge numele", "Lista nu conține încă melodii", "Caută în bibliotecă", "Adaugă melodii", "Se încarcă versurile…", "Această melodie pare să nu aibă versuri", "Ascunde versurile", "OK", "Albumul nu a fost găsit", "Lista nu a fost găsită", "Cele mai ascultate melodii", "lansări disponibile", "Redă albumul", "Amestecă albumul", "Editează etichetele", "Salvează modificările", "Editează lista")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "artist"
     const val library_autoUpdatingLabel_1 = "Se actualizează automat"

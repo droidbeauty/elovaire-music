@@ -8,7 +8,7 @@ internal object LatvianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play veikals"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Tīmekļvietne"
     const val aboutScreens_localizedAboutTitle_1 = "Resursi"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Pieejams atjauninājums", "Versija", "Vēlāk", "Lejupielādēt", "Aizvērt izmaiņu sarakstu", "Vēl nav izmaiņu")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Pieejams atjauninājums", "Versija", "Vēlāk", "Lejupielādēt", "Aizvērt izmaiņu sarakstu", "Izmaiņu sarakstā vēl nav ierakstu")
     const val aboutUpdate_bundledLicensesLabel_1 = "Pilni licenču teksti ir iekļauti lietotnē"
     const val aboutUpdate_droidBeautyDescription_1 = "Gaumīgi veidoti logrīki un motīvi skaistākam Android sākuma ekrānam. Esmu arī šī mūzikas atskaņotāja veidotājs, kuru pašlaik lietojat"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "GitHub atjauninājumu pārbaude neizdevās"
@@ -125,7 +125,7 @@ internal object LatvianTranslations {
     const val home_localizedCountLabel_plural_9 = "žanrs"
     val home_localizedPlaylistCountLabel_1 get() = Triple("atskaņošanas saraksts", "atskaņošanas saraksti", "atskaņošanas sarakstu")
     val home_repeatModeLabel_1 get() = Triple("Secība", "Atkārtot vienu", "Atkārtot visu")
-    val home_rootUiCopy_1 get() = RootUiCopy("Nepieciešama piekļuve krātuvei", "Lietotne meklē mūziku mapē Music", "Atļaut piekļuvi", "Elovaire", "Visi albumi", "Alfabētiski pēc albuma izpildītāja un nosaukuma", "Pārdēvēt sarakstu", "Saglabāt", "Jauns saraksts", "Saraksta vāciņš", "Izveidot sarakstu", "Pieskaries, lai izveidotu sarakstu", "Saraksta nosaukums", "Notīrīt nosaukumu", "Sarakstā vēl nav dziesmu", "Meklēt bibliotēkā", "Pievienot dziesmas", "Notiek dziesmas vārdu ielāde…", "Šai dziesmai, šķiet, nav vārdu", "Paslēpt dziesmas vārdus", "Labi", "Albums nav atrasts", "Saraksts nav atrasts", "Visvairāk atskaņotās dziesmas", "pieejamu izdevumu", "Atskaņot albumu", "Atskaņot albumu jauktā secībā", "Rediģēt tagus", "Saglabāt izmaiņas", "Rediģēt sarakstu")
+    val home_rootUiCopy_1 get() = RootUiCopy("Nepieciešama piekļuve krātuvei", "Lietotne meklē mūziku mapē Music", "Atļaut piekļuvi", "Elovaire", "Visi albumi", "Alfabētiski pēc albuma izpildītāja un nosaukuma", "Pārdēvēt sarakstu", "Saglabāt", "Jauns saraksts", "Saraksta vāciņa aizstājējattēls", "Izveidot sarakstu", "Pieskaries, lai izveidotu sarakstu", "Saraksta nosaukums", "Notīrīt nosaukumu", "Sarakstā vēl nav dziesmu", "Meklēt bibliotēkā", "Pievienot dziesmas", "Notiek dziesmas vārdu ielāde…", "Šai dziesmai, šķiet, nav vārdu", "Paslēpt dziesmas vārdus", "Labi", "Albums nav atrasts", "Saraksts nav atrasts", "Visvairāk atskaņotās dziesmas", "pieejamu izdevumu", "Atskaņot albumu", "Atskaņot albumu jauktā secībā", "Rediģēt tagus", "Saglabāt izmaiņas", "Rediģēt sarakstu")
     const val library_albumName_1 = "albuma"
     const val library_artistName_1 = "izpildītāja"
     const val library_autoUpdatingLabel_1 = "Atjauninās automātiski"

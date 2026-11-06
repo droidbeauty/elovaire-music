@@ -8,7 +8,7 @@ internal object CatalanTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Lloc web"
     const val aboutScreens_localizedAboutTitle_1 = "Recursos"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Actualització disponible", "Versió", "Més tard", "Baixa", "Tanca les novetats", "Encara no hi ha novetats")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Actualització disponible", "Versió", "Més tard", "Baixa", "Tanca el registre de canvis", "Encara no hi ha entrades al registre de canvis")
     const val aboutUpdate_bundledLicensesLabel_1 = "Els textos complets de les llicències s’inclouen a l’aplicació"
     const val aboutUpdate_droidBeautyDescription_1 = "Ginys i temes dissenyats amb cura per embellir la pantalla d’inici d’Android. També soc el creador del reproductor de música que fas servir ara mateix"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Ha fallat la cerca d’actualitzacions a GitHub"
@@ -79,7 +79,7 @@ internal object CatalanTranslations {
     const val home_firstLaunchPermissionButton_1 = "Permet l’accés"
     const val home_firstLaunchPermissionMessage_1 = "L’aplicació cerca música per defecte a la carpeta Music del dispositiu"
     const val home_firstLaunchPermissionTitle_1 = "Cal accedir a l’emmagatzematge per començar"
-    val home_homeCopy_1 get() = HomeUiCopy("S’està indexant la biblioteca", "Les cançons i els àlbums apareixeran quan acabi la indexació", "No s’ha trobat música", "Les cançons i els àlbums apareixeran aquí quan afegeixis música a la carpeta Music predeterminada del dispositiu", "Encara no hi ha novetats", "Afegeix àlbums a la carpeta Music del dispositiu i els més nous apareixeran aquí automàticament", "Escoltades recentment", "Les cançons apareixeran aquí aviat", "Àlbums preferits", "La música que escoltes sovint", "Encara no has obert cap àlbum", "Obre o reprodueix qualsevol àlbum i apareixerà aquí amb la portada en primer pla")
+    val home_homeCopy_1 get() = HomeUiCopy("S’està indexant la biblioteca", "Les cançons i els àlbums apareixeran quan acabi la indexació", "No s’ha trobat música", "Les cançons i els àlbums apareixeran aquí quan afegeixis música a la carpeta Music predeterminada del dispositiu", "Encara no hi ha novetats", "Afegeix àlbums a la carpeta Music del dispositiu i els més nous apareixeran aquí automàticament", "Escoltades recentment", "Les cançons apareixeran aquí aviat", "Els teus àlbums preferits", "La música a la qual tornes sovint", "Encara no has obert cap àlbum", "Obre o reprodueix qualsevol àlbum i apareixerà aquí amb la portada en primer pla")
     const val home_localizedCountLabel_plural_1 = "cançó"
     const val home_localizedCountLabel_plural_10 = "gèneres"
     const val home_localizedCountLabel_plural_2 = "cançons"
@@ -92,7 +92,7 @@ internal object CatalanTranslations {
     const val home_localizedCountLabel_plural_9 = "gènere"
     val home_localizedPlaylistCountLabel_1 get() = Triple("llista", "llistes", "llistes")
     val home_repeatModeLabel_1 get() = Triple("Ordre", "Repeteix-ne una", "Repeteix-les totes")
-    val home_rootUiCopy_1 get() = RootUiCopy("Cal accedir a l’emmagatzematge", "L’aplicació cerca música a la carpeta Music", "Permet l’accés", "Elovaire", "Tots els àlbums", "Alfabèticament per artista de l’àlbum i després per títol", "Canvia el nom de la llista", "Desa", "Llista nova", "Portada de la llista", "Crea una llista", "Toca per crear una llista", "Nom de la llista", "Esborra el nom", "Encara no hi ha cançons en aquesta llista", "Cerca a la biblioteca", "Afegeix cançons", "S’està carregant la lletra…", "Sembla que aquesta cançó no té lletra", "Amaga la lletra", "D’acord", "No s’ha trobat l’àlbum", "No s’ha trobat la llista", "Cançons més escoltades", "edicions disponibles", "Reprodueix l’àlbum", "Barreja l’àlbum", "Edita les etiquetes", "Desa els canvis", "Edita la llista")
+    val home_rootUiCopy_1 get() = RootUiCopy("Cal accedir a l’emmagatzematge", "L’aplicació cerca música a la carpeta Music", "Permet l’accés", "Elovaire", "Tots els àlbums", "Alfabèticament per artista de l’àlbum i després per títol", "Canvia el nom de la llista", "Desa", "Llista nova", "Imatge de substitució de la portada de la llista", "Crea una llista", "Toca per crear una llista", "Nom de la llista", "Esborra el nom", "Encara no hi ha cançons en aquesta llista", "Cerca a la biblioteca", "Afegeix cançons", "S’està carregant la lletra…", "Sembla que aquesta cançó no té lletra", "Amaga la lletra", "D’acord", "No s’ha trobat l’àlbum", "No s’ha trobat la llista", "Cançons més escoltades", "edicions disponibles", "Reprodueix l’àlbum", "Barreja l’àlbum", "Edita les etiquetes", "Desa els canvis", "Edita la llista")
     const val library_albumName_1 = "àlbum"
     const val library_artistName_1 = "artista"
     const val library_autoUpdatingLabel_1 = "S’actualitza automàticament"

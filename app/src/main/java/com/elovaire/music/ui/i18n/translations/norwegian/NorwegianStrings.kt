@@ -6,7 +6,7 @@ internal object NorwegianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Butikk"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Nettside"
     const val aboutScreens_localizedAboutTitle_1 = "Ressurser"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Oppdatering tilgjengelig", "Versjon", "Senere", "Last ned", "Lukk endringsloggen", "Ingen endringer ennå")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Oppdatering tilgjengelig", "Versjon", "Senere", "Last ned", "Lukk endringsloggen", "Ingen oppføringer i endringsloggen ennå")
     const val aboutUpdate_bundledLicensesLabel_1 = "De fullstendige lisenstekstene følger med appen"
     const val aboutUpdate_droidBeautyDescription_1 = "Flott utformede widgeter og temaer for en vakrere Android-startskjerm. Jeg har også laget musikkspilleren du bruker nå"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Søk etter oppdateringer på GitHub mislyktes"
@@ -105,7 +105,7 @@ internal object NorwegianTranslations {
     const val home_localizedCountLabel_plural_9 = "artist"
     val home_localizedPlaylistCountLabel_1 get() = Triple("spilleliste", "spillelister", "spillelister")
     val home_repeatModeLabel_1 get() = Triple("Rekkefølge", "Gjenta én", "Gjenta alle")
-    val home_rootUiCopy_1 get() = RootUiCopy("Tilgang til lagring kreves", "Appen leter etter musikk i Music-mappen", "Tillat tilgang", "Elovaire", "Alle album", "Alfabetisk etter albumartist og albumtittel", "Gi spillelisten nytt navn", "Lagre", "Ny spilleliste", "Spillelisteomslag", "Opprett spilleliste", "Trykk for å opprette en spilleliste", "Navn på spilleliste", "Tøm navn", "Det er ingen sanger i spillelisten ennå", "Søk i biblioteket", "Legg til sanger", "Laster sangtekst…", "Denne sangen ser ikke ut til å ha sangtekst", "Skjul sangtekst", "OK", "Albumet ble ikke funnet", "Spillelisten ble ikke funnet", "Mest spilte sanger", "utgivelser tilgjengelig", "Spill av album", "Spill av album i tilfeldig rekkefølge", "Rediger tagger", "Lagre endringer", "Rediger spilleliste")
+    val home_rootUiCopy_1 get() = RootUiCopy("Tilgang til lagring kreves", "Appen leter etter musikk i Music-mappen", "Tillat tilgang", "Elovaire", "Alle album", "Alfabetisk etter albumartist og albumtittel", "Gi spillelisten nytt navn", "Lagre", "Ny spilleliste", "Plassholderbilde for spillelistens omslag", "Opprett spilleliste", "Trykk for å opprette en spilleliste", "Navn på spilleliste", "Tøm navn", "Det er ingen sanger i spillelisten ennå", "Søk i biblioteket", "Legg til sanger", "Laster sangtekst…", "Denne sangen ser ikke ut til å ha sangtekst", "Skjul sangtekst", "OK", "Albumet ble ikke funnet", "Spillelisten ble ikke funnet", "Mest spilte sanger", "utgivelser tilgjengelig", "Spill av album", "Spill av album i tilfeldig rekkefølge", "Rediger tagger", "Lagre endringer", "Rediger spilleliste")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "artist"
     const val library_autoUpdatingLabel_1 = "Oppdateres automatisk"

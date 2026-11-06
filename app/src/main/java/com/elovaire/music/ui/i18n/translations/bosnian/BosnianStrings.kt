@@ -6,7 +6,7 @@ internal object BosnianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play prodavnica"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Web stranica"
     const val aboutScreens_localizedAboutTitle_1 = "Resursi"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Dostupno je ažuriranje", "Verzija", "Kasnije", "Preuzmi", "Zatvori listu promjena", "Još nema promjena")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Dostupno je ažuriranje", "Verzija", "Kasnije", "Preuzmi", "Zatvori listu promjena", "Još nema unosa u listi promjena")
     const val aboutUpdate_bundledLicensesLabel_1 = "Puni tekstovi licenci uključeni su u aplikaciju"
     const val aboutUpdate_droidBeautyDescription_1 = "Pažljivo dizajnirani widgeti i teme za ljepši Android početni ekran. Također sam autor ovog muzičkog plejera koji upravo koristite"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Provjera ažuriranja na GitHubu nije uspjela"
@@ -73,7 +73,7 @@ internal object BosnianTranslations {
     const val home_firstLaunchPermissionButton_1 = "Dozvoli pristup pohrani"
     const val home_firstLaunchPermissionMessage_1 = "Aplikacija prema zadanim postavkama traži muziku u mapi Music na uređaju"
     const val home_firstLaunchPermissionTitle_1 = "Za početak je potreban pristup pohrani"
-    val home_homeCopy_1 get() = HomeUiCopy("Indeksiranje biblioteke", "Tražimo muziku na uređaju", "Biblioteka je prazna", "Dodajte muziku na uređaj", "Nema nedavno dodanih albuma", "Nedavno dodani albumi će se pojaviti ovdje", "Nedavno slušano", "Pjesme će se uskoro pojaviti ovdje", "Vaši omiljeni albumi", "Muzika kojoj se često vraćate", "Još niste otvorili nijedan album", "Otvorite ili pustite album i pojavit će se ovdje s omotom u prvom planu")
+    val home_homeCopy_1 get() = HomeUiCopy("Indeksiranje biblioteke", "Pjesme i albumi će se pojaviti kada indeksiranje završi", "Muzika nije pronađena", "Pjesme i albumi će se pojaviti ovdje kada dodate muziku u zadanu mapu Music na uređaju", "Još nema nedavnih dodataka", "Dodajte albume u mapu Music na uređaju i najnoviji će se ovdje automatski pojaviti", "Nedavno slušano", "Pjesme će se uskoro pojaviti ovdje", "Vaši omiljeni albumi", "Muzika kojoj se često vraćate", "Još niste otvorili nijedan album", "Otvorite ili pustite album i pojavit će se ovdje s omotom u prvom planu")
     const val home_localizedComplexCountLabel_plural_1 = "pjesma"
     const val home_localizedComplexCountLabel_plural_10 = "izvođač"
     const val home_localizedComplexCountLabel_plural_11 = "izvođača"
@@ -101,7 +101,7 @@ internal object BosnianTranslations {
     const val home_localizedCountLabel_plural_9 = "žanr"
     val home_localizedPlaylistCountLabel_1 get() = Triple("plejlista", "plejliste", "plejlista")
     val home_repeatModeLabel_1 get() = Triple("Redoslijed", "Ponovi pjesmu", "Ponovi sve")
-    val home_rootUiCopy_1 get() = RootUiCopy("Potreban je pristup pohrani", "Aplikacija traži muziku u mapi Music", "Dozvoli pristup pohrani", "Elovaire", "Svi albumi", "Abecedno po izvođaču i nazivu albuma", "Preimenuj plejlistu", "Sačuvaj", "Nova plejlista", "Omot plejliste", "Kreiraj plejlistu", "Dodirni za kreiranje plejliste", "Naziv plejliste", "Obriši naziv plejliste", "Još nema pjesama u ovoj plejlisti", "Pretraži biblioteku", "Dodaj pjesme", "Učitavanje tekstova…", "Izgleda da ova pjesma nema tekst", "Sakrij tekst", "U redu", "Album nije pronađen", "Plejlista nije pronađena", "Najslušanije pjesme", "dostupnih izdanja", "Pusti album", "Nasumično pusti album", "Uredi oznake", "Sačuvaj izmjene plejliste", "Uredi plejlistu")
+    val home_rootUiCopy_1 get() = RootUiCopy("Potreban je pristup pohrani", "Aplikacija traži muziku u mapi Music", "Dozvoli pristup pohrani", "Elovaire", "Svi albumi", "Abecedno po izvođaču i nazivu albuma", "Preimenuj plejlistu", "Sačuvaj", "Nova plejlista", "Zamjenska slika omota plejliste", "Kreiraj plejlistu", "Dodirni za kreiranje plejliste", "Naziv plejliste", "Obriši naziv plejliste", "Još nema pjesama u ovoj plejlisti", "Pretraži biblioteku", "Dodaj pjesme", "Učitavanje tekstova…", "Izgleda da ova pjesma nema tekst", "Sakrij tekst", "U redu", "Album nije pronađen", "Plejlista nije pronađena", "Najslušanije pjesme", "dostupnih izdanja", "Pusti album", "Nasumično pusti album", "Uredi oznake", "Sačuvaj izmjene plejliste", "Uredi plejlistu")
     const val library_albumName_1 = "albumu"
     const val library_artistName_1 = "izvođaču"
     const val library_autoUpdatingLabel_1 = "Automatski se ažurira"

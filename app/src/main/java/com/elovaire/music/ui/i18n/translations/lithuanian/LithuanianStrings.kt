@@ -8,7 +8,7 @@ internal object LithuanianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play parduotuvė"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Svetainė"
     const val aboutScreens_localizedAboutTitle_1 = "Ištekliai"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Yra naujinys", "Versija", "Vėliau", "Atsisiųsti", "Uždaryti pakeitimų sąrašą", "Pakeitimų dar nėra")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Yra naujinys", "Versija", "Vėliau", "Atsisiųsti", "Uždaryti pakeitimų sąrašą", "Pakeitimų sąraše dar nėra įrašų")
     const val aboutUpdate_bundledLicensesLabel_1 = "Visi licencijų tekstai pateikti programėlėje"
     const val aboutUpdate_droidBeautyDescription_1 = "Kruopščiai sukurti valdikliai ir temos gražesniam „Android“ pradžios ekranui. Taip pat sukūriau šį dabar naudojamą muzikos grotuvą"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Nepavyko patikrinti naujinimų „GitHub“"
@@ -125,7 +125,7 @@ internal object LithuanianTranslations {
     const val home_localizedCountLabel_plural_9 = "žanras"
     val home_localizedPlaylistCountLabel_1 get() = Triple("grojaraštis", "grojaraščiai", "grojaraščių")
     val home_repeatModeLabel_1 get() = Triple("Tvarka", "Kartoti vieną", "Kartoti viską")
-    val home_rootUiCopy_1 get() = RootUiCopy("Reikia prieigos prie saugyklos", "Programėlė ieško muzikos Music aplanke", "Leisti prieigą", "Elovaire", "Visi albumai", "Abėcėlės tvarka pagal atlikėją ir albumo pavadinimą", "Pervadinti grojaraštį", "Išsaugoti", "Naujas grojaraštis", "Grojaraščio viršelis", "Sukurti grojaraštį", "Palieskite, kad sukurtumėte grojaraštį", "Grojaraščio pavadinimas", "Išvalyti pavadinimą", "Grojaraštyje dar nėra dainų", "Ieškoti bibliotekoje", "Pridėti dainų", "Įkeliami dainos žodžiai…", "Panašu, kad ši daina neturi žodžių", "Slėpti žodžius", "Gerai", "Albumas nerastas", "Grojaraštis nerastas", "Dažniausiai klausomos dainos", "galimų leidinių", "Leisti albumą", "Leisti albumą atsitiktine tvarka", "Redaguoti žymas", "Išsaugoti pakeitimus", "Redaguoti grojaraštį")
+    val home_rootUiCopy_1 get() = RootUiCopy("Reikia prieigos prie saugyklos", "Programėlė ieško muzikos Music aplanke", "Leisti prieigą", "Elovaire", "Visi albumai", "Abėcėlės tvarka pagal atlikėją ir albumo pavadinimą", "Pervadinti grojaraštį", "Išsaugoti", "Naujas grojaraštis", "Grojaraščio viršelio pakaitinis paveikslėlis", "Sukurti grojaraštį", "Palieskite, kad sukurtumėte grojaraštį", "Grojaraščio pavadinimas", "Išvalyti pavadinimą", "Grojaraštyje dar nėra dainų", "Ieškoti bibliotekoje", "Pridėti dainų", "Įkeliami dainos žodžiai…", "Panašu, kad ši daina neturi žodžių", "Slėpti žodžius", "Gerai", "Albumas nerastas", "Grojaraštis nerastas", "Dažniausiai klausomos dainos", "galimų leidinių", "Leisti albumą", "Leisti albumą atsitiktine tvarka", "Redaguoti žymas", "Išsaugoti pakeitimus", "Redaguoti grojaraštį")
     const val library_albumName_1 = "albumą"
     const val library_artistName_1 = "atlikėją"
     const val library_autoUpdatingLabel_1 = "Atnaujinama automatiškai"

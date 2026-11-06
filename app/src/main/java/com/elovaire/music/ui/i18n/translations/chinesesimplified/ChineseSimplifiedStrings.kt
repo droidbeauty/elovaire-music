@@ -6,7 +6,7 @@ internal object ChineseSimplifiedTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play 商店"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "网站"
     const val aboutScreens_localizedAboutTitle_1 = "资源"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("有可用更新", "版本", "稍后", "下载", "关闭更新日志", "暂无更新记录")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("有可用更新", "版本", "稍后", "下载", "关闭更新日志", "更新日志中暂无条目")
     const val aboutUpdate_bundledLicensesLabel_1 = "应用内附有完整的许可证文本"
     const val aboutUpdate_droidBeautyDescription_1 = "精心设计的 Android 小组件和主题，让你的主屏幕更加出色。我也是你正在使用的这款音乐播放器的开发者"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "GitHub 更新检查失败"
@@ -100,7 +100,7 @@ internal object ChineseSimplifiedTranslations {
     const val home_localizedCountLabel_plural_9 = "种曲风"
     val home_localizedPlaylistCountLabel_1 get() = Triple("个播放列表", "个播放列表", "个播放列表")
     val home_repeatModeLabel_1 get() = Triple("顺序播放", "单曲循环", "全部循环")
-    val home_rootUiCopy_1 get() = RootUiCopy("需要存储访问权限", "应用会在 Music 文件夹中查找音乐", "允许访问", "Elovaire", "所有专辑", "按专辑艺人和专辑名称排序", "重命名播放列表", "保存", "新建播放列表", "播放列表封面", "创建播放列表", "点击创建播放列表", "播放列表名称", "清除名称", "播放列表中还没有歌曲", "搜索音乐库", "添加歌曲", "正在加载歌词…", "这首歌似乎没有歌词", "隐藏歌词", "确定", "找不到专辑", "找不到播放列表", "播放最多的歌曲", "张可用专辑", "播放专辑", "随机播放专辑", "编辑标签", "保存更改", "编辑播放列表")
+    val home_rootUiCopy_1 get() = RootUiCopy("需要存储访问权限", "应用会在 Music 文件夹中查找音乐", "允许访问", "Elovaire", "所有专辑", "按专辑艺人和专辑名称的字母顺序排列", "重命名播放列表", "保存", "新建播放列表", "播放列表封面占位图", "创建播放列表", "点击创建播放列表", "播放列表名称", "清除名称", "播放列表中还没有歌曲", "搜索音乐库", "添加歌曲", "正在加载歌词…", "这首歌似乎没有歌词", "隐藏歌词", "确定", "找不到专辑", "找不到播放列表", "播放最多的歌曲", "张可用专辑", "播放专辑", "随机播放专辑", "编辑标签", "保存更改", "编辑播放列表")
     const val library_albumName_1 = "专辑"
     const val library_artistName_1 = "艺人"
     const val library_autoUpdatingLabel_1 = "自动更新"

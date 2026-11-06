@@ -6,7 +6,7 @@ internal object CroatianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play trgovina"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Web"
     const val aboutScreens_localizedAboutTitle_1 = "Resursi"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Dostupno je ažuriranje", "Verzija", "Kasnije", "Preuzmi", "Zatvori popis promjena", "Još nema promjena")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Dostupno je ažuriranje", "Verzija", "Kasnije", "Preuzmi", "Zatvori popis promjena", "Još nema zapisa u popisu promjena")
     const val aboutUpdate_bundledLicensesLabel_1 = "Puni tekstovi licenci uključeni su u aplikaciju"
     const val aboutUpdate_droidBeautyDescription_1 = "Pažljivo dizajnirani widgeti i teme za ljepši početni zaslon Androida. Također sam autor ovog glazbenog reproduktora koji upravo koristite"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Provjera ažuriranja na GitHubu nije uspjela"
@@ -114,7 +114,7 @@ internal object CroatianTranslations {
     const val home_localizedCountLabel_plural_9 = "žanr"
     val home_localizedPlaylistCountLabel_1 get() = Triple("playlista", "playliste", "playlista")
     val home_repeatModeLabel_1 get() = Triple("Redoslijed", "Ponovi pjesmu", "Ponovi sve")
-    val home_rootUiCopy_1 get() = RootUiCopy("Potreban je pristup pohrani", "Aplikacija traži glazbu u mapi Music", "Dopusti pristup", "Elovaire", "Svi albumi", "Abecedno prema izvođaču i naslovu albuma", "Preimenuj playlistu", "Spremi", "Nova playlista", "Omot playliste", "Izradi playlistu", "Dodirnite za izradu playliste", "Naziv playliste", "Očisti naziv", "Na playlisti još nema pjesama", "Pretraži biblioteku", "Dodaj pjesme", "Učitavanje teksta…", "Čini se da ova pjesma nema tekst", "Sakrij tekst", "U redu", "Album nije pronađen", "Playlista nije pronađena", "Najslušanije pjesme", "dostupnih izdanja", "Reproduciraj album", "Nasumično reproduciraj album", "Uredi oznake", "Spremi promjene", "Uredi playlistu")
+    val home_rootUiCopy_1 get() = RootUiCopy("Potreban je pristup pohrani", "Aplikacija traži glazbu u mapi Music", "Dopusti pristup", "Elovaire", "Svi albumi", "Abecedno prema izvođaču i naslovu albuma", "Preimenuj playlistu", "Spremi", "Nova playlista", "Zamjenska slika omota playliste", "Izradi playlistu", "Dodirnite za izradu playliste", "Naziv playliste", "Očisti naziv", "Na playlisti još nema pjesama", "Pretraži biblioteku", "Dodaj pjesme", "Učitavanje teksta…", "Čini se da ova pjesma nema tekst", "Sakrij tekst", "U redu", "Album nije pronađen", "Playlista nije pronađena", "Najslušanije pjesme", "dostupnih izdanja", "Reproduciraj album", "Nasumično reproduciraj album", "Uredi oznake", "Spremi promjene", "Uredi playlistu")
     const val library_albumName_1 = "albumu"
     const val library_artistName_1 = "izvođaču"
     const val library_autoUpdatingLabel_1 = "Automatski se ažurira"

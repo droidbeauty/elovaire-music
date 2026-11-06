@@ -6,7 +6,7 @@ internal object UrduTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "پلے اسٹور"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "ویب سائٹ"
     const val aboutScreens_localizedAboutTitle_1 = "وسائل"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("اپ ڈیٹ دستیاب ہے", "ورژن", "بعد میں", "ڈاؤن لوڈ کریں", "تبدیلیوں کی فہرست بند کریں", "ابھی کوئی تبدیلی نہیں")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("اپ ڈیٹ دستیاب ہے", "ورژن", "بعد میں", "ڈاؤن لوڈ کریں", "تبدیلیوں کی فہرست بند کریں", "تبدیلیوں کی فہرست میں ابھی کوئی اندراج نہیں")
     const val aboutUpdate_bundledLicensesLabel_1 = "لائسنس کے مکمل متن ایپ میں شامل ہیں"
     const val aboutUpdate_droidBeautyDescription_1 = "Android کی ہوم اسکرین کو خوبصورت بنانے کے لیے نفاست سے تیار کردہ وجیٹس اور تھیمز۔ میں اس میوزک پلیئر کا بھی خالق ہوں جو آپ ابھی استعمال کر رہے ہیں"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "GitHub پر اپ ڈیٹس کی جانچ ناکام ہو گئی"

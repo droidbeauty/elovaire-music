@@ -6,7 +6,7 @@ internal object ItalianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Sito web"
     const val aboutScreens_localizedAboutTitle_1 = "Risorse"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Aggiornamento disponibile", "Versione", "Più tardi", "Scarica", "Chiudi le novità", "Nessuna novità per ora")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Aggiornamento disponibile", "Versione", "Più tardi", "Scarica", "Chiudi il registro delle modifiche", "Nessuna voce nel registro delle modifiche")
     const val aboutUpdate_bundledLicensesLabel_1 = "I testi completi delle licenze sono inclusi nell’app"
     const val aboutUpdate_droidBeautyDescription_1 = "Widget e temi dal design curato per rendere splendida la schermata Home di Android. Sono anche il creatore del lettore musicale che stai usando"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Ricerca degli aggiornamenti su GitHub non riuscita"
@@ -105,7 +105,7 @@ internal object ItalianTranslations {
     const val home_localizedCountLabel_plural_9 = "artista"
     val home_localizedPlaylistCountLabel_1 get() = Triple("playlist", "playlist", "playlist")
     val home_repeatModeLabel_1 get() = Triple("Ordine", "Ripeti un brano", "Ripeti tutto")
-    val home_rootUiCopy_1 get() = RootUiCopy("Accesso alla memoria richiesto", "L’app cerca la musica nella cartella Music", "Consenti accesso", "Elovaire", "Tutti gli album", "In ordine alfabetico per artista e titolo", "Rinomina playlist", "Salva", "Nuova playlist", "Copertina della playlist", "Crea playlist", "Tocca per creare una playlist", "Nome della playlist", "Cancella nome", "Nessun brano nella playlist", "Cerca nella libreria", "Aggiungi brani", "Caricamento del testo…", "Questo brano sembra non avere un testo", "Nascondi testo", "OK", "Album non trovato", "Playlist non trovata", "Brani più ascoltati", "pubblicazioni disponibili", "Riproduci album", "Riproduci album in ordine casuale", "Modifica tag", "Salva modifiche", "Modifica playlist")
+    val home_rootUiCopy_1 get() = RootUiCopy("Accesso alla memoria richiesto", "L’app cerca la musica nella cartella Music", "Consenti accesso", "Elovaire", "Tutti gli album", "In ordine alfabetico per artista e titolo", "Rinomina playlist", "Salva", "Nuova playlist", "Immagine segnaposto della copertina della playlist", "Crea playlist", "Tocca per creare una playlist", "Nome della playlist", "Cancella nome", "Nessun brano nella playlist", "Cerca nella libreria", "Aggiungi brani", "Caricamento del testo…", "Questo brano sembra non avere un testo", "Nascondi testo", "OK", "Album non trovato", "Playlist non trovata", "Brani più ascoltati", "pubblicazioni disponibili", "Riproduci album", "Riproduci album in ordine casuale", "Modifica tag", "Salva modifiche", "Modifica playlist")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "artista"
     const val library_autoUpdatingLabel_1 = "Si aggiorna automaticamente"

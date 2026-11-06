@@ -6,7 +6,7 @@ internal object PolishTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Sklep Play"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Strona"
     const val aboutScreens_localizedAboutTitle_1 = "Zasoby"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Dostępna aktualizacja", "Wersja", "Później", "Pobierz", "Zamknij listę zmian", "Nie ma jeszcze żadnych zmian")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Dostępna aktualizacja", "Wersja", "Później", "Pobierz", "Zamknij listę zmian", "Na liście zmian nie ma jeszcze żadnych wpisów")
     const val aboutUpdate_bundledLicensesLabel_1 = "Pełne teksty licencji są dołączone do aplikacji"
     const val aboutUpdate_droidBeautyDescription_1 = "Dopracowane widżety i motywy, które upiększą ekran główny Androida. Jestem również twórcą odtwarzacza muzyki, z którego teraz korzystasz"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Sprawdzanie aktualizacji na GitHubie nie powiodło się"
@@ -94,15 +94,15 @@ internal object PolishTranslations {
     const val home_availableReleasesLabel_plural_2 = "dostępne wydania"
     const val home_availableReleasesLabel_plural_3 = "dostępnych wydań"
     const val home_firstLaunchPermissionButton_1 = "Zezwól na dostęp do pamięci"
-    const val home_firstLaunchPermissionMessage_1 = "Aplikacja domyślnie skanuje folder Muzyka w poszukiwaniu muzyki na urządzeniu"
+    const val home_firstLaunchPermissionMessage_1 = "Aplikacja domyślnie skanuje folder Music w poszukiwaniu muzyki na urządzeniu"
     const val home_firstLaunchPermissionTitle_1 = "Dostęp do pamięci jest wymagany, aby rozpocząć"
     val home_homeUiCopy_multiline_1 get() = HomeUiCopy(
         indexingTitle = "Trwa indeksowanie biblioteki",
         indexingMessage = "Utwory i albumy pojawią się po zakończeniu indeksowania",
         emptyLibraryTitle = "Nie znaleziono muzyki",
-        emptyLibraryMessage = "Utwory i albumy pojawią się tutaj, gdy dodasz muzykę do domyślnego folderu Muzyka na urządzeniu",
-        noRecentAdditionsTitle = "Brak ostatnio dodanych",
-        noRecentAdditionsMessage = "Dodaj albumy do folderu Muzyka na urządzeniu, a najnowsze pojawią się tutaj automatycznie",
+        emptyLibraryMessage = "Utwory i albumy pojawią się tutaj, gdy dodasz muzykę do domyślnego folderu Music na urządzeniu",
+        noRecentAdditionsTitle = "Nie dodano ostatnio żadnych albumów",
+        noRecentAdditionsMessage = "Dodaj albumy do folderu Music na urządzeniu, a najnowsze pojawią się tutaj automatycznie",
         recentlyPlayedSongsTitle = "Ostatnio odtwarzane",
         recentlyPlayedSongsEmpty = "Utwory pojawią się tutaj wkrótce",
         favoriteAlbumsTitle = "Twoje ulubione albumy",
@@ -139,7 +139,7 @@ internal object PolishTranslations {
     val home_repeatModeLabel_1 get() = Triple("Kolejność", "Powtórz utwór", "Powtórz wszystko")
     val home_rootUiCopy_multiline_1 get() = RootUiCopy(
         firstLaunchPermissionTitle = "Dostęp do pamięci jest wymagany, aby rozpocząć",
-        firstLaunchPermissionMessage = "Aplikacja domyślnie skanuje folder Muzyka w poszukiwaniu muzyki na urządzeniu",
+        firstLaunchPermissionMessage = "Aplikacja domyślnie skanuje folder Music w poszukiwaniu muzyki na urządzeniu",
         firstLaunchPermissionButton = "Zezwól na dostęp do pamięci",
         appName = "Elovaire",
         allAlbumsTitle = "Wszystkie albumy",

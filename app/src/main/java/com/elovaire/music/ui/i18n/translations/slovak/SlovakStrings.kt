@@ -8,7 +8,7 @@ internal object SlovakTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Obchod Play"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Web"
     const val aboutScreens_localizedAboutTitle_1 = "Zdroje"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Aktualizácia je dostupná", "Verzia", "Neskôr", "Stiahnuť", "Zavrieť prehľad zmien", "Zatiaľ žiadne zmeny")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Aktualizácia je dostupná", "Verzia", "Neskôr", "Stiahnuť", "Zavrieť prehľad zmien", "V prehľade zmien zatiaľ nie sú žiadne záznamy")
     const val aboutUpdate_bundledLicensesLabel_1 = "Úplné znenia licencií sú súčasťou aplikácie"
     const val aboutUpdate_droidBeautyDescription_1 = "Starostlivo navrhnuté widgety a motívy pre krajšiu domovskú obrazovku Androidu. Som aj tvorcom hudobného prehrávača, ktorý práve používate"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Kontrola aktualizácií na GitHube zlyhala"

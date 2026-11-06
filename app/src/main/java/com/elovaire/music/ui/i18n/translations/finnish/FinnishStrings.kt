@@ -8,7 +8,7 @@ internal object FinnishTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Kauppa"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Verkkosivusto"
     const val aboutScreens_localizedAboutTitle_1 = "Resurssit"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Päivitys saatavilla", "Versio", "Myöhemmin", "Lataa", "Sulje muutosloki", "Ei vielä muutoksia")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Päivitys saatavilla", "Versio", "Myöhemmin", "Lataa", "Sulje muutosloki", "Muutoslokissa ei ole vielä merkintöjä")
     const val aboutUpdate_bundledLicensesLabel_1 = "Lisenssien koko tekstit sisältyvät sovellukseen"
     const val aboutUpdate_droidBeautyDescription_1 = "Kauniisti suunniteltuja widgettejä ja teemoja Androidin aloitusnäytön piristämiseen. Olen myös tämän käyttämäsi musiikkisoittimen kehittäjä"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Päivitysten tarkistaminen GitHubista epäonnistui"
@@ -92,7 +92,7 @@ internal object FinnishTranslations {
     const val home_localizedCountLabel_plural_9 = "tyylilaji"
     val home_localizedPlaylistCountLabel_1 get() = Triple("soittolista", "soittolistaa", "soittolistaa")
     val home_repeatModeLabel_1 get() = Triple("Järjestys", "Toista yksi", "Toista kaikki")
-    val home_rootUiCopy_1 get() = RootUiCopy("Tallennustilan käyttöoikeus tarvitaan", "Sovellus etsii musiikkia Music-kansiosta", "Salli käyttöoikeus", "Elovaire", "Kaikki albumit", "Aakkosjärjestyksessä albumin esittäjän ja sitten albumin nimen mukaan", "Nimeä soittolista uudelleen", "Tallenna", "Uusi soittolista", "Soittolistan kansikuva", "Luo soittolista", "Luo soittolista napauttamalla", "Soittolistan nimi", "Tyhjennä nimi", "Soittolistalla ei ole vielä kappaleita", "Hae kirjastosta", "Lisää kappaleita", "Ladataan sanoituksia…", "Tällä kappaleella ei näytä olevan sanoituksia", "Piilota sanoitukset", "OK", "Albumia ei löytynyt", "Soittolistaa ei löytynyt", "Eniten soitetut kappaleet", "julkaisua saatavilla", "Toista albumi", "Sekoita albumi", "Muokkaa tunnisteita", "Tallenna muutokset", "Muokkaa soittolistaa")
+    val home_rootUiCopy_1 get() = RootUiCopy("Tallennustilan käyttöoikeus tarvitaan", "Sovellus etsii musiikkia Music-kansiosta", "Salli käyttöoikeus", "Elovaire", "Kaikki albumit", "Aakkosjärjestyksessä albumin esittäjän ja sitten albumin nimen mukaan", "Nimeä soittolista uudelleen", "Tallenna", "Uusi soittolista", "Soittolistan kansikuvan paikkamerkki", "Luo soittolista", "Luo soittolista napauttamalla", "Soittolistan nimi", "Tyhjennä nimi", "Soittolistalla ei ole vielä kappaleita", "Hae kirjastosta", "Lisää kappaleita", "Ladataan sanoituksia…", "Tällä kappaleella ei näytä olevan sanoituksia", "Piilota sanoitukset", "OK", "Albumia ei löytynyt", "Soittolistaa ei löytynyt", "Eniten soitetut kappaleet", "julkaisua saatavilla", "Toista albumi", "Sekoita albumi", "Muokkaa tunnisteita", "Tallenna muutokset", "Muokkaa soittolistaa")
     const val library_albumName_1 = "albumi"
     const val library_artistName_1 = "esittäjä"
     const val library_autoUpdatingLabel_1 = "Päivittyy automaattisesti"

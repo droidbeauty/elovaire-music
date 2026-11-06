@@ -8,7 +8,7 @@ internal object SlovenianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Trgovina Play"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Spletna stran"
     const val aboutScreens_localizedAboutTitle_1 = "Viri"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Posodobitev je na voljo", "Različica", "Pozneje", "Prenesi", "Zapri seznam sprememb", "Sprememb še ni")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Posodobitev je na voljo", "Različica", "Pozneje", "Prenesi", "Zapri seznam sprememb", "V dnevniku sprememb še ni vnosov")
     const val aboutUpdate_bundledLicensesLabel_1 = "Celotna besedila licenc so priložena aplikaciji"
     const val aboutUpdate_droidBeautyDescription_1 = "Skrbno oblikovani pripomočki in teme za lepši domači zaslon Androida. Sem tudi ustvarjalec predvajalnika glasbe, ki ga pravkar uporabljate"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Preverjanje posodobitev na GitHubu ni uspelo"
@@ -83,7 +83,7 @@ internal object SlovenianTranslations {
     const val home_firstLaunchPermissionButton_1 = "Dovoli dostop"
     const val home_firstLaunchPermissionMessage_1 = "Aplikacija privzeto išče glasbo v mapi Music v napravi"
     const val home_firstLaunchPermissionTitle_1 = "Za začetek je potreben dostop do shrambe"
-    val home_homeCopy_1 get() = HomeUiCopy("Indeksiranje knjižnice", "Iskanje glasbe v napravi", "Knjižnica je prazna", "Dodajte glasbo v napravo", "Ni nedavno dodanih albumov", "Nedavno dodani albumi bodo prikazani tukaj", "Nedavno predvajano", "Skladbe bodo kmalu prikazane tukaj", "Vaši priljubljeni albumi", "Glasba, h kateri se pogosto vračate", "Noben album še ni bil odprt", "Odprite ali predvajajte album in prikazan bo tukaj z naslovnico v ospredju")
+    val home_homeCopy_1 get() = HomeUiCopy("Indeksiranje knjižnice", "Skladbe in albumi bodo prikazani, ko bo indeksiranje končano", "Glasba ni bila najdena", "Skladbe in albumi bodo prikazani tukaj, ko dodate glasbo v privzeto mapo Music v napravi", "Še ni nedavnih dodatkov", "Dodajte albume v mapo Music v napravi in najnovejši bodo samodejno prikazani tukaj", "Nedavno predvajano", "Skladbe bodo kmalu prikazane tukaj", "Vaši priljubljeni albumi", "Glasba, h kateri se pogosto vračate", "Noben album še ni bil odprt", "Odprite ali predvajajte album in prikazan bo tukaj z naslovnico v ospredju")
     const val home_localizedComplexCountLabel_plural_1 = "skladba"
     const val home_localizedComplexCountLabel_plural_10 = "izvajalec"
     const val home_localizedComplexCountLabel_plural_11 = "izvajalca"
@@ -111,7 +111,7 @@ internal object SlovenianTranslations {
     const val home_localizedCountLabel_plural_9 = "žanr"
     val home_localizedPlaylistCountLabel_1 get() = Triple("seznam predvajanja", "seznama predvajanja", "seznamov predvajanja")
     val home_repeatModeLabel_1 get() = Triple("Vrstni red", "Ponovi skladbo", "Ponovi vse")
-    val home_rootUiCopy_1 get() = RootUiCopy("Potreben je dostop do shrambe", "Aplikacija išče glasbo v mapi Music", "Dovoli dostop", "Elovaire", "Vsi albumi", "Po abecedi glede na izvajalca albuma in nato naslov albuma", "Preimenuj seznam", "Shrani", "Nov seznam", "Naslovnica seznama", "Ustvari seznam", "Tapni za ustvarjanje seznama", "Ime seznama", "Počisti ime", "Na seznamu še ni skladb", "Išči po knjižnici", "Dodaj skladbe", "Nalaganje besedila…", "Videti je, da ta skladba nima besedila", "Skrij besedilo", "V redu", "Albuma ni mogoče najti", "Seznama ni mogoče najti", "Največkrat predvajane skladbe", "izdaj na voljo", "Predvajaj album", "Premešaj album", "Uredi oznake", "Shrani spremembe", "Uredi seznam")
+    val home_rootUiCopy_1 get() = RootUiCopy("Potreben je dostop do shrambe", "Aplikacija išče glasbo v mapi Music", "Dovoli dostop", "Elovaire", "Vsi albumi", "Po abecedi glede na izvajalca albuma in nato naslov albuma", "Preimenuj seznam", "Shrani", "Nov seznam", "Nadomestna slika naslovnice seznama", "Ustvari seznam", "Tapni za ustvarjanje seznama", "Ime seznama", "Počisti ime", "Na seznamu še ni skladb", "Išči po knjižnici", "Dodaj skladbe", "Nalaganje besedila…", "Videti je, da ta skladba nima besedila", "Skrij besedilo", "V redu", "Albuma ni mogoče najti", "Seznama ni mogoče najti", "Največkrat predvajane skladbe", "izdaj na voljo", "Predvajaj album", "Premešaj album", "Uredi oznake", "Shrani spremembe", "Uredi seznam")
     const val library_albumName_1 = "albumu"
     const val library_artistName_1 = "izvajalcu"
     const val library_autoUpdatingLabel_1 = "Samodejno posodabljanje"

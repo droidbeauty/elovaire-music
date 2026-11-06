@@ -6,7 +6,7 @@ internal object MalayTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Laman web"
     const val aboutScreens_localizedAboutTitle_1 = "Sumber"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Kemas kini tersedia", "Versi", "Kemudian", "Muat turun", "Tutup log perubahan", "Belum ada perubahan")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Kemas kini tersedia", "Versi", "Kemudian", "Muat turun", "Tutup log perubahan", "Belum ada entri dalam log perubahan")
     const val aboutUpdate_bundledLicensesLabel_1 = "Teks penuh lesen disertakan dalam aplikasi"
     const val aboutUpdate_droidBeautyDescription_1 = "Widget dan tema yang direka dengan indah untuk mencantikkan skrin utama Android. Saya juga pencipta pemain muzik yang sedang anda gunakan"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Semakan kemas kini GitHub gagal"

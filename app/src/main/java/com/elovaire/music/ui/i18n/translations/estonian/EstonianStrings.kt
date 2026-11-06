@@ -8,7 +8,7 @@ internal object EstonianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play pood"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Veebileht"
     const val aboutScreens_localizedAboutTitle_1 = "Ressursid"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Värskendus on saadaval", "Versioon", "Hiljem", "Laadi alla", "Sulge muudatuste loend", "Muudatusi veel pole")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Värskendus on saadaval", "Versioon", "Hiljem", "Laadi alla", "Sulge muudatuste loend", "Muudatuste loendis pole veel kirjeid")
     const val aboutUpdate_bundledLicensesLabel_1 = "Litsentside täistekstid on rakendusega kaasas"
     const val aboutUpdate_droidBeautyDescription_1 = "Kaunilt kujundatud vidinad ja teemad Androidi avakuva ilmestamiseks. Olen ka selle muusikapleieri looja, mida praegu kasutad"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Värskenduste kontrollimine GitHubis nurjus"
@@ -106,7 +106,7 @@ internal object EstonianTranslations {
     const val home_localizedCountLabel_plural_9 = "artist"
     val home_localizedPlaylistCountLabel_1 get() = Triple("esitusloend", "esitusloendit", "esitusloendit")
     val home_repeatModeLabel_1 get() = Triple("Järjekord", "Korda üht", "Korda kõiki")
-    val home_rootUiCopy_1 get() = RootUiCopy("Vajalik on juurdepääs salvestusruumile", "Rakendus otsib muusikat Music-kaustast", "Luba juurdepääs", "Elovaire", "Kõik albumid", "Tähestiku järgi albumi esitaja ja pealkirja põhjal", "Nimeta esitusloend ümber", "Salvesta", "Uus esitusloend", "Esitusloendi kaanepilt", "Loo esitusloend", "Esitusloendi loomiseks puuduta", "Esitusloendi nimi", "Tühjenda nimi", "Esitusloendis pole veel lugusid", "Otsi teegist", "Lisa lugusid", "Laulusõnade laadimine…", "Sellel lool ei näi olevat sõnu", "Peida laulusõnad", "OK", "Albumit ei leitud", "Esitusloendit ei leitud", "Enim esitatud lood", "väljaannet saadaval", "Esita album", "Esita album juhuslikult", "Muuda silte", "Salvesta muudatused", "Muuda esitusloendit")
+    val home_rootUiCopy_1 get() = RootUiCopy("Vajalik on juurdepääs salvestusruumile", "Rakendus otsib muusikat Music-kaustast", "Luba juurdepääs", "Elovaire", "Kõik albumid", "Tähestiku järgi albumi esitaja ja pealkirja põhjal", "Nimeta esitusloend ümber", "Salvesta", "Uus esitusloend", "Esitusloendi kaanepildi asenduskujutis", "Loo esitusloend", "Esitusloendi loomiseks puuduta", "Esitusloendi nimi", "Tühjenda nimi", "Esitusloendis pole veel lugusid", "Otsi teegist", "Lisa lugusid", "Laulusõnade laadimine…", "Sellel lool ei näi olevat sõnu", "Peida laulusõnad", "OK", "Albumit ei leitud", "Esitusloendit ei leitud", "Enim esitatud lood", "väljaannet saadaval", "Esita album", "Esita album juhuslikult", "Muuda silte", "Salvesta muudatused", "Muuda esitusloendit")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "esitaja"
     const val library_autoUpdatingLabel_1 = "Uueneb automaatselt"

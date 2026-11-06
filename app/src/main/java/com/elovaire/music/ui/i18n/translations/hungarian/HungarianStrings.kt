@@ -6,7 +6,7 @@ internal object HungarianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Áruház"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Weboldal"
     const val aboutScreens_localizedAboutTitle_1 = "Erőforrások"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Frissítés érhető el", "Verzió", "Később", "Letöltés", "Változások bezárása", "Még nincsenek változások")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Frissítés érhető el", "Verzió", "Később", "Letöltés", "Változásnapló bezárása", "Még nincs bejegyzés a változásnaplóban")
     const val aboutUpdate_bundledLicensesLabel_1 = "A licencek teljes szövege megtalálható az alkalmazásban"
     const val aboutUpdate_droidBeautyDescription_1 = "Gondosan tervezett widgetek és témák a szebb Android-kezdőképernyőért. A most használt zenelejátszót is én készítettem"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "A GitHub-frissítések keresése sikertelen"
@@ -102,7 +102,7 @@ internal object HungarianTranslations {
     const val home_localizedCountLabel_plural_9 = "előadó"
     val home_localizedPlaylistCountLabel_1 get() = Triple("lejátszási lista", "lejátszási lista", "lejátszási lista")
     val home_repeatModeLabel_1 get() = Triple("Sorrend", "Egy ismétlése", "Összes ismétlése")
-    val home_rootUiCopy_1 get() = RootUiCopy("Tárhelyhozzáférés szükséges", "Az alkalmazás a Music mappában keresi a zenéket", "Hozzáférés engedélyezése", "Elovaire", "Összes album", "Ábécérendben az album előadója és címe szerint", "Lejátszási lista átnevezése", "Mentés", "Új lejátszási lista", "A lista borítója", "Lejátszási lista létrehozása", "Koppints egy lista létrehozásához", "A lista neve", "Név törlése", "Még nincsenek dalok a listán", "Keresés a könyvtárban", "Dalok hozzáadása", "Dalszöveg betöltése…", "Úgy tűnik, ehhez a dalhoz nincs dalszöveg", "Dalszöveg elrejtése", "OK", "Az album nem található", "A lista nem található", "Legtöbbet játszott dalok", "elérhető kiadvány", "Album lejátszása", "Album véletlenszerű lejátszása", "Címkék szerkesztése", "Módosítások mentése", "Lista szerkesztése")
+    val home_rootUiCopy_1 get() = RootUiCopy("Tárhelyhozzáférés szükséges", "Az alkalmazás a Music mappában keresi a zenéket", "Hozzáférés engedélyezése", "Elovaire", "Összes album", "Ábécérendben az album előadója és címe szerint", "Lejátszási lista átnevezése", "Mentés", "Új lejátszási lista", "A lejátszási lista borítójának helyőrző képe", "Lejátszási lista létrehozása", "Koppints egy lista létrehozásához", "A lista neve", "Név törlése", "Még nincsenek dalok a listán", "Keresés a könyvtárban", "Dalok hozzáadása", "Dalszöveg betöltése…", "Úgy tűnik, ehhez a dalhoz nincs dalszöveg", "Dalszöveg elrejtése", "OK", "Az album nem található", "A lista nem található", "Legtöbbet játszott dalok", "elérhető kiadvány", "Album lejátszása", "Album véletlenszerű lejátszása", "Címkék szerkesztése", "Módosítások mentése", "Lista szerkesztése")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "előadó"
     const val library_autoUpdatingLabel_1 = "Automatikusan frissül"

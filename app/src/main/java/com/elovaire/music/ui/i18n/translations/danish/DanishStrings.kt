@@ -6,7 +6,7 @@ internal object DanishTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Butik"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Websted"
     const val aboutScreens_localizedAboutTitle_1 = "Ressourcer"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Opdatering tilgængelig", "Version", "Senere", "Download", "Luk ændringsloggen", "Ingen ændringer endnu")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Opdatering tilgængelig", "Version", "Senere", "Download", "Luk ændringsloggen", "Ingen poster i ændringsloggen endnu")
     const val aboutUpdate_bundledLicensesLabel_1 = "De fulde licenstekster følger med appen"
     const val aboutUpdate_droidBeautyDescription_1 = "Smukt designede widgets og temaer til en flottere Android-startskærm. Jeg har også skabt den musikafspiller, du bruger lige nu"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Søgning efter opdateringer på GitHub mislykkedes"
@@ -105,7 +105,7 @@ internal object DanishTranslations {
     const val home_localizedCountLabel_plural_9 = "kunstner"
     val home_localizedPlaylistCountLabel_1 get() = Triple("afspilningsliste", "afspilningslister", "afspilningslister")
     val home_repeatModeLabel_1 get() = Triple("Rækkefølge", "Gentag én", "Gentag alle")
-    val home_rootUiCopy_1 get() = RootUiCopy("Adgang til lager er nødvendig", "Appen søger efter musik i mappen Music", "Tillad adgang", "Elovaire", "Alle album", "Alfabetisk efter albumkunstner og albumtitel", "Omdøb afspilningsliste", "Gem", "Ny afspilningsliste", "Afspilningslistens cover", "Opret afspilningsliste", "Tryk for at oprette en afspilningsliste", "Afspilningslistens navn", "Ryd navn", "Der er endnu ingen sange på listen", "Søg i biblioteket", "Tilføj sange", "Indlæser sangtekst…", "Denne sang ser ikke ud til at have en sangtekst", "Skjul sangtekst", "OK", "Album blev ikke fundet", "Afspilningslisten blev ikke fundet", "Mest afspillede sange", "tilgængelige udgivelser", "Afspil album", "Bland album", "Rediger tags", "Gem ændringer", "Rediger afspilningsliste")
+    val home_rootUiCopy_1 get() = RootUiCopy("Adgang til lager er nødvendig", "Appen søger efter musik i mappen Music", "Tillad adgang", "Elovaire", "Alle album", "Alfabetisk efter albumkunstner og albumtitel", "Omdøb afspilningsliste", "Gem", "Ny afspilningsliste", "Pladsholderbillede for afspilningslistens cover", "Opret afspilningsliste", "Tryk for at oprette en afspilningsliste", "Afspilningslistens navn", "Ryd navn", "Der er endnu ingen sange på listen", "Søg i biblioteket", "Tilføj sange", "Indlæser sangtekst…", "Denne sang ser ikke ud til at have en sangtekst", "Skjul sangtekst", "OK", "Album blev ikke fundet", "Afspilningslisten blev ikke fundet", "Mest afspillede sange", "tilgængelige udgivelser", "Afspil album", "Bland album", "Rediger tags", "Gem ændringer", "Rediger afspilningsliste")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "kunstner"
     const val library_autoUpdatingLabel_1 = "Opdateres automatisk"

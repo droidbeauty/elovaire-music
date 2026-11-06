@@ -6,7 +6,7 @@ internal object KoreanTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play 스토어"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "웹사이트"
     const val aboutScreens_localizedAboutTitle_1 = "리소스"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("업데이트가 있습니다", "버전", "나중에", "다운로드", "변경 사항 닫기", "아직 변경 사항이 없습니다")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("업데이트가 있습니다", "버전", "나중에", "다운로드", "변경 기록 닫기", "변경 기록에 아직 항목이 없습니다")
     const val aboutUpdate_bundledLicensesLabel_1 = "전체 라이선스 문서는 앱에 포함되어 있습니다"
     const val aboutUpdate_droidBeautyDescription_1 = "Android 홈 화면을 아름답게 꾸며 주는 세심하게 디자인된 위젯과 테마. 지금 사용 중인 음악 플레이어도 제가 만들었습니다"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "GitHub 업데이트 확인에 실패했습니다"

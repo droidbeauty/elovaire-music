@@ -6,7 +6,7 @@ internal object AlbanianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Faqja web"
     const val aboutScreens_localizedAboutTitle_1 = "Burimet"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Përditësim i disponueshëm", "Versioni", "Më vonë", "Shkarko", "Mbyll ndryshimet", "Ende nuk ka ndryshime")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Përditësim i disponueshëm", "Versioni", "Më vonë", "Shkarko", "Mbyll listën e ndryshimeve", "Ende nuk ka shënime në listën e ndryshimeve")
     const val aboutUpdate_bundledLicensesLabel_1 = "Tekstet e plota të licencave përfshihen në aplikacion"
     const val aboutUpdate_droidBeautyDescription_1 = "Miniaplikacione dhe tema të kuruara për ta zbukuruar ekranin kryesor të Android. Jam gjithashtu krijuesi i këtij luajtësi muzikor që po përdor tani"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Kontrolli i përditësimeve në GitHub dështoi"
@@ -111,7 +111,7 @@ internal object AlbanianTranslations {
         appName = "Elovaire", allAlbumsTitle = "Të gjitha albumet",
         allAlbumsSubtitle = "Sipas emrit të artistit dhe më pas titullit të albumit",
         renamePlaylistTitle = "Riemërto listën e dëgjimit", save = "Ruaj", newPlaylist = "Listë e re dëgjimi",
-        playlistArtworkPlaceholder = "Kopertina e listës së dëgjimit", createPlaylistButton = "Krijo listë dëgjimi",
+        playlistArtworkPlaceholder = "Imazh zëvendësues i kopertinës së listës së dëgjimit", createPlaylistButton = "Krijo listë dëgjimi",
         tapToCreateNewPlaylist = "Prek për të krijuar një listë dëgjimi", playlistNamePlaceholder = "Emri i listës së dëgjimit",
         clearPlaylistName = "Pastro emrin e listës", noSongsInPlaylistYet = "Nuk ka ende këngë në këtë listë",
         searchLibrary = "Kërko në bibliotekë", addSongsTitle = "Shto këngë", loadingLyrics = "Po ngarkohen tekstet…",

@@ -6,7 +6,7 @@ internal object SwedishTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Butik"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Webbplats"
     const val aboutScreens_localizedAboutTitle_1 = "Resurser"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Uppdatering tillgänglig", "Version", "Senare", "Ladda ner", "Stäng ändringsloggen", "Inga ändringar än")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Uppdatering tillgänglig", "Version", "Senare", "Ladda ner", "Stäng ändringsloggen", "Inga poster i ändringsloggen än")
     const val aboutUpdate_bundledLicensesLabel_1 = "De fullständiga licenstexterna ingår i appen"
     const val aboutUpdate_droidBeautyDescription_1 = "Vackert utformade widgetar och teman för en snyggare Android-startskärm. Jag har också skapat musikspelaren som du använder just nu"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Sökningen efter uppdateringar på GitHub misslyckades"
@@ -105,7 +105,7 @@ internal object SwedishTranslations {
     const val home_localizedCountLabel_plural_9 = "artist"
     val home_localizedPlaylistCountLabel_1 get() = Triple("spellista", "spellistor", "spellistor")
     val home_repeatModeLabel_1 get() = Triple("Ordning", "Upprepa en", "Upprepa alla")
-    val home_rootUiCopy_1 get() = RootUiCopy("Lagringsåtkomst krävs", "Appen söker efter musik i mappen Music", "Tillåt åtkomst", "Elovaire", "Alla album", "Alfabetiskt efter albumartist och albumtitel", "Byt namn på spellistan", "Spara", "Ny spellista", "Spellistans omslag", "Skapa spellista", "Tryck för att skapa en spellista", "Spellistans namn", "Rensa namn", "Det finns inga låtar i spellistan än", "Sök i biblioteket", "Lägg till låtar", "Läser in låttext…", "Den här låten verkar inte ha någon låttext", "Dölj låttext", "OK", "Albumet hittades inte", "Spellistan hittades inte", "Mest spelade låtar", "utgåvor tillgängliga", "Spela album", "Blanda album", "Redigera taggar", "Spara ändringar", "Redigera spellista")
+    val home_rootUiCopy_1 get() = RootUiCopy("Lagringsåtkomst krävs", "Appen söker efter musik i mappen Music", "Tillåt åtkomst", "Elovaire", "Alla album", "Alfabetiskt efter albumartist och albumtitel", "Byt namn på spellistan", "Spara", "Ny spellista", "Platshållarbild för spellistans omslag", "Skapa spellista", "Tryck för att skapa en spellista", "Spellistans namn", "Rensa namn", "Det finns inga låtar i spellistan än", "Sök i biblioteket", "Lägg till låtar", "Läser in låttext…", "Den här låten verkar inte ha någon låttext", "Dölj låttext", "OK", "Albumet hittades inte", "Spellistan hittades inte", "Mest spelade låtar", "utgåvor tillgängliga", "Spela album", "Blanda album", "Redigera taggar", "Spara ändringar", "Redigera spellista")
     const val library_albumName_1 = "album"
     const val library_artistName_1 = "artist"
     const val library_autoUpdatingLabel_1 = "Uppdateras automatiskt"

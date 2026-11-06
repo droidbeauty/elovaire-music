@@ -6,7 +6,7 @@ internal object JapaneseTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play ストア"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "ウェブサイト"
     const val aboutScreens_localizedAboutTitle_1 = "リソース"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("アップデートがあります", "バージョン", "後で", "ダウンロード", "更新履歴を閉じる", "更新履歴はまだありません")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("アップデートがあります", "バージョン", "後で", "ダウンロード", "更新履歴を閉じる", "更新履歴にはまだ項目がありません")
     const val aboutUpdate_bundledLicensesLabel_1 = "ライセンスの全文はアプリに含まれています"
     const val aboutUpdate_droidBeautyDescription_1 = "Android のホーム画面を美しく彩る、丁寧にデザインされたウィジェットとテーマ。今お使いの音楽プレーヤーも私が制作しました"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "GitHub のアップデート確認に失敗しました"
@@ -100,7 +100,7 @@ internal object JapaneseTranslations {
     const val home_localizedCountLabel_plural_9 = "種類のジャンル"
     val home_localizedPlaylistCountLabel_1 get() = Triple("件のプレイリスト", "件のプレイリスト", "件のプレイリスト")
     val home_repeatModeLabel_1 get() = Triple("順番", "1曲リピート", "全曲リピート")
-    val home_rootUiCopy_1 get() = RootUiCopy("ストレージへのアクセスが必要です", "アプリはMusicフォルダから音楽を探します", "アクセスを許可", "Elovaire", "すべてのアルバム", "アルバムアーティスト、タイトル順", "プレイリスト名を変更", "保存", "新しいプレイリスト", "プレイリストの画像", "プレイリストを作成", "タップしてプレイリストを作成", "プレイリスト名", "名前をクリア", "このプレイリストに曲はまだありません", "ライブラリを検索", "曲を追加", "歌詞を読み込み中…", "この曲には歌詞がないようです", "歌詞を非表示", "OK", "アルバムが見つかりません", "プレイリストが見つかりません", "よく聴く曲", "件のリリース", "アルバムを再生", "アルバムをシャッフル", "タグを編集", "変更を保存", "プレイリストを編集")
+    val home_rootUiCopy_1 get() = RootUiCopy("ストレージへのアクセスが必要です", "アプリはMusicフォルダから音楽を探します", "アクセスを許可", "Elovaire", "すべてのアルバム", "アルバムアーティスト、タイトルのアルファベット順", "プレイリスト名を変更", "保存", "新しいプレイリスト", "プレイリストの画像のプレースホルダー", "プレイリストを作成", "タップしてプレイリストを作成", "プレイリスト名", "名前をクリア", "このプレイリストに曲はまだありません", "ライブラリを検索", "曲を追加", "歌詞を読み込み中…", "この曲には歌詞がないようです", "歌詞を非表示", "OK", "アルバムが見つかりません", "プレイリストが見つかりません", "よく聴く曲", "件のリリース", "アルバムを再生", "アルバムをシャッフル", "タグを編集", "変更を保存", "プレイリストを編集")
     const val library_albumName_1 = "アルバム"
     const val library_artistName_1 = "アーティスト"
     const val library_autoUpdatingLabel_1 = "自動更新"

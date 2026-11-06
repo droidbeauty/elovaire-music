@@ -6,7 +6,7 @@ internal object SerbianTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play продавница"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "Веб-сајт"
     const val aboutScreens_localizedAboutTitle_1 = "Ресурси"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Доступно је ажурирање", "Верзија", "Касније", "Преузми", "Затвори списак промена", "Још нема промена")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("Доступно је ажурирање", "Верзија", "Касније", "Преузми", "Затвори списак промена", "Још нема записа у списку промена")
     const val aboutUpdate_bundledLicensesLabel_1 = "Пуни текстови лиценци укључени су у апликацију"
     const val aboutUpdate_droidBeautyDescription_1 = "Пажљиво дизајнирани виџети и теме за лепши почетни екран Android-а. Такође сам аутор музичког плејера који управо користите"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "Провера ажурирања на GitHub-у није успела"
@@ -130,7 +130,7 @@ internal object SerbianTranslations {
         appName = "Elovaire", allAlbumsTitle = "Сви албуми",
         allAlbumsSubtitle = "По абецедном реду извођача, затим назива албума",
         renamePlaylistTitle = "Преименуј плејлисту", save = "Сачувај", newPlaylist = "Нова плејлиста",
-        playlistArtworkPlaceholder = "Омот плејлисте", createPlaylistButton = "Направи плејлисту",
+        playlistArtworkPlaceholder = "Заменска слика омота плејлисте", createPlaylistButton = "Направи плејлисту",
         tapToCreateNewPlaylist = "Додирни да направиш плејлисту", playlistNamePlaceholder = "Назив плејлисте",
         clearPlaylistName = "Обриши назив плејлисте", noSongsInPlaylistYet = "Још нема песама у овој плејлисти",
         searchLibrary = "Претражи библиотеку", addSongsTitle = "Додај песме", loadingLyrics = "Учитавање текстова…",

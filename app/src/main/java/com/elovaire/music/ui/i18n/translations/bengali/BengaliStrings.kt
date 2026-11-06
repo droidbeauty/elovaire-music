@@ -8,7 +8,7 @@ internal object BengaliTranslations {
     const val aboutScreens_localizedAboutLinkLabel_variant_1 = "Play Store"
     const val aboutScreens_localizedAboutLinkLabel_variant_2 = "ওয়েবসাইট"
     const val aboutScreens_localizedAboutTitle_1 = "রিসোর্স"
-    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("আপডেট উপলভ্য", "সংস্করণ", "পরে", "ডাউনলোড", "পরিবর্তনপঞ্জি বন্ধ করুন", "এখনও কোনো পরিবর্তন নেই")
+    val aboutUpdate_aboutUpdateCopy_1 get() = AboutUpdateCopy("আপডেট উপলভ্য", "সংস্করণ", "পরে", "ডাউনলোড", "পরিবর্তনপঞ্জি বন্ধ করুন", "পরিবর্তনপঞ্জিতে এখনও কোনো এন্ট্রি নেই")
     const val aboutUpdate_bundledLicensesLabel_1 = "লাইসেন্সের সম্পূর্ণ পাঠ অ্যাপের সঙ্গে অন্তর্ভুক্ত আছে"
     const val aboutUpdate_droidBeautyDescription_1 = "Android-এর হোম স্ক্রিন সুন্দর করার জন্য যত্ন নিয়ে তৈরি উইজেট ও থিম। আপনি এখন যে মিউজিক প্লেয়ারটি ব্যবহার করছেন, সেটিও আমার তৈরি"
     const val aboutUpdate_githubUpdateCheckFailed_1 = "GitHub-এ আপডেট পরীক্ষা ব্যর্থ হয়েছে"
