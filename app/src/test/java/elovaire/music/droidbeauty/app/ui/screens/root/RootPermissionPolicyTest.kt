@@ -71,6 +71,8 @@ class RootPermissionPolicyTest {
                 songsCount = 1,
                 albumsCount = 1,
                 errorMessage = null,
+                scanProgress = 0.5f,
+                initialWaitTimedOut = false,
             ),
         )
         assertTrue(
@@ -81,7 +83,23 @@ class RootPermissionPolicyTest {
                 songsCount = 0,
                 albumsCount = 0,
                 errorMessage = "scan failed",
+                scanProgress = 0f,
+                initialWaitTimedOut = false,
             ),
         )
+    }
+
+    @Test
+    fun completedEmptyLibraryRevealsHome() {
+        assertFalse(shouldRevealFirstLaunchHome(true, true, false, 0, 0, null, 0f, false))
+        assertTrue(shouldRevealFirstLaunchHome(true, true, false, 0, 0, null, 1f, false))
+    }
+
+    @Test
+    fun prolongedScanDoesNotKeepPermissionOverlayBlockingHome() {
+        assertFalse(shouldRevealFirstLaunchHome(true, true, true, 0, 0, null, 0f, false))
+        assertTrue(shouldRevealFirstLaunchHome(true, true, true, 0, 0, null, 0f, true))
+        assertFalse(shouldShowFirstLaunchPermissionOverlay(true, true, true, 0, 0, null, true))
+        assertFalse(shouldRevealFirstLaunchHome(true, false, true, 0, 0, null, 0f, true))
     }
 }

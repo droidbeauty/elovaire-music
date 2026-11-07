@@ -247,6 +247,7 @@ internal class LibraryRepository internal constructor(
         _runtimeState.value = LibraryRuntimeState.Released
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun bootstrapLibrary() {
         if (_runtimeState.value !is LibraryRuntimeState.NoPermission) return
         val bootstrapPermissionVersion = permissionChangeVersion
@@ -332,12 +333,26 @@ internal class LibraryRepository internal constructor(
                         showLoadingIndicator = true,
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (hasCurrentPermission(bootstrapPermissionVersion)) {
+                    val scanFailure = failure.toLibraryScanFailure("bootstrap")
+                    _runtimeState.value = LibraryRuntimeState.Failed(scanFailure, recoverable = true)
+                    _scanState.update {
+                        it.copy(isLoading = false, errorMessage = scanFailure.toUserMessage())
+                    }
+                }
             } finally {
-                if (scanJob === currentCoroutineContext()[Job]) {
+                val finishedBootstrap = scanJob === currentCoroutineContext()[Job]
+                if (finishedBootstrap) {
                     scanJob = null
                 }
                 if (hasCurrentPermission(bootstrapPermissionVersion) && _runtimeState.value is LibraryRuntimeState.Bootstrapping) {
                     _runtimeState.value = LibraryRuntimeState.Idle
+                }
+                if (finishedBootstrap && hasCurrentPermission(bootstrapPermissionVersion)) {
+                    continueAfterScan()
                 }
             }
         }
@@ -376,6 +391,7 @@ internal class LibraryRepository internal constructor(
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
             if (
+                activeAttempt != null &&
                 request.priority == LibraryRefreshPriority.FreshnessCritical &&
                 (
                     activeAttempt?.request?.priority != LibraryRefreshPriority.FreshnessCritical ||

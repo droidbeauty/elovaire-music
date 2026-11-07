@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
 import elovaire.music.droidbeauty.app.data.settings.decodePortableUserData
+import elovaire.music.droidbeauty.app.data.settings.mergeInto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -67,8 +68,23 @@ internal class PortableUserDataBackupRuntime(
                         !state.permissionGranted
                     ) return@collect
                     if (!restoreChecked) {
-                        val encoded = withContext(ioDispatcher) { portableUserDataBackup.readBytes() }
+                        val encoded = try {
+                            withContext(ioDispatcher) { portableUserDataBackup.readBytes() }
+                        } catch (failure: IOException) {
+                            android.util.Log.w(TAG, "Portable user-data backup read deferred", failure)
+                            return@collect
+                        } catch (failure: SecurityException) {
+                            android.util.Log.w(TAG, "Portable user-data backup read deferred", failure)
+                            return@collect
+                        } catch (failure: IllegalStateException) {
+                            android.util.Log.w(TAG, "Portable user-data backup read deferred", failure)
+                            return@collect
+                        }
                         val portable = encoded?.let { withContext(ioDispatcher) { decodePortableUserData(it) } }
+                        if (encoded != null && portable == null) {
+                            android.util.Log.w(TAG, "Existing portable user-data backup is invalid or unsupported")
+                            return@collect
+                        }
                         val backupContainsSongReferences = portable?.hasSongReferences() == true
                         if (encoded != null && state.songs.isEmpty() && backupContainsSongReferences) {
                             return@collect
@@ -81,6 +97,10 @@ internal class PortableUserDataBackupRuntime(
                                 backupRevision = portable?.userDataRevision,
                             )
                         ) {
+                            val canRestore = withContext(ioDispatcher) {
+                                portableRestoreHasNoUnresolvedReferences(requireNotNull(portable), state.snapshot, state.songs)
+                            }
+                            if (!canRestore) return@collect
                             when (userDataStore.restorePortableUserData(encoded, state.songs).await()) {
                                 is PlaylistMutationResult.Success -> {
                                     restoreChecked = true
@@ -91,7 +111,6 @@ internal class PortableUserDataBackupRuntime(
                         }
                         restoreChecked = true
                     }
-                    if (state.songs.isEmpty() && state.snapshot.hasPortableSongReferences()) return@collect
                     try {
                         withContext(ioDispatcher) {
                             portableUserDataBackup.write(
@@ -139,6 +158,12 @@ internal fun shouldRestorePortableUserData(
     currentHasPortableData: Boolean,
     backupRevision: Long?,
 ): Boolean = localRevision == 0L && !currentHasPortableData && backupRevision != null && backupRevision >= 0L
+
+internal fun portableRestoreHasNoUnresolvedReferences(
+    backup: PortableUserData,
+    current: UserDataSnapshot,
+    songs: List<elovaire.music.droidbeauty.app.domain.model.Song>,
+): Boolean = backup.mergeInto(current, songs).unresolvedReferenceCount == 0
 
 private fun UserDataSnapshot.hasPortableUserData(): Boolean {
     return playlists.isNotEmpty() || smartPlaylists.isNotEmpty() || hasPortableSongReferences()

@@ -12,6 +12,48 @@ import org.junit.Test
 
 class PortableUserDataBackupTest {
     @Test
+    fun explicitExportRejectsMissingSongReferences() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val backup = PortableUserDataBackup(context)
+        org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+            backup.encode(UserDataSnapshot(favoriteSongIds = listOf(1L, 2L)), listOf(song(1L)), 100L, "test")
+        }
+    }
+
+    @Test
+    fun existingEmptyOrOversizedBackupIsNotTreatedAsMissing() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val name = "portable-read-test-${System.nanoTime()}.json"
+        val file = context.filesDir.resolve(name)
+        val backup = PortableUserDataBackup(context, fileName = name)
+        try {
+            file.writeBytes(byteArrayOf())
+            assertEquals(0, requireNotNull(backup.readBytes()).size)
+            file.outputStream().use { it.write(ByteArray(4 * 1024 * 1024 + 1)) }
+            org.junit.Assert.assertThrows(IllegalStateException::class.java) { backup.readBytes() }
+            assertEquals(4L * 1024L * 1024L + 1L, file.length())
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun automaticRestoreWaitsForEveryReferencedSong() {
+        val first = song(1L).copy(title = "First song")
+        val second = song(2L).copy(title = "Second song")
+        val backup = requireNotNull(decodePortableUserData(encodePortableUserData(
+            UserDataSnapshot(favoriteSongIds = listOf(1L, 2L)),
+            listOf(first, second), 100L, "test",
+        )))
+        assertEquals(false, elovaire.music.droidbeauty.app.core.portableRestoreHasNoUnresolvedReferences(
+            backup, UserDataSnapshot(), listOf(first),
+        ))
+        assertEquals(true, elovaire.music.droidbeauty.app.core.portableRestoreHasNoUnresolvedReferences(
+            backup, UserDataSnapshot(), listOf(first, second),
+        ))
+    }
+
+    @Test
     fun userDataRevisionRoundTripsWithPortablePayload() {
         val bytes = encodePortableUserData(
             snapshot = UserDataSnapshot(),

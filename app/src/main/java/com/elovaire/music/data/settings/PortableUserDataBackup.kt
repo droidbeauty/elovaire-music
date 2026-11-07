@@ -19,6 +19,8 @@ import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.charset.StandardCharsets
+import java.io.File
+import java.io.FileNotFoundException
 import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
@@ -83,6 +85,9 @@ internal class PortableUserDataBackup(
         userDataRevision: Long,
         contentRevision: String,
     ): ByteArray {
+        check(!snapshot.hasMissingPortableSongReferences(songs.mapTo(hashSetOf(), Song::id))) {
+            "Some referenced songs are unavailable for portable backup."
+        }
         val identityProjection = contentRevision.takeIf(String::isNotBlank)?.let { revision ->
             preparedMediaIdentityProjection?.takeIf { it.revision == revision }
                 ?: MediaIdentityResolver.portableIdentityProjection(
@@ -103,11 +108,15 @@ internal class PortableUserDataBackup(
     }
 
     fun readBytes(): ByteArray? = synchronized(lock) {
-        runCatching {
+        try {
             atomicFile.openRead().use { input ->
-                input.readBytesBounded(MAX_FILE_BYTES.toInt()).takeIf { it.isNotEmpty() }
+                input.readBytesBounded(MAX_FILE_BYTES.toInt())
             }
-        }.getOrNull()
+        } catch (failure: FileNotFoundException) {
+            val base = atomicFile.baseFile
+            if (base.exists() || File(base.path + ".bak").exists()) throw failure
+            null
+        }
     }
 
     fun read(): PortableUserData? = readBytes()?.let(::decodePortableUserData)
@@ -117,6 +126,12 @@ internal class PortableUserDataBackup(
         songs: List<Song>,
     ): PortableUserDataImport? = read()?.mergeInto(current, songs)
 }
+
+internal fun UserDataSnapshot.hasMissingPortableSongReferences(availableSongIds: Set<Long>): Boolean =
+    playlists.any { playlist -> !playlist.isSystem && playlist.songIds.any { it !in availableSongIds } } ||
+        favoriteSongIds.any { it !in availableSongIds } ||
+        songPlayCounts.keys.any { it !in availableSongIds } ||
+        recentSongIds.any { it !in availableSongIds }
 
 internal data class PortableUserData(
     val createdAtMs: Long,

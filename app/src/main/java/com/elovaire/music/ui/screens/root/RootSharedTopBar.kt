@@ -1,6 +1,9 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -46,7 +50,6 @@ import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSeman
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
-import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -104,14 +107,10 @@ internal sealed interface SharedTopBarSpec {
 
 internal fun SharedTopBarSpec.visualSignature(): String {
     return when (this) {
-        is SharedTopBarSpec.Unified -> "unified:$showSettings:${supplementalActionIconResId ?: 0}"
-        is SharedTopBarSpec.Back -> "back:$centeredTitle:${actions.visualSignature()}"
-        is SharedTopBarSpec.Detail -> "detail:${subtitle.isNullOrBlank()}:${actions.visualSignature()}"
+        is SharedTopBarSpec.Unified -> "unified"
+        is SharedTopBarSpec.Back -> "back:$centeredTitle"
+        is SharedTopBarSpec.Detail -> "detail"
     }
-}
-
-private fun List<TopBarActionSpec>.visualSignature(): String {
-    return joinToString(separator = ",") { action -> "${action.iconResId}:${action.enabled}" }
 }
 
 internal fun topBarMotionDirection(
@@ -131,12 +130,6 @@ private fun SharedTopBarSpec.topBarDepth(): Int = when (this) {
     is SharedTopBarSpec.Unified -> 0
     is SharedTopBarSpec.Back -> 1
     is SharedTopBarSpec.Detail -> 2
-}
-
-private fun MotionTransitions.topBarTextTransform(direction: TopBarMotionDirection) = when (direction) {
-    TopBarMotionDirection.Forward -> topBarTextForwardTransform()
-    TopBarMotionDirection.Back -> topBarTextBackTransform()
-    TopBarMotionDirection.Lateral -> titleSwapTransform()
 }
 
 internal data class SharedTopBarRegistration(
@@ -448,8 +441,10 @@ internal fun SharedTopBarOverlay(
     modifier: Modifier = Modifier,
 ) {
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
+    val currentSpec by rememberUpdatedState(spec)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -466,7 +461,7 @@ internal fun SharedTopBarOverlay(
                 when (topBarMotionDirection(initialState, targetState)) {
                     TopBarMotionDirection.Forward -> motionTransitions.sharedTopBarForwardTransform()
                     TopBarMotionDirection.Back -> motionTransitions.sharedTopBarBackTransform()
-                    TopBarMotionDirection.Lateral -> motionTransitions.sharedTopBarTransform()
+                    TopBarMotionDirection.Lateral -> motionTransitions.sharedTopBarForwardTransform()
                 }
             },
             contentKey = { it.visualSignature() },
@@ -491,7 +486,7 @@ internal fun SharedTopBarOverlay(
                             ElovaireAnimatedContent(
                                 targetState = currentSpec.title,
                                 transitionSpec = {
-                                    motionTransitions.topBarTextTransform(TopBarMotionDirection.Lateral)
+                                    motionTransitions.topBarTextForwardTransform()
                                 },
                                 label = "SharedTopBarUnifiedTitle",
                             ) { currentTitle ->
@@ -529,7 +524,7 @@ internal fun SharedTopBarOverlay(
                                 )
                             }
                         } else {
-                            Spacer(modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.size(48.dp))
                         }
                     }
                 }
@@ -543,13 +538,6 @@ internal fun SharedTopBarOverlay(
                                 .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
                                 .height(40.dp),
                         ) {
-                            HeaderIconButton(
-                                iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = navigationAccessibilityCopy(language).back,
-                                showBackground = false,
-                                onClick = currentSpec.onBack,
-                                modifier = Modifier.align(Alignment.CenterStart),
-                            )
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.Center)
@@ -559,7 +547,7 @@ internal fun SharedTopBarOverlay(
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
                                     transitionSpec = {
-                                        motionTransitions.topBarTextTransform(TopBarMotionDirection.Back)
+                                        motionTransitions.topBarTextForwardTransform()
                                     },
                                     label = "SharedTopBarBackCenteredTitle",
                                 ) { currentTitle ->
@@ -587,18 +575,7 @@ internal fun SharedTopBarOverlay(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            ElovaireAnimatedContent(
-                                targetState = "back",
-                                transitionSpec = { motionTransitions.topBarNavigationTransform() },
-                                label = "SharedTopBarBackNavigation",
-                            ) {
-                                HeaderIconButton(
-                                    iconResId = R.drawable.ic_lucide_chevron_left,
-                                    contentDescription = navigationAccessibilityCopy(language).back,
-                                    showBackground = false,
-                                    onClick = currentSpec.onBack,
-                                )
-                            }
+                            Spacer(modifier = Modifier.size(48.dp))
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -608,7 +585,7 @@ internal fun SharedTopBarOverlay(
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
                                     transitionSpec = {
-                                        motionTransitions.topBarTextTransform(TopBarMotionDirection.Back)
+                                        motionTransitions.topBarTextForwardTransform()
                                     },
                                     label = "SharedTopBarBackTitle",
                                 ) { currentTitle ->
@@ -635,64 +612,31 @@ internal fun SharedTopBarOverlay(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ElovaireAnimatedContent(
-                            targetState = "detail",
-                            transitionSpec = { motionTransitions.topBarNavigationTransform() },
-                            label = "SharedTopBarDetailNavigation",
+                        Spacer(modifier = Modifier.size(48.dp))
+                        androidx.compose.foundation.layout.Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            HeaderIconButton(
-                                iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = navigationAccessibilityCopy(language).back,
-                                showBackground = false,
-                                onClick = currentSpec.onBack,
-                            )
-                        }
-                        if (currentSpec.subtitle.isNullOrBlank()) {
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                ElovaireAnimatedContent(
-                                    targetState = currentSpec.title,
-                                    transitionSpec = { motionTransitions.topBarTextTransform(TopBarMotionDirection.Forward) },
-                                    label = "SharedTopBarDetailTitleOnly",
-                                ) { currentTitle ->
-                                    Text(
-                                        text = currentTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = elovaireScaledSp(19f),
-                                            fontWeight = FontWeight.SemiBold,
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
+                            ElovaireAnimatedContent(
+                                targetState = currentSpec.title,
+                                transitionSpec = { motionTransitions.topBarTextForwardTransform() },
+                                label = "SharedTopBarDetailTitle",
+                            ) { currentTitle ->
+                                Text(
+                                    text = currentTitle,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = elovaireScaledSp(19f),
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
-                        } else {
-                            androidx.compose.foundation.layout.Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
-                                ElovaireAnimatedContent(
-                                    targetState = currentSpec.title,
-                                    transitionSpec = { motionTransitions.topBarTextTransform(TopBarMotionDirection.Forward) },
-                                    label = "SharedTopBarDetailTitleWithSubtitle",
-                                ) { currentTitle ->
-                                    Text(
-                                        text = currentTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = elovaireScaledSp(19f),
-                                            fontWeight = FontWeight.SemiBold,
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                                    Text(
-                                        text = currentSpec.subtitle,
-                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                            if (!currentSpec.subtitle.isNullOrBlank()) {
+                                Text(
+                                    text = currentSpec.subtitle,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -705,6 +649,31 @@ internal fun SharedTopBarOverlay(
                     }
                 }
             }
+        }
+        AnimatedVisibility(
+            visible = spec !is SharedTopBarSpec.Unified,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 10.dp, top = 3.dp)
+                .offset(y = if (spec is SharedTopBarSpec.Back && spec.centeredTitle) (-4).dp else 0.dp),
+            enter = fadeIn(animationSpec = motionSpecs.fadeIn()),
+            exit = fadeOut(animationSpec = motionSpecs.fadeOut()),
+            label = "SharedTopBarBackButton",
+        ) {
+            HeaderIconButton(
+                iconResId = R.drawable.ic_lucide_chevron_left,
+                contentDescription = navigationAccessibilityCopy(language).back,
+                enabled = spec !is SharedTopBarSpec.Unified,
+                showBackground = false,
+                onClick = {
+                    when (val latest = currentSpec) {
+                        is SharedTopBarSpec.Back -> latest.onBack()
+                        is SharedTopBarSpec.Detail -> latest.onBack()
+                        is SharedTopBarSpec.Unified -> Unit
+                    }
+                },
+            )
         }
     }
 }

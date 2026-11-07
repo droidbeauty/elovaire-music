@@ -33,6 +33,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.mediaStoreDeleteRequest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 internal data class RootPermissionState(
     val hasAudioPermission: Boolean,
@@ -72,6 +73,7 @@ internal fun rememberRootPermissionController(
     var localPermissionRequested by rememberSaveable { mutableStateOf(false) }
     var firstLaunchPermissionExperienceActive by rememberSaveable { mutableStateOf(!hasPermission) }
     var playFirstLaunchHomeReveal by rememberSaveable { mutableStateOf(false) }
+    var initialLibraryWaitTimedOut by rememberSaveable { mutableStateOf(false) }
     var syncedAudioPermission by remember { mutableStateOf<Boolean?>(null) }
 
     fun syncAudioPermission(granted: Boolean) {
@@ -138,6 +140,14 @@ internal fun rememberRootPermissionController(
             localNetworkPermissionLauncher.launch(AndroidCapabilities.LOCAL_NETWORK_PERMISSION)
         }
     }
+    LaunchedEffect(firstLaunchPermissionExperienceActive, hasPermission) {
+        if (!hasPermission) {
+            initialLibraryWaitTimedOut = false
+        } else if (firstLaunchPermissionExperienceActive && !initialLibraryWaitTimedOut) {
+            delay(INITIAL_LIBRARY_WAIT_TIMEOUT_MS)
+            initialLibraryWaitTimedOut = true
+        }
+    }
     val showFirstLaunchPermissionOverlay = shouldShowFirstLaunchPermissionOverlay(
         firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
         hasAudioPermission = hasPermission,
@@ -156,6 +166,8 @@ internal fun rememberRootPermissionController(
         libraryState.songs.size,
         libraryState.albums.size,
         libraryState.errorMessage,
+        libraryState.scanProgress,
+        initialLibraryWaitTimedOut,
     ) {
         if (shouldRevealFirstLaunchHome(
                 firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
@@ -164,6 +176,8 @@ internal fun rememberRootPermissionController(
                 songsCount = libraryState.songs.size,
                 albumsCount = libraryState.albums.size,
                 errorMessage = libraryState.errorMessage,
+                scanProgress = libraryState.scanProgress,
+                initialWaitTimedOut = initialLibraryWaitTimedOut,
             )
         ) {
             playFirstLaunchHomeReveal = true
@@ -200,6 +214,8 @@ internal fun rememberRootPermissionController(
         )
     }
 }
+
+private const val INITIAL_LIBRARY_WAIT_TIMEOUT_MS = 10_000L
 
 private fun requestPermissionReconciliation(controller: LibraryActionController) {
     controller.refresh(

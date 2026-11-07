@@ -12,12 +12,11 @@ internal fun shouldShowFirstLaunchPermissionOverlay(
     return firstLaunchPermissionExperienceActive &&
         (
             !hasAudioPermission ||
-                isLibraryLoading ||
                 (
-                    songsCount == 0 &&
+                    !playFirstLaunchHomeReveal &&
+                    (isLibraryLoading || songsCount == 0 &&
                         albumsCount == 0 &&
-                        errorMessage == null &&
-                        !playFirstLaunchHomeReveal
+                        errorMessage == null)
                     )
             )
 }
@@ -29,9 +28,11 @@ internal fun shouldRevealFirstLaunchHome(
     songsCount: Int,
     albumsCount: Int,
     errorMessage: String?,
+    scanProgress: Float,
+    initialWaitTimedOut: Boolean,
 ): Boolean {
     return firstLaunchPermissionExperienceActive &&
         hasAudioPermission &&
-        !isLibraryLoading &&
-        (songsCount > 0 || albumsCount > 0 || errorMessage != null)
+        (initialWaitTimedOut || !isLibraryLoading &&
+            (scanProgress >= 1f || songsCount > 0 || albumsCount > 0 || errorMessage != null))
 }

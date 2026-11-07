@@ -6,9 +6,8 @@ import android.net.Uri
 import android.os.CancellationSignal
 import android.os.OperationCanceledException
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.job
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resumeWithException
 
 /**
  * Connects coroutine cancellation to providers which may block while opening a cursor.
@@ -22,28 +21,24 @@ internal suspend fun ContentResolver.queryCancellable(
     selectionArgs: Array<String>?,
     sortOrder: String?,
 ): Cursor? {
-    currentCoroutineContext().ensureActive()
-    val signal = CancellationSignal()
-    val cancellationHandle = currentCoroutineContext().job.invokeOnCompletion {
-        signal.cancel()
-    }
-    return try {
-        val cursor = try {
-            query(uri, projection, selection, selectionArgs, sortOrder, signal)
-        } catch (failure: OperationCanceledException) {
-            currentCoroutineContext().ensureActive()
-            throw CancellationException("Content provider query was cancelled").also {
-                it.initCause(failure)
-            }
-        }
-        try {
-            currentCoroutineContext().ensureActive()
-        } catch (cancellation: CancellationException) {
-            cursor?.close()
-            throw cancellation
-        }
-        cursor
-    } finally {
-        cancellationHandle.dispose()
+    return cancellableCursorQuery { signal ->
+        query(uri, projection, selection, selectionArgs, sortOrder, signal)
     }
 }
+
+internal suspend fun cancellableCursorQuery(query: (CancellationSignal) -> Cursor?): Cursor? =
+    suspendCancellableCoroutine { continuation ->
+        val signal = CancellationSignal()
+        continuation.invokeOnCancellation { signal.cancel() }
+        if (!continuation.isActive) return@suspendCancellableCoroutine
+        try {
+            val cursor = query(signal)
+            continuation.resume(cursor) { _, rejectedCursor, _ -> rejectedCursor?.close() }
+        } catch (failure: OperationCanceledException) {
+            continuation.resumeWithException(CancellationException("Content provider query was cancelled").also {
+                it.initCause(failure)
+            })
+        } catch (failure: Exception) {
+            continuation.resumeWithException(failure)
+        }
+    }

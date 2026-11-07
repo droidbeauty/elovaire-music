@@ -169,9 +169,9 @@ internal class MediaMutationJournal(
         recoverBackupLocked(pending, resumingPermission)
     }
 
-    suspend fun clearBackup(mutationId: String): Unit = transitionMutex.withLock {
+    suspend fun clearBackup(mutationId: String, backup: File): Unit = transitionMutex.withLock {
         val current = dao.mutation(mutationId) ?: return@withLock
-        if (current.recoveryBackupPath != null) {
+        if (current.recoveryBackupPath == backup.absolutePath) {
             dao.upsertMutation(current.copy(recoveryBackupPath = null))
         }
     }

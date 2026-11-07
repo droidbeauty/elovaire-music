@@ -216,7 +216,7 @@ private fun DetailListTopBarAnimatedTitle(
     val motionTransitions = rememberMotionTransitions()
     AnimatedContent(
         targetState = title,
-        transitionSpec = { motionTransitions.titleSwapTransform() },
+        transitionSpec = { motionTransitions.topBarTextForwardTransform() },
         label = label,
     ) { currentTitle ->
         Text(

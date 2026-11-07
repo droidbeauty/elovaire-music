@@ -54,6 +54,7 @@ internal class VerifiedMediaFileMutationTransaction(
         var originalOverwriteStarted = false
         var rollbackAttempted = false
         var originalSafe = true
+        var ownsMutation = mutationId == null
 
         suspend fun rollbackIfNeeded() {
             val backup = backupFile ?: return
@@ -77,6 +78,7 @@ internal class VerifiedMediaFileMutationTransaction(
         return try {
             faultInjector.checkpoint(MediaMutationTransactionPhase.AfterJournal)
             mediaMutationJournal?.recoverTarget(song.uri, effectiveMutationId)
+            ownsMutation = true
             mutationRunner.preflight(song)
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PreflightPassed) }
             backupFile = mutationRunner.copySongToTemp(song, "backup")
@@ -109,7 +111,7 @@ internal class VerifiedMediaFileMutationTransaction(
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 rollbackIfNeeded()
-                effectiveMutationId?.let {
+                effectiveMutationId?.takeIf { ownsMutation }?.let {
                     mediaMutationJournal?.mark(
                         it,
                         if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Cancelled,
@@ -119,7 +121,7 @@ internal class VerifiedMediaFileMutationTransaction(
             throw cancelled
         } catch (failure: Exception) {
             rollbackIfNeeded()
-            if (failure !is SecurityException) {
+            if (ownsMutation && failure !is SecurityException) {
                 effectiveMutationId?.let {
                     mediaMutationJournal?.mark(
                         it,
@@ -132,10 +134,12 @@ internal class VerifiedMediaFileMutationTransaction(
         } finally {
             try {
                 if (originalSafe && !rollbackFailed) {
-                    withContext(NonCancellable) {
-                        effectiveMutationId?.let { mediaMutationJournal?.clearBackup(it) }
+                    backupFile?.let { backup ->
+                        withContext(NonCancellable) {
+                            effectiveMutationId?.let { mediaMutationJournal?.clearBackup(it, backup) }
+                        }
+                        backup.delete()
                     }
-                    backupFile?.delete()
                 }
             } finally {
                 workingFile?.delete()
