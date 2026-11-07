@@ -146,6 +146,50 @@ class MediaFileMutationRecoveryTest {
     }
 
     @Test
+    fun rejectedRetryPreservesActiveMutationAndItsRecoveryBackup() = runBlocking {
+        val song = fixtureSong()
+        val runner = MediaFileMutationRunner(context)
+        val backup = runner.copySongToTemp(song, "backup").also(backups::add)
+        val journal = journal()
+        val id = journal.create(operation(song))
+        listOf(MediaMutationStatus.PreflightPassed, MediaMutationStatus.TempWritten, MediaMutationStatus.TempVerified)
+            .forEach { journal.mark(id, it) }
+        journal.retainBackup(id, backup)
+
+        val result = VerifiedMediaFileMutationTransaction(runner, journal, NoOpMediaMutationFaultInjector).execute(
+            song, operation(song), mutationId = id,
+            mutateWorkingCopy = {}, verifyWorkingCopy = {}, verifyPersistedCopy = {},
+        )
+
+        assertTrue(result is VerifiedMediaFileMutationResult.Failure)
+        val pending = checkNotNull(database.mediaMutationDao().mutation(id))
+        assertEquals(MediaMutationStatus.TempVerified.name, pending.status)
+        assertEquals(backup.absolutePath, pending.recoveryBackupPath)
+        assertTrue(backup.exists())
+        journal.close()
+        assertEquals(1, (journal().recoverIncomplete() as MediaMutationRecoveryResult.Success).recoveredCount)
+        assertFalse(backup.exists())
+    }
+
+    @Test
+    fun cleanupCannotClearAnotherBackupsJournalEntry() = runBlocking {
+        val song = fixtureSong()
+        val runner = MediaFileMutationRunner(context)
+        val backup = runner.copySongToTemp(song, "backup").also(backups::add)
+        val other = runner.copySongToTemp(song, "other").also(backups::add)
+        val journal = journal()
+        val id = journal.create(operation(song))
+        listOf(MediaMutationStatus.PreflightPassed, MediaMutationStatus.TempWritten, MediaMutationStatus.TempVerified)
+            .forEach { journal.mark(id, it) }
+        journal.retainBackup(id, backup)
+
+        journal.clearBackup(id, other)
+        assertEquals(backup.absolutePath, database.mediaMutationDao().mutation(id)?.recoveryBackupPath)
+        journal.clearBackup(id, backup)
+        assertNull(database.mediaMutationDao().mutation(id)?.recoveryBackupPath)
+    }
+
+    @Test
     fun failureBeforeWriteCallbackStillRestoresTruncatedProviderFile() = runBlocking {
         val song = fixtureSong()
         val original = read(song.uri)

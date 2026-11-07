@@ -1033,6 +1033,7 @@ internal class RoomUserDataStore(
                 revisionToPublish?.let(::persistLegacyUserDataRevision)
             }
             committed = true
+            playbackHistoryStore.finishWrite(operation.name, committed = true)
             operation.onCommitted()
             revisionToPublish?.let(userDataRevision::set)
             val snapshot = currentSnapshot()
@@ -1059,6 +1060,8 @@ internal class RoomUserDataStore(
             Log.e(TAG, "User-data actor encountered an unrecoverable operation failure: ${operation.name}.", failure)
             operation.completion?.complete(PlaylistMutationResult.Failure("User-data actor failed.", failure))
             throw failure
+        } finally {
+            if (!committed) playbackHistoryStore.finishWrite(operation.name, committed = false)
         }
     }
 

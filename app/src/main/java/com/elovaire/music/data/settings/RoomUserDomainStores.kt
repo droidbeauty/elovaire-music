@@ -91,6 +91,8 @@ internal class RoomPlaybackHistoryStore(
     private val enqueue: (String, suspend () -> Boolean) -> Unit,
 ) : PlaybackHistoryStore {
     private val writeBuffer = PlaybackHistoryWriteBuffer()
+    private var inFlightCounts: PlaybackCountBatch? = null
+    private var inFlightRecent: RecentPlaybackWrite? = null
     private val _albumPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
     override val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
     private val _songPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
@@ -172,19 +174,11 @@ internal class RoomPlaybackHistoryStore(
             .distinct()
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun flushPlaybackCounts(): Boolean {
         val batch = writeBuffer.takeTransitions()
         if (batch.songCounts.isEmpty() && batch.albumCounts.isEmpty()) return false
-        try {
-            dao.incrementPlaybackCounts(batch.songCounts, batch.albumCounts)
-        } catch (failure: CancellationException) {
-            writeBuffer.restoreTransitions(batch)
-            throw failure
-        } catch (failure: RuntimeException) {
-            writeBuffer.restoreTransitions(batch)
-            throw failure
-        }
+        inFlightCounts = batch
+        dao.incrementPlaybackCounts(batch.songCounts, batch.albumCounts)
         if (batch.songCounts.isNotEmpty()) {
             _songPlayCounts.value = _songPlayCounts.value.incrementedBy(batch.songCounts)
         }
@@ -194,7 +188,6 @@ internal class RoomPlaybackHistoryStore(
         return true
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun flushRecentPlayback(): Boolean {
         val pending = writeBuffer.takeRecent() ?: return false
         if (
@@ -203,24 +196,30 @@ internal class RoomPlaybackHistoryStore(
             pending.collectionKind == _lastPlayedCollectionKind.value &&
             pending.collectionId == _lastPlayedCollectionId.value
         ) return false
-        try {
-            dao.replaceRecentPlayback(
-                entries = pending.songIds.toRecentEntities(RECENT_KIND_SONG) +
-                    pending.albumIds.toRecentEntities(RECENT_KIND_ALBUM),
-                state = PlaybackCollectionStateEntity(
-                    kind = pending.collectionKind?.name,
-                    collectionId = pending.collectionId,
-                ),
-            )
-        } catch (failure: CancellationException) {
-            writeBuffer.restoreRecent(pending)
-            throw failure
-        } catch (failure: RuntimeException) {
-            writeBuffer.restoreRecent(pending)
-            throw failure
-        }
+        inFlightRecent = pending
+        dao.replaceRecentPlayback(
+            entries = pending.songIds.toRecentEntities(RECENT_KIND_SONG) +
+                pending.albumIds.toRecentEntities(RECENT_KIND_ALBUM),
+            state = PlaybackCollectionStateEntity(
+                kind = pending.collectionKind?.name,
+                collectionId = pending.collectionId,
+            ),
+        )
         publish(pending.songIds, pending.albumIds, pending.collectionKind, pending.collectionId)
         return true
+    }
+
+    fun finishWrite(name: String, committed: Boolean) {
+        when (name) {
+            "playback.counts" -> {
+                if (!committed) inFlightCounts?.let(writeBuffer::restoreTransitions)
+                inFlightCounts = null
+            }
+            "playback.recent" -> {
+                if (!committed) inFlightRecent?.let(writeBuffer::restoreRecent)
+                inFlightRecent = null
+            }
+        }
     }
 
     private companion object {

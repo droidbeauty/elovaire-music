@@ -323,6 +323,29 @@ class RoomUserDataStoreTest {
     }
 
     @Test
+    fun playbackHistoryRetriesWhenRevisionWriteRollsBackTransaction() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
+        withTimeout(10_000L) { store.userDataReadiness.first { it == UserDataReadiness.Ready } }
+        database.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER fail_revision BEFORE INSERT ON user_data_revision BEGIN SELECT RAISE(ABORT, 'injected failure'); END",
+        )
+        store.recordPlaybackTransition(songId = 7L, albumId = 70L)
+        store.setRecentPlaybackIds(listOf(7L), listOf(70L), PlaybackCollectionKind.Album, 70L)
+        assertTrue(store.createPlaylist("Barrier").await() is PlaylistMutationResult.Failure)
+        assertTrue(database.userDataDao().songPlayCounts().isEmpty())
+        assertTrue(database.userDataDao().recentPlayback().isEmpty())
+
+        database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_revision")
+        assertTrue(store.createPlaylist("Retry").await() is PlaylistMutationResult.Success)
+        assertEquals(1, database.userDataDao().songPlayCounts().single().playCount)
+        assertEquals(1, database.userDataDao().albumPlayCounts().single().playCount)
+        assertEquals(listOf(7L), database.userDataDao().recentPlayback().filter { it.kind == "song" }.map { it.itemId })
+        val drained = CompletableDeferred<Unit>()
+        store.release { drained.complete(Unit) }
+        withTimeout(10_000L) { drained.await() }
+    }
+
+    @Test
     fun userDataRecoverySnapshotRoundTripsAndRejectsCorruption() {
         val fileName = "user_data_recovery_test.json"
         val file = context.filesDir.resolve(fileName)
