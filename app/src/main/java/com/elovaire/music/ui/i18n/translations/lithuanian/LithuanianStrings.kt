@@ -66,8 +66,6 @@ internal object LithuanianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Garsinė knyga neprieinama", "Ši garsinė knyga nebeprieinama", "Atnaujinkite biblioteką ir bandykite dar kartą")
     const val audiobook_localizedAudiobookAuthor_1 = "Nežinomas autorius"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Atverkite Elovaire telefone", "Leiskite prieigą prie muzikos, kad galėtumėte ją naršyti Android Auto", "Pridėkite muzikos telefone, kad galėtumėte ją naršyti Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Patobulinta NAS konfigūracijos, žymų redagavimo ir nustatymų išvaizda", "Pridėtas 11 naujų kalbų palaikymas", "Bendri klaidų taisymai")
-    const val changelog_localizedSetupChangelogItem_1 = "Patobulinta pradinės sąrankos ekrano išvaizda"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Išankstiniai nustatymai", "Išsaugoti", "Nustatymo pavadinimas", "Jūsų nustatymai", "Pakeisti", "Šis pavadinimas jau naudojamas; išsaugojus ankstesnis nustatymas bus pakeistas")
     const val equalizer_preampLabel_1 = "Pirminis stiprinimas"
     const val externalAudio_externalAudioLabel_1 = "Išorinis garso įrašas"

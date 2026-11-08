@@ -26,6 +26,7 @@ internal fun buildSuggestedAlbums(
             albumPlayCounts = albumPlayCounts,
             recentAlbumIdSet = recentAlbumIdSet,
             matches = { it > 0 },
+            comparePlayCount = true,
             comparator = compareBy<IndexedSuggestedAlbumCandidate> { it.playCount }
                 .thenBy { if (it.isRecent) 1 else 0 }
                 .thenBy { it.searchableAlbum.normalizedArtist }
@@ -41,6 +42,7 @@ internal fun buildSuggestedAlbums(
         albumPlayCounts = albumPlayCounts,
         recentAlbumIdSet = recentAlbumIdSet,
         matches = { it == 0 },
+        comparePlayCount = false,
         comparator = compareBy<IndexedSuggestedAlbumCandidate> { if (it.isRecent) 1 else 0 }
             .thenBy { it.searchableAlbum.normalizedArtist }
             .thenBy { it.searchableAlbum.normalizedTitle }
@@ -57,6 +59,7 @@ private fun collectSuggestedAlbums(
     albumPlayCounts: Map<Long, Int>,
     recentAlbumIdSet: Set<Long>,
     matches: (Int) -> Boolean,
+    comparePlayCount: Boolean,
     comparator: Comparator<IndexedSuggestedAlbumCandidate>,
     seen: MutableSet<Long>,
     output: MutableList<Album>,
@@ -69,33 +72,23 @@ private fun collectSuggestedAlbums(
         val album = searchableAlbum.album
         val playCount = albumPlayCounts[album.id] ?: 0
         if (!matches(playCount)) return@forEachIndexed
-        val candidate = IndexedSuggestedAlbumCandidate(
-            searchableAlbum = searchableAlbum,
-            playCount = playCount,
-            isRecent = album.id in recentAlbumIdSet,
-            index = index,
-        )
+        val isRecent = album.id in recentAlbumIdSet
         val existing = heapByAlbumId[album.id]
+        val worst = if (existing == null && heap.size == remaining) requireNotNull(heap.peek()) else null
+        val threshold = existing ?: worst
+        if (threshold != null && compareSuggestedAlbum(
+                searchableAlbum, playCount, isRecent, index, threshold, comparePlayCount,
+            ) >= 0
+        ) return@forEachIndexed
+        val candidate = IndexedSuggestedAlbumCandidate(searchableAlbum, playCount, isRecent, index)
         if (existing != null) {
-            if (comparator.compare(candidate, existing) < 0) {
-                heap.remove(existing)
-                heapByAlbumId[album.id] = candidate
-                heap += candidate
-            }
-            return@forEachIndexed
+            heap.remove(existing)
+        } else if (worst != null) {
+            heap.poll()
+            heapByAlbumId.remove(worst.searchableAlbum.album.id)
         }
-        if (heap.size < remaining) {
-            heapByAlbumId[album.id] = candidate
-            heap += candidate
-        } else {
-            val worst = requireNotNull(heap.peek())
-            if (comparator.compare(candidate, worst) < 0) {
-                heap.poll()
-                heapByAlbumId.remove(worst.searchableAlbum.album.id)
-                heapByAlbumId[album.id] = candidate
-                heap += candidate
-            }
-        }
+        heapByAlbumId[album.id] = candidate
+        heap += candidate
     }
     heap.sortedWith(comparator).forEach { candidate ->
         if (seen.add(candidate.searchableAlbum.album.id)) {
@@ -103,6 +96,26 @@ private fun collectSuggestedAlbums(
         }
     }
     return output.size == 6
+}
+
+private fun compareSuggestedAlbum(
+    album: SearchableAlbum,
+    playCount: Int,
+    isRecent: Boolean,
+    index: Int,
+    other: IndexedSuggestedAlbumCandidate,
+    comparePlayCount: Boolean,
+): Int {
+    if (comparePlayCount) {
+        val byPlayCount = playCount.compareTo(other.playCount)
+        if (byPlayCount != 0) return byPlayCount
+    }
+    val byRecent = isRecent.compareTo(other.isRecent)
+    if (byRecent != 0) return byRecent
+    val byArtist = album.normalizedArtist.compareTo(other.searchableAlbum.normalizedArtist)
+    if (byArtist != 0) return byArtist
+    val byTitle = album.normalizedTitle.compareTo(other.searchableAlbum.normalizedTitle)
+    return if (byTitle != 0) byTitle else index.compareTo(other.index)
 }
 
 internal fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {

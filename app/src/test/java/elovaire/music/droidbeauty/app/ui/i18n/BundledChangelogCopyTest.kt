@@ -10,7 +10,7 @@ import org.junit.Test
 
 class BundledChangelogCopyTest {
     @Test
-    fun everyBundledEntryFollowsEnglishCopyRulesAndHasTranslations() {
+    fun everyBundledEntryFollowsEnglishCopyRulesInEveryAppLanguage() {
         val relativePath = "src/main/res/xml/changelog.xml"
         val source = File(relativePath).takeIf(File::isFile) ?: File("app/$relativePath")
         val parser = DocumentBuilderFactory.newInstance().apply {
@@ -30,7 +30,7 @@ class BundledChangelogCopyTest {
             )
             assertEquals(entry, localizedChangelogItem(entry, AppLanguage.English))
             AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
-                assertFalse("Missing $language translation for: $entry", localizedChangelogItem(entry, language) == entry)
+                assertEquals("Changelog must remain English for $language", entry, localizedChangelogItem(entry, language))
             }
         }
     }

@@ -79,4 +79,33 @@ class NetworkSourceEditorTest {
         rule.onNodeWithContentDescription("Save network source").performClick()
         rule.runOnIdle { assertEquals(1, saves) }
     }
+    @Test
+    fun switchingProtocolsKeepsEnteredConnectionDetails() {
+        val source = NetworkLibrarySource("fixture", "My NAS", NetworkLibraryProtocol.Smb, "nas.example", "Music", "user", "key")
+        var saved: NetworkLibrarySource? = null
+        rule.setContent {
+            ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                LibraryFoldersScreen(
+                    appLanguage = AppLanguage.English,
+                    folders = emptyList(), networkSources = listOf(source), networkProbeResults = emptyMap(),
+                    songs = emptyList(), bottomPadding = 0.dp, onBack = {}, onAddFolder = {},
+                    onAddNetworkSource = { value, _ -> saved = value },
+                    onRemoveFolder = {}, onRemoveNetworkSource = {}, onRefresh = {},
+                )
+            }
+        }
+        rule.onNodeWithText("My NAS").performClick()
+        rule.onNodeWithText("WebDAV HTTPS").performClick().assertIsSelected()
+        rule.onNodeWithText("Domain / workgroup (optional)").assertDoesNotExist()
+        rule.onNodeWithText("nas.example").assertIsDisplayed()
+        rule.onNodeWithText("SMB2/3").performClick().assertIsSelected()
+        rule.onNodeWithText("Music").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Save network source").performClick()
+        rule.runOnIdle {
+            assertEquals(NetworkLibraryProtocol.Smb, saved?.protocol)
+            assertEquals("nas.example", saved?.server)
+            assertEquals("Music", saved?.shareOrPath)
+        }
+    }
+
 }

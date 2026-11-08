@@ -280,18 +280,20 @@ internal fun SettingsScreen(
                             onLanguageSelected = onAppLanguageSelected,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        SettingNavigationRow(
-                            title = homeLayoutTitle(appLanguage),
-                            subtitle = homeLayoutSubtitle(appLanguage),
-                            onClick = onOpenHomeLayout,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = styleCopy.title,
-                            subtitle = styleCopy.subtitle,
-                            onClick = onOpenNowPlayingBarStyle,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SettingNavigationRow(
+                                title = homeLayoutTitle(appLanguage),
+                                subtitle = homeLayoutSubtitle(appLanguage),
+                                onClick = onOpenHomeLayout,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            )
+                            SettingNavigationRow(
+                                title = styleCopy.title,
+                                subtitle = styleCopy.subtitle,
+                                onClick = onOpenNowPlayingBarStyle,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -332,32 +334,34 @@ internal fun SettingsScreen(
                                 .padding(horizontal = 2.dp)
                                 .align(Alignment.CenterHorizontally),
                         )
-                        SettingNavigationRow(
-                            title = copy.crossfadeTitle,
-                            subtitle = crossfadeSummary(
-                                durationMs = crossfadeDurationMs,
-                                silenceThresholdDb = crossfadeSilenceThresholdDb,
-                                language = appLanguage,
-                            ),
-                            onClick = onOpenCrossfade,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = upscalerCopy.title,
-                            subtitle = if (upscalerSettings.enabled) "${upscalerSettings.multiplier}× · ${upscalerCopy.subtitle}" else upscalerCopy.off,
-                            onClick = onOpenUpscaler,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = audiobookCopy.title,
-                            subtitle = audiobookCopy.subtitle,
-                            onClick = onOpenAudiobookSettings,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SettingNavigationRow(
+                                title = copy.crossfadeTitle,
+                                subtitle = crossfadeSummary(
+                                    durationMs = crossfadeDurationMs,
+                                    silenceThresholdDb = crossfadeSilenceThresholdDb,
+                                    language = appLanguage,
+                                ),
+                                onClick = onOpenCrossfade,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp),
+                            )
+                            SettingNavigationRow(
+                                title = upscalerCopy.title,
+                                subtitle = if (upscalerSettings.enabled) "${upscalerSettings.multiplier}× · ${upscalerCopy.subtitle}" else upscalerCopy.off,
+                                onClick = onOpenUpscaler,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            )
+                            SettingNavigationRow(
+                                title = audiobookCopy.title,
+                                subtitle = audiobookCopy.subtitle,
+                                onClick = onOpenAudiobookSettings,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -369,24 +373,26 @@ internal fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SettingNavigationRow(
-                            title = foldersCopy.title,
-                            subtitle = foldersCopy.subtitle,
-                            onClick = onOpenLibraryFolders,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = copy.managePlaylistsTitle,
-                            subtitle = copy.managePlaylistsSubtitle,
-                            onClick = onOpenManagePlaylists,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = smartPlaylistCopy.title,
-                            subtitle = smartPlaylistCopy.subtitle,
-                            onClick = onOpenSmartPlaylistSettings,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SettingNavigationRow(
+                                title = foldersCopy.title,
+                                subtitle = foldersCopy.subtitle,
+                                onClick = onOpenLibraryFolders,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            )
+                            SettingNavigationRow(
+                                title = copy.managePlaylistsTitle,
+                                subtitle = copy.managePlaylistsSubtitle,
+                                onClick = onOpenManagePlaylists,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            )
+                            SettingNavigationRow(
+                                title = smartPlaylistCopy.title,
+                                subtitle = smartPlaylistCopy.subtitle,
+                                onClick = onOpenSmartPlaylistSettings,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            )
+                        }
                         SettingActionRow(
                             title = copy.scanLibrary,
                             subtitle = copy.scanLibrarySubtitle,

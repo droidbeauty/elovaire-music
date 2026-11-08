@@ -63,8 +63,6 @@ internal object UrduTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("آڈیو بک دستیاب نہیں", "یہ آڈیو بک اب دستیاب نہیں ہے", "لائبریری تازہ کر کے دوبارہ کوشش کریں")
     const val audiobook_localizedAudiobookAuthor_1 = "نامعلوم مصنف"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("فون پر Elovaire کھولیں", "Android Auto میں براؤز کرنے کے لیے موسیقی تک رسائی دیں", "Android Auto میں براؤز کرنے کے لیے فون میں موسیقی شامل کریں")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS کی ترتیب، ٹیگ میں ترمیم اور ترتیبات کے لے آؤٹ کی ظاہری بہتری", "11 نئی زبانوں کی معاونت شامل کی گئی", "عمومی خرابیوں کی اصلاح")
-    const val changelog_localizedSetupChangelogItem_1 = "ابتدائی سیٹ اپ اسکرین کی ظاہری بہتری"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("پری سیٹس", "پری سیٹ محفوظ کریں", "پری سیٹ کا نام", "آپ کے پری سیٹس", "تبدیل کریں", "یہ نام پہلے سے استعمال میں ہے؛ محفوظ کرنے سے پرانا پری سیٹ تبدیل ہو جائے گا")
     const val equalizer_preampLabel_1 = "پری ایمپ"
     const val externalAudio_externalAudioLabel_1 = "بیرونی آڈیو"

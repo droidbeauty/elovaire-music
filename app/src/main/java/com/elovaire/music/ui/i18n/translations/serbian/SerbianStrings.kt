@@ -64,8 +64,6 @@ internal object SerbianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Аудио-књига није доступна", "Ова аудио-књига више није доступна", "Освежите библиотеку и покушајте поново")
     const val audiobook_localizedAudiobookAuthor_1 = "Непознат аутор"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Отворите Elovaire на телефону", "Дозволите приступ музици за преглед у Android Auto-у", "Додајте музику на телефон за преглед у Android Auto-у")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Дораде изгледа NAS подешавања, уређивања ознака и распореда подешавања", "Додата подршка за 11 нових језика", "Опште исправке грешака")
-    const val changelog_localizedSetupChangelogItem_1 = "Дораде изгледа екрана за почетно подешавање"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Подешавања", "Сачувај подешавање", "Назив подешавања", "Ваша подешавања", "Замени", "Овај назив се већ користи; чување ће заменити претходно подешавање")
     const val equalizer_preampLabel_1 = "Предпојачање"
     const val externalAudio_externalAudioLabel_1 = "Спољни аудио"

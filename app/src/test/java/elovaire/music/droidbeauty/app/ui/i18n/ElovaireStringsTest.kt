@@ -282,7 +282,7 @@ class ElovaireStringsTest {
     }
 
     @Test
-    fun bundledChangelogEntriesAreLocalizedWithoutChangingUnknownReleaseNotes() {
+    fun changelogEntriesRemainEnglishWithoutChangingUnknownReleaseNotes() {
         val entries = listOf(
             "UI tweaks in NAS configuration, tag editing system and settings layout",
             "Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu",
@@ -291,35 +291,10 @@ class ElovaireStringsTest {
         )
         AppLanguage.entries.forEach { language ->
             entries.forEach { entry ->
-                val translated = localizedChangelogItem(entry, language)
-                assertTrue(translated.isNotBlank())
-                if (language == AppLanguage.English) assertEquals(entry, translated) else assertFalse(translated == entry)
+                assertEquals(entry, localizedChangelogItem(entry, language))
             }
             assertEquals("Unrecognized release note", localizedChangelogItem("Unrecognized release note", language))
-            assertTrue(localizedChangelogItem(entries[1], language).contains("11") || language == AppLanguage.Bengali)
-            if (language != AppLanguage.English) {
-                val separator = if (language == AppLanguage.ChineseSimplified || language == AppLanguage.Japanese) "、" else ", "
-                val names = localizedChangelogItem(entries[1], language).substringAfter(": ").split(separator)
-                assertEquals("Missing language names for $language", 11, names.size)
-                assertTrue(names.all(String::isNotBlank))
-                assertEquals("Duplicate language names for $language", 11, names.distinct().size)
-                if (language in setOf(
-                        AppLanguage.Bengali, AppLanguage.Bulgarian, AppLanguage.ChineseSimplified,
-                        AppLanguage.Greek, AppLanguage.Hindi, AppLanguage.Japanese, AppLanguage.Korean,
-                        AppLanguage.Macedonian, AppLanguage.Punjabi, AppLanguage.Russian, AppLanguage.Serbian,
-                        AppLanguage.Thai, AppLanguage.Ukrainian, AppLanguage.Urdu,
-                    )
-                ) {
-                    names.forEach { name ->
-                        assertTrue("Untranslated language name for $language: $name", name.any { it.code > 127 })
-                    }
-                }
-            }
         }
-        assertEquals("Ogólne poprawki błędów", localizedChangelogItem(entries[2], AppLanguage.Polish))
-        assertEquals("Poprawki wyglądu ekranu konfiguracji początkowej", localizedChangelogItem(entries[3], AppLanguage.Polish))
-        assertEquals("初期設定画面のデザインを調整", localizedChangelogItem(entries[3], AppLanguage.Japanese))
-        assertTrue(localizedChangelogItem(entries[1], AppLanguage.Polish).contains("albański", ignoreCase = true))
     }
 
     @Test

@@ -62,8 +62,6 @@ internal object ChineseSimplifiedTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("有声书不可用", "这本有声书已不可用", "刷新音乐库后重试")
     const val audiobook_localizedAudiobookAuthor_1 = "未知作者"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("在手机上打开 Elovaire", "允许访问音乐，即可在 Android Auto 中浏览", "在手机上添加音乐，即可在 Android Auto 中浏览")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("优化 NAS 配置、标签编辑和设置界面的布局", "新增对 11 种语言的支持", "常规错误修复")
-    const val changelog_localizedSetupChangelogItem_1 = "调整初始设置界面的外观"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("预设", "保存预设", "预设名称", "你的预设", "替换", "此名称已被使用，保存将替换该预设")
     const val equalizer_preampLabel_1 = "前级增益"
     const val externalAudio_externalAudioLabel_1 = "外部音频"

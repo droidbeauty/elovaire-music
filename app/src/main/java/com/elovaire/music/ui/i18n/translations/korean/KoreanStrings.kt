@@ -62,8 +62,6 @@ internal object KoreanTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("오디오북을 사용할 수 없음", "이 오디오북은 더 이상 사용할 수 없습니다", "라이브러리를 새로 고친 후 다시 시도하세요")
     const val audiobook_localizedAudiobookAuthor_1 = "알 수 없는 저자"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("휴대전화에서 Elovaire 열기", "Android Auto에서 탐색하려면 음악 접근을 허용하세요", "Android Auto에서 탐색하려면 휴대전화에 음악을 추가하세요")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS 설정, 태그 편집 및 설정 화면 레이아웃 개선", "새로운 언어 11개 지원 추가", "일반 버그 수정")
-    const val changelog_localizedSetupChangelogItem_1 = "초기 설정 화면 디자인 개선"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("프리셋", "프리셋 저장", "프리셋 이름", "내 프리셋", "교체", "이미 사용 중인 이름입니다. 저장하면 기존 프리셋이 교체됩니다")
     const val equalizer_preampLabel_1 = "프리앰프"
     const val externalAudio_externalAudioLabel_1 = "외부 오디오"

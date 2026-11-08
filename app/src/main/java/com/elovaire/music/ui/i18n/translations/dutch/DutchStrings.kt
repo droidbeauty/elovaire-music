@@ -65,8 +65,6 @@ internal object DutchTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Luisterboek niet beschikbaar", "Dit luisterboek is niet meer beschikbaar", "Vernieuw je bibliotheek en probeer het opnieuw")
     const val audiobook_localizedAudiobookAuthor_1 = "Onbekende auteur"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Open Elovaire op je telefoon", "Geef toegang tot muziek om die in Android Auto te bekijken", "Voeg muziek toe op je telefoon om die in Android Auto te bekijken")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Aanpassingen aan NAS-configuratie, tagbewerking en de indelingen van instellingen", "Ondersteuning voor 11 nieuwe talen toegevoegd", "Algemene foutoplossingen")
-    const val changelog_localizedSetupChangelogItem_1 = "Aanpassingen aan het scherm voor de eerste installatie"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Voorinstellingen", "Voorinstelling opslaan", "Naam voorinstelling", "Je voorinstellingen", "Vervangen", "Deze naam is al in gebruik; opslaan vervangt die voorinstelling")
     const val equalizer_preampLabel_1 = "Voorversterking"
     const val externalAudio_externalAudioLabel_1 = "Externe audio"

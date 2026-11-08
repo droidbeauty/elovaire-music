@@ -63,8 +63,6 @@ internal object DanishTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Lydbog er ikke tilgængelig", "Denne lydbog er ikke længere tilgængelig", "Opdater biblioteket, og prøv igen")
     const val audiobook_localizedAudiobookAuthor_1 = "Ukendt forfatter"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Åbn Elovaire på telefonen", "Giv adgang til musik for at gennemse den i Android Auto", "Føj musik til telefonen for at gennemse den i Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Justeringer af NAS-konfiguration, tagredigering og indstillingernes layout", "Understøttelse af 11 nye sprog er tilføjet", "Generelle fejlrettelser")
-    const val changelog_localizedSetupChangelogItem_1 = "Justeringer af skærmen til første opsætning"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Forudindstillinger", "Gem indstilling", "Indstillingens navn", "Dine indstillinger", "Erstat", "Navnet er allerede i brug; den eksisterende indstilling erstattes")
     const val equalizer_preampLabel_1 = "Forforstærkning"
     const val externalAudio_externalAudioLabel_1 = "Ekstern lyd"

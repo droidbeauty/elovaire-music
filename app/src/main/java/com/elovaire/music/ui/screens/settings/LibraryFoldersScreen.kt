@@ -38,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -719,7 +720,7 @@ private fun NetworkSourceEditorScreen(
                 end = 18.dp,
                 bottom = bottomPadding + 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             networkSourceEditorItems(
                 protocol = protocol,
@@ -795,7 +796,21 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
     probeResult: NetworkProbeResult?,
     onProtocolSelected: (NetworkLibraryProtocol) -> Unit,
 ) {
-    item {
+    item(key = "introduction") {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = copy.nasTitle,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = copy.nasSubtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = readableSecondaryTextColor(),
+            )
+        }
+    }
+    item(key = "protocol") {
         NetworkProtocolSelector(
             selected = protocol,
             onSelected = onProtocolSelected,
@@ -832,6 +847,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             singleLine = true,
         )
     }
+    item(key = "sign_in") {
+        Column(
+            modifier = Modifier.padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            Text(
+                text = copy.signIn,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
     item {
         EditorTextField(
             value = username,
@@ -865,14 +893,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
     }
     probeResult?.let { result ->
         item {
+            val statusColor = when (result.availability) {
+                NetworkAvailability.Available -> MaterialTheme.colorScheme.primary
+                NetworkAvailability.Checking -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.error
+            }
             Text(
                 text = networkProbeMessage(result.availability, copy),
-                color = when (result.availability) {
-                    NetworkAvailability.Available -> MaterialTheme.colorScheme.primary
-                    NetworkAvailability.Checking -> MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> MaterialTheme.colorScheme.error
-                },
-                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(ElovaireRadii.input))
+                    .background(statusColor.copy(alpha = 0.1f))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                color = statusColor,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             )
         }
     }
@@ -897,18 +931,23 @@ private fun NetworkProtocolSelector(
     onSelected: (NetworkLibraryProtocol) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().selectableGroup(),
-        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
+            .padding(4.dp)
+            .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NetworkProtocolChoice(
+            modifier = Modifier.weight(1f),
             protocol = NetworkLibraryProtocol.Smb,
             label = "SMB2/3",
             selected = selected == NetworkLibraryProtocol.Smb,
             onClick = { onSelected(NetworkLibraryProtocol.Smb) },
         )
-        Spacer(modifier = Modifier.size(10.dp))
         NetworkProtocolChoice(
+            modifier = Modifier.weight(1f),
             protocol = NetworkLibraryProtocol.WebDav,
             label = "WebDAV HTTPS",
             selected = selected == NetworkLibraryProtocol.WebDav,
@@ -923,18 +962,13 @@ private fun NetworkProtocolChoice(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(ElovaireRadii.pill))
-            .background(
-                if (selected) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
-                },
-            )
+            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
             .elovaireActionBump(
                 interactionSource = interactionSource,
                 label = "network_protocol_${protocol.name}_bump",
@@ -946,13 +980,15 @@ private fun NetworkProtocolChoice(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .defaultMinSize(minHeight = 48.dp)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
         )
     }
 }

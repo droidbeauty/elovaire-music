@@ -16,9 +16,19 @@ internal object AudiobookCatalog {
             .filter { it.mediaKind == AudioMediaKind.Audiobook }
             .groupBy(::groupKey)
             .mapNotNull { (_, parts) -> buildBook(parts) }
-            .sortedWith(AUDIOBOOK_COMPARATOR)
-            .toList()
+            .let(::sortAudiobooks)
     }
+
+    internal fun sortAudiobooks(books: List<Audiobook>): List<Audiobook> {
+        if (books.size < 2) return books
+        if (books.size < 16) return books.sortedWith(AUDIOBOOK_COMPARATOR)
+        return books.map { book ->
+            SortableBook(book, book.title.lowercase(Locale.ROOT), book.author.lowercase(Locale.ROOT))
+        }.sortedWith(compareBy(SortableBook::title, SortableBook::author, { it.book.stableKey }))
+            .map(SortableBook::book)
+    }
+
+    private data class SortableBook(val book: Audiobook, val title: String, val author: String)
 
     /** Resolves only the book that contains [song], without materializing the catalog. */
     fun findContaining(songs: List<Song>, song: Song): Audiobook? {

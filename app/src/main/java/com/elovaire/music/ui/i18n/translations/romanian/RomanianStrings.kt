@@ -66,8 +66,6 @@ internal object RomanianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Audiocarte indisponibilă", "Această audiocarte nu mai este disponibilă", "Actualizează biblioteca și încearcă din nou")
     const val audiobook_localizedAudiobookAuthor_1 = "Autor necunoscut"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Deschide Elovaire pe telefon", "Permite accesul la muzică pentru a o răsfoi în Android Auto", "Adaugă muzică pe telefon pentru a o răsfoi în Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Ajustări ale interfeței pentru configurarea NAS, editarea etichetelor și setări", "A fost adăugat suport pentru 11 limbi noi", "Remedieri generale de erori")
-    const val changelog_localizedSetupChangelogItem_1 = "Ajustări ale aspectului ecranului de configurare inițială"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Presetări", "Salvează presetarea", "Numele presetării", "Presetările tale", "Înlocuiește", "Numele este deja folosit; salvarea va înlocui presetarea")
     const val equalizer_preampLabel_1 = "Preamplificare"
     const val externalAudio_externalAudioLabel_1 = "Audio extern"

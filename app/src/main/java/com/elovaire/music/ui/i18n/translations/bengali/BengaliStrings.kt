@@ -64,8 +64,6 @@ internal object BengaliTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("অডিওবুক উপলভ্য নয়", "এই অডিওবুক আর উপলভ্য নয়", "লাইব্রেরি রিফ্রেশ করে আবার চেষ্টা করুন")
     const val audiobook_localizedAudiobookAuthor_1 = "অজানা লেখক"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("ফোনে Elovaire খুলুন", "Android Auto-তে ব্রাউজ করতে সঙ্গীত ব্যবহারের অনুমতি দিন", "Android Auto-তে ব্রাউজ করতে ফোনে সঙ্গীত যোগ করুন")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS কনফিগারেশন, ট্যাগ সম্পাদনা ও সেটিংসের বিন্যাসে পরিবর্তন", "১১টি নতুন ভাষার সমর্থন যোগ করা হয়েছে", "সাধারণ ত্রুটি সংশোধন")
-    const val changelog_localizedSetupChangelogItem_1 = "প্রাথমিক সেটআপ স্ক্রিনের চেহারায় পরিবর্তন"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("প্রিসেট", "প্রিসেট সংরক্ষণ", "প্রিসেটের নাম", "আপনার প্রিসেট", "প্রতিস্থাপন", "এই নামটি ইতিমধ্যে ব্যবহৃত হচ্ছে; সংরক্ষণ করলে আগের প্রিসেটটি প্রতিস্থাপিত হবে")
     const val equalizer_preampLabel_1 = "প্রিঅ্যাম্প"
     const val externalAudio_externalAudioLabel_1 = "বাহ্যিক অডিও"

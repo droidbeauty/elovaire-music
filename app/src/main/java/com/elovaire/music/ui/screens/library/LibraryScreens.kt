@@ -1841,43 +1841,41 @@ internal fun LibraryHubScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 20.dp,
-                top = topPadding + 8.dp,
+                top = topPadding + 20.dp,
                 end = 20.dp,
                 bottom = bottomPadding + 12.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             item {
-                ModuleCard {
-                    Column {
-                        LibraryHubRow(
-                            iconResId = R.drawable.ic_lucide_music,
-                            title = common.songs,
-                            detail = "${localizedCountLabel(totalSongs, "song", language)} ${common.inYourLibrary}",
-                            onClick = { onOpenCollection(LibraryCollectionKind.Songs) },
-                        )
-                        DividerLine()
-                        LibraryHubRow(
-                            iconResId = R.drawable.ic_lucide_disc_album,
-                            title = common.albums,
-                            detail = localizedCountLabel(totalAlbums, "album", language),
-                            onClick = { onOpenCollection(LibraryCollectionKind.Albums) },
-                        )
-                        DividerLine()
-                        LibraryHubRow(
-                            iconResId = R.drawable.ic_lucide_mic_vocal,
-                            title = common.artists,
-                            detail = localizedCountLabel(totalArtists, "artist", language),
-                            onClick = { onOpenCollection(LibraryCollectionKind.Artists) },
-                        )
-                        DividerLine()
-                        LibraryHubRow(
-                            iconResId = R.drawable.ic_lucide_guitar,
-                            title = common.genres,
-                            detail = localizedCountLabel(totalGenres, "genre", language),
-                            onClick = { onOpenCollection(LibraryCollectionKind.Genres) },
-                        )
-                    }
+                Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+                    LibraryHubRow(
+                        iconResId = R.drawable.ic_lucide_music,
+                        title = common.songs,
+                        detail = "${localizedCountLabel(totalSongs, "song", language)} ${common.inYourLibrary}",
+                        onClick = { onOpenCollection(LibraryCollectionKind.Songs) },
+                    )
+                    DividerLine()
+                    LibraryHubRow(
+                        iconResId = R.drawable.ic_lucide_disc_album,
+                        title = common.albums,
+                        detail = localizedCountLabel(totalAlbums, "album", language),
+                        onClick = { onOpenCollection(LibraryCollectionKind.Albums) },
+                    )
+                    DividerLine()
+                    LibraryHubRow(
+                        iconResId = R.drawable.ic_lucide_mic_vocal,
+                        title = common.artists,
+                        detail = localizedCountLabel(totalArtists, "artist", language),
+                        onClick = { onOpenCollection(LibraryCollectionKind.Artists) },
+                    )
+                    DividerLine()
+                    LibraryHubRow(
+                        iconResId = R.drawable.ic_lucide_guitar,
+                        title = common.genres,
+                        detail = localizedCountLabel(totalGenres, "genre", language),
+                        onClick = { onOpenCollection(LibraryCollectionKind.Genres) },
+                    )
                 }
             }
 

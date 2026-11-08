@@ -62,8 +62,6 @@ internal object AlbanianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Libri audio nuk është i disponueshëm", "Ky libër audio nuk është më i disponueshëm", "Rifresko bibliotekën dhe provo përsëri")
     const val audiobook_localizedAudiobookAuthor_1 = "Autor i panjohur"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Hap Elovaire në telefon", "Lejo qasjen në muzikë për të shfletuar në Android Auto", "Shto muzikë në telefon për të shfletuar në Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Përmirësime të pamjes së konfigurimit NAS, redaktimit të etiketave dhe cilësimeve", "U shtua mbështetja për 11 gjuhë të reja", "Rregullime të përgjithshme të gabimeve")
-    const val changelog_localizedSetupChangelogItem_1 = "Përmirësime të pamjes së ekranit të konfigurimit fillestar"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Paracaktime", "Ruaj paracaktimin", "Emri i paracaktimit", "Paracaktimet e tua", "Zëvendëso", "Ky emër është në përdorim; ruajtja do të zëvendësojë paracaktimin")
     const val equalizer_preampLabel_1 = "Parapërforcimi"
     const val externalAudio_externalAudioLabel_1 = "Audio e jashtme"

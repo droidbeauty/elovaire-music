@@ -64,8 +64,6 @@ internal object RussianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Аудиокнига недоступна", "Эта аудиокнига больше недоступна", "Обновите библиотеку и попробуйте снова")
     const val audiobook_localizedAudiobookAuthor_1 = "Неизвестный автор"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Откройте Elovaire на телефоне", "Разрешите доступ к музыке для просмотра в Android Auto", "Добавьте музыку на телефон для просмотра в Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Улучшен интерфейс настройки NAS, редактирования тегов и раздела настроек", "Добавлена поддержка 11 новых языков", "Общие исправления ошибок")
-    const val changelog_localizedSetupChangelogItem_1 = "Улучшен внешний вид экрана первоначальной настройки"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Пресеты", "Сохранить пресет", "Название пресета", "Ваши пресеты", "Заменить", "Это название уже используется; сохранение заменит существующий пресет")
     const val equalizer_preampLabel_1 = "Предусиление"
     const val externalAudio_externalAudioLabel_1 = "Внешний аудиофайл"

@@ -63,8 +63,6 @@ internal object PortugueseTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Audiolivro indisponível", "Este audiolivro já não está disponível", "Atualize a biblioteca e tente novamente")
     const val audiobook_localizedAudiobookAuthor_1 = "Autor desconhecido"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Abra o Elovaire no telemóvel", "Permita o acesso à música para a explorar no Android Auto", "Adicione música ao telemóvel para a explorar no Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Ajustes na configuração NAS, na edição de etiquetas e na disposição das definições", "Adicionado suporte para 11 novos idiomas", "Correções gerais de erros")
-    const val changelog_localizedSetupChangelogItem_1 = "Ajustes no ecrã de configuração inicial"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Predefinições", "Guardar", "Nome da predefinição", "As suas predefinições", "Substituir", "Este nome já está em uso; guardar irá substituir essa predefinição")
     const val equalizer_preampLabel_1 = "Pré-amplificação"
     const val externalAudio_externalAudioLabel_1 = "Áudio externo"

@@ -65,8 +65,6 @@ internal object CatalanTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Audiollibre no disponible", "Aquest audiollibre ja no està disponible", "Actualitza la biblioteca i torna-ho a provar")
     const val audiobook_localizedAudiobookAuthor_1 = "Autor desconegut"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Obre Elovaire al telèfon", "Permet l’accés a la música per explorar-la a Android Auto", "Afegeix música al telèfon per explorar-la a Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Retocs de la interfície de configuració NAS, edició d’etiquetes i paràmetres", "S’ha afegit compatibilitat amb 11 idiomes nous", "Correccions generals d’errors")
-    const val changelog_localizedSetupChangelogItem_1 = "Retocs de la pantalla de configuració inicial"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Predefinits", "Desa el predefinit", "Nom del predefinit", "Els teus predefinits", "Substitueix", "Aquest nom ja existeix; en desar-lo se substituirà el predefinit")
     const val equalizer_preampLabel_1 = "Preamplificació"
     const val externalAudio_externalAudioLabel_1 = "Àudio extern"

@@ -63,8 +63,6 @@ internal object BulgarianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Аудиокнигата е недостъпна", "Тази аудиокнига вече не е достъпна", "Обновете библиотеката и опитайте отново")
     const val audiobook_localizedAudiobookAuthor_1 = "Неизвестен автор"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Отворете Elovaire на телефона", "Разрешете достъп до музиката за преглед в Android Auto", "Добавете музика на телефона за преглед в Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Промени в интерфейса за NAS, редактиране на етикети и настройките", "Добавена е поддръжка за 11 нови езика", "Общи поправки на грешки")
-    const val changelog_localizedSetupChangelogItem_1 = "Промени във външния вид на екрана за първоначална настройка"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Настройки", "Запази настройката", "Име на настройката", "Вашите настройки", "Замени", "Името вече се използва; запазването ще замени настройката")
     const val equalizer_preampLabel_1 = "Предусилване"
     const val externalAudio_externalAudioLabel_1 = "Външно аудио"

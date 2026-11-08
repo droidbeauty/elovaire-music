@@ -62,8 +62,6 @@ internal object PunjabiTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("ਆਡੀਓ ਕਿਤਾਬ ਉਪਲਬਧ ਨਹੀਂ", "ਇਹ ਆਡੀਓ ਕਿਤਾਬ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ", "ਲਾਇਬ੍ਰੇਰੀ ਤਾਜ਼ਾ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ")
     const val audiobook_localizedAudiobookAuthor_1 = "ਅਣਜਾਣ ਲੇਖਕ"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("ਫ਼ੋਨ 'ਤੇ Elovaire ਖੋਲ੍ਹੋ", "Android Auto ਵਿੱਚ ਦੇਖਣ ਲਈ ਸੰਗੀਤ ਦੀ ਪਹੁੰਚ ਦਿਓ", "Android Auto ਵਿੱਚ ਦੇਖਣ ਲਈ ਫ਼ੋਨ ਵਿੱਚ ਸੰਗੀਤ ਜੋੜੋ")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS ਸੰਰਚਨਾ, ਟੈਗ ਸੋਧ ਅਤੇ ਸੈਟਿੰਗਾਂ ਦੇ ਖਾਕੇ ਵਿੱਚ ਸੁਧਾਰ", "11 ਨਵੀਆਂ ਭਾਸ਼ਾਵਾਂ ਲਈ ਸਹਾਇਤਾ ਜੋੜੀ ਗਈ", "ਆਮ ਗਲਤੀਆਂ ਠੀਕ ਕੀਤੀਆਂ")
-    const val changelog_localizedSetupChangelogItem_1 = "ਸ਼ੁਰੂਆਤੀ ਸੈਟਅੱਪ ਸਕ੍ਰੀਨ ਦੀ ਦਿੱਖ ਵਿੱਚ ਸੁਧਾਰ"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("ਪ੍ਰੀਸੈੱਟ", "ਪ੍ਰੀਸੈੱਟ ਸੰਭਾਲੋ", "ਪ੍ਰੀਸੈੱਟ ਦਾ ਨਾਮ", "ਤੁਹਾਡੇ ਪ੍ਰੀਸੈੱਟ", "ਬਦਲੋ", "ਇਹ ਨਾਮ ਪਹਿਲਾਂ ਹੀ ਵਰਤਿਆ ਗਿਆ ਹੈ; ਸੰਭਾਲਣ ਨਾਲ ਪੁਰਾਣਾ ਪ੍ਰੀਸੈੱਟ ਬਦਲ ਜਾਵੇਗਾ")
     const val equalizer_preampLabel_1 = "ਪ੍ਰੀਐਂਪ"
     const val externalAudio_externalAudioLabel_1 = "ਬਾਹਰੀ ਆਡੀਓ"

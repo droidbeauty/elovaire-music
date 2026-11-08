@@ -62,8 +62,6 @@ internal object ThaiTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("หนังสือเสียงไม่พร้อมใช้งาน", "หนังสือเสียงเล่มนี้ไม่พร้อมใช้งานแล้ว", "รีเฟรชคลังแล้วลองอีกครั้ง")
     const val audiobook_localizedAudiobookAuthor_1 = "ไม่ทราบผู้แต่ง"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("เปิด Elovaire บนโทรศัพท์", "อนุญาตให้เข้าถึงเพลงเพื่อเรียกดูใน Android Auto", "เพิ่มเพลงในโทรศัพท์เพื่อเรียกดูใน Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("ปรับแต่งหน้าตาการตั้งค่า NAS การแก้ไขแท็ก และการจัดวางการตั้งค่า", "เพิ่มการรองรับภาษาใหม่ 11 ภาษา", "แก้ไขข้อผิดพลาดทั่วไป")
-    const val changelog_localizedSetupChangelogItem_1 = "ปรับแต่งหน้าตาหน้าจอการตั้งค่าเริ่มต้น"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("พรีเซ็ต", "บันทึกพรีเซ็ต", "ชื่อพรีเซ็ต", "พรีเซ็ตของคุณ", "แทนที่", "ชื่อนี้ถูกใช้แล้ว การบันทึกจะแทนที่พรีเซ็ตเดิม")
     const val equalizer_preampLabel_1 = "ปรีแอมป์"
     const val externalAudio_externalAudioLabel_1 = "เสียงภายนอก"

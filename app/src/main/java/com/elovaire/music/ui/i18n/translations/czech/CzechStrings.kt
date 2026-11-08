@@ -66,8 +66,6 @@ internal object CzechTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Audiokniha není dostupná", "Tato audiokniha již není dostupná", "Obnovte knihovnu a zkuste to znovu")
     const val audiobook_localizedAudiobookAuthor_1 = "Neznámý autor"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Otevřete Elovaire v telefonu", "Povolte přístup k hudbě pro procházení v Android Auto", "Přidejte hudbu do telefonu pro procházení v Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Úpravy vzhledu nastavení NAS, úpravy značek a rozložení nastavení", "Přidána podpora 11 nových jazyků", "Obecné opravy chyb")
-    const val changelog_localizedSetupChangelogItem_1 = "Úpravy vzhledu obrazovky úvodního nastavení"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Předvolby", "Uložit předvolbu", "Název předvolby", "Vaše předvolby", "Nahradit", "Tento název se již používá; uložením nahradíte původní předvolbu")
     const val equalizer_preampLabel_1 = "Předzesílení"
     const val externalAudio_externalAudioLabel_1 = "Externí zvuk"

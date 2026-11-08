@@ -63,8 +63,6 @@ internal object SwedishTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Ljudboken är inte tillgänglig", "Den här ljudboken är inte längre tillgänglig", "Uppdatera biblioteket och försök igen")
     const val audiobook_localizedAudiobookAuthor_1 = "Okänd författare"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Öppna Elovaire på telefonen", "Tillåt åtkomst till musik för att bläddra i Android Auto", "Lägg till musik på telefonen för att bläddra i Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Justeringar av NAS-konfiguration, taggredigering och inställningarnas layout", "Stöd för 11 nya språk har lagts till", "Allmänna felrättningar")
-    const val changelog_localizedSetupChangelogItem_1 = "Justeringar av skärmen för första konfigurationen"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Förinställningar", "Spara inställning", "Inställningens namn", "Dina inställningar", "Ersätt", "Namnet används redan; den befintliga inställningen ersätts när du sparar")
     const val equalizer_preampLabel_1 = "Förförstärkning"
     const val externalAudio_externalAudioLabel_1 = "Externt ljud"

@@ -64,8 +64,6 @@ internal object EstonianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Audioraamat pole saadaval", "See audioraamat pole enam saadaval", "Värskenda teeki ja proovi uuesti")
     const val audiobook_localizedAudiobookAuthor_1 = "Tundmatu autor"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Avage telefonis Elovaire", "Android Autos sirvimiseks lubage juurdepääs muusikale", "Android Autos sirvimiseks lisage telefoni muusikat")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS-i seadistuse, siltide muutmise ja sätete paigutuse täiustused", "Lisatud 11 uue keele tugi", "Üldised veaparandused")
-    const val changelog_localizedSetupChangelogItem_1 = "Algseadistuse kuva välimuse täiustused"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Eelseaded", "Salvesta eelseade", "Eelseade nimi", "Sinu eelseaded", "Asenda", "See nimi on juba kasutusel; salvestamine asendab olemasoleva eelseade")
     const val equalizer_preampLabel_1 = "Eelvõimendus"
     const val externalAudio_externalAudioLabel_1 = "Väline heli"

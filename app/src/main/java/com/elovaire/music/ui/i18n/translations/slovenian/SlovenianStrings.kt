@@ -67,8 +67,6 @@ internal object SlovenianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Zvočna knjiga ni na voljo", "Ta zvočna knjiga ni več na voljo", "Osvežite knjižnico in poskusite znova")
     const val audiobook_localizedAudiobookAuthor_1 = "Neznan avtor"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Odprite Elovaire v telefonu", "Dovolite dostop do glasbe za brskanje v Android Autu", "Dodajte glasbo v telefon za brskanje v Android Autu")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Izboljšave videza nastavitev NAS, urejanja oznak in razporeditve nastavitev", "Dodana podpora za 11 novih jezikov", "Splošni popravki napak")
-    const val changelog_localizedSetupChangelogItem_1 = "Izboljšave videza zaslona za začetno nastavitev"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Prednastavitve", "Shrani prednastavitev", "Ime prednastavitve", "Vaše prednastavitve", "Zamenjaj", "Ime je že v uporabi; shranjevanje bo zamenjalo obstoječo prednastavitev")
     const val equalizer_preampLabel_1 = "Predojačanje"
     const val externalAudio_externalAudioLabel_1 = "Zunanji zvok"

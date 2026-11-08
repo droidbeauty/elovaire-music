@@ -62,8 +62,6 @@ internal object JapaneseTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("オーディオブックを利用できません", "このオーディオブックは利用できなくなりました", "ライブラリを更新してもう一度お試しください")
     const val audiobook_localizedAudiobookAuthor_1 = "不明な著者"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("スマートフォンで Elovaire を開く", "Android Auto で閲覧するには音楽へのアクセスを許可してください", "Android Auto で閲覧するにはスマートフォンに音楽を追加してください")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS 設定、タグ編集、設定画面のレイアウトを調整", "新たに11言語に対応", "全般的な不具合を修正")
-    const val changelog_localizedSetupChangelogItem_1 = "初期設定画面のデザインを調整"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("プリセット", "プリセットを保存", "プリセット名", "自分のプリセット", "置き換える", "この名前は使用中です。保存すると既存のプリセットが置き換わります")
     const val equalizer_preampLabel_1 = "プリアンプ"
     const val externalAudio_externalAudioLabel_1 = "外部オーディオ"

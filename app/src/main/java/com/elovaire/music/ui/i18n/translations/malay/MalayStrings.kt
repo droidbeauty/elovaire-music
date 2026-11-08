@@ -62,8 +62,6 @@ internal object MalayTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Buku audio tidak tersedia", "Buku audio ini tidak lagi tersedia", "Segarkan pustaka anda dan cuba lagi")
     const val audiobook_localizedAudiobookAuthor_1 = "Pengarang tidak diketahui"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Buka Elovaire pada telefon", "Benarkan akses muzik untuk menyemak imbas dalam Android Auto", "Tambahkan muzik pada telefon untuk menyemak imbas dalam Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Penambahbaikan rupa konfigurasi NAS, penyuntingan tag dan susun atur tetapan", "Sokongan untuk 11 bahasa baharu ditambah", "Pembaikan pepijat umum")
-    const val changelog_localizedSetupChangelogItem_1 = "Penambahbaikan rupa skrin persediaan awal"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Pratetap", "Simpan pratetap", "Nama pratetap", "Pratetap anda", "Ganti", "Nama ini sudah digunakan; menyimpan akan menggantikan pratetap itu")
     const val equalizer_preampLabel_1 = "Prapenguat"
     const val externalAudio_externalAudioLabel_1 = "Audio luaran"

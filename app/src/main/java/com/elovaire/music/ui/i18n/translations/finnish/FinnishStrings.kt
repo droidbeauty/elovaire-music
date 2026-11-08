@@ -65,8 +65,6 @@ internal object FinnishTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Äänikirja ei ole saatavilla", "Tämä äänikirja ei ole enää saatavilla", "Päivitä kirjasto ja yritä uudelleen")
     const val audiobook_localizedAudiobookAuthor_1 = "Tuntematon kirjailija"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Avaa Elovaire puhelimessa", "Salli musiikin käyttö, jotta voit selata sitä Android Autossa", "Lisää musiikkia puhelimeen, jotta voit selata sitä Android Autossa")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS-asetusten, tunnisteiden muokkauksen ja asetusten asettelun käyttöliittymämuutoksia", "Lisätty tuki 11 uudelle kielelle", "Yleisiä virhekorjauksia")
-    const val changelog_localizedSetupChangelogItem_1 = "Alkuasetusten näytön ulkoasun muutoksia"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Esiasetukset", "Tallenna esiasetus", "Esiasetuksen nimi", "Omat esiasetukset", "Korvaa", "Nimi on jo käytössä; tallentaminen korvaa nykyisen esiasetuksen")
     const val equalizer_preampLabel_1 = "Esivahvistus"
     const val externalAudio_externalAudioLabel_1 = "Ulkoinen äänitiedosto"

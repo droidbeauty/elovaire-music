@@ -66,8 +66,6 @@ internal object LatvianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Audiogrāmata nav pieejama", "Šī audiogrāmata vairs nav pieejama", "Atsvaidzini bibliotēku un mēģini vēlreiz")
     const val audiobook_localizedAudiobookAuthor_1 = "Nezināms autors"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Atveriet Elovaire tālrunī", "Atļaujiet piekļuvi mūzikai, lai to pārlūkotu Android Auto", "Pievienojiet mūziku tālrunī, lai to pārlūkotu Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("NAS konfigurācijas, tagu rediģēšanas un iestatījumu izkārtojuma uzlabojumi", "Pievienots atbalsts 11 jaunām valodām", "Vispārīgi kļūdu labojumi")
-    const val changelog_localizedSetupChangelogItem_1 = "Sākotnējās iestatīšanas ekrāna izskata uzlabojumi"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Priekšiestatījumi", "Saglabāt", "Priekšiestatījuma nosaukums", "Jūsu priekšiestatījumi", "Aizstāt", "Šis nosaukums jau tiek izmantots; saglabājot tiks aizstāts iepriekšējais priekšiestatījums")
     const val equalizer_preampLabel_1 = "Priekšpastiprinājums"
     const val externalAudio_externalAudioLabel_1 = "Ārējs audio"

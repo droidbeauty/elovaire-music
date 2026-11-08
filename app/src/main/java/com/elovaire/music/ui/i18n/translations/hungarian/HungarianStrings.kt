@@ -62,8 +62,6 @@ internal object HungarianTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("A hangoskönyv nem érhető el", "Ez a hangoskönyv már nem érhető el", "Frissítsd a könyvtárat, és próbáld újra")
     const val audiobook_localizedAudiobookAuthor_1 = "Ismeretlen szerző"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Nyisd meg az Elovaire-t a telefonon", "Engedélyezd a zenéhez való hozzáférést, hogy böngészhess a zenék között az Android Auto alkalmazásban", "Adj zenét a telefonhoz, hogy böngészhess a zenék között az Android Auto alkalmazásban")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("A NAS-beállítások, a címkeszerkesztő és a beállítások elrendezésének finomítása", "11 új nyelv támogatása", "Általános hibajavítások")
-    const val changelog_localizedSetupChangelogItem_1 = "A kezdeti beállítás képernyőjének finomítása"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Hangzásprofilok", "Profil mentése", "Profil neve", "Saját profilok", "Felülírás", "Ez a név már használatban van; a mentés felülírja a korábbi profilt")
     const val equalizer_preampLabel_1 = "Előerősítés"
     const val externalAudio_externalAudioLabel_1 = "Külső hangfájl"

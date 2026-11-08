@@ -26,11 +26,12 @@ internal object SmartPlaylistEngine {
             nowMs = nowMs,
         )
         val preparedDefinition = PreparedSmartPlaylist(definition)
-        val matched = songs.asSequence()
-            .filter { it.mediaKind == AudioMediaKind.Music }
-            .map { song -> NormalizedSong.create(song, preparedDefinition.normalizationNeeds) }
-            .filter { it.matches(preparedDefinition, context) }
-            .toList()
+        val matched = ArrayList<NormalizedSong>()
+        for (song in songs) {
+            if (song.mediaKind != AudioMediaKind.Music) continue
+            val normalized = NormalizedSong.create(song, preparedDefinition.normalizationNeeds)
+            if (normalized.matches(preparedDefinition, context)) matched += normalized
+        }
         val sorted = sort(definition, matched, context)
         return SmartPlaylistResult(
             playlist = definition,
@@ -47,6 +48,19 @@ internal object SmartPlaylistEngine {
         nowMs: Long = AndroidAppClock.wallTimeMs(),
     ): List<SmartPlaylistResult> {
         if (definitions.isEmpty()) return emptyList()
+        if (definitions.size == 1) {
+            return listOf(resolve(definitions.single(), songs, favoriteSongIds, playCounts, nowMs))
+        }
+        return resolveAllBatched(definitions, songs, favoriteSongIds, playCounts, nowMs)
+    }
+
+    internal fun resolveAllBatched(
+        definitions: List<SmartPlaylist>,
+        songs: List<Song>,
+        favoriteSongIds: Set<Long>,
+        playCounts: Map<Long, Int>,
+        nowMs: Long,
+    ): List<SmartPlaylistResult> {
         val preparedDefinitions = definitions.map(::PreparedSmartPlaylist)
         val normalizationNeeds = preparedDefinitions
             .map(PreparedSmartPlaylist::normalizationNeeds)

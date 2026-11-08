@@ -63,8 +63,6 @@ internal object GreekTranslations {
     val audiobook_audiobookUnavailableCopy_1 get() = AudiobookUnavailableCopy("Το ηχητικό βιβλίο δεν είναι διαθέσιμο", "Αυτό το ηχητικό βιβλίο δεν είναι πλέον διαθέσιμο", "Ανανεώστε τη βιβλιοθήκη και δοκιμάστε ξανά")
     const val audiobook_localizedAudiobookAuthor_1 = "Άγνωστος συγγραφέας"
     val carMedia_carMediaCopy_1 get() = CarMediaCopy("Ανοίξτε το Elovaire στο τηλέφωνο", "Επιτρέψτε την πρόσβαση στη μουσική για περιήγηση στο Android Auto", "Προσθέστε μουσική στο τηλέφωνο για περιήγηση στο Android Auto")
-    val changelog_localizedChangelogItem_1 get() = ChangelogCopy("Βελτιώσεις στην εμφάνιση της ρύθμισης NAS, της επεξεργασίας ετικετών και των ρυθμίσεων", "Προστέθηκε υποστήριξη για 11 νέες γλώσσες", "Γενικές διορθώσεις σφαλμάτων")
-    const val changelog_localizedSetupChangelogItem_1 = "Βελτιώσεις στην εμφάνιση της οθόνης αρχικής ρύθμισης"
     val equalizer_equalizerCopy_1 get() = EqualizerCopy("Προεπιλογές", "Αποθήκευση", "Όνομα προεπιλογής", "Οι προεπιλογές σου", "Αντικατάσταση", "Αυτό το όνομα χρησιμοποιείται ήδη· η αποθήκευση θα αντικαταστήσει την προεπιλογή")
     const val equalizer_preampLabel_1 = "Προενίσχυση"
     const val externalAudio_externalAudioLabel_1 = "Εξωτερικός ήχος"
