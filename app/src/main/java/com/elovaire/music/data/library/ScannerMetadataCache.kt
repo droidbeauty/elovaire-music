@@ -8,8 +8,10 @@ import java.io.File
 internal class ScannerMetadataCache {
     private val metadata = mutableMapOf<String, CachedSongMetadata>()
 
+    @Synchronized
     operator fun get(mediaUri: String): CachedSongMetadata? = metadata[mediaUri]
 
+    @Synchronized
     fun put(mediaUri: String, cachedMetadata: CachedSongMetadata): CachedSongMetadata {
         val previous = metadata[mediaUri]
         val preservedQuality = cachedMetadata.metadata.quality
@@ -25,10 +27,12 @@ internal class ScannerMetadataCache {
         return stored
     }
 
+    @Synchronized
     fun retainOnly(mediaUris: Set<String>) {
         metadata.keys.retainAll(mediaUris)
     }
 
+    @Synchronized
     fun prime(songs: List<Song>) {
         metadata.clear()
         songs.forEach { song ->
@@ -61,14 +65,17 @@ internal class ScannerMetadataCache {
         }
     }
 
+    @Synchronized
     fun clear() {
         metadata.clear()
     }
 
+    @Synchronized
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (pressure != MemoryPressure.Normal) clear()
     }
 
+    @Synchronized
     fun invalidatePaths(paths: Collection<String>) {
         val normalizedPaths = paths.asSequence()
             .map(String::trim)
@@ -86,6 +93,7 @@ internal class ScannerMetadataCache {
         }
     }
 
+    @Synchronized
     fun invalidateSongIds(songIds: Collection<Long>) {
         if (songIds.isEmpty()) return
         val ids = songIds.toSet()

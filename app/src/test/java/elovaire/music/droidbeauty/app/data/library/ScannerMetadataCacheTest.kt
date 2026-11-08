@@ -8,6 +8,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.concurrent.thread
 
 class ScannerMetadataCacheTest {
     @Test
@@ -57,6 +59,38 @@ class ScannerMetadataCacheTest {
         cache.onMemoryPressure(MemoryPressure.Critical)
 
         assertNull(cache[MediaIdentityResolver.sourceKey(cached)])
+    }
+
+    @Test
+    fun concurrentScanAndInvalidationOperationsRemainSafe() {
+        val cache = ScannerMetadataCache()
+        val failures = ConcurrentLinkedQueue<Throwable>()
+        val workers = List(6) { worker ->
+            thread {
+                try {
+                    repeat(500) { iteration ->
+                        val song = song(
+                            uri = "content://media/external/audio/media/${worker * 500 + iteration + 1}",
+                            title = "Track $iteration",
+                        )
+                        val key = MediaIdentityResolver.sourceKey(song)
+                        when (worker % 4) {
+                            0 -> cache.prime(listOf(song))
+                            1 -> cache[key]
+                            2 -> cache.retainOnly(setOf(key))
+                            else -> cache.invalidateSongIds(listOf(song.id))
+                        }
+                        if (iteration % 100 == 0) cache.prime(listOf(song))
+                    }
+                } catch (failure: Throwable) {
+                    failures += failure
+                }
+            }
+        }
+
+        workers.forEach(Thread::join)
+
+        assertTrue("Concurrent cache operations failed: $failures", failures.isEmpty())
     }
 
     @Test

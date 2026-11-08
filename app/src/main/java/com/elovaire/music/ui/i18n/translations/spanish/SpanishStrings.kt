@@ -187,7 +187,7 @@ internal object SpanishTranslations {
     val privacy_networkSourcesCopy_1 get() = NetworkSourcesCopy("Fuentes de red", "Disponible", "Comprobando…", "Iniciar sesión", "Permitir red local", "Añadir fuente", "Cerrar selector de fuentes", "Elige una carpeta en este dispositivo", "NAS o WebDAV", "Conéctate a una fuente de música de red", "¿Quitar la fuente de red?", "La fuente solo se quitará de la biblioteca. Los archivos de la red no se eliminarán.", "Quitar", "Fuente de red", "Guardar fuente de red", "Nombre", "Servidor", "Servidor HTTPS", "Recurso compartido / ruta", "Ruta", "Nombre de usuario", "Dominio / grupo de trabajo (opcional)", "Contraseña", "Conexión disponible", "Permite el acceso a la red local en los ajustes de Android", "Autenticación necesaria", "No se puede acceder al host", "Comprueba el servidor y la ruta", "La fuente de red no está disponible", "Comprobando la conexión…")
     const val privacy_privacyPolicyCopy_1 = "Política de privacidad"
     val search_nowPlayingBarStyleCopy_1 get() = NowPlayingBarStyleCopy("Estilo de la barra de reproducción", "Personaliza el módulo de reproducción", "Flotante", "Compacto")
-    const val search_nowPlayingStyleDescription_variant_1 = "Un reproductor de borde a borde justo encima de la barra de navegación"
+    const val search_nowPlayingStyleDescription_variant_1 = "Un reproductor a todo lo ancho, justo encima de la barra de navegación"
     const val search_nowPlayingStyleDescription_variant_2 = "Un reproductor flotante sobre la barra de navegación"
     const val search_recentAdditionsEmptyMessage_1 = "Añade música al dispositivo para verla aquí"
     const val search_romanceMatchingCount_variant_1 = "coincidente"

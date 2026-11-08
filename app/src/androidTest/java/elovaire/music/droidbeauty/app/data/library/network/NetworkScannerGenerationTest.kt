@@ -38,11 +38,15 @@ class NetworkScannerGenerationTest {
         val database = Room.inMemoryDatabaseBuilder(context, ElovaireDatabase::class.java).build()
         var replaceCredentials = false
         var failListing = false
+        var removeSourceBeforeFailure = false
         val fileSystem = object : NetworkFileSystem {
             override fun probeBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials) = NetworkProbeResult(NetworkAvailability.Available)
             override fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials, maxEntries: Int, maxDepth: Int): NetworkListingResult {
                 if (replaceCredentials) credentialStore.put(id, source.credentialKey, NetworkCredentials("user", "new"))
-                if (failListing) throw IOException("old connection failed")
+                if (failListing) {
+                    if (removeSourceBeforeFailure) runBlocking { sources.remove(id) }
+                    throw IOException("old connection failed")
+                }
                 return NetworkListingResult.Complete(listOf(NetworkFileEntry("song.mp3", false, sizeBytes = 12, modifiedAtMs = 1)))
             }
             override fun openBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials, path: String, position: Long, length: Long): NetworkReadHandle {
@@ -82,6 +86,12 @@ class NetworkScannerGenerationTest {
             assertEquals(initial.songs, result.songs)
             assertTrue(availability.isEmpty())
             assertEquals(initial.songs, inventory.load(source).map { it.song })
+
+            replaceCredentials = false
+            removeSourceBeforeFailure = true
+            val removedSourceResult = scanner.scanWithStatus(listOf(source), forceRefresh = true, enrichMetadata = false)
+            assertFalse(removedSourceResult.isComplete)
+            assertTrue(removedSourceResult.songs.isEmpty())
         } finally {
             registry.release()
             sources.remove(id)

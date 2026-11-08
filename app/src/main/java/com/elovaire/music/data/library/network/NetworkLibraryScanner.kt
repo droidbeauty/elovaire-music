@@ -100,10 +100,7 @@ internal class NetworkLibraryScanner(
         return try {
             scanSource(source, forceRefresh, enrichMetadata, metadataSemaphore, sourceGeneration, credentialGeneration, transportGeneration)
         } catch (_: NetworkScanSupersededException) {
-            NetworkLibrarySourceScanResult(
-                songs = inventory.load(source).map(NetworkInventoryEntry::song),
-                isComplete = false,
-            )
+            cachedInventoryFallback(source, sourceGeneration)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
@@ -131,8 +128,18 @@ internal class NetworkLibraryScanner(
         failure: Throwable,
     ): NetworkLibrarySourceScanResult {
         publishAvailability(source, sourceGeneration, credentialGeneration, transportGeneration, failure.toProbeResult())
-        val songs = loadNetworkInventoryOrEmpty { inventory.load(source) }
-            .map(NetworkInventoryEntry::song)
+        return cachedInventoryFallback(source, sourceGeneration)
+    }
+
+    private suspend fun cachedInventoryFallback(
+        source: NetworkLibrarySource,
+        sourceGeneration: Long,
+    ): NetworkLibrarySourceScanResult {
+        val songs = if (registry.isCurrent(source, sourceGeneration)) {
+            loadNetworkInventoryOrEmpty { inventory.load(source) }.map(NetworkInventoryEntry::song)
+        } else {
+            emptyList()
+        }
         return NetworkLibrarySourceScanResult(songs, isComplete = false)
     }
 
@@ -168,6 +175,9 @@ internal class NetworkLibraryScanner(
         }
         val hasUnresolvedCachedMetadata = cached.any { !it.song.metadataResolved }
         if (!forceRefresh && inventory.hasFreshListing(source, clock.wallTimeMs())) {
+            if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
+                return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
+            }
             if (!enrichMetadata || !hasUnresolvedCachedMetadata) {
                 return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = true)
             }
@@ -182,13 +192,10 @@ internal class NetworkLibraryScanner(
                 transportGeneration = transportGeneration,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
-            return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
+            return cachedInventoryFallback(source, sourceGeneration)
         }
         val listing = listSourceOrNull(source, sourceGeneration, credentialGeneration, transportGeneration, credentials)
-            ?: return NetworkLibrarySourceScanResult(
-                cached.map(NetworkInventoryEntry::song),
-                isComplete = false,
-            )
+            ?: return cachedInventoryFallback(source, sourceGeneration)
         val entries = listing.entries
         val incompleteReason = (listing as? NetworkListingResult.Incomplete)?.reason
         // A source edit/removal may have completed while the blocking listing was in flight.
@@ -295,7 +302,7 @@ internal class NetworkLibraryScanner(
                 transportGeneration = transportGeneration,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
-            return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
+            return cachedInventoryFallback(source, sourceGeneration)
         }
         if (!isCurrent(source, sourceGeneration, credentialGeneration, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)

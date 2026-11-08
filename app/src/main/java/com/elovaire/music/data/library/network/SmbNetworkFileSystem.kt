@@ -453,12 +453,10 @@ internal class SmbNetworkFileSystem(
         val share: DiskShare,
         private val onClose: () -> Unit,
     ) : AutoCloseable {
-        private var closed = false
+        private val closed = AtomicBoolean(false)
 
         override fun close() {
-            if (closed) return
-            closed = true
-            onClose()
+            if (closed.compareAndSet(false, true)) onClose()
         }
     }
 

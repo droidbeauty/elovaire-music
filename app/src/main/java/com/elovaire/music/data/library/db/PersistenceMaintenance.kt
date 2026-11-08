@@ -86,7 +86,7 @@ internal class PersistenceMaintenance(
     private val userDataDao: UserDataDao? = null,
 ) {
     suspend fun recoverCritical(): Boolean {
-        return mutationRecoveryComplete(mutationJournal.recoverIncomplete())
+        return recoverMutationBatches { mutationJournal.recoverIncomplete() }
     }
 
     suspend fun checkAndPrune(): DatabaseHealth {
@@ -150,8 +150,19 @@ internal class PersistenceMaintenance(
     }
 }
 
-internal fun mutationRecoveryComplete(result: MediaMutationRecoveryResult): Boolean =
-    result is MediaMutationRecoveryResult.Success && result.remainingCount == 0
+internal suspend fun recoverMutationBatches(
+    recoverBatch: suspend () -> MediaMutationRecoveryResult,
+): Boolean {
+    while (true) {
+        when (val result = recoverBatch()) {
+            is MediaMutationRecoveryResult.Failure -> return false
+            is MediaMutationRecoveryResult.Success -> {
+                if (result.remainingCount == 0) return true
+                if (result.recoveredCount == 0) return false
+            }
+        }
+    }
+}
 
 internal fun terminalMutationCutoff(nowMs: Long): Long {
     return (nowMs - TERMINAL_MUTATION_RETENTION_MS).coerceAtLeast(0L)

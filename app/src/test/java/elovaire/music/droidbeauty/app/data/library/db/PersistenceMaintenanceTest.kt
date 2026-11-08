@@ -3,13 +3,39 @@ package elovaire.music.droidbeauty.app.data.library.db
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRecoveryResult
+import kotlinx.coroutines.runBlocking
 
 class PersistenceMaintenanceTest {
     @Test
-    fun unfinishedRecoveryBatchIsNotReportedAsComplete() {
-        assertEquals(false, mutationRecoveryComplete(MediaMutationRecoveryResult.Success(128, 1)))
-        assertEquals(true, mutationRecoveryComplete(MediaMutationRecoveryResult.Success(1, 0)))
-        assertEquals(false, mutationRecoveryComplete(MediaMutationRecoveryResult.Failure(IllegalStateException())))
+    fun criticalRecoveryContinuesAcrossAllSuccessfulBatches() = runBlocking {
+        val batches = ArrayDeque(
+            listOf(
+                MediaMutationRecoveryResult.Success(128, 385),
+                MediaMutationRecoveryResult.Success(128, 257),
+                MediaMutationRecoveryResult.Success(128, 129),
+                MediaMutationRecoveryResult.Success(128, 1),
+                MediaMutationRecoveryResult.Success(1, 0),
+            ),
+        )
+        var calls = 0
+
+        val complete = recoverMutationBatches { calls += 1; batches.removeFirst() }
+
+        assertEquals(true, complete)
+        assertEquals(5, calls)
+    }
+
+    @Test
+    fun criticalRecoveryStopsWhenABatchMakesNoProgress() = runBlocking {
+        var calls = 0
+
+        val complete = recoverMutationBatches {
+            calls += 1
+            MediaMutationRecoveryResult.Success(0, 1)
+        }
+
+        assertEquals(false, complete)
+        assertEquals(1, calls)
     }
 
     @Test

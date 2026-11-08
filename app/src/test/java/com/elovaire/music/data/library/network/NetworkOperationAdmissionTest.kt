@@ -86,4 +86,47 @@ class NetworkOperationAdmissionTest {
         assertEquals(1, inputCloses.get())
         assertEquals(1, handleCloses.get())
     }
+
+    @Test
+    fun registryReleaseAttemptsEachDistinctFileSystemAfterFailure() {
+        val firstFailure = IllegalStateException("first release failed")
+        val first = ReleaseTestFileSystem(firstFailure)
+        val second = ReleaseTestFileSystem()
+
+        assertThrows(IllegalStateException::class.java) {
+            releaseNetworkFileSystems(listOf(first, first, second))
+        }
+
+        assertEquals(1, first.releaseCount)
+        assertEquals(1, second.releaseCount)
+    }
+
+    private class ReleaseTestFileSystem(
+        private val failure: RuntimeException? = null,
+    ) : NetworkFileSystem {
+        var releaseCount = 0
+
+        override fun probeBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials) =
+            NetworkProbeResult(NetworkAvailability.Available)
+
+        override fun listBlocking(
+            source: NetworkLibrarySource,
+            credentials: NetworkCredentials,
+            maxEntries: Int,
+            maxDepth: Int,
+        ) = NetworkListingResult.Complete(emptyList())
+
+        override fun openBlocking(
+            source: NetworkLibrarySource,
+            credentials: NetworkCredentials,
+            path: String,
+            position: Long,
+            length: Long,
+        ) = NetworkReadHandle(InputStream.nullInputStream(), 0L) {}
+
+        override fun release() {
+            releaseCount += 1
+            failure?.let { throw it }
+        }
+    }
 }

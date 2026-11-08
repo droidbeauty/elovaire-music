@@ -338,31 +338,6 @@ internal fun libraryPatchedContentRevision(
     return digest.digest().toHexString()
 }
 
-internal fun libraryIndexContentRevision(
-    snapshot: LibrarySnapshot,
-    filterFingerprint: String,
-    source: String,
-): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-    digest.appendRevisionValue(filterFingerprint)
-    digest.appendRevisionValue(source)
-    if (snapshot.contentRevision.isNotBlank()) {
-        digest.appendRevisionValue(snapshot.contentRevision)
-        return digest.digest().toHexString()
-    }
-    snapshot.songs.forEach { song -> digest.appendLibrarySongRevision(song) }
-    snapshot.albums.forEach { album ->
-        digest.appendRevisionValue(album.id)
-        digest.appendRevisionValue(album.title)
-        digest.appendRevisionValue(album.artist)
-        digest.appendRevisionValue(album.artUri?.toString().orEmpty())
-        digest.appendRevisionValue(album.songCount)
-        digest.appendRevisionValue(album.durationMs)
-        album.songs.forEach { song -> digest.appendRevisionValue(song.id) }
-    }
-    return digest.digest().toHexString()
-}
-
 private fun MessageDigest.appendSongRevision(song: Song) {
     appendRevisionValue(song.id)
     appendRevisionValue(song.title)

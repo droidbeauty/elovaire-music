@@ -249,7 +249,7 @@ internal class NetworkFileSystemRegistry(
             activeHandles.toList().also { activeHandles.clear() }
         }
         handles.forEach { handle -> runCatching { handle.close() } }
-        fileSystems.values.forEach(NetworkFileSystem::release)
+        releaseNetworkFileSystems(fileSystems.values)
     }
 
     private fun checkNotReleased() {
@@ -282,6 +282,20 @@ internal class NetworkFileSystemRegistry(
         NetworkReadPurpose.Artwork -> BackendResourceKind.ActiveNetworkArtworkRead
         NetworkReadPurpose.Listing -> BackendResourceKind.ActiveNetworkRead
     }
+}
+
+internal fun releaseNetworkFileSystems(fileSystems: Collection<NetworkFileSystem>) {
+    var failure: Throwable? = null
+    fileSystems.distinct().forEach { fileSystem ->
+        try {
+            fileSystem.release()
+        } catch (releaseFailure: Throwable) {
+            if (failure == null) failure = releaseFailure else if (failure !== releaseFailure) {
+                failure.addSuppressed(releaseFailure)
+            }
+        }
+    }
+    failure?.let { throw it }
 }
 
 internal fun shouldApplyNetworkConnectivityGeneration(
