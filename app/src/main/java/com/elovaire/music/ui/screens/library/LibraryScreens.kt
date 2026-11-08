@@ -1841,7 +1841,7 @@ internal fun LibraryHubScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 20.dp,
-                top = topPadding + 20.dp,
+                top = topPadding,
                 end = 20.dp,
                 bottom = bottomPadding + 12.dp,
             ),

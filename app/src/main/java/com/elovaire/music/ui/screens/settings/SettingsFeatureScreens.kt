@@ -279,7 +279,7 @@ internal fun SmartPlaylistSettingsScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     SettingsFeatureHeader(title = copy.availableMixes, iconResId = R.drawable.ic_lucide_list_music)
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                         BuiltInSmartPlaylistType.entries.forEach { type ->
                             SettingToggleRow(
                                 title = builtInSmartPlaylistTitle(type, language),

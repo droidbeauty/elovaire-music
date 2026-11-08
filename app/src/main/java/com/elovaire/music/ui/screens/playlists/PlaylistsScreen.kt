@@ -142,7 +142,7 @@ internal fun PlaylistsScreen(
                     .ensureSingleItemRubberBand(gridState),
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = topPadding + selectionTopInset + 12.dp,
+                    top = topPadding + selectionTopInset + if (playlistRows.isEmpty()) 0.dp else 12.dp,
                     end = 20.dp,
                     bottom = 16.dp,
                 ),

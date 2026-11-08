@@ -1,5 +1,10 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +42,8 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.upscalerCopy
 import elovaire.music.droidbeauty.app.ui.i18n.upscalerSetToDefault
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import kotlin.math.roundToInt
 
@@ -49,6 +56,8 @@ internal fun UpscalerScreen(
 ) {
     val copy = upscalerCopy(LocalAppLanguage.current)
     val value = settings.sanitized()
+    val defaults = UpscalerSettings().sanitized()
+    val motionSpecs = rememberMotionSpecs()
     val factors = listOf(2, 4, 8)
     val listState = rememberElovaireLazyListState("upscaler_settings")
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -130,14 +139,21 @@ internal fun UpscalerScreen(
         )
         FastScrollbar(state = listState, topInset = topBarOccupiedHeight() + 8.dp,
             bottomInset = bottomPadding + navigationBarInsetDp() + 104.dp)
-        SettingsActionPill(
-            text = upscalerSetToDefault(LocalAppLanguage.current),
-            iconResId = R.drawable.ic_lucide_rotate_ccw,
-            onClick = { onSettingsChanged(UpscalerSettings()) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
-        )
+        AnimatedVisibility(
+            visible = value != defaults,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.Fast)) +
+                slideInVertically(animationSpec = motionSpecs.tween(MotionDuration.Fast)) { it / 3 },
+            exit = fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
+                slideOutVertically(animationSpec = motionSpecs.tween(MotionDuration.Quick)) { it / 3 },
+        ) {
+            SettingsActionPill(
+                text = upscalerSetToDefault(LocalAppLanguage.current),
+                iconResId = R.drawable.ic_lucide_rotate_ccw,
+                onClick = { if (value != defaults) onSettingsChanged(defaults) },
+                modifier = Modifier.padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
+            )
+        }
     }
 }
 

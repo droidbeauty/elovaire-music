@@ -308,7 +308,7 @@ internal fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
                         SettingActionRow(
                             title = "EQ",
@@ -417,7 +417,7 @@ internal fun SettingsScreen(
             }
             item {
                 ModuleCard {
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                         SettingToggleRow(title = copy.onlineLyricsTitle, subtitle = copy.onlineLyricsSubtitle, enabled = onlineLyricsEnabled, onEnabledChanged = onOnlineLyricsChanged, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingActionRow(title = copy.checkForUpdatesTitle, subtitle = copy.checkForUpdatesSubtitle, actionLabel = updateActionLabel(updateState, appLanguage), actionIconResId = R.drawable.ic_lucide_refresh_cw, enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling, onAction = { if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingNavigationRow(title = privacyPolicyCopy(appLanguage).title, subtitle = privacyPolicySettingsSubtitle(appLanguage), onClick = onOpenPrivacyPolicy, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), testTag = "settings_privacy_policy")

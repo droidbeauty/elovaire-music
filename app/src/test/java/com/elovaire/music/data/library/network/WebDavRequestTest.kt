@@ -1,5 +1,11 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
+import java.io.ByteArrayInputStream
+import java.io.Closeable
+import java.net.HttpURLConnection
+import java.net.URL
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
@@ -9,6 +15,31 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class WebDavRequestTest {
+    @Test
+    fun failedRequestTrackingClosesOpenedMediaStreamAndConnection() {
+        val connection = TrackingHttpURLConnection(URL("https://nas.example/Music/song.mp3"))
+        val tracker = object : BackendResourceTracker {
+            override fun acquire(kind: BackendResourceKind): Closeable = throw IllegalStateException("tracker unavailable")
+            override fun set(kind: BackendResourceKind, count: Int) = Unit
+            override fun adjust(kind: BackendResourceKind, delta: Int) = Unit
+            override fun snapshot(): Map<String, Int> = emptyMap()
+            override fun clear() = Unit
+        }
+        val filesystem = WebDavNetworkFileSystem(resourceTracker = tracker, connectionFactory = { connection })
+        val source = NetworkLibrarySource("id", "NAS", NetworkLibraryProtocol.WebDav,
+            "https://nas.example", "Music", "user", "key")
+
+        try {
+            org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+                filesystem.openBlocking(source, NetworkCredentials("user", "pass"), "Music/song.mp3", 0, -1)
+            }
+            assertEquals(true, connection.streamClosed)
+            assertEquals(true, connection.disconnected)
+        } finally {
+            filesystem.release()
+        }
+    }
+
     @Test
     fun failedChildAndMissingResourceTypeDoNotProduceACompleteListing() {
         val root = """<response><href>/Music/</href><propstat><prop>
@@ -138,5 +169,32 @@ class WebDavRequestTest {
         } finally {
             filesystem.release()
         }
+    }
+
+    private class TrackingHttpURLConnection(url: URL) : HttpURLConnection(url) {
+        var disconnected = false
+        var streamClosed = false
+        private val stream = object : ByteArrayInputStream(byteArrayOf(1, 2, 3)) {
+            override fun close() {
+                streamClosed = true
+                super.close()
+            }
+        }
+
+        override fun connect() {
+            connected = true
+        }
+
+        override fun disconnect() {
+            disconnected = true
+        }
+
+        override fun usingProxy(): Boolean = false
+
+        override fun getResponseCode(): Int = HTTP_OK
+
+        override fun getInputStream(): java.io.InputStream = stream
+
+        override fun getContentLengthLong(): Long = 3L
     }
 }

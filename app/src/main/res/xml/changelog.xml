@@ -11,6 +11,7 @@
         <item>UI tweaks on the initial setup splash screen</item>
         <item>UI tweaks in the library tab</item>
         <item>Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu</item>
+        <item>Technical refinements for reliability of NAS support framework</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

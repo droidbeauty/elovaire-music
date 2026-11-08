@@ -4,6 +4,7 @@ import elovaire.music.droidbeauty.app.platform.readWithProgress
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.Closeable
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -37,6 +38,9 @@ internal class WebDavNetworkFileSystem(
         .readTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
         .writeTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
         .build(),
+    private val connectionFactory: (URL) -> HttpURLConnection = { url ->
+        url.openConnection() as? HttpURLConnection ?: throw IOException("Unsupported WebDAV connection")
+    },
 ) : NetworkFileSystem {
     private val rangeCapabilities = ConcurrentHashMap<String, NetworkRangeCapability>()
     private val activeConnections = ConcurrentHashMap.newKeySet<HttpURLConnection>()
@@ -134,90 +138,93 @@ internal class WebDavNetworkFileSystem(
             path = path,
             range = if (requestsRange) "bytes=$position-${requestedEnd ?: ""}" else null,
         )
-        if (released.get()) {
-            disconnect(connection)
-            throw IllegalStateException("WebDAV file system is released")
-        }
-        val status = connection.responseCode
-        if (status == HTTP_RANGE_NOT_SATISFIABLE) {
-            val totalLength = parseUnsatisfiedContentRange(connection.getHeaderField("Content-Range"))
-            disconnect(connection)
-            if (totalLength != null && position == totalLength) {
-                rangeCapabilities[source.id] = NetworkRangeCapability.Supported
-                return NetworkReadHandle(
-                    input = ByteArrayInputStream(ByteArray(0)),
-                    length = 0L,
-                    closeHandle = {},
-                )
-            }
-            if (totalLength != null && position > totalLength) {
-                throw NetworkRangeException("WebDAV read position is outside the file")
-            }
-            throw IOException("WebDAV media range is not satisfiable")
-        }
-        if (status !in 200..299) {
-            disconnect(connection)
-            throw WebDavHttpException(status)
-        }
-        val responseLength = connection.contentLengthLong.takeIf { it >= 0L }
-        val input: InputStream
-        val handleLength: Long?
-        when (status) {
-            HttpURLConnection.HTTP_PARTIAL -> {
-                val contentRange = parseWebDavContentRange(connection.getHeaderField("Content-Range"))
-                val rangeLength = contentRange?.length
-                val valid = contentRange != null &&
-                    contentRange.start == position &&
-                    rangeLength != null &&
-                    (requestedEnd == null || contentRange.end <= requestedEnd) &&
-                    (responseLength == null || responseLength == rangeLength) &&
-                    (contentRange.totalLength == null || contentRange.end < contentRange.totalLength)
-                if (!valid) {
-                    disconnect(connection)
-                    throw IOException("WebDAV server returned an invalid Content-Range")
-                }
-                rangeCapabilities[source.id] = NetworkRangeCapability.Supported
-                input = connection.openInputStreamOrDisconnect()
-                handleLength = if (length >= 0L) minOf(length, rangeLength) else rangeLength
-            }
-            HttpURLConnection.HTTP_OK -> {
-                if (position > 0L) {
-                    disconnect(connection)
-                    rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
-                    throw NetworkRangeUnsupportedException("WebDAV server did not honor the requested byte range")
-                }
-                if (requestsRange) rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
-                val boundedLength = if (length >= 0L) {
-                    minOf(length, responseLength ?: length)
-                } else {
-                    responseLength
-                }
-                input = connection.openInputStreamOrDisconnect().let { stream ->
-                    if (boundedLength != null) {
-                        limitWebDavRead(stream, boundedLength)
-                    } else {
-                        stream
-                    }
-                }
-                handleLength = boundedLength
-            }
-            else -> {
+        var input: InputStream? = null
+        var requestResource: Closeable? = null
+        try {
+            if (released.get()) throw IllegalStateException("WebDAV file system is released")
+            val status = connection.responseCode
+            if (status == HTTP_RANGE_NOT_SATISFIABLE) {
+                val totalLength = parseUnsatisfiedContentRange(connection.getHeaderField("Content-Range"))
                 disconnect(connection)
-                throw IOException("WebDAV media request returned unsupported HTTP $status")
-            }
-        }
-        val requestResource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
-        return NetworkReadHandle(
-            input = input,
-            length = handleLength,
-            closeHandle = {
-                try {
-                    disconnect(connection)
-                } finally {
-                    requestResource.close()
+                if (totalLength != null && position == totalLength) {
+                    rangeCapabilities[source.id] = NetworkRangeCapability.Supported
+                    return NetworkReadHandle(
+                        input = ByteArrayInputStream(ByteArray(0)),
+                        length = 0L,
+                        closeHandle = {},
+                    )
                 }
-            },
-        )
+                if (totalLength != null && position > totalLength) {
+                    throw NetworkRangeException("WebDAV read position is outside the file")
+                }
+                throw IOException("WebDAV media range is not satisfiable")
+            }
+            if (status !in 200..299) throw WebDavHttpException(status)
+            val responseLength = connection.contentLengthLong.takeIf { it >= 0L }
+            val handleLength: Long?
+            when (status) {
+                HttpURLConnection.HTTP_PARTIAL -> {
+                    val contentRange = parseWebDavContentRange(connection.getHeaderField("Content-Range"))
+                    val rangeLength = contentRange?.length
+                    val valid = contentRange != null &&
+                        contentRange.start == position &&
+                        rangeLength != null &&
+                        (requestedEnd == null || contentRange.end <= requestedEnd) &&
+                        (responseLength == null || responseLength == rangeLength) &&
+                        (contentRange.totalLength == null || contentRange.end < contentRange.totalLength)
+                    if (!valid) throw IOException("WebDAV server returned an invalid Content-Range")
+                    rangeCapabilities[source.id] = NetworkRangeCapability.Supported
+                    input = connection.openInputStreamOrDisconnect()
+                    handleLength = if (length >= 0L) minOf(length, rangeLength) else rangeLength
+                }
+                HttpURLConnection.HTTP_OK -> {
+                    if (position > 0L) {
+                        rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
+                        throw NetworkRangeUnsupportedException("WebDAV server did not honor the requested byte range")
+                    }
+                    if (requestsRange) rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
+                    val boundedLength = if (length >= 0L) {
+                        minOf(length, responseLength ?: length)
+                    } else {
+                        responseLength
+                    }
+                    val stream = connection.openInputStreamOrDisconnect()
+                    input = stream
+                    if (boundedLength != null) input = limitWebDavRead(stream, boundedLength)
+                    handleLength = boundedLength
+                }
+                else -> throw IOException("WebDAV media request returned unsupported HTTP $status")
+            }
+            val activeRequest = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
+            requestResource = activeRequest
+            val handle = NetworkReadHandle(
+                input = checkNotNull(input),
+                length = handleLength,
+                closeHandle = {
+                    try {
+                        disconnect(connection)
+                    } finally {
+                        activeRequest.close()
+                    }
+                },
+            )
+            input = null
+            requestResource = null
+            return handle
+        } catch (failure: Throwable) {
+            try {
+                input?.close()
+            } catch (closeFailure: Throwable) {
+                failure.addSuppressed(closeFailure)
+            }
+            try {
+                requestResource?.close()
+            } catch (closeFailure: Throwable) {
+                failure.addSuppressed(closeFailure)
+            }
+            disconnect(connection)
+            throw failure
+        }
     }
 
     override fun invalidate(sourceId: String) {
@@ -335,19 +342,19 @@ internal class WebDavNetworkFileSystem(
     private fun openConnection(url: URL, credentials: NetworkCredentials): HttpURLConnection {
         checkNotReleased()
         if (!url.protocol.equals("https", ignoreCase = true)) throw IOException("WebDAV requires HTTPS")
-        return (url.openConnection() as? HttpURLConnection)?.apply {
+        return connectionFactory(url).apply {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS
             instanceFollowRedirects = false
             setRequestProperty("Authorization", basicAuth(credentials))
             setRequestProperty("Accept", "application/xml, text/xml, */*")
-        }?.also { connection ->
+        }.also { connection ->
             activeConnections.add(connection)
             if (released.get()) {
                 disconnect(connection)
                 throw IllegalStateException("WebDAV file system is released")
             }
-        } ?: throw IOException("Unsupported WebDAV connection")
+        }
     }
 
     private fun HttpURLConnection.openInputStreamOrDisconnect(): InputStream = try {

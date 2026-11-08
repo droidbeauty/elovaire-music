@@ -169,7 +169,7 @@ internal fun LibraryFoldersScreen(
                     .ensureSingleItemRubberBand(listState),
                 contentPadding = PaddingValues(
                     start = 18.dp,
-                    top = topBarOccupiedHeight() + 80.dp,
+                    top = topBarOccupiedHeight() + 60.dp,
                     end = 18.dp,
                     bottom = bottomPadding + buttonNavigationScrollBoost() + 104.dp,
                 ),
