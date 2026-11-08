@@ -5,6 +5,17 @@
 </p>
 
 <p align="center">
+  Get the latest version of Elovaire for Android
+  <br><br>
+  <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
+    <img
+      alt="Download the latest Elovaire release"
+      src="https://img.shields.io/badge/Download%20the%20latest%20release-2f6f63?style=for-the-badge&logo=android&logoColor=white"
+    />
+  </a>
+</p>
+
+<p align="center">
   An elegant Android music player for the collection you call your own. Browse, search and play your music offline, with album artwork at the heart of the experience
 </p>
 
