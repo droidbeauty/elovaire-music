@@ -106,7 +106,8 @@ internal class AppServices(
         dao = database.mediaMutationDao(),
         backendEventSink = backendEventSink,
         resourceTracker = backendDiagnostics.resources,
-        recoveryRunner = MediaFileMutationRunner(applicationContext),
+        recoveryRunner = MediaFileMutationRunner(applicationContext,
+            networkRegistryProvider = { networkFileSystemRegistryDelegate.value }),
     )
     private val mediaMutationRuntime = MediaMutationRuntime()
     internal val userDataStore = RoomUserDataStore(
@@ -214,6 +215,7 @@ internal class AppServices(
             mediaMutationJournal = mediaMutationJournal,
             mediaMutationRuntime = mediaMutationRuntime,
             ioDispatcher = appDispatchers.io,
+            networkRegistryProvider = { networkFileSystemRegistryDelegate.value },
         )
     }
 
@@ -303,6 +305,7 @@ internal class AppServices(
         coordinator = networkSourceCoordinator,
         library = libraryRepository,
         ioDispatcher = appDispatchers.io,
+        recoverNetworkEdits = { mediaMutationJournal.recoverNetworkIncomplete() },
     ).also { networkLibraryBackend = it }
     private val durableRecoveryRuntime = DurableRecoveryRuntime(
         mediaMutationJournal = mediaMutationJournal,

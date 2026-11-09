@@ -74,8 +74,8 @@ internal fun RootEffectsHost(
     }
     RootSystemBarEffect(
         darkTheme = uiRuntime.shellInputs.darkTheme,
-        showPlayerOverlay = uiRuntime.chromeVisibility.showPlayerOverlay,
-        playerContentColor = uiRuntime.shellInputs.playerAdaptivePalette.contentColor,
+        showPlayerOverlay = playerLayerController.state != PlayerLayerState.Compact,
+        playerBackdropColor = uiRuntime.shellInputs.playerAdaptivePalette.backdropBase,
     )
 }
 

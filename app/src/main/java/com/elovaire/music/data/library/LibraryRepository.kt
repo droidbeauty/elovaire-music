@@ -953,6 +953,7 @@ internal class LibraryRepository internal constructor(
         val editedSongIds = editedSongs.map(Song::id)
         scanJob?.cancel()
         scanner.invalidateMetadataCacheForSongIds(editedSongIds)
+        withContext(ioDispatcher) { scanner.applyVerifiedNetworkTags(editedSongs) }
         val changeSet = commitMutex.withLock {
             val current = _contentState.value
             val patch = snapshotPublisher.patchSongs(

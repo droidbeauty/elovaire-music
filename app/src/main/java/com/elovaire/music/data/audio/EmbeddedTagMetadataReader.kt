@@ -37,7 +37,7 @@ internal class EmbeddedTagMetadataReader(context: Context) {
         return runCatching {
             appContext.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
                 val declaredLength = descriptor.length
-                check(declaredLength < 0L || declaredLength <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
+                check(declaredLength < 0L || declaredLength <= MAX_EMBEDDED_TAG_COPY_BYTES) { "Audio input is too large." }
             }
             appContext.contentResolver.openInputStream(uri)?.use { input ->
                 temp.outputStream().use { output ->
@@ -47,7 +47,7 @@ internal class EmbeddedTagMetadataReader(context: Context) {
                         val read = input.readWithProgress(buffer)
                         if (read < 0) break
                         total += read
-                        check(total <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
+                        check(total <= MAX_EMBEDDED_TAG_COPY_BYTES) { "Audio input is too large." }
                         output.write(buffer, 0, read)
                     }
                 }
@@ -140,7 +140,6 @@ internal class EmbeddedTagMetadataReader(context: Context) {
     }
 
     private companion object {
-        const val MAX_TEMP_COPY_BYTES = 512L * 1024L * 1024L
         const val COPY_BUFFER_BYTES = 64 * 1024
         val YEAR_REGEX = Regex("""\b\d{1,4}\b""")
         val TRACK_GAIN_TAGS = setOf(
@@ -188,3 +187,5 @@ internal class EmbeddedTagMetadataReader(context: Context) {
         }
     }
 }
+
+internal const val MAX_EMBEDDED_TAG_COPY_BYTES = 512L * 1024L * 1024L

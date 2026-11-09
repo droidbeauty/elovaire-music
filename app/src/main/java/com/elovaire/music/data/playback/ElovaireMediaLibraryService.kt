@@ -36,14 +36,14 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
                 val notification = intent.getParcelableExtraCompat<Notification>(EXTRA_NOTIFICATION)
                 val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, DEFAULT_NOTIFICATION_ID)
                 if (notification == null) {
-                    invalidateForegroundRequest(intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L))
-                    stopSelf()
-                } else if (!isCurrentForegroundRequest(
+                    foregroundRequests.invalidate(intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L))
+                    if (!foregroundRequests.hasActiveRequest()) stopSelf(startId)
+                } else if (!foregroundRequests.isCurrentStart(
                         notificationId,
                         intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L),
                     )
                 ) {
-                    stopSelf(startId)
+                    if (!foregroundRequests.hasActiveRequest()) stopSelf(startId)
                 } else {
                     runCatching {
                         ServiceCompat.startForeground(
@@ -53,25 +53,26 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
                             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
                         )
                     }.onSuccess {
-                        markForegroundRequestComplete(
+                        foregroundRequests.completeStart(
                             notificationId,
                             intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L),
                         )
                     }.onFailure { throwable ->
                         logForegroundFailure("Unable to promote media library service", throwable)
-                        invalidateForegroundRequest(
+                        foregroundRequests.invalidate(
                             intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L),
                         )
-                        stopSelf()
+                        if (!foregroundRequests.hasActiveRequest()) stopSelf(startId)
                     }
                 }
             }
 
             ACTION_DEMOTE -> {
-                removeForegroundNotificationOnDestroy = false
-                cancelForegroundRequest()
-                stopForeground(STOP_FOREGROUND_DETACH)
-                stopSelf()
+                if (foregroundRequests.isCurrentDemotion(intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L))) {
+                    removeForegroundNotificationOnDestroy = false
+                    stopForeground(STOP_FOREGROUND_DETACH)
+                    stopSelf(startId)
+                }
             }
 
             Intent.ACTION_MEDIA_BUTTON -> {
@@ -87,7 +88,7 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
         if (removeForegroundNotificationOnDestroy) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         }
-        cancelForegroundRequest()
+        foregroundRequests.serviceDestroyed()
         super.onDestroy()
     }
 
@@ -128,33 +129,14 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
         private const val EXTRA_REQUEST_GENERATION = "elovaire.music.droidbeauty.app.extra.PLAYBACK_REQUEST_GENERATION"
         private const val DEFAULT_NOTIFICATION_ID = 4101
 
-        private val foregroundRequestLock = Any()
-        private var foregroundRequestGeneration = 0L
-        private var pendingForegroundRequest: ForegroundRequest? = null
-
-        @Volatile
-        private var runningNotificationId: Int? = null
-
-        private data class ForegroundRequest(
-            val generation: Long,
-            val notificationId: Int,
-        )
+        private val foregroundRequests = PlaybackForegroundRequests()
 
         fun start(
             context: Context,
             notificationId: Int,
             notification: Notification,
         ) {
-            val generation = synchronized(foregroundRequestLock) {
-                if (runningNotificationId == notificationId ||
-                    pendingForegroundRequest?.notificationId == notificationId
-                ) {
-                    return
-                }
-                foregroundRequestGeneration += 1L
-                pendingForegroundRequest = ForegroundRequest(foregroundRequestGeneration, notificationId)
-                foregroundRequestGeneration
-            }
+            val generation = foregroundRequests.requestStart(notificationId) ?: return
             val intent = Intent(context, ElovaireMediaLibraryService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_NOTIFICATION_ID, notificationId)
@@ -164,34 +146,21 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
             runCatching {
                 ContextCompat.startForegroundService(context, intent)
             }.onFailure { throwable ->
-                synchronized(foregroundRequestLock) {
-                    if (pendingForegroundRequest?.generation == generation) {
-                        pendingForegroundRequest = null
-                    }
-                }
+                foregroundRequests.startDispatchFailed(generation)
                 logForegroundFailure("Unable to start media library foreground service", throwable)
             }
         }
 
         fun stop(context: Context) {
-            cancelForegroundRequest()
+            foregroundRequests.cancel()
             context.stopService(Intent(context, ElovaireMediaLibraryService::class.java))
         }
 
         fun demote(context: Context) {
-            val shouldDemote = synchronized(foregroundRequestLock) {
-                if (runningNotificationId == null && pendingForegroundRequest == null) {
-                    false
-                } else {
-                    foregroundRequestGeneration += 1L
-                    pendingForegroundRequest = null
-                    runningNotificationId = null
-                    true
-                }
-            }
-            if (!shouldDemote) return
+            val generation = foregroundRequests.requestDemotion() ?: return
             val intent = Intent(context, ElovaireMediaLibraryService::class.java).apply {
                 action = ACTION_DEMOTE
+                putExtra(EXTRA_REQUEST_GENERATION, generation)
             }
             runCatching { context.startService(intent) }
                 .onFailure { throwable ->
@@ -199,44 +168,77 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
                 }
         }
 
-        private fun isCurrentForegroundRequest(notificationId: Int, generation: Long): Boolean {
-            return synchronized(foregroundRequestLock) {
-                pendingForegroundRequest?.let {
-                    it.notificationId == notificationId && it.generation == generation
-                } ?: (runningNotificationId == notificationId)
-            }
-        }
-
-        private fun markForegroundRequestComplete(notificationId: Int, generation: Long) {
-            synchronized(foregroundRequestLock) {
-                if (pendingForegroundRequest?.generation == generation) {
-                    pendingForegroundRequest = null
-                    runningNotificationId = notificationId
-                }
-            }
-        }
-
-        private fun invalidateForegroundRequest(generation: Long) {
-            synchronized(foregroundRequestLock) {
-                if (generation == 0L || pendingForegroundRequest?.generation == generation) {
-                    pendingForegroundRequest = null
-                    runningNotificationId = null
-                }
-            }
-        }
-
-        private fun cancelForegroundRequest() {
-            synchronized(foregroundRequestLock) {
-                foregroundRequestGeneration += 1L
-                pendingForegroundRequest = null
-                runningNotificationId = null
-            }
-        }
-
         private fun logForegroundFailure(message: String, throwable: Throwable) {
             if (BuildConfig.DEBUG) Log.w(TAG, message, throwable)
         }
 
         private const val TAG = "MediaLibraryService"
+    }
+}
+
+internal class PlaybackForegroundRequests {
+    private var generation = 0L
+    private var pendingId: Int? = null
+    private var runningId: Int? = null
+
+    @Synchronized
+    fun requestStart(notificationId: Int): Long? {
+        if (runningId == notificationId || pendingId == notificationId) return null
+        generation += 1L
+        pendingId = notificationId
+        return generation
+    }
+
+    @Synchronized
+    fun requestDemotion(): Long? {
+        if (runningId == null && pendingId == null) return null
+        generation += 1L
+        pendingId = null
+        runningId = null
+        return generation
+    }
+
+    @Synchronized
+    fun isCurrentStart(notificationId: Int, requestGeneration: Long): Boolean =
+        requestGeneration == generation && (pendingId == notificationId || runningId == notificationId)
+
+    @Synchronized
+    fun isCurrentDemotion(requestGeneration: Long): Boolean =
+        requestGeneration != 0L && requestGeneration == generation && pendingId == null && runningId == null
+
+    @Synchronized
+    fun completeStart(notificationId: Int, requestGeneration: Long) {
+        if (generation == requestGeneration && pendingId == notificationId) {
+            pendingId = null
+            runningId = notificationId
+        }
+    }
+
+    @Synchronized
+    fun startDispatchFailed(requestGeneration: Long) {
+        if (generation == requestGeneration) pendingId = null
+    }
+
+    @Synchronized
+    fun invalidate(requestGeneration: Long) {
+        if (generation == requestGeneration && pendingId != null) {
+            pendingId = null
+            runningId = null
+        }
+    }
+
+    @Synchronized
+    fun hasActiveRequest(): Boolean = pendingId != null || runningId != null
+
+    @Synchronized
+    fun cancel() {
+        generation += 1L
+        pendingId = null
+        runningId = null
+    }
+
+    @Synchronized
+    fun serviceDestroyed() {
+        runningId = null
     }
 }

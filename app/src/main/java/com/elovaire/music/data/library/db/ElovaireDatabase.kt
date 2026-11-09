@@ -26,7 +26,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LibraryCommitRelocationEntity::class,
         AudiobookProgressEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
@@ -58,6 +58,7 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                     MIGRATION_8_9,
                     MIGRATION_9_10,
                     MIGRATION_10_11,
+                    MIGRATION_11_12,
                 )
                 .build()
         }
@@ -219,6 +220,20 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
         internal val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `media_mutations` ADD COLUMN `recoveryBackupPath` TEXT")
+            }
+        }
+
+        internal val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `media_mutations` ADD COLUMN `recoveryReplacementPath` TEXT")
+                db.execSQL("ALTER TABLE `media_mutations` ADD COLUMN `recoveryNetworkTemporaryPath` TEXT")
+                db.execSQL("ALTER TABLE `media_mutations` ADD COLUMN `recoveryNetworkSourceFingerprint` TEXT")
+                db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `description` TEXT")
+                db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `trackGainDb` REAL")
+                db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `albumGainDb` REAL")
+                db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `trackPeak` REAL")
+                db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `albumPeak` REAL")
+                db.execSQL("UPDATE `network_inventory` SET `metadataResolved` = 0")
             }
         }
     }

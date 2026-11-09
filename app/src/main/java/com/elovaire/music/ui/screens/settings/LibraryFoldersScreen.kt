@@ -716,7 +716,7 @@ private fun NetworkSourceEditorScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
-                top = topBarOccupiedHeight() + 20.dp,
+                top = topBarOccupiedHeight() + 100.dp,
                 end = 18.dp,
                 bottom = bottomPadding + 24.dp,
             ),
@@ -739,6 +739,22 @@ private fun NetworkSourceEditorScreen(
                 onPasswordChange = { password = it },
                 probeResult = probeResult,
                 onProtocolSelected = { protocolName = it.name },
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(start = 18.dp, top = topBarOccupiedHeight() + 20.dp, end = 18.dp)
+                .height(60.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Text(
+                text = copy.nasSubtitle.trimEnd('.'),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         PinnedBackTopBar(
@@ -772,7 +788,7 @@ private fun NetworkSourceEditorScreen(
         )
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 8.dp,
+            topInset = topBarOccupiedHeight() + 100.dp,
             bottomInset = bottomPadding,
         )
     }
@@ -796,20 +812,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
     probeResult: NetworkProbeResult?,
     onProtocolSelected: (NetworkLibraryProtocol) -> Unit,
 ) {
-    item(key = "introduction") {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = copy.nasTitle,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = copy.nasSubtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = readableSecondaryTextColor(),
-            )
-        }
-    }
     item(key = "protocol") {
         NetworkProtocolSelector(
             selected = protocol,
@@ -821,6 +823,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             value = name,
             onValueChange = onNameChange,
             label = copy.name,
+            leadingIconResId = R.drawable.ic_lucide_server,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -831,6 +834,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             value = server,
             onValueChange = onServerChange,
             label = if (protocol == NetworkLibraryProtocol.Smb) copy.server else copy.httpsServer,
+            leadingIconResId = R.drawable.ic_about_globe,
             placeholder = if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -842,6 +846,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             value = path,
             onValueChange = onPathChange,
             label = if (protocol == NetworkLibraryProtocol.Smb) copy.sharePath else copy.path,
+            leadingIconResId = R.drawable.ic_lucide_folder,
             placeholder = if (protocol == NetworkLibraryProtocol.Smb) "Music" else null,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -865,6 +870,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             value = username,
             onValueChange = onUsernameChange,
             label = copy.username,
+            leadingIconResId = R.drawable.ic_lucide_user_round,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -875,6 +881,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
                 value = domain,
                 onValueChange = onDomainChange,
                 label = copy.domainOptional,
+                leadingIconResId = R.drawable.ic_lucide_network,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -885,6 +892,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             value = password,
             onValueChange = onPasswordChange,
             label = copy.password,
+            leadingIconResId = R.drawable.ic_lucide_key_round,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
@@ -967,8 +975,6 @@ private fun NetworkProtocolChoice(
     val interactionSource = rememberElovaireInteractionSource()
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.pill))
-            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
             .elovaireActionBump(
                 interactionSource = interactionSource,
                 label = "network_protocol_${protocol.name}_bump",
@@ -980,16 +986,25 @@ private fun NetworkProtocolChoice(
                 indication = null,
                 onClick = onClick,
             )
-            .defaultMinSize(minHeight = 48.dp)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .defaultMinSize(minHeight = 48.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 8.dp),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceTracker
 import java.io.IOException
+import java.io.File
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.concurrent.Semaphore
@@ -14,6 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 internal sealed interface NetworkListingResult {
     val entries: List<NetworkFileEntry>
@@ -47,6 +50,32 @@ internal interface NetworkFileSystem {
         length: Long,
     ): NetworkReadHandle
 
+    fun replaceBlocking(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        path: String,
+        expectedOriginal: File,
+        replacement: File,
+        operationId: String,
+        recordTemporary: (String) -> Unit,
+        resolveTemporary: () -> Unit,
+        onCommitStarting: () -> Unit,
+    ) {
+        throw IOException("Safe replacement is unavailable for this network protocol")
+    }
+
+    fun cleanupTemporaryBlocking(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        targetPath: String,
+        temporaryPath: String,
+        operationId: String,
+        expectedFiles: List<File>,
+        onDeleteStarting: () -> Unit,
+    ) {
+        throw IOException("Safe network cleanup is unavailable for this protocol")
+    }
+
     fun invalidate(sourceId: String) = Unit
 
     fun invalidateAll() = Unit
@@ -68,6 +97,8 @@ internal class NetworkFileSystemRegistry(
     private val activeHandles = Collections.newSetFromMap(IdentityHashMap<NetworkReadHandle, Boolean>())
     private val permissionAllowed = AtomicBoolean(localNetworkAccessAllowed())
     private val networkGeneration = AtomicLong(0L)
+    private val _recoveryGeneration = MutableStateFlow(0L)
+    val recoveryGeneration = _recoveryGeneration.asStateFlow()
     private val connectivityStateLock = Any()
     private val connectivityObserver = applicationContext?.let { context ->
         NetworkConnectivityObserver(
@@ -86,7 +117,12 @@ internal class NetworkFileSystemRegistry(
                         true
                     }
                 }
-                if (accepted) invalidateAll()
+                if (accepted) {
+                    invalidateAll()
+                    if (state.networkAvailable && !state.networkBlocked && state.localNetworkAccessAllowed) {
+                        _recoveryGeneration.value = state.generation
+                    }
+                }
             },
         )
     }
@@ -136,6 +172,80 @@ internal class NetworkFileSystemRegistry(
             } finally {
                 resource.close()
             }
+        }
+    }
+
+    fun replaceBlocking(
+        sourceId: String,
+        path: String,
+        expectedOriginal: File,
+        replacement: File,
+        operationId: String,
+        expectedSourceFingerprint: String,
+        recordTemporary: (String) -> Unit,
+        resolveTemporary: () -> Unit,
+        onCommitStarting: () -> Unit,
+    ) {
+        checkNotReleased()
+        checkLocalNetworkAccess()
+        val transportGeneration = networkGeneration.get()
+        val source = source(sourceId) ?: throw IOException("Network library source is unavailable")
+        if (NetworkSourceIdentity.locationFingerprint(source) != expectedSourceFingerprint) {
+            throw IOException("Network library source changed during editing")
+        }
+        val sourceGeneration = sourceGeneration(sourceId)
+        val credentialGeneration = credentialStore.generation(source.credentialKey)
+        val credentials = credentials(source) ?: throw IOException("Network library credentials are unavailable")
+        fun requireCurrent() {
+            checkNotReleased()
+            checkLocalNetworkAccess()
+            if (!isCurrent(source, sourceGeneration) ||
+                credentialStore.generation(source.credentialKey) != credentialGeneration ||
+                networkGeneration.get() != transportGeneration
+            ) throw IOException("Network library source changed during editing")
+        }
+        operationAdmission.withPermit(NetworkReadPurpose.Metadata) {
+            requireCurrent()
+            val fileSystem = fileSystems[source.protocol] ?: throw IOException("Network protocol is unavailable")
+            fileSystem.replaceBlocking(source, credentials, path, expectedOriginal, replacement, operationId,
+                recordTemporary, resolveTemporary) {
+                requireCurrent()
+                onCommitStarting()
+            }
+        }
+    }
+
+    fun cleanupTemporaryBlocking(
+        sourceId: String,
+        targetPath: String,
+        temporaryPath: String,
+        operationId: String,
+        expectedSourceFingerprint: String,
+        expectedFiles: List<File>,
+    ) {
+        checkNotReleased()
+        checkLocalNetworkAccess()
+        val transportGeneration = networkGeneration.get()
+        val source = source(sourceId) ?: throw IOException("Network library source is unavailable")
+        if (NetworkSourceIdentity.locationFingerprint(source) != expectedSourceFingerprint) {
+            throw IOException("Network library source changed during recovery")
+        }
+        val sourceGeneration = sourceGeneration(sourceId)
+        val credentialGeneration = credentialStore.generation(source.credentialKey)
+        val credentials = credentials(source) ?: throw IOException("Network library credentials are unavailable")
+        fun requireCurrent() {
+            checkNotReleased()
+            checkLocalNetworkAccess()
+            if (!isCurrent(source, sourceGeneration) ||
+                credentialStore.generation(source.credentialKey) != credentialGeneration ||
+                networkGeneration.get() != transportGeneration
+            ) throw IOException("Network library source changed during recovery")
+        }
+        operationAdmission.withPermit(NetworkReadPurpose.Metadata) {
+            requireCurrent()
+            val fileSystem = fileSystems[source.protocol] ?: throw IOException("Network protocol is unavailable")
+            fileSystem.cleanupTemporaryBlocking(source, credentials, targetPath, temporaryPath, operationId,
+                expectedFiles, ::requireCurrent)
         }
     }
 

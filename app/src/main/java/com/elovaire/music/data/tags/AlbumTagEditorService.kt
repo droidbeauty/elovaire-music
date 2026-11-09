@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
+import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
 import elovaire.music.droidbeauty.app.data.audio.EmbeddedDescriptionMetadata
@@ -26,6 +27,8 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.data.mutation.VerifiedMediaFileMutationResult
 import elovaire.music.droidbeauty.app.data.mutation.VerifiedMediaFileMutationTransaction
+import elovaire.music.droidbeauty.app.data.library.network.NetworkFileSystemRegistry
+import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import elovaire.music.droidbeauty.app.platform.ContentIo
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
@@ -127,12 +130,13 @@ internal class AlbumTagEditorService(
     mediaMutationRuntime: MediaMutationRuntime? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
+    networkRegistryProvider: (() -> NetworkFileSystemRegistry)? = null,
 ) : AlbumTagEditor, TagMutationEditor {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val contentIo = ContentIo(contentResolver)
     private val audioFormatDetector = AudioFormatDetector(appContext)
-    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME, faultInjector)
+    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME, faultInjector, networkRegistryProvider)
     private val mutationTransaction = VerifiedMediaFileMutationTransaction(
         mutationRunner = mutationRunner,
         mediaMutationJournal = mediaMutationJournal,
@@ -192,11 +196,13 @@ internal class AlbumTagEditorService(
                 },
             )
         }
+        val detectedFormats = mutableMapOf<Long, DetectedAudioFormat?>()
         val preflightFailures = plans.mapNotNull { plan ->
             preflightFailure(
                 plan = plan,
                 hasArtwork = coverArtBytes != null,
                 writeConsentGranted = writeConsentGranted,
+                detectedFormats = detectedFormats,
             )
         }
         if (preflightFailures.isNotEmpty()) {
@@ -216,6 +222,7 @@ internal class AlbumTagEditorService(
                 coverArtBytes = coverArtBytes,
                 coverArtMimeType = coverArtMimeType,
                 writeConsentGranted = writeConsentGranted,
+                detectedFormat = detectedFormats[plan.song.id],
             )
             result.editedSong?.let { song ->
                 editedSongIds += song.id
@@ -244,6 +251,7 @@ internal class AlbumTagEditorService(
         coverArtBytes: ByteArray?,
         coverArtMimeType: String?,
         writeConsentGranted: Boolean,
+        detectedFormat: DetectedAudioFormat?,
     ): SingleTagEditResult {
         val song = plan.song
         val trackEdit = plan.trackEdit
@@ -257,9 +265,6 @@ internal class AlbumTagEditorService(
                 displayName = song.fileName,
             ),
         )
-        val detectedFormat = song.fileName
-            .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
-            ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
         if (AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
             val capability = AudioFormatPolicy.capabilityForFileName(song.fileName)
             logDebug("Skipped unsafe tag write for ${song.fileName}: ${capability?.notes ?: "unknown format"}")
@@ -469,12 +474,11 @@ internal class AlbumTagEditorService(
         plan: TagEditPlan,
         hasArtwork: Boolean,
         writeConsentGranted: Boolean,
+        detectedFormats: MutableMap<Long, DetectedAudioFormat?>,
     ): TagEditFailure? {
         val song = plan.song
         val preflight = runCatching {
-            val detectedFormat = song.fileName
-                .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
-                ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
+            val detectedFormat = detectFormat(song)
             check(AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) == TagWriteSupport.Safe) {
                 "This audio format cannot be tagged safely."
             }
@@ -482,6 +486,7 @@ internal class AlbumTagEditorService(
                 "Artwork cannot be embedded safely in this audio format."
             }
             mutationRunner.preflight(song)
+            detectedFormats[song.id] = detectedFormat
         }
         preflight.exceptionOrNull()?.let { if (it is CancellationException) throw it }
         val failure = preflight.exceptionOrNull() ?: run {
@@ -506,6 +511,17 @@ internal class AlbumTagEditorService(
             reason = message.ifBlank { "This song is not ready for safe tag editing." },
             cause = cause,
         )
+    }
+
+    private fun detectFormat(song: Song): DetectedAudioFormat? {
+        if (!AudioFormatPolicy.requiresContainerValidation(song.fileName.substringAfterLast('.', ""))) return null
+        if (!NetworkResourceUri.isNetworkUri(song.uri)) return audioFormatDetector.detect(song.uri, song.fileName, null)
+        val temporary = mutationRunner.copySongToTemp(song, "probe")
+        return try {
+            audioFormatDetector.detect(Uri.fromFile(temporary), song.fileName, null)
+        } finally {
+            temporary.delete()
+        }
     }
 
     private fun logPhase(

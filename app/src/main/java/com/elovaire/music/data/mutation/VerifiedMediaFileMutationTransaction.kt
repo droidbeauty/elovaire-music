@@ -2,10 +2,14 @@ package elovaire.music.droidbeauty.app.data.mutation
 
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 
 internal sealed interface VerifiedMediaFileMutationResult<out T> {
     data class Success<T>(val value: T, val mutationId: String?) : VerifiedMediaFileMutationResult<T>
@@ -55,6 +59,26 @@ internal class VerifiedMediaFileMutationTransaction(
         var rollbackAttempted = false
         var originalSafe = true
         var ownsMutation = mutationId == null
+        val networkTarget = NetworkResourceUri.isNetworkUri(song.uri)
+        var networkFingerprint: String? = null
+        var networkTemporary: String? = null
+        var retainWorkingFile = false
+
+        fun networkContext(expected: File, id: String, fingerprint: String): NetworkMutationContext =
+            NetworkMutationContext(
+                expectedOriginal = expected,
+                operationId = id,
+                sourceFingerprint = fingerprint,
+                recordTemporary = { path ->
+                    runBlocking { checkNotNull(mediaMutationJournal).recordNetworkTemporary(checkNotNull(effectiveMutationId), path) }
+                    networkTemporary = path
+                },
+                resolveTemporary = {
+                    val path = checkNotNull(networkTemporary)
+                    runBlocking { checkNotNull(mediaMutationJournal).resolveNetworkTemporary(checkNotNull(effectiveMutationId), path) }
+                    networkTemporary = null
+                },
+            )
 
         suspend fun rollbackIfNeeded() {
             val backup = backupFile ?: return
@@ -63,13 +87,35 @@ internal class VerifiedMediaFileMutationTransaction(
             rollbackFailed = runMediaMutationRollback(
                 onAbort = { rollbackFailed = true },
             ) {
-                // Opening a provider in a truncating mode can change it before the
-                // write callback runs. Verify that boundary before discarding recovery bytes.
-                if (originalOverwriteStarted || !mutationRunner.originalMatchesBackup(song.uri, backup)) {
-                    effectiveMutationId?.let { mediaMutationJournal?.prepareRollback(it) }
-                    faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
-                    mutationRunner.overwriteOriginal(song.uri, backup)
-                    mutationRunner.verifyOriginalBytes(song.uri, backup)
+                if (networkTarget) {
+                    val fingerprint = checkNotNull(networkFingerprint)
+                    check(mutationRunner.networkSourceFingerprint(song.uri) == fingerprint) {
+                        "The network source changed before rollback."
+                    }
+                    if (!mutationRunner.originalMatchesBackup(song.uri, backup)) {
+                        val replacement = checkNotNull(workingFile)
+                        if (networkTemporary != null || !mutationRunner.originalMatchesBackup(song.uri, replacement)) {
+                            throw IOException("The network file needs recovery before it can be restored.")
+                        }
+                        val id = checkNotNull(effectiveMutationId)
+                        mediaMutationJournal?.prepareRollback(id)
+                        faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
+                        mutationRunner.overwriteOriginal(
+                            song.uri,
+                            backup,
+                            networkContext(replacement, "rollback-$id", fingerprint),
+                        )
+                        mutationRunner.verifyOriginalBytes(song.uri, backup)
+                    }
+                } else {
+                    // Opening a provider in a truncating mode can change it before the
+                    // write callback runs. Verify that boundary before discarding recovery bytes.
+                    if (originalOverwriteStarted || !mutationRunner.originalMatchesBackup(song.uri, backup)) {
+                        effectiveMutationId?.let { mediaMutationJournal?.prepareRollback(it) }
+                        faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
+                        mutationRunner.overwriteOriginal(song.uri, backup)
+                        mutationRunner.verifyOriginalBytes(song.uri, backup)
+                    }
                 }
             }
             if (!rollbackFailed) originalSafe = true
@@ -79,11 +125,16 @@ internal class VerifiedMediaFileMutationTransaction(
             faultInjector.checkpoint(MediaMutationTransactionPhase.AfterJournal)
             mediaMutationJournal?.recoverTarget(song.uri, effectiveMutationId)
             ownsMutation = true
+            if (networkTarget) {
+                checkNotNull(mediaMutationJournal) { "Network editing requires a durable mutation journal." }
+                checkNotNull(effectiveMutationId) { "Network editing requires a mutation identifier." }
+                networkFingerprint = mutationRunner.networkSourceFingerprint(song.uri)
+            }
             mutationRunner.preflight(song)
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PreflightPassed) }
             backupFile = mutationRunner.copySongToTemp(song, "backup")
             stage = MediaMutationStage.TempWrite
-            workingFile = mutationRunner.createTempFile(song, "working").also { file ->
+            workingFile = mutationRunner.createTempFile(song, if (networkTarget) "network-working" else "working").also { file ->
                 mutationRunner.copyFileDurably(backupFile, file)
             }
             stage = MediaMutationStage.WorkingMutation
@@ -92,13 +143,25 @@ internal class VerifiedMediaFileMutationTransaction(
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.TempWritten) }
             stage = MediaMutationStage.WorkingVerification
             verifyWorkingCopy(workingFile)
+            if (networkTarget) FileOutputStream(workingFile, true).use { it.fd.sync() }
             faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingVerified)
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.TempVerified) }
-            effectiveMutationId?.let { mediaMutationJournal?.retainBackup(it, backupFile) }
+            effectiveMutationId?.let {
+                mediaMutationJournal?.retainBackup(
+                    it,
+                    backupFile,
+                    networkReplacement = workingFile.takeIf { networkTarget },
+                    networkSourceFingerprint = networkFingerprint,
+                )
+                retainWorkingFile = networkTarget
+            }
 
             stage = MediaMutationStage.OriginalOverwrite
             originalSafe = false
-            mutationRunner.overwriteOriginal(song.uri, workingFile) { originalOverwriteStarted = true }
+            val replacementContext = if (networkTarget) {
+                networkContext(backupFile, checkNotNull(effectiveMutationId), checkNotNull(networkFingerprint))
+            } else null
+            mutationRunner.overwriteOriginal(song.uri, workingFile, replacementContext) { originalOverwriteStarted = true }
             effectiveMutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Committed) }
 
             stage = MediaMutationStage.PersistedVerification
@@ -133,16 +196,17 @@ internal class VerifiedMediaFileMutationTransaction(
             VerifiedMediaFileMutationResult.Failure(failure, effectiveMutationId, stage, rollbackFailed)
         } finally {
             try {
-                if (originalSafe && !rollbackFailed) {
+                if (originalSafe && !rollbackFailed && networkTemporary == null) {
                     backupFile?.let { backup ->
                         withContext(NonCancellable) {
                             effectiveMutationId?.let { mediaMutationJournal?.clearBackup(it, backup) }
                         }
                         backup.delete()
+                        retainWorkingFile = false
                     }
                 }
             } finally {
-                workingFile?.delete()
+                if (!retainWorkingFile) workingFile?.delete()
                 persistedFile?.delete()
                 checkpointCleanup()
             }

@@ -2,7 +2,11 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
+import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadata
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
+import elovaire.music.droidbeauty.app.data.library.platformMetadataGenre
+import elovaire.music.droidbeauty.app.data.library.platformMetadataNumber
+import elovaire.music.droidbeauty.app.data.library.platformMetadataYear
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import kotlinx.coroutines.CancellationException
@@ -17,6 +21,26 @@ import org.junit.rules.TemporaryFolder
 class NetworkLibraryScannerTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
+
+    @Test
+    fun networkPlatformFallbackUsesLocalGenreNumberAndYearRules() {
+        assertEquals("Rock", platformMetadataGenre(" Rock / Rock; Other "))
+        assertEquals(3, platformMetadataNumber(" 3 / 12"))
+        assertEquals(2024, platformMetadataYear(null) { "2024-05-01" })
+        assertEquals(2020, platformMetadataYear("2020") { error("Date should not be read") })
+    }
+
+    @Test
+    fun networkMetadataPrefersTheSameEmbeddedTagsAsLocalMetadata() {
+        val platform = NetworkMetadataReadResult(
+            succeeded = true, durationMs = null, title = "Platform title", artist = "Platform artist",
+            albumArtist = null, album = null, releaseYear = null, genre = null, trackNumber = null,
+            discNumber = null, embedded = EmbeddedTagMetadata(title = "Embedded title", artist = "Embedded artist"),
+        )
+        val resolved = platform.resolveMetadata(MetadataSourceValues(title = "Filename"))
+        assertEquals("Embedded title", resolved.title)
+        assertEquals("Embedded artist", resolved.artist)
+    }
 
     @Test
     fun legacyNetworkCacheHasAnExplicitReadBudget() {

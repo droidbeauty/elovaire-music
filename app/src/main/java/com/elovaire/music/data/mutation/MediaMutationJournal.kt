@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.data.mutation
 import android.net.Uri
 import elovaire.music.droidbeauty.app.data.library.db.MediaMutationDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
+import elovaire.music.droidbeauty.app.data.library.network.NetworkPathPolicy
+import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
@@ -22,11 +24,14 @@ import elovaire.music.droidbeauty.app.domain.kernel.isTerminal
 import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
 import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.runBlocking
 import java.io.Closeable
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 
@@ -148,7 +153,12 @@ internal class MediaMutationJournal(
         error: String? = null,
     ): Unit = transitionMutex.withLock { markLocked(mutationId, status, error) }
 
-    suspend fun retainBackup(mutationId: String, backup: File): Unit = transitionMutex.withLock {
+    suspend fun retainBackup(
+        mutationId: String,
+        backup: File,
+        networkReplacement: File? = null,
+        networkSourceFingerprint: String? = null,
+    ): Unit = transitionMutex.withLock {
         val current = checkNotNull(dao.mutation(mutationId))
         check(current.status == MediaMutationStatus.TempVerified.name && current.recoveryBackupPath == null) {
             "The media mutation is not ready to replace the original."
@@ -156,7 +166,34 @@ internal class MediaMutationJournal(
         check(current.uri != null && dao.mutationAwaitingFileRecovery(current.uri) == null) {
             "The song has an unfinished file replacement that must be recovered first."
         }
-        dao.upsertMutation(current.copy(recoveryBackupPath = backup.absolutePath))
+        if (networkReplacement != null || networkSourceFingerprint != null) {
+            check(networkReplacement != null && !networkSourceFingerprint.isNullOrBlank() &&
+                NetworkResourceUri.isNetworkUri(Uri.parse(current.uri)) &&
+                networkReplacement.canonicalFile.parentFile == backup.canonicalFile.parentFile &&
+                networkReplacement.isFile && networkReplacement.length() > 0L
+            ) { "The network replacement recovery state is invalid." }
+        }
+        dao.upsertMutation(current.copy(
+            recoveryBackupPath = backup.absolutePath,
+            recoveryReplacementPath = networkReplacement?.absolutePath,
+            recoveryNetworkSourceFingerprint = networkSourceFingerprint,
+        ))
+    }
+
+    suspend fun recordNetworkTemporary(mutationId: String, path: String): Unit = transitionMutex.withLock {
+        val current = checkNotNull(dao.mutation(mutationId))
+        val safePath = NetworkPathPolicy.validateRelativePath(path)?.takeIf(String::isNotBlank)
+        check(current.recoveryBackupPath != null && current.recoveryReplacementPath != null &&
+            current.recoveryNetworkSourceFingerprint != null && safePath == path &&
+            (current.recoveryNetworkTemporaryPath == null || current.recoveryNetworkTemporaryPath == path)
+        ) { "The network temporary file cannot be recorded." }
+        dao.upsertMutation(current.copy(recoveryNetworkTemporaryPath = path))
+    }
+
+    suspend fun resolveNetworkTemporary(mutationId: String, path: String): Unit = transitionMutex.withLock {
+        val current = checkNotNull(dao.mutation(mutationId))
+        check(current.recoveryNetworkTemporaryPath == path) { "The network temporary file has changed." }
+        dao.upsertMutation(current.copy(recoveryNetworkTemporaryPath = null))
     }
 
     suspend fun recoverTarget(uri: Uri, mutationId: String?): Unit = transitionMutex.withLock {
@@ -172,7 +209,12 @@ internal class MediaMutationJournal(
     suspend fun clearBackup(mutationId: String, backup: File): Unit = transitionMutex.withLock {
         val current = dao.mutation(mutationId) ?: return@withLock
         if (current.recoveryBackupPath == backup.absolutePath) {
-            dao.upsertMutation(current.copy(recoveryBackupPath = null))
+            check(current.recoveryNetworkTemporaryPath == null) { "The network temporary file still needs cleanup." }
+            dao.upsertMutation(current.copy(
+                recoveryBackupPath = null,
+                recoveryReplacementPath = null,
+                recoveryNetworkSourceFingerprint = null,
+            ))
         }
     }
 
@@ -225,7 +267,7 @@ internal class MediaMutationJournal(
         val recovery = runSuspendCatching {
             transitionMutex.withLock {
                 var recoveredCount = 0
-                val batch = dao.recoverableMutationBatch(maxRecords)
+                val batch = dao.recoverableLocalMutationBatch(maxRecords)
                 batch.mutations.forEach { mutation ->
                     currentCoroutineContext().ensureActive()
                     if (activeOwners.containsKey(mutation.mutationId)) return@forEach
@@ -284,26 +326,97 @@ internal class MediaMutationJournal(
         return MediaMutationRecoveryResult.Success(recoveredCount, remainingCount)
     }
 
+    suspend fun recoverNetworkIncomplete(maxRecords: Int = MAX_RECOVERY_RECORDS): Int {
+        require(maxRecords > 0)
+        var recovered = 0
+        dao.recoverableNetworkMutations(maxRecords).forEach { candidate ->
+            currentCoroutineContext().ensureActive()
+            transitionMutex.withLock {
+                val mutation = dao.mutation(candidate.mutationId) ?: return@withLock
+                if (mutation.recoveryNetworkSourceFingerprint == null || mutation.recoveryBackupPath == null ||
+                    activeOwners.containsKey(mutation.mutationId)
+                ) return@withLock
+                try {
+                    recoverBackupLocked(mutation)
+                    recovered += 1
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: IOException) {
+                    // Preserve the recovery files until the source is reachable again.
+                } catch (_: SecurityException) {
+                    // Access may be granted again later.
+                } catch (_: IllegalStateException) {
+                    // A changed source or conflicting file requires later recovery.
+                }
+            }
+        }
+        return recovered
+    }
+
     private suspend fun recoverBackupLocked(mutation: LibraryMutationEntity, resumingPermission: Boolean = false) {
-        val backup = checkNotNull(recoveryRunner) { "Media file recovery is unavailable." }.recoverBackup(mutation)
+        val runner = checkNotNull(recoveryRunner) { "Media file recovery is unavailable." }
         val verified = mutation.status in setOf(
             MediaMutationStatus.PersistedVerified.name,
             MediaMutationStatus.Published.name,
             MediaMutationStatus.Completed.name,
         )
+        var current = mutation
+        val replacement: File?
+        val backup = if (mutation.recoveryNetworkSourceFingerprint != null) {
+            val uri = Uri.parse(checkNotNull(mutation.uri))
+            val fingerprint = mutation.recoveryNetworkSourceFingerprint
+            check(runner.networkSourceFingerprint(uri) == fingerprint) { "The network recovery source changed." }
+            val files = runner.networkRecoveryFiles(mutation)
+            replacement = files.second
+            if (current.recoveryNetworkTemporaryPath != null) {
+                runner.cleanupNetworkTemporary(current, listOf(files.first, files.second))
+                current = current.copy(recoveryNetworkTemporaryPath = null)
+                dao.upsertMutation(current)
+            }
+            if (!verified && !runner.originalMatchesBackup(uri, files.first)) {
+                check(runner.originalMatchesBackup(uri, files.second)) { "The network file changed after the interrupted edit." }
+                val originalId = current.mutationId
+                val context = NetworkMutationContext(
+                    expectedOriginal = files.second,
+                    operationId = "rollback-$originalId",
+                    sourceFingerprint = fingerprint,
+                    recordTemporary = { path ->
+                        current = current.copy(recoveryNetworkTemporaryPath = path)
+                        runBlocking { dao.upsertMutation(current) }
+                    },
+                    resolveTemporary = {
+                        current = current.copy(recoveryNetworkTemporaryPath = null)
+                        runBlocking { dao.upsertMutation(current) }
+                    },
+                )
+                runner.overwriteOriginal(uri, files.first, context)
+                runner.verifyOriginalBytes(uri, files.first)
+            }
+            files.first
+        } else {
+            check(mutation.recoveryReplacementPath == null && mutation.recoveryNetworkTemporaryPath == null) {
+                "The network recovery state is incomplete."
+            }
+            replacement = null
+            runner.recoverBackup(mutation)
+        }
         dao.upsertMutation(
-            mutation.copy(
+            current.copy(
                 status = when {
                     resumingPermission -> MediaMutationStatus.PermissionGranted.name
                     verified -> MediaMutationStatus.Completed.name
                     else -> MediaMutationStatus.Cancelled.name
                 },
                 recoveryBackupPath = null,
+                recoveryReplacementPath = null,
+                recoveryNetworkTemporaryPath = null,
+                recoveryNetworkSourceFingerprint = null,
                 updatedAtMs = clock.wallTimeMs(),
                 error = null,
             ),
         )
         backup.delete()
+        replacement?.delete()
     }
 
     override fun close() {

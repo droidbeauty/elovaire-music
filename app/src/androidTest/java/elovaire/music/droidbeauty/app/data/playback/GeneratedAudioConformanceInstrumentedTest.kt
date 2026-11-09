@@ -17,6 +17,7 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import java.nio.ByteBuffer
@@ -28,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -110,6 +112,35 @@ class GeneratedAudioConformanceInstrumentedTest {
             assertEquals(1, playbackManager?.state?.value?.queue?.size)
         } finally {
             instrumentation.runOnMainSync { playbackManager?.release() }
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun audiobookPlaybackContinuesAdvancingAfterItStarts() {
+        val fixture = ConformanceFixture("pcm_audiobook", 220.0, 0, 0, durationMs = 8_000)
+        val uri = insertFixture(fixture)
+        val song = fixtureSong(fixture, uri, id = 9_003L).copy(mediaKind = AudioMediaKind.Audiobook)
+        val album = Album(song.albumId, song.album, song.artist, null, 1, song.durationMs, listOf(song))
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        var manager: PlaybackManager? = null
+        try {
+            instrumentation.runOnMainSync {
+                manager = PlaybackManager(context, scope).also {
+                    it.setVolume(0f)
+                    it.playAlbum(album)
+                }
+            }
+            runBlocking {
+                withTimeout(10_000L) { checkNotNull(manager).state.first { it.currentSong?.id == song.id && it.isPlaying } }
+                delay(2_500L)
+            }
+            var position = 0L
+            instrumentation.runOnMainSync { position = checkNotNull(manager).currentPositionForPersistence() }
+            assertTrue("audiobook stopped while playing", checkNotNull(manager).state.value.isPlaying)
+            assertTrue("audiobook position did not advance", position >= 1_000L)
+        } finally {
+            instrumentation.runOnMainSync { manager?.release() }
             scope.cancel()
         }
     }

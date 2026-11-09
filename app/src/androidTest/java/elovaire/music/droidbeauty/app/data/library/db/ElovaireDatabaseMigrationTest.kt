@@ -96,6 +96,7 @@ class ElovaireDatabaseMigrationTest {
             ElovaireDatabase.MIGRATION_8_9,
             ElovaireDatabase.MIGRATION_9_10,
             ElovaireDatabase.MIGRATION_10_11,
+            ElovaireDatabase.MIGRATION_11_12,
         ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(
@@ -112,6 +113,29 @@ class ElovaireDatabaseMigrationTest {
             }
         } finally {
             roomDatabase.close()
+        }
+    }
+
+    @Test
+    fun migrateElevenToTwelveKeepsCachedSongsAndRequestsMetadataRefresh() {
+        val name = "migration-test-v11-network-metadata"
+        helper.createDatabase(name, 11).use { database ->
+            database.execSQL(
+                "INSERT INTO network_inventory " +
+                    "(sourceId, relativePath, songId, albumId, title, artist, album, genre, audioFormat, " +
+                    "durationMs, trackNumber, discNumber, dateAddedSeconds, metadataResolved, mediaKind, lastSeenGeneration) " +
+                    "VALUES ('nas', 'song.mp3', 1, 2, 'Saved', 'Artist', 'Album', '', 'MP3', 100, 1, 1, 1, 1, 'Music', 1)",
+            )
+        }
+        helper.runMigrationsAndValidate(name, 12, true, ElovaireDatabase.MIGRATION_11_12).use { database ->
+            assertColumn(database, "media_mutations", "recoveryReplacementPath")
+            assertColumn(database, "media_mutations", "recoveryNetworkTemporaryPath")
+            assertColumn(database, "media_mutations", "recoveryNetworkSourceFingerprint")
+            database.query("SELECT title, metadataResolved FROM network_inventory WHERE sourceId = 'nas'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("Saved", cursor.getString(0))
+                assertEquals(0, cursor.getInt(1))
+            }
         }
     }
 

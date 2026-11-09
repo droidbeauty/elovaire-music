@@ -77,6 +77,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -185,7 +186,7 @@ internal fun EqualizerScreen(
                 end = ElovaireSpacing.screenHorizontalPadding,
                 bottom = navigationBarInsetDp() + 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item(key = "bands", contentType = "bands") {
                 Column {
@@ -301,41 +302,41 @@ internal fun EqualizerScreen(
                 ModuleCard {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         SettingsCategoryText(
                             title = uiPhrase(language, UiPhrase.ToneShaping),
                             iconResId = R.drawable.ic_lucide_audio_waveform,
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        ) {
-                            EqToneKnob(
-                                title = uiPhrase(language, UiPhrase.Bass),
-                                value = settings.bass.coerceIn(0f, 1f),
-                                valueRange = 0f..1f,
-                                accentColor = Color(0xFF2FE08D),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onBassChanged,
-                            )
-                            EqToneKnob(
-                                title = uiPhrase(language, UiPhrase.Midrange),
-                                value = settings.midrange.coerceIn(-1f, 1f),
-                                valueRange = -1f..1f,
-                                accentColor = Color(0xFF39C2FF),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onMidrangeChanged,
-                            )
-                            EqToneKnob(
-                                title = uiPhrase(language, UiPhrase.Treble),
-                                value = settings.treble.coerceIn(-1f, 1f),
-                                valueRange = -1f..1f,
-                                accentColor = Color(0xFFFFB056),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onTrebleChanged,
-                            )
-                        }
+                        EqMacroSliderRow(
+                            title = uiPhrase(language, UiPhrase.Bass),
+                            value = settings.bass.coerceIn(0f, 1f),
+                            valueText = "${(settings.bass.coerceIn(0f, 1f) * 100f).roundToInt()}%",
+                            onValueChange = onBassChanged,
+                            valueRange = 0f..1f,
+                            visualStepSize = 0.125f,
+                            modifier = Modifier.testTag("eq_bass"),
+                        )
+                        EqMacroSliderRow(
+                            title = uiPhrase(language, UiPhrase.Midrange),
+                            value = settings.midrange.coerceIn(-1f, 1f),
+                            valueText = formatTonePercent(settings.midrange, signed = true),
+                            onValueChange = onMidrangeChanged,
+                            valueRange = -1f..1f,
+                            centerValue = 0f,
+                            visualStepSize = 0.25f,
+                            modifier = Modifier.testTag("eq_midrange"),
+                        )
+                        EqMacroSliderRow(
+                            title = uiPhrase(language, UiPhrase.Treble),
+                            value = settings.treble.coerceIn(-1f, 1f),
+                            valueText = formatTonePercent(settings.treble, signed = true),
+                            onValueChange = onTrebleChanged,
+                            valueRange = -1f..1f,
+                            centerValue = 0f,
+                            visualStepSize = 0.25f,
+                            modifier = Modifier.testTag("eq_treble"),
+                        )
                     }
                 }
             }
@@ -983,6 +984,10 @@ private fun EqMacroSliderRow(
     valueRange: ClosedFloatingPointRange<Float>,
     enabled: Boolean = true,
     fullOpacityKnob: Boolean = false,
+    modifier: Modifier = Modifier,
+    centerValue: Float? = null,
+    visualStepSize: Float? = null,
+    stepDotAlpha: Float = 0.48f,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -1007,11 +1012,19 @@ private fun EqMacroSliderRow(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,
+            centerValue = centerValue,
+            visualStepSize = visualStepSize,
+            stepDotAlpha = stepDotAlpha,
             enabled = enabled,
             fullOpacityKnob = fullOpacityKnob,
-            modifier = Modifier.semantics { contentDescription = title },
+            modifier = modifier.semantics { contentDescription = title },
         )
     }
+}
+
+private fun formatTonePercent(value: Float, signed: Boolean): String {
+    val percent = (value.coerceIn(-1f, 1f) * 100f).roundToInt()
+    return if (signed && percent > 0) "+$percent%" else "$percent%"
 }
 
 private fun formatPreampDb(value: Float): String {
@@ -1487,41 +1500,44 @@ private fun EqResponseGraph(
             }
             .pointerInput(bandFractions) {
                 var activeBandIndex = 0
-                detectVerticalDragGestures(
-                    onDragStart = { offset ->
-                        if (size.width == 0 || size.height == 0) return@detectVerticalDragGestures
-                        isDragging.value = true
-                        val horizontalPadding = with(density) { EQ_GRAPH_EDGE_PADDING.toPx() }
-                        val graphWidth = (size.width.toFloat() - horizontalPadding * 2f).coerceAtLeast(1f)
-                        val bandIndex = nearestEqBandIndex(
-                            fraction = ((offset.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
-                            bandFractions = bandFractions,
-                        )
-                        activeBandIndex = bandIndex
-                        currentOnBandChanged(
-                            bandIndex,
-                            eqGraphYToNormalized(
-                                y = offset.y,
-                                height = size.height.toFloat(),
-                                config = eqGraphConfig,
-                            ),
-                        )
-                    },
-                    onVerticalDrag = { change, _ ->
-                        change.consume()
-                        if (size.width == 0 || size.height == 0) return@detectVerticalDragGestures
-                        currentOnBandChanged(
-                            activeBandIndex,
-                            eqGraphYToNormalized(
-                                y = change.position.y,
-                                height = size.height.toFloat(),
-                                config = eqGraphConfig,
-                            ),
-                        )
-                    },
-                    onDragEnd = { isDragging.value = false },
-                    onDragCancel = { isDragging.value = false },
-                )
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var active = false
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val delta = change.position - down.position
+                            if (!active && kotlin.math.abs(delta.y) > viewConfiguration.touchSlop &&
+                                kotlin.math.abs(delta.y) > kotlin.math.abs(delta.x)
+                            ) {
+                                if (size.width == 0 || size.height == 0) break
+                                val horizontalPadding = with(density) { EQ_GRAPH_EDGE_PADDING.toPx() }
+                                val graphWidth = (size.width.toFloat() - horizontalPadding * 2f).coerceAtLeast(1f)
+                                activeBandIndex = nearestEqBandIndex(
+                                    fraction = ((down.position.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
+                                    bandFractions = bandFractions,
+                                )
+                                active = true
+                                isDragging.value = true
+                            }
+                            if (active) {
+                                change.consume()
+                                currentOnBandChanged(
+                                    activeBandIndex,
+                                    eqGraphYToNormalized(
+                                        y = change.position.y,
+                                        height = size.height.toFloat(),
+                                        config = eqGraphConfig,
+                                    ),
+                                )
+                            }
+                            if (!change.pressed) break
+                        }
+                    } finally {
+                        isDragging.value = false
+                    }
+                }
             },
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
@@ -1534,10 +1550,10 @@ private fun EqResponseGraph(
                 .coerceIn(0f, 1f)
             val midY = topPadding + (graphHeight * (1f - zeroDbFraction))
 
-            val trackWidth = 4.dp.toPx()
-            val activeWidth = 4.dp.toPx()
-            val thumbWidth = 9.dp.toPx()
-            val thumbHeight = 24.dp.toPx()
+            val trackWidth = 2.dp.toPx()
+            val activeWidth = 3.dp.toPx()
+            val thumbWidth = 8.dp.toPx()
+            val thumbHeight = 18.dp.toPx()
             dbLevels.forEach { levelDb ->
                 val y = topPadding + (graphHeight * (1f - eqLevelFraction(levelDb, eqGraphConfig)))
                 drawLine(
@@ -1555,35 +1571,16 @@ private fun EqResponseGraph(
                 val activeTop = min(y, midY)
                 val activeHeight = max(2.dp.toPx(), kotlin.math.abs(y - midY))
                 drawRoundRect(
-                    color = accentColor.copy(alpha = 0.08f),
-                    topLeft = Offset(x - trackWidth * 1.45f, topPadding - 8.dp.toPx()),
-                    size = Size(trackWidth * 2.9f, graphHeight + 16.dp.toPx()),
-                    cornerRadius = CornerRadius(trackWidth * 2.9f, trackWidth * 2.9f),
-                )
-                drawRoundRect(
                     color = guideColor.copy(alpha = 0.05f),
                     topLeft = Offset(x - trackWidth / 2f, topPadding),
                     size = Size(trackWidth, graphHeight),
                     cornerRadius = CornerRadius(trackWidth, trackWidth),
                 )
-                drawLine(
-                    color = accentColor.copy(alpha = 0.18f),
-                    start = Offset(x, midY),
-                    end = Offset(x, y),
-                    strokeWidth = activeWidth * 2.1f,
-                    cap = StrokeCap.Round,
-                )
                 drawRoundRect(
-                    color = accentColor,
+                    color = accentColor.copy(alpha = 0.58f),
                     topLeft = Offset(x - activeWidth / 2f, activeTop),
                     size = Size(activeWidth, activeHeight),
                     cornerRadius = CornerRadius(activeWidth, activeWidth),
-                )
-                drawRoundRect(
-                    color = accentColor.copy(alpha = 0.16f),
-                    topLeft = Offset(x - thumbWidth * 0.8f, y - thumbHeight / 2f),
-                    size = Size(thumbWidth * 1.6f, thumbHeight),
-                    cornerRadius = CornerRadius(thumbWidth, thumbWidth),
                 )
                 drawRoundRect(
                     color = accentColor,
@@ -1652,7 +1649,7 @@ private fun EqMiniResponseGraph(
                     startY = 0f,
                     endY = size.height,
                 )
-                val glowWidth = 8.dp.toPx()
+                val glowWidth = 4.dp.toPx()
                 val lineWidth = 2.4.dp.toPx()
                 onDrawBehind {
                     repeat(graphPointCount) { index ->
@@ -1683,7 +1680,7 @@ private fun EqMiniResponseGraph(
                     drawPath(path = fillPath, brush = gradient)
                     drawPath(
                         path = strokePath,
-                        color = accentColor.copy(alpha = 0.2f),
+                        color = accentColor.copy(alpha = 0.12f),
                         style = Stroke(width = glowWidth, cap = StrokeCap.Round),
                     )
                     drawPath(
@@ -1779,14 +1776,14 @@ private fun EqBandFrequencyLabels(
             ) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f)),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(10f)),
                     color = readableSecondaryTextColor().copy(alpha = 0.88f),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                 )
                 Text(
                     text = formatEqDbLabel(gainDb),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f), fontWeight = FontWeight.Medium),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.6f), fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (gainDb == 0f) 0.45f else 0.9f),
                     maxLines = 1,
                 )

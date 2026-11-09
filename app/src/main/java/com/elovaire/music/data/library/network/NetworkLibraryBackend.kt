@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.update
 
 /** Owns network mutation results, probe state, connectivity service lifetime, and release. */
@@ -22,6 +23,7 @@ internal class NetworkLibraryBackend(
     coordinator: NetworkSourceMutationBackend,
     private val library: LibraryNetworkController,
     private val ioDispatcher: CoroutineDispatcher,
+    private val recoverNetworkEdits: suspend () -> Unit = {},
 ) : Closeable {
     private val released = AtomicBoolean(false)
     private val servicesLock = Any()
@@ -61,7 +63,11 @@ internal class NetworkLibraryBackend(
             servicesStarted = true
             servicesJob = optionalScope.launch(ioDispatcher) {
                 try {
-                    registryProvider().start()
+                    val registry = registryProvider()
+                    registry.start()
+                    recoverNetworkEditsOnChanges(registry.recoveryGeneration, recoverNetworkEdits) { failure ->
+                        Log.w(TAG, "Network edit recovery will retry when connectivity changes.", failure)
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (failure: SecurityException) {
@@ -135,5 +141,21 @@ internal class NetworkLibraryBackend(
 
     private companion object {
         const val TAG = "NetworkLibraryBackend"
+    }
+}
+
+internal suspend fun recoverNetworkEditsOnChanges(
+    generations: Flow<Long>,
+    recover: suspend () -> Unit,
+    onFailure: (RuntimeException) -> Unit,
+) {
+    generations.collect {
+        try {
+            recover()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: RuntimeException) {
+            onFailure(failure)
+        }
     }
 }

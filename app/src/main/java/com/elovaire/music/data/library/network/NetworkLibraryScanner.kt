@@ -4,7 +4,6 @@ import elovaire.music.droidbeauty.app.platform.readWithProgress
 
 import android.content.Context
 import android.net.Uri
-import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import com.hierynomus.smbj.common.SMBRuntimeException
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
@@ -43,10 +42,12 @@ internal class NetworkLibraryScanner(
         elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry(),
     private val retrieverAdmission: MediaMetadataRetrieverAdmission = MediaMetadataRetrieverAdmission(),
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    metadataReaderOverride: NetworkMetadataReader? = null,
 ) {
     private val artworkCache by lazy { NetworkArtworkCache(context) }
-    private val metadataReader = NetworkMetadataReader(
+    private val metadataReader = metadataReaderOverride ?: NetworkMetadataReader(
         registry,
+        context,
         failureRegistry = failureRegistry,
         resourceTracker = resourceTracker,
         retrieverAdmission = retrieverAdmission,
@@ -145,6 +146,14 @@ internal class NetworkLibraryScanner(
 
     suspend fun needsRefresh(sources: List<NetworkLibrarySource>, nowMs: Long): Boolean {
         return staleSourceIds(sources, nowMs).isNotEmpty()
+    }
+
+    suspend fun applyVerifiedTags(songs: List<Song>) {
+        songs.filter { NetworkResourceUri.isNetworkUri(it.uri) }
+            .groupBy { NetworkResourceUri.sourceId(it.uri) }
+            .forEach { (sourceId, entries) ->
+                sourceId?.let(registry::source)?.let { source -> inventory.applyVerifiedTags(source, entries) }
+            }
     }
 
     suspend fun staleSourceIds(
@@ -358,7 +367,7 @@ internal class NetworkLibraryScanner(
             if (
                 previous != null &&
                     previous.hasSameRevision(entry) &&
-                    (!enrichMetadata || previous.song.metadataResolved)
+                    (!enrichMetadata || (!forceRefresh && previous.song.metadataResolved))
             ) {
                 val relocatedSong = previous.song.copy(
                     fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
@@ -381,7 +390,9 @@ internal class NetworkLibraryScanner(
                     null
                 }
                 if (!isCurrent()) throw NetworkScanSupersededException()
-                val provisionalSong = if (metadata == null && previous != null) {
+                val provisionalSong = if (previous != null &&
+                    (metadata == null || (metadata.succeeded.not() && previous.hasSameRevision(entry)))
+                ) {
                     previous.song.copy(
                         fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
                         dateModifiedSeconds = entry.modifiedAtMs?.div(1_000L),
@@ -502,9 +513,8 @@ internal class NetworkLibraryScanner(
             ?.takeIf { artistAndTitle.size == 2 && it.isNotBlank() }
             ?: "Unknown Artist"
         val displayTitle = if (artistAndTitle.size == 2) artistAndTitle[1].trim().ifBlank { filenameTitle } else filenameTitle
-        val canonical = CanonicalMetadataResolver.resolve(
-            embedded = metadata?.toMetadataSourceValues(),
-            indexed = MetadataSourceValues(
+        val canonical = metadata.resolveMetadata(
+            MetadataSourceValues(
                 title = displayTitle,
                 artist = artist,
                 album = album,
@@ -537,7 +547,8 @@ internal class NetworkLibraryScanner(
             artUri = artUri,
             metadataResolved = metadata?.succeeded == true,
             albumArtist = canonical.albumArtist ?: canonical.artist ?: "Unknown Artist",
-            volumeNormalization = null,
+            volumeNormalization = canonical.volumeNormalization,
+            description = canonical.description,
             mediaKind = AudioMediaKindClassifier.classify(
                 isAudiobook = null,
                 extension = extension,

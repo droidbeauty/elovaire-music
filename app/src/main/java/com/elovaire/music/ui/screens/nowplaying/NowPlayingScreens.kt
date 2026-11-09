@@ -328,6 +328,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
 import elovaire.music.droidbeauty.app.ui.i18n.pauseLabel
@@ -969,6 +970,11 @@ internal fun NowPlayingScreen(
                             animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                             label = "queue_artwork_width",
                         )
+                        val pausedArtworkInset by animateDpAsState(
+                            targetValue = if (playerUiState.isPlaying) 0.dp else 10.dp,
+                            animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
+                            label = "paused_artwork_inset",
+                        )
                         val compactContentStart = compactArtworkWidth + 18.dp
                         Column {
                             Box(
@@ -987,8 +993,9 @@ internal fun NowPlayingScreen(
                                             uri = animatedSong.artUri,
                                             title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(animatedSong.title, animatedSong.id, language),
                                             modifier = Modifier
-                                                .width(animatedArtworkWidth)
-                                                .aspectRatio(1f),
+                                                .width((animatedArtworkWidth - pausedArtworkInset).coerceAtLeast(0.dp))
+                                                .aspectRatio(1f)
+                                                .align(Alignment.Center),
                                             cornerRadius = animatedArtworkCornerRadius,
                                             requestedSizePx = 1024,
                                         )
@@ -1092,6 +1099,7 @@ internal fun NowPlayingScreen(
                                     playbackManager = playbackManager,
                                     currentSongId = currentSong.id,
                                     chapters = currentSongChapters,
+                                    audiobookMode = currentSong.mediaKind == AudioMediaKind.Audiobook,
                                     freezeUpdates = transitionInFlight,
                                     format = displaySong?.audioFormat ?: currentSong.audioFormat,
                                     quality = displaySong?.audioQuality ?: currentSong.audioQuality,
@@ -1256,6 +1264,7 @@ internal fun NowPlayingScreen(
                                 playbackManager = playbackManager,
                                 currentSongId = currentSong.id,
                                 chapters = currentSongChapters,
+                                audiobookMode = currentSong.mediaKind == AudioMediaKind.Audiobook,
                                 freezeUpdates = transitionInFlight,
                                 format = displaySong?.audioFormat ?: currentSong.audioFormat,
                                 quality = displaySong?.audioQuality ?: currentSong.audioQuality,
@@ -1284,7 +1293,7 @@ internal fun NowPlayingScreen(
                                     ) {
                                         if (currentSong.mediaKind == AudioMediaKind.Audiobook) {
                                             AudiobookTransportButton(
-                                                iconResId = R.drawable.ic_elovaire_backward_filled,
+                                                iconResId = R.drawable.ic_lucide_rotate_ccw,
                                                 seconds = audiobookSettings.rewindSeconds,
                                                 contentDescription = playbackNavigation.rewind,
                                                 tint = contentColor,
@@ -1313,7 +1322,7 @@ internal fun NowPlayingScreen(
                                         )
                                         if (currentSong.mediaKind == AudioMediaKind.Audiobook) {
                                             AudiobookTransportButton(
-                                                iconResId = R.drawable.ic_elovaire_forward_filled,
+                                                iconResId = R.drawable.ic_lucide_rotate_cw,
                                                 seconds = audiobookSettings.forwardSeconds,
                                                 contentDescription = playbackNavigation.forward,
                                                 tint = contentColor,
@@ -1541,6 +1550,8 @@ internal fun NowPlayingScreen(
                         playlistSongsById = enrichedSongsById,
                         currentSong = currentSong,
                         audiobookMode = currentSong?.mediaKind == AudioMediaKind.Audiobook,
+                        chapters = currentSongChapters,
+                        playbackManager = playbackManager,
                         tint = contentColor,
                         secondaryTint = secondaryContentColor,
                         modifier = Modifier
@@ -1564,6 +1575,7 @@ internal fun NowPlayingScreen(
                                 transformOrigin = TransformOrigin(0.5f, 1f)
                             },
                         onSongSelected = onQueueItemSelected,
+                        onChapterSelected = playbackManager::seekTo,
                         onQueueItemRemoved = onQueueItemRemoved,
                         shuffleEnabled = playerUiState.shuffleEnabled,
                         onToggleShuffle = {
@@ -1693,11 +1705,19 @@ private fun rememberRenderedPlaybackProgress(
     return if (freezeUpdates) frozenProgress else liveProgress
 }
 
+private fun audiobookChapterIndexAt(chapters: List<AudiobookChapter>, positionMs: Long): Int {
+    val activeIndex = chapters.indexOfLast { positionMs >= it.startMs && positionMs < it.endMs }
+    return activeIndex.takeIf { it >= 0 }
+        ?: chapters.lastIndex.takeIf { chapters.lastOrNull()?.let { positionMs >= it.endMs } == true }
+        ?: -1
+}
+
 @Composable
 private fun NowPlayingProgressSummary(
     playbackManager: NowPlayingPlayback,
     currentSongId: Long,
     chapters: List<AudiobookChapter>,
+    audiobookMode: Boolean,
     freezeUpdates: Boolean,
     format: String,
     quality: String?,
@@ -1717,13 +1737,8 @@ private fun NowPlayingProgressSummary(
             0f
         }
     }
-    val chapterMarkersMs = remember(chapters, playbackProgress.durationMs) {
-        chapters.asSequence()
-            .map(AudiobookChapter::startMs)
-            .filter { positionMs -> positionMs > 0L && positionMs < playbackProgress.durationMs }
-            .distinct()
-            .sorted()
-            .toList()
+    val chapterIndex = remember(chapters, playbackProgress.displayPositionMs) {
+        audiobookChapterIndexAt(chapters, playbackProgress.displayPositionMs).coerceAtLeast(0)
     }
     Column(
         modifier = modifier,
@@ -1731,9 +1746,10 @@ private fun NowPlayingProgressSummary(
     ) {
         PlaybackProgressBar(
             progress = progress,
-            chapterMarkersMs = chapterMarkersMs,
+            chapters = chapters,
             durationMs = playbackProgress.durationMs,
             isInteracting = playbackProgress.isUserScrubbing,
+            chapterPopupNumber = if (audiobookMode) chapterIndex + 1 else null,
             contentColor = contentColor,
             onScrubStarted = playbackManager::beginScrub,
             onScrubFractionChanged = { fraction ->
@@ -1837,9 +1853,12 @@ private fun QueueSheet(
     playlistSongsById: Map<Long, Song>,
     currentSong: Song?,
     audiobookMode: Boolean,
+    chapters: List<AudiobookChapter>,
+    playbackManager: NowPlayingPlayback,
     tint: Color,
     secondaryTint: Color,
     onSongSelected: (Int) -> Unit,
+    onChapterSelected: (Long) -> Unit,
     onQueueItemRemoved: (Int) -> Unit,
     shuffleEnabled: Boolean,
     onToggleShuffle: () -> Unit,
@@ -1856,9 +1875,27 @@ private fun QueueSheet(
     modifier: Modifier = Modifier,
 ) {
     val language = LocalAppLanguage.current
+    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
+    val progressPositionMs = playbackProgress.displayPositionMs
+    val playbackDurationMs = playbackProgress.durationMs
     val listState = rememberElovaireLazyListState("now_playing_queue")
     val queueEdgeHazeState = rememberHazeState()
     val motionSpecs = rememberMotionSpecs()
+    val audiobookChapters = remember(audiobookMode, chapters, currentSong, playbackDurationMs) {
+        if (!audiobookMode) {
+            emptyList()
+        } else if (chapters.isNotEmpty()) {
+            chapters
+        } else {
+            val durationMs = playbackDurationMs.takeIf { it > 0L }
+                ?: currentSong?.durationMs?.coerceAtLeast(0L)
+                ?: 0L
+            listOf(AudiobookChapter(currentSong?.title.orEmpty(), 0L, durationMs))
+        }
+    }
+    val activeChapterIndex = remember(audiobookChapters, progressPositionMs) {
+        audiobookChapterIndexAt(audiobookChapters, progressPositionMs).coerceAtLeast(0)
+    }
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
@@ -1866,8 +1903,10 @@ private fun QueueSheet(
         animationSpec = motionSpecs.contentSize(),
         label = "queue_footer_height",
     )
-    LaunchedEffect(currentIndex, queue.size) {
-        if (currentIndex in queue.indices) {
+    LaunchedEffect(currentIndex, queue.size, audiobookMode, activeChapterIndex) {
+        if (audiobookMode && activeChapterIndex in audiobookChapters.indices) {
+            listState.scrollToItem((activeChapterIndex - 2).coerceAtLeast(0))
+        } else if (!audiobookMode && currentIndex in queue.indices) {
             listState.scrollToItem((currentIndex - 2).coerceAtLeast(0))
         }
     }
@@ -1879,7 +1918,12 @@ private fun QueueSheet(
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             QueueSheetHeader(
-                queueSize = queue.size,
+                countText = if (audiobookMode) {
+                    audiobookChapters.size.toString()
+                } else {
+                    localizedCountLabel(queue.size, "track", language)
+                },
+                title = if (audiobookMode) audiobookCopy(language).chapters else queueTitle(language),
                 language = language,
                 tint = tint,
                 secondaryTint = secondaryTint,
@@ -1891,19 +1935,33 @@ private fun QueueSheet(
                     .fillMaxWidth()
                     .weight(1f),
             ) {
-                QueueSongList(
-                    queue = queue,
-                    currentIndex = currentIndex,
-                    tint = tint,
-                    secondaryTint = secondaryTint,
-                    listState = listState,
-                    queueEdgeHazeState = queueEdgeHazeState,
-                    backdropHazeState = backdropHazeState,
-                    isPlaying = isPlaying,
-                    onSongSelected = onSongSelected,
-                    onQueueItemRemoved = onQueueItemRemoved,
-                    onAddToPlaylist = { playlistTargetSong = it },
-                )
+                if (audiobookMode) {
+                    AudiobookChapterList(
+                        chapters = audiobookChapters,
+                        activeIndex = activeChapterIndex,
+                        tint = tint,
+                        secondaryTint = secondaryTint,
+                        listState = listState,
+                        queueEdgeHazeState = queueEdgeHazeState,
+                        backdropHazeState = backdropHazeState,
+                        isPlaying = isPlaying,
+                        onChapterSelected = onChapterSelected,
+                    )
+                } else {
+                    QueueSongList(
+                        queue = queue,
+                        currentIndex = currentIndex,
+                        tint = tint,
+                        secondaryTint = secondaryTint,
+                        listState = listState,
+                        queueEdgeHazeState = queueEdgeHazeState,
+                        backdropHazeState = backdropHazeState,
+                        isPlaying = isPlaying,
+                        onSongSelected = onSongSelected,
+                        onQueueItemRemoved = onQueueItemRemoved,
+                        onAddToPlaylist = { playlistTargetSong = it },
+                    )
+                }
             }
             QueueSheetFooter(
                 modifier = Modifier
@@ -1941,7 +1999,8 @@ private fun QueueSheet(
 
 @Composable
 private fun QueueSheetHeader(
-    queueSize: Int,
+    countText: String,
+    title: String,
     language: AppLanguage,
     tint: Color,
     secondaryTint: Color,
@@ -1972,7 +2031,7 @@ private fun QueueSheetHeader(
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
-                    text = queueTitle(language),
+                    text = title,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontSize = elovaireScaledSp(18f),
                         fontWeight = FontWeight.Medium,
@@ -1986,7 +2045,7 @@ private fun QueueSheetHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = localizedCountLabel(queueSize, "track", language),
+                    text = countText,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryTint.copy(alpha = 0.7f),
                 )
@@ -2123,6 +2182,133 @@ private fun QueueSheetFooter(
                 )
             }
         }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalHazeApi::class)
+private fun AudiobookChapterList(
+    chapters: List<AudiobookChapter>,
+    activeIndex: Int,
+    tint: Color,
+    secondaryTint: Color,
+    listState: LazyListState,
+    queueEdgeHazeState: HazeState,
+    backdropHazeState: HazeState,
+    isPlaying: Boolean,
+    onChapterSelected: (Long) -> Unit,
+) {
+    val fadeTop = listState.canScrollBackward
+    val fadeBottom = listState.canScrollForward
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds(),
+    ) {
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .drawWithCache {
+                    val top = if (fadeTop) (20.dp.toPx() / size.height).coerceIn(0f, 0.5f) else 0f
+                    val bottom = if (fadeBottom) (30.dp.toPx() / size.height).coerceIn(0f, 0.5f) else 0f
+                    val mask = Brush.verticalGradient(
+                        0f to if (fadeTop) Color.Transparent else Color.Black,
+                        top to Color.Black,
+                        (1f - bottom) to Color.Black,
+                        1f to if (fadeBottom) Color.Transparent else Color.Black,
+                    )
+                    onDrawWithContent {
+                        drawContent()
+                        drawRect(mask, blendMode = BlendMode.DstIn)
+                    }
+                }
+                .hazeSource(queueEdgeHazeState, zIndex = 1f)
+                .hazeSource(backdropHazeState, zIndex = 1f)
+                .ensureSingleItemRubberBand(listState),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            itemsIndexed(
+                items = chapters,
+                key = { _, chapter -> chapter.startMs },
+                contentType = { _, _ -> "audiobook-chapter" },
+            ) { index, chapter ->
+                val active = index == activeIndex
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (active) tint.copy(alpha = 0.1f) else Color.Transparent)
+                        .elovaireClickable(onClick = { onChapterSelected(chapter.startMs) })
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(if (active) tint.copy(alpha = 0.12f) else tint.copy(alpha = 0.06f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (active && isPlaying) {
+                            PlaybackActiveArtworkOverlay(modifier = Modifier.fillMaxSize())
+                        } else {
+                            Text(
+                                text = (index + 1).toString(),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                color = if (active) tint else secondaryTint.copy(alpha = 0.78f),
+                            )
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+                    ) {
+                        Text(
+                            text = chapter.title.ifBlank { (index + 1).toString() },
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                            ),
+                            color = if (active) tint else tint.copy(alpha = 0.84f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = formatPlaybackPosition(chapter.startMs),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                            color = secondaryTint.copy(alpha = 0.78f),
+                            maxLines = 1,
+                        )
+                    }
+                    Text(
+                        text = formatDuration((chapter.endMs - chapter.startMs).coerceAtLeast(0L)),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = secondaryTint.copy(alpha = 0.78f),
+                        maxLines = 1,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width(40.dp),
+                    )
+                }
+            }
+        }
+        QueueEdgeHaze(
+            visible = listState.canScrollBackward,
+            alignment = Alignment.TopCenter,
+            hazeState = queueEdgeHazeState,
+            startIntensity = 1f,
+            endIntensity = 0f,
+        )
+        QueueEdgeHaze(
+            visible = listState.canScrollForward,
+            alignment = Alignment.BottomCenter,
+            hazeState = queueEdgeHazeState,
+            startIntensity = 0f,
+            endIntensity = 1f,
+            edgeHeight = 30.dp,
+        )
     }
 }
 
@@ -2915,10 +3101,7 @@ private fun AudiobookTransportButton(
     tint: Color,
     onClick: () -> Unit,
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-    ) {
+    Box(contentAlignment = Alignment.Center) {
         PlayerTransportButton(
             iconResId = iconResId,
             contentDescription = contentDescription,
@@ -2927,9 +3110,12 @@ private fun AudiobookTransportButton(
             onClick = onClick,
         )
         Text(
-            text = "$seconds${elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy(LocalAppLanguage.current).seconds}",
-            style = MaterialTheme.typography.labelMedium,
-            color = tint.copy(alpha = 0.84f),
+            text = seconds.toString(),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = elovaireScaledSp(8f),
+                fontWeight = FontWeight.SemiBold,
+            ),
+            color = tint.copy(alpha = 0.7f),
         )
     }
 }
@@ -4934,9 +5120,10 @@ private fun PlayerSecondaryActionButton(
 @Composable
 private fun PlaybackProgressBar(
     progress: Float,
-    chapterMarkersMs: List<Long>,
+    chapters: List<AudiobookChapter>,
     durationMs: Long,
     isInteracting: Boolean,
+    chapterPopupNumber: Int?,
     contentColor: Color,
     onScrubStarted: () -> Unit,
     onScrubFractionChanged: (Float) -> Unit,
@@ -4946,6 +5133,7 @@ private fun PlaybackProgressBar(
     val latestOnScrubStarted by rememberUpdatedState(onScrubStarted)
     val latestOnScrubFractionChanged by rememberUpdatedState(onScrubFractionChanged)
     val latestOnScrubFinished by rememberUpdatedState(onScrubFinished)
+    val motionSpecs = rememberMotionSpecs()
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -4957,9 +5145,7 @@ private fun PlaybackProgressBar(
         ) {
             val density = LocalDensity.current
             val maxWidthPx = with(density) { maxWidth.toPx() }
-            val chapterMarkerHaloWidthPx = with(density) { 4.dp.toPx() }
-            val chapterMarkerWidthPx = with(density) { 1.5.dp.toPx() }
-            val chapterMarkerHeightPx = with(density) { 10.dp.toPx() }
+            val segmentGapPx = with(density) { 2.dp.toPx() }
             val clampedProgress = progress.coerceIn(0f, 1f)
 
             Canvas(
@@ -4991,38 +5177,113 @@ private fun PlaybackProgressBar(
                 val barHeight = 6.dp.toPx()
                 val top = (size.height - barHeight) / 2f
                 val cornerRadius = CornerRadius(barHeight / 2f)
-                drawRoundRect(
-                    color = contentColor.copy(alpha = 0.1f),
-                    topLeft = Offset(0f, top),
-                    size = Size(size.width, barHeight),
-                    cornerRadius = cornerRadius,
-                )
-                drawRoundRect(
-                    color = contentColor,
-                    topLeft = Offset(0f, top),
-                    size = Size(size.width * clampedProgress, barHeight),
-                    cornerRadius = cornerRadius,
-                )
-                if (durationMs > 0L) {
-                    chapterMarkersMs.forEach { chapterStartMs ->
-                        val markerX = size.width *
-                            (chapterStartMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-                        val markerStart = Offset(markerX, (size.height - chapterMarkerHeightPx) / 2f)
-                        val markerEnd = Offset(markerX, (size.height + chapterMarkerHeightPx) / 2f)
-                        drawLine(
-                            color = Color.Black.copy(alpha = 0.55f),
-                            start = markerStart,
-                            end = markerEnd,
-                            strokeWidth = chapterMarkerHaloWidthPx,
-                            cap = StrokeCap.Round,
+                if (durationMs > 0L && chapters.isNotEmpty()) {
+                    chapters.forEachIndexed { index, chapter ->
+                        val chapterStart = (chapter.startMs.toFloat() / durationMs.toFloat())
+                            .coerceIn(0f, 1f) * size.width
+                        val chapterEnd = (chapter.endMs.toFloat() / durationMs.toFloat())
+                            .coerceIn(0f, 1f) * size.width
+                        val inset = if (index == 0 || chapterStart <= 0f) 0f else segmentGapPx / 2f
+                        val endInset = if (index == chapters.lastIndex || chapterEnd >= size.width) {
+                            0f
+                        } else {
+                            segmentGapPx / 2f
+                        }
+                        val segmentLeft = chapterStart + inset
+                        val segmentRight = (chapterEnd - endInset).coerceAtLeast(segmentLeft)
+                        val segmentWidth = segmentRight - segmentLeft
+                        if (segmentWidth <= 0f) return@forEachIndexed
+                        drawRoundRect(
+                            color = contentColor.copy(alpha = 0.1f),
+                            topLeft = Offset(segmentLeft, top),
+                            size = Size(segmentWidth, barHeight),
+                            cornerRadius = cornerRadius,
                         )
-                        drawLine(
-                            color = contentColor,
-                            start = markerStart,
-                            end = markerEnd,
-                            strokeWidth = chapterMarkerWidthPx,
-                            cap = StrokeCap.Round,
-                        )
+                        val filledWidth = ((size.width * clampedProgress) - segmentLeft)
+                            .coerceIn(0f, segmentWidth)
+                        if (filledWidth > 0f) {
+                            drawRoundRect(
+                                color = contentColor,
+                                topLeft = Offset(segmentLeft, top),
+                                size = Size(filledWidth, barHeight),
+                                cornerRadius = cornerRadius,
+                            )
+                        }
+                    }
+                } else {
+                    drawRoundRect(
+                        color = contentColor.copy(alpha = 0.1f),
+                        topLeft = Offset(0f, top),
+                        size = Size(size.width, barHeight),
+                        cornerRadius = cornerRadius,
+                    )
+                    drawRoundRect(
+                        color = contentColor,
+                        topLeft = Offset(0f, top),
+                        size = Size(size.width * clampedProgress, barHeight),
+                        cornerRadius = cornerRadius,
+                    )
+                }
+            }
+            val popupFraction = progress.coerceIn(0f, 1f)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isInteracting && chapterPopupNumber != null,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(
+                        x = (maxWidth * popupFraction - 18.dp).coerceIn(
+                            0.dp,
+                            (maxWidth - 36.dp).coerceAtLeast(0.dp),
+                        ),
+                        y = (-16).dp,
+                    ),
+                enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
+                    scaleIn(
+                        animationSpec = motionSpecs.spring(dampingRatio = 0.72f, stiffness = 480f),
+                        initialScale = 0.62f,
+                        transformOrigin = TransformOrigin(0.5f, 1f),
+                    ),
+                exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
+                    scaleOut(
+                        animationSpec = motionSpecs.tween(MotionDuration.Quick),
+                        targetScale = 0.86f,
+                        transformOrigin = TransformOrigin(0.5f, 1f),
+                    ),
+            ) {
+                Surface(
+                    modifier = Modifier.width(36.dp).height(20.dp),
+                    shape = RoundedCornerShape(ElovaireRadii.pill),
+                    color = contentColor.copy(alpha = 0.3f),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        AnimatedContent(
+                            targetState = chapterPopupNumber ?: 1,
+                            transitionSpec = {
+                                val direction = if (targetState >= initialState) 1 else -1
+                                (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
+                                    slideInVertically(
+                                        animationSpec = motionSpecs.tween(MotionDuration.Quick),
+                                        initialOffsetY = { direction * it / 2 },
+                                    )) togetherWith (
+                                    fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
+                                        slideOutVertically(
+                                            animationSpec = motionSpecs.tween(MotionDuration.Quick),
+                                            targetOffsetY = { -direction * it / 2 },
+                                        )
+                                    )
+                            },
+                            label = "chapter_scrub_number_flip",
+                        ) { number ->
+                            Text(
+                                text = number.toString(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = elovaireScaledSp(8f),
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = contentColor,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }

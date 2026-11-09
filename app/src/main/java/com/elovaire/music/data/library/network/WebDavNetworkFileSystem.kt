@@ -8,6 +8,7 @@ import java.io.Closeable
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.ZonedDateTime
@@ -46,6 +47,7 @@ internal class WebDavNetworkFileSystem(
     private val activeConnections = ConcurrentHashMap.newKeySet<HttpURLConnection>()
     private val activePropFindCalls = ConcurrentHashMap.newKeySet<Call>()
     private val released = AtomicBoolean(false)
+    private val conditionalWriter = WebDavConditionalWriter(propFindClient)
 
     override fun probeBlocking(
         source: NetworkLibrarySource,
@@ -231,6 +233,46 @@ internal class WebDavNetworkFileSystem(
         rangeCapabilities.remove(sourceId)
     }
 
+    override fun replaceBlocking(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        path: String,
+        expectedOriginal: File,
+        replacement: File,
+        operationId: String,
+        recordTemporary: (String) -> Unit,
+        resolveTemporary: () -> Unit,
+        onCommitStarting: () -> Unit,
+    ) {
+        checkNotReleased()
+        val resource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
+        try {
+            conditionalWriter.replace(source, credentials, path, expectedOriginal, replacement, operationId,
+                recordTemporary, resolveTemporary, onCommitStarting)
+        } finally {
+            resource.close()
+        }
+    }
+
+    override fun cleanupTemporaryBlocking(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        targetPath: String,
+        temporaryPath: String,
+        operationId: String,
+        expectedFiles: List<File>,
+        onDeleteStarting: () -> Unit,
+    ) {
+        checkNotReleased()
+        val resource = resourceTracker.acquire(BackendResourceKind.ActiveWebDavRequest)
+        try {
+            conditionalWriter.cleanupTemporary(source, credentials, targetPath, temporaryPath, operationId,
+                expectedFiles, onDeleteStarting)
+        } finally {
+            resource.close()
+        }
+    }
+
     override fun invalidateAll() {
         rangeCapabilities.clear()
     }
@@ -238,6 +280,7 @@ internal class WebDavNetworkFileSystem(
     override fun release() {
         if (!released.compareAndSet(false, true)) return
         rangeCapabilities.clear()
+        conditionalWriter.close()
         activeConnections.toList().forEach(::disconnect)
         activePropFindCalls.toList().forEach(Call::cancel)
     }

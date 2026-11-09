@@ -4,17 +4,17 @@ import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-internal fun useLightSystemBarIcons(
+internal fun useDarkSystemBarIcons(
     darkTheme: Boolean,
     showPlayerOverlay: Boolean,
-    playerContentColor: Color,
+    playerBackdropColor: Color,
 ): Boolean {
     return if (showPlayerOverlay) {
-        playerContentColor.luminance() < 0.56f
+        Color.Black.contrastRatioAgainst(playerBackdropColor) >=
+            Color.White.contrastRatioAgainst(playerBackdropColor)
     } else {
         !darkTheme
     }
@@ -24,18 +24,18 @@ internal fun useLightSystemBarIcons(
 internal fun RootSystemBarEffect(
     darkTheme: Boolean,
     showPlayerOverlay: Boolean,
-    playerContentColor: Color,
+    playerBackdropColor: Color,
 ) {
     val rootView = LocalView.current
     SideEffect {
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
         val controller = WindowCompat.getInsetsController(window, rootView)
-        val usesLightSystemBarIcons = useLightSystemBarIcons(
+        val usesDarkSystemBarIcons = useDarkSystemBarIcons(
             darkTheme = darkTheme,
             showPlayerOverlay = showPlayerOverlay,
-            playerContentColor = playerContentColor,
+            playerBackdropColor = playerBackdropColor,
         )
-        controller.isAppearanceLightStatusBars = usesLightSystemBarIcons
-        controller.isAppearanceLightNavigationBars = usesLightSystemBarIcons
+        controller.isAppearanceLightStatusBars = usesDarkSystemBarIcons
+        controller.isAppearanceLightNavigationBars = usesDarkSystemBarIcons
     }
 }

@@ -7,37 +7,37 @@ import org.junit.Test
 
 class RootSystemBarEffectTest {
     @Test
-    fun useLightSystemBarIcons_followsThemeWhenPlayerOverlayHidden() {
+    fun useDarkSystemBarIcons_followsThemeWhenPlayerOverlayHidden() {
         assertTrue(
-            useLightSystemBarIcons(
+            useDarkSystemBarIcons(
                 darkTheme = false,
                 showPlayerOverlay = false,
-                playerContentColor = Color.Black,
+                playerBackdropColor = Color.Black,
             ),
         )
         assertFalse(
-            useLightSystemBarIcons(
+            useDarkSystemBarIcons(
                 darkTheme = true,
                 showPlayerOverlay = false,
-                playerContentColor = Color.White,
+                playerBackdropColor = Color.White,
             ),
         )
     }
 
     @Test
-    fun useLightSystemBarIcons_followsPlayerContentContrastWhenOverlayShown() {
+    fun useDarkSystemBarIcons_followsPlayerBackdropContrastWhenOverlayShown() {
         assertTrue(
-            useLightSystemBarIcons(
+            useDarkSystemBarIcons(
                 darkTheme = true,
                 showPlayerOverlay = true,
-                playerContentColor = Color.Black,
+                playerBackdropColor = Color.White,
             ),
         )
         assertFalse(
-            useLightSystemBarIcons(
+            useDarkSystemBarIcons(
                 darkTheme = false,
                 showPlayerOverlay = true,
-                playerContentColor = Color.White,
+                playerBackdropColor = Color.Black,
             ),
         )
     }

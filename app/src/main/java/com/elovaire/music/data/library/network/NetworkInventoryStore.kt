@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.platform.readBytesBounded
 import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import java.io.File
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -69,6 +70,17 @@ internal class NetworkInventoryStore(
             availability = availability.name,
             locationFingerprint = NetworkSourceIdentity.locationFingerprint(source),
         )
+    }
+
+    suspend fun applyVerifiedTags(source: NetworkLibrarySource, songs: List<Song>) {
+        val fingerprint = NetworkSourceIdentity.locationFingerprint(source)
+        for (song in songs) {
+            if (!NetworkResourceUri.isNetworkUri(song.uri) || NetworkResourceUri.sourceId(song.uri) != source.id) continue
+            val path = NetworkResourceUri.path(song.uri) ?: continue
+            dao.updateVerifiedNetworkTags(source.id, path, song.id, fingerprint, song.title, song.artist,
+                song.album, song.albumArtist, song.releaseYear, song.genre, song.trackNumber,
+                song.discNumber, song.description)
+        }
     }
 
     suspend fun remove(sourceId: String) {
@@ -232,6 +244,11 @@ internal data class NetworkInventoryEntry(
             artUri = song.artUri?.toString(),
             mediaKind = song.mediaKind.name,
             lastSeenGeneration = generation,
+            description = song.description,
+            trackGainDb = song.volumeNormalization?.trackGainDb,
+            albumGainDb = song.volumeNormalization?.albumGainDb,
+            trackPeak = song.volumeNormalization?.trackPeak,
+            albumPeak = song.volumeNormalization?.albumPeak,
         )
     }
 }
@@ -325,7 +342,9 @@ private fun NetworkInventoryEntity.toInventoryEntry(source: NetworkLibrarySource
             artUri = artUri?.takeIf(String::isNotBlank)?.let(Uri::parse),
             metadataResolved = metadataResolved,
             albumArtist = albumArtist,
-            volumeNormalization = null,
+            description = description,
+            volumeNormalization = VolumeNormalizationMetadata(trackGainDb, albumGainDb, trackPeak, albumPeak)
+                .takeIf { it.hasUsableGain || it.trackPeak != null || it.albumPeak != null },
             mediaKind = runCatching { AudioMediaKind.valueOf(mediaKind) }
                 .getOrNull()
                 .let { persisted ->

@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
@@ -46,6 +47,37 @@ class MediaFileMutationRecoveryTest {
         context.deleteDatabase(databaseName)
         backups.forEach(File::delete)
         resolver.deleteTestOwnedRows(insertedUris, "media mutation recovery")
+    }
+
+    @Test
+    fun networkRecoveryKeepsBothCopiesUntilTemporaryIsResolved() = runBlocking {
+        val journal = journal()
+        val backup = File.createTempFile("network-backup-", ".mp3", context.cacheDir).apply { writeText("original") }
+        val replacement = File.createTempFile("network-replacement-", ".mp3", context.cacheDir).apply { writeText("replacement") }
+        backups += backup
+        backups += replacement
+        val id = journal.create(MediaMutationOperation(type = MediaMutationType.TagEdit,
+            uri = NetworkResourceUri.create("source", "Music/song.mp3")))
+        listOf(MediaMutationStatus.PreflightPassed, MediaMutationStatus.TempWritten, MediaMutationStatus.TempVerified)
+            .forEach { journal.mark(id, it) }
+        journal.retainBackup(id, backup, replacement, "source-fingerprint")
+        journal.recordNetworkTemporary(id, "Music/.elovaire-edit.tmp")
+        val saved = checkNotNull(database.mediaMutationDao().mutation(id))
+        assertEquals(replacement.absolutePath, saved.recoveryReplacementPath)
+        assertEquals("source-fingerprint", saved.recoveryNetworkSourceFingerprint)
+        assertEquals("Music/.elovaire-edit.tmp", saved.recoveryNetworkTemporaryPath)
+        assertThrows(IllegalStateException::class.java) { runBlocking { journal.clearBackup(id, backup) } }
+        journal.close()
+        val reopened = journal()
+        val localRecovery = reopened.recoverIncomplete() as MediaMutationRecoveryResult.Success
+        assertEquals(0, localRecovery.remainingCount)
+        assertEquals("Music/.elovaire-edit.tmp", database.mediaMutationDao().mutation(id)?.recoveryNetworkTemporaryPath)
+        reopened.resolveNetworkTemporary(id, "Music/.elovaire-edit.tmp")
+        reopened.clearBackup(id, backup)
+        val cleared = checkNotNull(database.mediaMutationDao().mutation(id))
+        assertNull(cleared.recoveryBackupPath)
+        assertNull(cleared.recoveryReplacementPath)
+        assertNull(cleared.recoveryNetworkSourceFingerprint)
     }
 
     @Test

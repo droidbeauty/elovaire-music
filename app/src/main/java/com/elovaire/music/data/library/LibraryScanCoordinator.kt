@@ -84,6 +84,10 @@ internal class LibraryScanCoordinator(
 
     fun invalidateMetadataCacheForSongIds(songIds: Collection<Long>) = localScanner.invalidateMetadataCacheForSongIds(songIds)
 
+    internal suspend fun applyVerifiedNetworkTags(songs: List<Song>) {
+        if (songs.any { NetworkResourceUri.isNetworkUri(it.uri) }) networkScannerProvider().applyVerifiedTags(songs)
+    }
+
     internal suspend fun networkSourceNeedsRefresh(): Boolean {
         return staleNetworkSourceIds().isNotEmpty()
     }

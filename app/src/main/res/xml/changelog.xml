@@ -6,12 +6,12 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.0">
-        <item>UI tweaks in NAS configuration, tag editing system and settings layout</item>
-        <item>UI tweaks on the initial setup splash screen</item>
-        <item>UI tweaks in the library tab</item>
-        <item>Added support for 11 new languages - Albanian, Bosnian, Bulgarian, Catalan, Finnish, Indonesian, Romanian, Serbian, Slovenian, Punjabi and Urdu</item>
-        <item>Technical refinements for reliability of NAS support framework</item>
+    <release version="3.1">
+        <item>UI tweaks in now playing screen for audiobook playback</item>
+        <item>UI tweaks in NAS setup screen</item>
+        <item>Redesigned equalizer UI</item>
+        <item>Fixed glitchy tag reading from NAS connected library</item>
+        <item>Stability and technical improvements to audiobook playback</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

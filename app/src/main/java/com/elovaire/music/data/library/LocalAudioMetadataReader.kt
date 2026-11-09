@@ -127,20 +127,14 @@ internal class LocalAudioMetadataReader(
                     artist = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_ARTIST),
                     albumArtist = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
                     album = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_ALBUM),
-                    releaseYear = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
-                        ?.take(4)
-                        ?.toIntOrNull()
-                        ?: retriever.metadata(MediaMetadataRetriever.METADATA_KEY_DATE)
-                            ?.let(::parseYear),
-                    genre = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
-                        ?.substringBefore(';')
-                        ?.substringBefore('/')
-                        ?.trim()
-                        ?.takeIf(String::isNotBlank),
+                    releaseYear = platformMetadataYear(retriever.metadata(MediaMetadataRetriever.METADATA_KEY_YEAR)) {
+                        retriever.metadata(MediaMetadataRetriever.METADATA_KEY_DATE)
+                    },
+                    genre = platformMetadataGenre(retriever.metadata(MediaMetadataRetriever.METADATA_KEY_GENRE)),
                     trackNumber = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
-                        ?.let(::parsePositiveNumber),
+                        ?.let(::platformMetadataNumber),
                     discNumber = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER)
-                        ?.let(::parsePositiveNumber),
+                        ?.let(::platformMetadataNumber),
                     sampleRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         retriever.metadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
                             ?.toIntOrNull()
@@ -173,18 +167,22 @@ internal class LocalAudioMetadataReader(
         return extractMetadata(key)?.trim()?.takeIf(String::isNotBlank)
     }
 
-    private fun parsePositiveNumber(value: String): Int? {
-        return value.substringBefore('/').trim().toIntOrNull()?.takeIf { it > 0 }
-    }
-
-    private fun parseYear(value: String): Int? {
-        return YEAR_REGEX.find(value)?.value?.toIntOrNull()?.takeIf { it in 1..9_999 }
-    }
-
-    private companion object {
-        val YEAR_REGEX = Regex("\\b\\d{1,4}\\b")
-    }
 }
+
+internal fun platformMetadataNumber(value: String): Int? =
+    value.substringBefore('/').trim().toIntOrNull()?.takeIf { it > 0 }
+
+internal fun platformMetadataGenre(value: String?): String? = value
+    ?.substringBefore(';')
+    ?.substringBefore('/')
+    ?.trim()
+    ?.takeIf(String::isNotBlank)
+
+internal fun platformMetadataYear(year: String?, date: () -> String?): Int? =
+    year?.trim()?.take(4)?.toIntOrNull()
+        ?: date()?.let { YEAR_REGEX.find(it)?.value?.toIntOrNull()?.takeIf { value -> value in 1..9_999 } }
+
+private val YEAR_REGEX = Regex("\\b\\d{1,4}\\b")
 
 internal data class LocalAudioMetadata(
     val durationMs: Long? = null,

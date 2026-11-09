@@ -25,6 +25,9 @@ internal data class LibraryMutationEntity(
     val attemptCount: Int,
     val error: String?,
     val recoveryBackupPath: String? = null,
+    val recoveryReplacementPath: String? = null,
+    val recoveryNetworkTemporaryPath: String? = null,
+    val recoveryNetworkSourceFingerprint: String? = null,
 )
 
 @Entity(
@@ -62,6 +65,11 @@ internal data class NetworkInventoryEntity(
     val artUri: String?,
     val mediaKind: String = "Music",
     val lastSeenGeneration: Long,
+    val description: String? = null,
+    val trackGainDb: Float? = null,
+    val albumGainDb: Float? = null,
+    val trackPeak: Float? = null,
+    val albumPeak: Float? = null,
 )
 
 @Entity(tableName = "network_inventory_sources")

@@ -1,5 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.screens.common
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,8 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 
 @Composable
@@ -29,6 +34,7 @@ internal fun EditorTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    @DrawableRes leadingIconResId: Int? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     OutlinedTextField(
@@ -39,6 +45,16 @@ internal fun EditorTextField(
         isError = isError,
         label = { Text(label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)) },
         placeholder = placeholder?.takeIf(String::isNotEmpty)?.let { text -> { Text(text) } },
+        leadingIcon = leadingIconResId?.let { iconResId ->
+            {
+                Icon(
+                    painter = painterResource(iconResId),
+                    contentDescription = null,
+                    tint = colors.onSurfaceVariant.copy(alpha = 0.72f),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        },
         textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
         shape = RoundedCornerShape(ElovaireRadii.input),
         singleLine = singleLine,

@@ -14,6 +14,7 @@ import com.hierynomus.smbj.auth.AuthenticationContext
 import com.hierynomus.smbj.share.DiskShare
 import java.io.IOException
 import java.io.InputStream
+import java.io.File
 import java.security.MessageDigest
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
@@ -181,6 +182,85 @@ internal class SmbNetworkFileSystem(
         } finally {
             if (file == null) {
                 lease.close()
+            }
+        }
+    }
+
+    override fun replaceBlocking(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        path: String,
+        expectedOriginal: File,
+        replacement: File,
+        operationId: String,
+        recordTemporary: (String) -> Unit,
+        resolveTemporary: () -> Unit,
+        onCommitStarting: () -> Unit,
+    ) = withShare(source, credentials) { share ->
+        SmbConditionalWriter(SmbStore(share, smbPath(source))).replace(path, expectedOriginal, replacement,
+            operationId, recordTemporary, resolveTemporary, onCommitStarting)
+    }
+
+    override fun cleanupTemporaryBlocking(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        targetPath: String,
+        temporaryPath: String,
+        operationId: String,
+        expectedFiles: List<File>,
+        onDeleteStarting: () -> Unit,
+    ) = withShare(source, credentials) { share ->
+        SmbConditionalWriter(SmbStore(share, smbPath(source))).cleanup(targetPath, temporaryPath,
+            operationId, expectedFiles, onDeleteStarting)
+    }
+
+    private class SmbStore(private val share: DiskShare, private val root: String) : SmbEditStore {
+        override fun create(path: String): SmbEditHandle? = openFile(path, create = true)
+        override fun open(path: String): SmbEditHandle? = openFile(path, create = false)
+
+        private fun openFile(path: String, create: Boolean): SmbEditHandle? {
+            val access = EnumSet.of(AccessMask.FILE_READ_DATA, AccessMask.FILE_READ_ATTRIBUTES, AccessMask.DELETE)
+            if (create) access.add(AccessMask.FILE_WRITE_DATA)
+            val file = try {
+                share.openFile(
+                    NetworkPathPolicy.join(root, path), access,
+                    EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL), EnumSet.noneOf(SMB2ShareAccess::class.java),
+                    if (create) SMB2CreateDisposition.FILE_CREATE else SMB2CreateDisposition.FILE_OPEN,
+                    EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE),
+                )
+            } catch (failure: SMBApiException) {
+                if ((create && failure.status == NtStatus.STATUS_OBJECT_NAME_COLLISION) ||
+                    (!create && failure.status in setOf(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND,
+                        NtStatus.STATUS_OBJECT_PATH_NOT_FOUND, NtStatus.STATUS_NO_SUCH_FILE))
+                ) return null
+                throw failure
+            }
+            return object : SmbEditHandle {
+                override fun input(): InputStream {
+                    val length = file.length
+                    if (length < 0L) throw IOException("Invalid SMB file length")
+                    return object : InputStream() {
+                        private var position = 0L
+                        override fun read(): Int {
+                            val one = ByteArray(1)
+                            return if (read(one, 0, 1) < 0) -1 else one[0].toInt() and 0xff
+                        }
+                        override fun read(buffer: ByteArray, offset: Int, count: Int): Int {
+                            if (offset < 0 || count < 0 || count > buffer.size - offset) throw IndexOutOfBoundsException()
+                            if (count == 0) return 0
+                            val remaining = length - position
+                            if (remaining == 0L) return -1
+                            val read = file.read(buffer, position, offset, minOf(count.toLong(), remaining).toInt())
+                            if (read > 0) position += read
+                            return read
+                        }
+                    }
+                }
+                override fun output() = file.outputStream
+                override fun flush() = file.flush()
+                override fun rename(path: String) = file.rename(NetworkPathPolicy.join(root, path).replace('/', '\\'), false)
+                override fun deleteOnClose() = file.deleteOnClose()
+                override fun close() = file.close()
             }
         }
     }
