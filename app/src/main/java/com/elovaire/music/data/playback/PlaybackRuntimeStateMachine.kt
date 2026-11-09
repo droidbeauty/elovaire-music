@@ -23,6 +23,10 @@ internal class PlaybackRuntimeStateMachine {
         }
     }
 
+    fun complete(expected: PlaybackRuntimeTransition) {
+        if (state === expected) state = PlaybackRuntimeTransition.Idle
+    }
+
     fun release() {
         state = PlaybackRuntimeTransition.Released
     }

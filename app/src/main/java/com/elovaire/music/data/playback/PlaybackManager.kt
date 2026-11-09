@@ -50,6 +50,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.localizedGenreName
 import elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -2157,23 +2158,27 @@ internal class PlaybackManager internal constructor(
         lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
         if (!runtimeStateMachine.beginRecovery(unexpectedIdleRecoveryCount)) return
+        val recovery = runtimeTransition
         val operationRevision = playbackOperationRevision
-        scope.launch {
-            if (!isCurrentPlaybackOperation(operationRevision)) return@launch
-            val mediaItems = snapshot.queue.mapTo(ArrayList(snapshot.queue.size)) { song ->
-                song.toPlaybackMediaItem(appLanguage.value)
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                if (!isCurrentPlaybackOperation(operationRevision)) return@launch
+                val mediaItems = snapshot.queue.mapTo(ArrayList(snapshot.queue.size)) { song ->
+                    song.toPlaybackMediaItem(appLanguage.value)
+                }
+                player.setMediaItems(mediaItems, recoverIndex, recoverPosition)
+                player.shuffleModeEnabled = snapshot.shuffleEnabled && snapshot.queue.none { it.mediaKind == AudioMediaKind.Audiobook }
+                player.repeatMode = snapshot.repeatMode.toPlayerRepeatMode()
+                player.prepare()
+                if (!isCurrentPlaybackOperation(operationRevision)) return@launch
+                if (shouldAutoPlay && requestAudioFocus()) {
+                    player.volume = effectivePlayerGain()
+                    player.playWhenReady = true
+                    player.play()
+                }
+            } finally {
+                runtimeStateMachine.complete(recovery)
             }
-            player.setMediaItems(mediaItems, recoverIndex, recoverPosition)
-            player.shuffleModeEnabled = snapshot.shuffleEnabled && snapshot.queue.none { it.mediaKind == AudioMediaKind.Audiobook }
-            player.repeatMode = snapshot.repeatMode.toPlayerRepeatMode()
-            player.prepare()
-            if (!isCurrentPlaybackOperation(operationRevision)) return@launch
-            if (shouldAutoPlay && requestAudioFocus()) {
-                player.volume = effectivePlayerGain()
-                player.playWhenReady = true
-                player.play()
-            }
-            runtimeStateMachine.complete()
             if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
                 scheduleAudioPathReevaluation("recovery-completed")
             }

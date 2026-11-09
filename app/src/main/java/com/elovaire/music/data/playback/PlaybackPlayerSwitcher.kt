@@ -23,7 +23,8 @@ internal class PlaybackPlayerSwitcher(
         var replacementPlayer: ExoPlayer? = null
         var replacementObserversAttached = false
         var currentObserversDetached = false
-        return try {
+        var publicationAttempted = false
+        val result = try {
             val replacement = createPlayer(!useDirectPlayback)
             replacementPlayer = replacement
             attachPlayerObservers(replacement)
@@ -46,19 +47,26 @@ internal class PlaybackPlayerSwitcher(
             replacement.volume = targetPlayerOutputGain()
             detachPlayerObservers(currentPlayer)
             currentObserversDetached = true
+            publicationAttempted = true
             onPlayerReplaced(replacement)
             applyPreferredAudioDevice(true)
-            releasePlayer(currentPlayer)
             replacement
         } catch (_: RuntimeException) {
+            if (publicationAttempted) {
+                runCatching { onPlayerReplaced(currentPlayer) }
+            }
             if (replacementObserversAttached) {
                 replacementPlayer?.let { runCatching { detachPlayerObservers(it) } }
             }
-            replacementPlayer?.let(releasePlayer)
+            replacementPlayer?.let { runCatching { releasePlayer(it) } }
             if (currentObserversDetached) {
                 runCatching { attachPlayerObservers(currentPlayer) }
             }
             currentPlayer
         }
+        if (result !== currentPlayer) {
+            runCatching { releasePlayer(currentPlayer) }
+        }
+        return result
     }
 }

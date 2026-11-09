@@ -164,6 +164,11 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
             }
             runCatching { context.startService(intent) }
                 .onFailure { throwable ->
+                    runCatching {
+                        foregroundRequests.demotionDispatchFailed(generation) {
+                            context.stopService(Intent(context, ElovaireMediaLibraryService::class.java))
+                        }
+                    }.onFailure { logForegroundFailure("Unable to stop media library service", it) }
                     logForegroundFailure("Unable to demote media library foreground service", throwable)
                 }
         }
@@ -180,11 +185,13 @@ internal class PlaybackForegroundRequests {
     private var generation = 0L
     private var pendingId: Int? = null
     private var runningId: Int? = null
+    private var demotingId: Int? = null
 
     @Synchronized
     fun requestStart(notificationId: Int): Long? {
-        if (runningId == notificationId || pendingId == notificationId) return null
+        if (pendingId == notificationId || (pendingId == null && runningId == notificationId)) return null
         generation += 1L
+        demotingId = null
         pendingId = notificationId
         return generation
     }
@@ -193,6 +200,7 @@ internal class PlaybackForegroundRequests {
     fun requestDemotion(): Long? {
         if (runningId == null && pendingId == null) return null
         generation += 1L
+        demotingId = runningId
         pendingId = null
         runningId = null
         return generation
@@ -220,6 +228,21 @@ internal class PlaybackForegroundRequests {
     }
 
     @Synchronized
+    fun demotionDispatchFailed(requestGeneration: Long, stopService: () -> Unit) {
+        if (generation == requestGeneration) {
+            try {
+                stopService()
+                runningId = null
+            } catch (failure: RuntimeException) {
+                runningId = demotingId
+                throw failure
+            } finally {
+                demotingId = null
+            }
+        }
+    }
+
+    @Synchronized
     fun invalidate(requestGeneration: Long) {
         if (generation == requestGeneration && pendingId != null) {
             pendingId = null
@@ -235,10 +258,12 @@ internal class PlaybackForegroundRequests {
         generation += 1L
         pendingId = null
         runningId = null
+        demotingId = null
     }
 
     @Synchronized
     fun serviceDestroyed() {
         runningId = null
+        demotingId = null
     }
 }

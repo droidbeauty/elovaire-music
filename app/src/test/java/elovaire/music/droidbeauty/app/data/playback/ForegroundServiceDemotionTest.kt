@@ -8,6 +8,46 @@ import org.junit.Test
 
 class ForegroundServiceDemotionTest {
     @Test
+    fun failedDemotionCanBeRetriedWithoutInvalidatingNewerStarts() {
+        val requests = PlaybackForegroundRequests()
+        val started = requests.requestStart(1)!!
+        requests.completeStart(1, started)
+        val failed = requests.requestDemotion()!!
+        try {
+            requests.demotionDispatchFailed(failed) { throw IllegalStateException("stop failed") }
+        } catch (_: IllegalStateException) {
+            // The foreground service remains tracked so a later demotion can retry.
+        }
+        assertNotNull(requests.requestDemotion())
+        val resumed = requests.requestStart(1)!!
+        requests.demotionDispatchFailed(failed) { error("stale demotion must not stop playback") }
+        assertTrue(requests.isCurrentStart(1, resumed))
+    }
+
+    @Test
+    fun failedDemotionStopsTheServiceIfTheRequestIsStillCurrent() {
+        val requests = PlaybackForegroundRequests()
+        val start = requests.requestStart(1)!!
+        requests.completeStart(1, start)
+        val demotion = requests.requestDemotion()!!
+        var stopped = false
+        requests.demotionDispatchFailed(demotion) { stopped = true }
+        assertTrue(stopped)
+        assertFalse(requests.hasActiveRequest())
+    }
+
+    @Test
+    fun returningToRunningNotificationSupersedesPendingDifferentNotification() {
+        val requests = PlaybackForegroundRequests()
+        val original = requests.requestStart(1)!!
+        requests.completeStart(1, original)
+        val pending = requests.requestStart(2)!!
+        val latest = requests.requestStart(1)!!
+        assertFalse(requests.isCurrentStart(2, pending))
+        assertTrue(requests.isCurrentStart(1, latest))
+    }
+
+    @Test
     fun delayedDemotionCannotStopANewerPlaybackStart() {
         val requests = PlaybackForegroundRequests()
         val first = requests.requestStart(4101)!!
