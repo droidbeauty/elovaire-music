@@ -329,6 +329,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookChapterLabel
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
 import elovaire.music.droidbeauty.app.ui.i18n.pauseLabel
@@ -993,9 +994,21 @@ internal fun NowPlayingScreen(
                                             uri = animatedSong.artUri,
                                             title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(animatedSong.title, animatedSong.id, language),
                                             modifier = Modifier
-                                                .width((animatedArtworkWidth - pausedArtworkInset).coerceAtLeast(0.dp))
+                                                .width(animatedArtworkWidth)
                                                 .aspectRatio(1f)
-                                                .align(Alignment.Center),
+                                                .align(Alignment.Center)
+                                                .graphicsLayer {
+                                                    val artworkWidthPx = size.width
+                                                    val insetPx = pausedArtworkInset.toPx()
+                                                    val scale = if (artworkWidthPx > 0f) {
+                                                        ((artworkWidthPx - insetPx) / artworkWidthPx).coerceAtLeast(0f)
+                                                    } else {
+                                                        1f
+                                                    }
+                                                    scaleX = scale
+                                                    scaleY = scale
+                                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                                },
                                             cornerRadius = animatedArtworkCornerRadius,
                                             requestedSizePx = 1024,
                                         )
@@ -5134,6 +5147,7 @@ private fun PlaybackProgressBar(
     val latestOnScrubFractionChanged by rememberUpdatedState(onScrubFractionChanged)
     val latestOnScrubFinished by rememberUpdatedState(onScrubFinished)
     val motionSpecs = rememberMotionSpecs()
+    var chapterPillWidthPx by remember { mutableStateOf(0) }
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -5230,13 +5244,15 @@ private fun PlaybackProgressBar(
                 visible = isInteracting && chapterPopupNumber != null,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .offset(
-                        x = (maxWidth * popupFraction - 18.dp).coerceIn(
-                            0.dp,
-                            (maxWidth - 36.dp).coerceAtLeast(0.dp),
-                        ),
-                        y = (-16).dp,
-                    ),
+                    .offset {
+                        val widthPx = maxWidth.roundToPx()
+                        IntOffset(
+                            x = (widthPx * popupFraction - chapterPillWidthPx / 2)
+                                .roundToInt()
+                                .coerceIn(0, (widthPx - chapterPillWidthPx).coerceAtLeast(0)),
+                            y = (-28).dp.roundToPx(),
+                        )
+                    },
                 enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
                     scaleIn(
                         animationSpec = motionSpecs.spring(dampingRatio = 0.72f, stiffness = 480f),
@@ -5250,39 +5266,66 @@ private fun PlaybackProgressBar(
                         transformOrigin = TransformOrigin(0.5f, 1f),
                     ),
             ) {
-                Surface(
-                    modifier = Modifier.width(36.dp).height(20.dp),
+                DynamicBackdropSurface(
+                    modifier = Modifier
+                        .heightIn(min = 32.dp)
+                        .onGloballyPositioned { coordinates ->
+                            if (chapterPillWidthPx != coordinates.size.width) {
+                                chapterPillWidthPx = coordinates.size.width
+                            }
+                        },
                     shape = RoundedCornerShape(ElovaireRadii.pill),
-                    color = contentColor.copy(alpha = 0.3f),
+                    overlayAlpha = 0f,
+                    hazeState = LocalPlayerHazeState.current,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        AnimatedContent(
-                            targetState = chapterPopupNumber ?: 1,
-                            transitionSpec = {
-                                val direction = if (targetState >= initialState) 1 else -1
-                                (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
-                                    slideInVertically(
-                                        animationSpec = motionSpecs.tween(MotionDuration.Quick),
-                                        initialOffsetY = { direction * it / 2 },
-                                    )) togetherWith (
-                                    fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
-                                        slideOutVertically(
-                                            animationSpec = motionSpecs.tween(MotionDuration.Quick),
-                                            targetOffsetY = { -direction * it / 2 },
-                                        )
-                                    )
-                            },
-                            label = "chapter_scrub_number_flip",
-                        ) { number ->
+                    Surface(
+                        modifier = Modifier,
+                        shape = RoundedCornerShape(ElovaireRadii.pill),
+                        color = contentColor.copy(alpha = 0.3f),
+                        contentColor = contentColor,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                text = number.toString(),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = elovaireScaledSp(8f),
+                                text = "${audiobookChapterLabel(LocalAppLanguage.current)}:",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontSize = elovaireScaledSp(14f),
                                     fontWeight = FontWeight.SemiBold,
                                 ),
                                 color = contentColor,
                                 maxLines = 1,
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            AnimatedContent(
+                                targetState = chapterPopupNumber ?: 1,
+                                transitionSpec = {
+                                    val direction = if (targetState >= initialState) 1 else -1
+                                    (fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
+                                        slideInVertically(
+                                            animationSpec = motionSpecs.tween(MotionDuration.Quick),
+                                            initialOffsetY = { direction * it / 2 },
+                                        )) togetherWith (
+                                        fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
+                                            slideOutVertically(
+                                                animationSpec = motionSpecs.tween(MotionDuration.Quick),
+                                                targetOffsetY = { -direction * it / 2 },
+                                            )
+                                        )
+                                },
+                                label = "chapter_scrub_number_flip",
+                            ) { number ->
+                                Text(
+                                    text = number.toString(),
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = elovaireScaledSp(14f),
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                    color = contentColor,
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 }

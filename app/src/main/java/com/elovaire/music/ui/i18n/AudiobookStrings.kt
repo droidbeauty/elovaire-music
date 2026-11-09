@@ -2,6 +2,48 @@ package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
+internal fun audiobookChapterLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "Kapitull"
+    AppLanguage.Bosnian -> "Poglavlje"
+    AppLanguage.Bulgarian -> "Глава"
+    AppLanguage.Catalan -> "Capítol"
+    AppLanguage.Finnish -> "Luku"
+    AppLanguage.Romanian -> "Capitol"
+    AppLanguage.Slovenian -> "Poglavje"
+    AppLanguage.Indonesian, AppLanguage.Malay -> "Bab"
+    AppLanguage.Punjabi -> "ਅਧਿਆਇ"
+    AppLanguage.English -> "Chapter"
+    AppLanguage.ChineseSimplified -> "章节"
+    AppLanguage.Croatian -> "Poglavlje"
+    AppLanguage.Czech -> "Kapitola"
+    AppLanguage.Danish -> "Kapitel"
+    AppLanguage.Dutch -> "Hoofdstuk"
+    AppLanguage.Bengali -> "অধ্যায়"
+    AppLanguage.Estonian -> "Peatükk"
+    AppLanguage.French -> "Chapitre"
+    AppLanguage.German -> "Kapitel"
+    AppLanguage.Greek -> "Κεφάλαιο"
+    AppLanguage.Hindi -> "अध्याय"
+    AppLanguage.Hungarian -> "Fejezet"
+    AppLanguage.Italian -> "Capitolo"
+    AppLanguage.Japanese -> "チャプター"
+    AppLanguage.Korean -> "챕터"
+    AppLanguage.Latvian -> "Nodaļa"
+    AppLanguage.Lithuanian -> "Skyrius"
+    AppLanguage.Macedonian -> "Поглавје"
+    AppLanguage.Norwegian -> "Kapittel"
+    AppLanguage.Polish -> "Rozdział"
+    AppLanguage.Portuguese -> "Capítulo"
+    AppLanguage.Russian -> "Глава"
+    AppLanguage.Slovak -> "Kapitola"
+    AppLanguage.Serbian -> "Поглавље"
+    AppLanguage.Spanish -> "Capítulo"
+    AppLanguage.Swedish -> "Kapitel"
+    AppLanguage.Thai -> "บท"
+    AppLanguage.Ukrainian -> "Розділ"
+    AppLanguage.Urdu -> "باب"
+}
+
 internal fun audiobookPartsCount(count: Int, language: AppLanguage): String {
     val lastTwo = count % 100
     val lastDigit = count % 10

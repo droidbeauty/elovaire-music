@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
 import elovaire.music.droidbeauty.app.ui.screens.common.SortOptionsPopup
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
+import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableCardSurfaceColor
 import elovaire.music.droidbeauty.app.ui.screens.common.toggleSelection
@@ -541,21 +542,28 @@ internal fun HomeScreen(
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth(0.7f),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_folder_x),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(30.dp),
+                            )
                             Text(
                                 text = homeCopy.emptyLibraryTitle,
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center,
                             )
                             Text(
                                 text = homeCopy.emptyLibraryMessage,
-                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                style = secondaryBodyTextStyle(),
+                                color = readableSecondaryTextColor(),
                                 textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(0.74f),
                             )
                         }
                     }

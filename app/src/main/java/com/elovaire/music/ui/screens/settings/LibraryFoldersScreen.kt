@@ -55,6 +55,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
@@ -695,6 +697,8 @@ private fun NetworkSourceEditorScreen(
     var domain by rememberSaveable(source?.id) { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var saveRequested by rememberSaveable(source?.id) { mutableStateOf(false) }
+    var subtitleHeight by remember { mutableStateOf(20.dp) }
+    val density = LocalDensity.current
     val sourceId = rememberSaveable(source?.id) { mutableStateOf(source?.id ?: UUID.randomUUID().toString()) }.value
     val credentialKey = source?.credentialKey ?: "network-credential-$sourceId"
     val protocol = NetworkLibraryProtocol.entries.first { it.name == protocolName }
@@ -716,7 +720,7 @@ private fun NetworkSourceEditorScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
-                top = topBarOccupiedHeight() + 100.dp,
+                top = topBarOccupiedHeight() + 20.dp + subtitleHeight + 20.dp,
                 end = 18.dp,
                 bottom = bottomPadding + 24.dp,
             ),
@@ -745,8 +749,7 @@ private fun NetworkSourceEditorScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(start = 18.dp, top = topBarOccupiedHeight() + 20.dp, end = 18.dp)
-                .height(60.dp),
+                .padding(start = 18.dp, top = topBarOccupiedHeight() + 20.dp, end = 18.dp),
             contentAlignment = Alignment.TopCenter,
         ) {
             Text(
@@ -754,7 +757,12 @@ private fun NetworkSourceEditorScreen(
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { size ->
+                        val measuredHeight = with(density) { size.height.toDp() }
+                        if (subtitleHeight != measuredHeight) subtitleHeight = measuredHeight
+                    },
             )
         }
         PinnedBackTopBar(
@@ -788,7 +796,7 @@ private fun NetworkSourceEditorScreen(
         )
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 100.dp,
+            topInset = topBarOccupiedHeight() + 20.dp + subtitleHeight + 20.dp,
             bottomInset = bottomPadding,
         )
     }
