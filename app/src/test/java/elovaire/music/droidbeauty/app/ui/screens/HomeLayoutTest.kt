@@ -68,7 +68,7 @@ class HomeLayoutTest {
                 else -> error("Unexpected call ${method.name}")
             }
         } as NowPlayingPlayback
-        val actions = RootPlaybackActions(playback, { emptyMap() }, { emptyMap() }, {})
+        val actions = RootPlaybackActions(playback, { emptyList() }, { emptyMap() }, {})
         actions.playAudiobook(book, resume = true, rewindOnResumeSeconds = 15)
         assertEquals(1L to 79_000L, result)
         actions.playAudiobook(book, part = parts[1], resume = false, rewindOnResumeSeconds = 15)

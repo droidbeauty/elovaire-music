@@ -57,7 +57,7 @@ class RootStateBindingsTest {
     }
 
     @Test
-    fun buildRootSongIndexes_preservesSourceOrderInBothIndexes() {
+    fun buildRootSongIndexesPreservesSongLookupAndLazilyFindsAlbumSongsInSourceOrder() {
         val first = song(1L, 42L)
         val second = song(2L, 42L)
         val third = song(3L, 7L)
@@ -65,8 +65,10 @@ class RootStateBindingsTest {
         val indexes = buildRootSongIndexes(listOf(second, first, third))
 
         assertEquals(listOf(2L, 1L, 3L), indexes.songsById.keys.toList())
-        assertEquals(listOf(2L, 1L), indexes.songsByAlbumId.getValue(42L).map(Song::id))
-        assertSame(second, indexes.songsByAlbumId.getValue(42L).first())
+        val albumSongs = indexes.songsForAlbumId(42L)
+        assertEquals(listOf(2L, 1L), albumSongs.map(Song::id))
+        assertSame(second, albumSongs.first())
+        assertEquals(emptyList<Song>(), indexes.songsForAlbumId(99L))
     }
 
     @Test

@@ -9,7 +9,6 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
 import elovaire.music.droidbeauty.app.data.settings.PlaybackHistoryStore
 import elovaire.music.droidbeauty.app.data.settings.SearchHistoryStore
 import elovaire.music.droidbeauty.app.domain.model.Album
-import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
@@ -121,7 +120,7 @@ internal class SearchViewModel(
         }
         .map { content ->
             SearchLibrarySnapshot(
-                songs = content.songs.filter { it.mediaKind == AudioMediaKind.Music },
+                songs = content.songs,
                 albums = content.albums,
                 audiobooks = content.audiobooks,
                 revision = content.contentRevision,

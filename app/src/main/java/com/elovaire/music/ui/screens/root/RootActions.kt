@@ -37,7 +37,7 @@ internal fun audiobookResumeTarget(
 
 internal class RootPlaybackActions internal constructor(
     private val playbackManager: NowPlayingPlayback,
-    private val songsByAlbumIdProvider: () -> Map<Long, List<Song>>,
+    private val songsForAlbumIdProvider: (Long) -> List<Song>,
     private val albumsByIdProvider: () -> Map<Long, Album>,
     private val openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ) {
@@ -82,7 +82,7 @@ internal class RootPlaybackActions internal constructor(
                 sourceLabel = album.title,
             )
         } else {
-            val albumSongs = songsByAlbumIdProvider()[song.albumId].orEmpty()
+            val albumSongs = songsForAlbumIdProvider(song.albumId)
             playbackManager.playSong(
                 song = song,
                 collection = albumSongs.ifEmpty { listOf(song) },
@@ -215,14 +215,14 @@ internal class RootPlaylistActions internal constructor(
 @Composable
 internal fun rememberRootPlaybackActions(
     playbackManager: NowPlayingPlayback,
-    songsByAlbumId: Map<Long, List<Song>>,
+    songsForAlbumId: (Long) -> List<Song>,
     albumsById: Map<Long, Album>,
     openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ): RootPlaybackActions {
-    return remember(playbackManager, songsByAlbumId, albumsById, openNowPlaying) {
+    return remember(playbackManager, songsForAlbumId, albumsById, openNowPlaying) {
         RootPlaybackActions(
             playbackManager = playbackManager,
-            songsByAlbumIdProvider = { songsByAlbumId },
+            songsForAlbumIdProvider = songsForAlbumId,
             albumsByIdProvider = { albumsById },
             openNowPlaying = openNowPlaying,
         )

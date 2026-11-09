@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -24,6 +25,21 @@ class SearchIndexTest {
         val full = buildSearchResults(query, SearchSortMode.Title, index)
         val preview = buildSearchResults(query, SearchSortMode.Title, index, includeAllSongs = false)
         assertEquals(full.matchingSongs, preview.matchingSongs)
+    }
+
+    @Test
+    fun librarySnapshotIndexesOnlyMusicWithoutBuildingAFilteredSongList() {
+        val music = song(id = 1L, title = "Music", artist = "Singer", albumArtist = null)
+        val audiobook = song(id = 2L, title = "Book", artist = "Author", albumArtist = null)
+            .copy(mediaKind = AudioMediaKind.Audiobook)
+
+        val index = SearchLibrarySnapshot(
+            songs = listOf(music, audiobook),
+            albums = emptyList(),
+        ).toSearchIndex(revision = "library")
+
+        assertEquals(listOf(music), index.songs.map(SearchableSong::song))
+        assertEquals(listOf("Singer"), index.artists.map(SearchableArtist::displayName))
     }
 
     @Test

@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.playback.library
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -33,8 +34,9 @@ class MediaTreeSnapshotCacheTest {
         assertEquals(listOf(4L), snapshot.songsForGenreInContext("Jazz").map(Song::id))
     }
     @Test
-    fun unchangedStateFlowValuesReuseDerivedSnapshot() {
-        val songs = emptyList<Song>()
+    fun playbackContextChangesReuseLibraryIndexesAndRefreshDynamicRows() {
+        val song = testSong(id = 1L)
+        val songs = listOf(song)
         val albums = emptyList<Album>()
         val playlists = emptyList<Playlist>()
         val favorites = emptyList<Long>()
@@ -50,15 +52,41 @@ class MediaTreeSnapshotCacheTest {
             lastPlayedCollectionKind = null,
             lastPlayedCollectionId = null,
         )
-        val second = cache.snapshot(
-            true, songs, albums, playlists, favorites, recent, null, null,
-        )
+        val sortedSongs = first.songsByTitle()
+        val searchableSongs = first.searchableSongs()
         val changed = cache.snapshot(
-            true, songs, albums, playlists, listOf(1L), recent, null, null,
+            true,
+            songs = songs,
+            albums = albums,
+            playlists = playlists,
+            favoriteSongIds = listOf(1L),
+            recentSongIds = listOf(1L),
+            lastPlayedCollectionKind = PlaybackCollectionKind.Album,
+            lastPlayedCollectionId = 1L,
         )
 
+        assertSame(first, changed)
+        assertSame(sortedSongs, changed.songsByTitle())
+        assertSame(searchableSongs, changed.searchableSongs())
+        assertEquals(setOf(1L), changed.favoriteSongIds)
+        assertEquals(listOf(song), changed.favoriteSongs())
+        assertEquals(listOf(1L), changed.recentSongIds)
+        assertEquals(PlaybackCollectionKind.Album, changed.lastPlayedCollectionKind)
+        assertEquals(1L, changed.lastPlayedCollectionId)
+    }
+
+    @Test
+    fun unchangedLibraryAndPlaybackValuesReuseDerivedSnapshot() {
+        val songs = emptyList<Song>()
+        val albums = emptyList<Album>()
+        val playlists = emptyList<Playlist>()
+        val favorites = emptyList<Long>()
+        val recent = emptyList<Long>()
+        val cache = MediaTreeSnapshotCache()
+        val first = cache.snapshot(true, songs, albums, playlists, favorites, recent, null, null)
+        val second = cache.snapshot(true, songs, albums, playlists, favorites, recent, null, null)
+
         assertSame(first, second)
-        assertNotSame(second, changed)
     }
 
     @Test

@@ -5,6 +5,7 @@ import android.os.Debug
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.settings.PreferenceCollectionCodec
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
@@ -15,6 +16,8 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SortDirection
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchSortMode
 import elovaire.music.droidbeauty.app.domain.search.SearchIndex
+import elovaire.music.droidbeauty.app.domain.search.SearchLibrarySnapshot
+import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
 import elovaire.music.droidbeauty.app.domain.search.RankedResult
 import elovaire.music.droidbeauty.app.domain.search.SearchResults
 import elovaire.music.droidbeauty.app.domain.search.SearchableSong
@@ -30,6 +33,7 @@ import kotlin.system.measureNanoTime
 import java.util.PriorityQueue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -123,6 +127,55 @@ class LibraryScaleInstrumentedTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun searchIndexBuildAvoidsIntermediateMusicSongProjectionAtScale() {
+        val songs = List(30_000) { index ->
+            val song = song(index.toLong() + 1L)
+            if (index % 5 == 0) song.copy(mediaKind = AudioMediaKind.Audiobook) else song
+        }
+        val baseline = {
+            SearchLibrarySnapshot(
+                songs = songs.filter { it.mediaKind == AudioMediaKind.Music },
+                albums = emptyList(),
+                revision = "search-scale",
+            ).toSearchIndex("search-scale")
+        }
+        val candidate = {
+            SearchLibrarySnapshot(
+                songs = songs,
+                albums = emptyList(),
+                revision = "search-scale",
+            ).toSearchIndex("search-scale")
+        }
+        assertEquals(baseline(), candidate())
+        repeat(2) {
+            baseline()
+            candidate()
+        }
+        val timingsMs = Array(2) { mutableListOf<Double>() }
+        val allocations = Array(2) { mutableListOf<Long>() }
+        repeat(7) { sample ->
+            for (variant in if (sample % 2 == 0) listOf(0, 1) else listOf(1, 0)) {
+                val before = Debug.getRuntimeStat("art.gc.bytes-allocated").toLong()
+                lateinit var index: SearchIndex
+                timingsMs[variant] += measureNanoTime {
+                    index = if (variant == 0) baseline() else candidate()
+                } / 1_000_000.0
+                allocations[variant] += Debug.getRuntimeStat("art.gc.bytes-allocated").toLong() - before
+                assertEquals(24_000, index.songs.size)
+            }
+        }
+        Log.i(
+            "LibraryScale",
+            "paired_search_projection songs=${songs.size} baselineMs=${timingsMs[0]} " +
+                "candidateMs=${timingsMs[1]} baselineBytes=${allocations[0]} candidateBytes=${allocations[1]}",
+        )
+        assertTrue(
+            "Streaming music selection should reduce index allocations: $allocations",
+            medianLong(allocations[1]) < medianLong(allocations[0]),
+        )
     }
 
     // Previous preview algorithm, retained as an allocation and ordering reference.
@@ -400,6 +453,10 @@ class LibraryScaleInstrumentedTest {
         val allocatedBytes = Debug.getRuntimeStat("art.gc.bytes-allocated").toLong() - allocatedBefore
         Log.i("LibraryScale", "phase=$phase songs=$size samplesMs=$timings allocatedBytes=$allocatedBytes")
     }
+
+    private fun median(values: List<Double>): Double = values.sorted()[values.size / 2]
+
+    private fun medianLong(values: List<Long>): Long = values.sorted()[values.size / 2]
 
     private fun song(id: Long) = Song(
         id = id,

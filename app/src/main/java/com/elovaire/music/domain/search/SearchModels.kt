@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.charset.StandardCharsets
@@ -167,6 +168,7 @@ internal fun SearchLibrarySnapshot.toSearchIndex(
         albums = albums,
         audiobooks = audiobooks,
         cancellationCheck = cancellationCheck,
+        musicSongsOnly = true,
     ).copy(revision = revision)
 }
 
@@ -175,6 +177,7 @@ internal fun buildSearchIndex(
     albums: List<Album>,
     audiobooks: List<Audiobook> = emptyList(),
     cancellationCheck: () -> Unit = {},
+    musicSongsOnly: Boolean = false,
 ): SearchIndex {
     val normalizedMetadata = HashMap<String, String>()
     fun normalizeMetadata(value: String): String =
@@ -184,6 +187,7 @@ internal fun buildSearchIndex(
     val artistCounts = linkedMapOf<String, SearchableArtistCounts>()
     songs.forEachIndexed { index, song ->
         if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
+        if (musicSongsOnly && song.mediaKind != AudioMediaKind.Music) return@forEachIndexed
         val searchableSong = song.toSearchableSong(::normalizeMetadata)
         searchableSongs += searchableSong
         addSearchableArtist(song, searchableSong, artistCounts)

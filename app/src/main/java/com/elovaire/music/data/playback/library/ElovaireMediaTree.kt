@@ -660,23 +660,35 @@ internal class ElovaireMediaTree(
         )
     }
 
-    internal data class MediaTreeSnapshot(
+    internal class MediaTreeSnapshot(
         val permissionGranted: Boolean,
         val songs: List<Song>,
         val albums: List<Album>,
         val playlists: List<Playlist>,
-        val favoriteSongIdSource: List<Long>,
-        val favoriteSongIds: Set<Long>,
-        val recentSongIds: List<Long>,
-        val lastPlayedCollectionKind: PlaybackCollectionKind?,
-        val lastPlayedCollectionId: Long?,
+        favoriteSongIdSource: List<Long>,
+        favoriteSongIds: Set<Long>,
+        recentSongIds: List<Long>,
+        lastPlayedCollectionKind: PlaybackCollectionKind?,
+        lastPlayedCollectionId: Long?,
         val libraryRevision: String = "",
         val audiobooks: List<Audiobook> = emptyList(),
     ) {
-        private val favoriteSongs by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { songs.filter { it.id in favoriteSongIds } }
-        private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-            sortedByDisplayName(favoriteSongs, Song::title, Song::id)
-        }
+        @Volatile
+        private var favoriteSongIdSource = favoriteSongIdSource
+        @Volatile
+        var favoriteSongIds = favoriteSongIds
+            private set
+        @Volatile
+        var recentSongIds = recentSongIds
+            private set
+        @Volatile
+        var lastPlayedCollectionKind = lastPlayedCollectionKind
+            private set
+        @Volatile
+        var lastPlayedCollectionId = lastPlayedCollectionId
+            private set
+        private var favoriteSongsCache: List<Song>? = null
+        private var favoriteSongsByTitleCache: List<Song>? = null
         private val songsByTitle by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
             sortedByDisplayName(songs, Song::title, Song::id)
         }
@@ -783,8 +795,35 @@ internal class ElovaireMediaTree(
             genreNames.map { name -> NamedSongs(name = name, songs = songsForGenre(name)) }
         }
 
-        fun favoriteSongs(): List<Song> = favoriteSongs
-        fun favoriteSongsByTitle(): List<Song> = favoriteSongsByTitle
+        @Synchronized
+        fun updatePlaybackContext(
+            favoriteSongIds: List<Long>,
+            recentSongIds: List<Long>,
+            lastPlayedCollectionKind: PlaybackCollectionKind?,
+            lastPlayedCollectionId: Long?,
+        ) {
+            if (this.favoriteSongIdSource != favoriteSongIds) {
+                this.favoriteSongIdSource = favoriteSongIds
+                this.favoriteSongIds = favoriteSongIds.toSet()
+                favoriteSongsCache = null
+                favoriteSongsByTitleCache = null
+            }
+            if (this.recentSongIds != recentSongIds) this.recentSongIds = recentSongIds
+            this.lastPlayedCollectionKind = lastPlayedCollectionKind
+            this.lastPlayedCollectionId = lastPlayedCollectionId
+        }
+
+        @Synchronized
+        fun favoriteSongs(): List<Song> = favoriteSongsCache ?: songs
+            .filter { it.id in favoriteSongIds }
+            .also { favoriteSongsCache = it }
+
+        @Synchronized
+        fun favoriteSongsByTitle(): List<Song> = favoriteSongsByTitleCache ?: sortedByDisplayName(
+            favoriteSongs(),
+            Song::title,
+            Song::id,
+        ).also { favoriteSongsByTitleCache = it }
         fun songsByTitle(): List<Song> = songsByTitle
         fun albumsByTitle(): List<Album> = albumsByTitle
         fun nonEmptyPlaylistsByName(): List<Playlist> = nonEmptyPlaylistsByName
@@ -960,12 +999,16 @@ internal class MediaTreeSnapshotCache {
                 (libraryRevision.isNotBlank() && it.libraryRevision == libraryRevision ||
                     libraryRevision.isBlank() && it.songs === musicSongs && it.albums === albums) &&
                 it.audiobooks === audiobooks &&
-                it.playlists === playlists &&
-                it.favoriteSongIdSource === favoriteSongIds &&
-                it.recentSongIds === recentSongIds &&
-                it.lastPlayedCollectionKind == lastPlayedCollectionKind &&
-                it.lastPlayedCollectionId == lastPlayedCollectionId
-        }?.let { return it }
+                it.playlists === playlists
+        }?.let { cached ->
+            cached.updatePlaybackContext(
+                favoriteSongIds = favoriteSongIds,
+                recentSongIds = recentSongIds,
+                lastPlayedCollectionKind = lastPlayedCollectionKind,
+                lastPlayedCollectionId = lastPlayedCollectionId,
+            )
+            return cached
+        }
         return ElovaireMediaTree.MediaTreeSnapshot(
             permissionGranted = permissionGranted,
             songs = musicSongs,

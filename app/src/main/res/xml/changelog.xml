@@ -6,12 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.1">
-        <item>UI tweaks in now playing screen for audiobook playback</item>
-        <item>UI tweaks in NAS setup screen</item>
-        <item>Redesigned equalizer UI</item>
-        <item>Fixed glitchy tag reading from NAS connected library</item>
-        <item>Stability and technical improvements to audiobook playback</item>
+    <release version="3.1.1">
+        <item>Fixed smaller UI inconsistencies in many ares</item>
+        <item>Reliability improvements for NAS support</item>
+        <item>General efficiency upgrades</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

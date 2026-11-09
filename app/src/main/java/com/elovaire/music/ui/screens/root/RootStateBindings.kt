@@ -54,7 +54,7 @@ internal data class RootAppState(
 
 internal data class RootLibraryDerivedState(
     val songsById: Map<Long, Song>,
-    val songsByAlbumId: Map<Long, List<Song>>,
+    val songsForAlbumId: (Long) -> List<Song>,
     val albumsById: Map<Long, Album>,
     val playlistsById: Map<Long, Playlist>,
     val recentlyAddedAlbums: List<Album>,
@@ -66,17 +66,18 @@ internal data class RootLibraryDerivedState(
 
 internal data class RootSongIndexes(
     val songsById: Map<Long, Song>,
-    val songsByAlbumId: Map<Long, List<Song>>,
+    val songsForAlbumId: (Long) -> List<Song>,
 )
 
 internal fun buildRootSongIndexes(songs: List<Song>): RootSongIndexes {
-    val songsById = linkedMapOf<Long, Song>()
-    val songsByAlbumId = linkedMapOf<Long, MutableList<Song>>()
+    val songsById = LinkedHashMap<Long, Song>(songs.size)
     songs.forEach { song ->
         songsById[song.id] = song
-        songsByAlbumId.getOrPut(song.albumId, ::mutableListOf).add(song)
     }
-    return RootSongIndexes(songsById, songsByAlbumId)
+    return RootSongIndexes(
+        songsById = songsById,
+        songsForAlbumId = { albumId -> songs.filter { it.albumId == albumId } },
+    )
 }
 
 internal fun libraryUiStateOf(
@@ -107,7 +108,7 @@ internal fun rememberRootLibraryDerivedState(
 ): RootLibraryDerivedState {
     val songIndexes = remember(library.songs) { buildRootSongIndexes(library.songs) }
     val songsById = songIndexes.songsById
-    val songsByAlbumId = songIndexes.songsByAlbumId
+    val songsForAlbumId = songIndexes.songsForAlbumId
     val albumsById = remember(library.albums) { library.albums.associateBy(Album::id) }
     val playlistsById = remember(playlists) { playlists.associateBy(Playlist::id) }
     val recentlyAddedAlbums = remember(library.albums) {
@@ -149,7 +150,7 @@ internal fun rememberRootLibraryDerivedState(
     }
     return remember(
         songsById,
-        songsByAlbumId,
+        songsForAlbumId,
         albumsById,
         playlistsById,
         recentlyAddedAlbums,
@@ -160,7 +161,7 @@ internal fun rememberRootLibraryDerivedState(
     ) {
         RootLibraryDerivedState(
             songsById = songsById,
-            songsByAlbumId = songsByAlbumId,
+            songsForAlbumId = songsForAlbumId,
             albumsById = albumsById,
             playlistsById = playlistsById,
             recentlyAddedAlbums = recentlyAddedAlbums,
