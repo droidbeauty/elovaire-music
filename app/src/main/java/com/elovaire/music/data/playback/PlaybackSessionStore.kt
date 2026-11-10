@@ -49,7 +49,7 @@ internal class PlaybackSessionStore(
 
     @Synchronized
     override fun load(): PersistedPlaybackSession? {
-        if (hasUnsupportedCommittedSession()) return null
+        if (hasUnsupportedSession()) return null
         return if (committedPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
             load(committedPreferences, committedPreferences)
         } else {
@@ -79,9 +79,7 @@ internal class PlaybackSessionStore(
         val structureGeneration = structure.getLong(KEY_GENERATION, 0L)
         val recoveryGeneration = recovery.getLong(KEY_GENERATION, 0L)
         nextGeneration = maxOf(nextGeneration, structureGeneration, recoveryGeneration)
-        val generationsCoherent = structureGeneration == 0L ||
-            recoveryGeneration == 0L ||
-            structureGeneration == recoveryGeneration
+        val generationsCoherent = structureGeneration == recoveryGeneration
         val savedAtMs = if (generationsCoherent) recovery.getLong(KEY_SAVED_AT, 0L) else clock.wallTimeMs()
         if (!isPlaybackSessionFresh(clock.wallTimeMs(), savedAtMs)) {
             clear()
@@ -117,7 +115,7 @@ internal class PlaybackSessionStore(
 
     @Synchronized
     override fun save(session: PersistedPlaybackSession) {
-        if (hasUnsupportedCommittedSession()) return
+        if (hasUnsupportedSession()) return
         val normalized = normalizePersistedPlaybackSession(session)
         if (normalized.queueSongIds.isEmpty()) {
             clear()
@@ -158,13 +156,19 @@ internal class PlaybackSessionStore(
         clearObsoletePreferencesIfNeeded()
     }
 
-    private fun hasUnsupportedCommittedSession(): Boolean =
-        committedPreferences.contains(KEY_FORMAT_VERSION) &&
+    private fun hasUnsupportedSession(): Boolean {
+        if (committedPreferences.contains(KEY_FORMAT_VERSION) &&
             committedPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) != CURRENT_FORMAT_VERSION
+        ) return true
+        return listOf(structurePreferences, legacyPreferences).any { preferences ->
+            preferences.contains(KEY_FORMAT_VERSION) &&
+                preferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) > CURRENT_FORMAT_VERSION
+        }
+    }
 
     @Synchronized
     override fun clear() {
-        if (hasUnsupportedCommittedSession()) return
+        if (hasUnsupportedSession()) return
         lastSavedSession = null
         if (clearStateKnown) return
         listOf(committedPreferences, structurePreferences, recoveryPreferences)

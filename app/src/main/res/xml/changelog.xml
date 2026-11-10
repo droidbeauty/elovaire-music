@@ -6,10 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.1.1">
-        <item>Fixed smaller UI inconsistencies in many ares</item>
-        <item>Reliability improvements for NAS support</item>
-        <item>General efficiency upgrades</item>
+    <release version="3.1.2">
+        <item>Performance optimizations</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

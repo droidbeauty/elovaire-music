@@ -13,14 +13,22 @@ internal fun canonicalizeMediaIdRelocations(
     }
     val canonical = LinkedHashMap<Long, Long>(replacements.size)
     replacements.keys.forEach { source ->
+        if (source in canonical) return@forEach
         val visited = HashSet<Long>()
+        val path = ArrayList<Long>()
         var current = source
         while (true) {
+            val resolved = canonical[current]
+            if (resolved != null) {
+                current = resolved
+                break
+            }
             val next = replacements[current] ?: break
             if (next == current || !visited.add(current)) return null
+            path.add(current)
             current = next
         }
-        if (current != source) canonical[source] = current
+        path.forEach { canonical[it] = current }
     }
-    return canonical
+    return replacements.keys.associateWithTo(LinkedHashMap(replacements.size)) { canonical.getValue(it) }
 }

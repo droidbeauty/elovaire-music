@@ -134,4 +134,12 @@ class PlaybackHistoryWriteBufferTest {
             ),
         )
     }
+
+    @Test
+    fun longRelocationChainsAreFlattenedInSourceOrder() {
+        val replacements = (1L..10_000L).associateWith { it + 1L }
+        val result = elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations(replacements)!!
+        assertEquals(replacements.keys.toList(), result.keys.toList())
+        assertEquals(setOf(10_001L), result.values.toSet())
+    }
 }

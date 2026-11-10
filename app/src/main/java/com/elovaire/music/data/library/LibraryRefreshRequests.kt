@@ -56,7 +56,7 @@ internal data class LibraryRefreshRequest(
         } else {
             (removedPaths + other.removedPaths).distinctNonBlankPaths()
         }
-        val mergedGenerationFloor = if (
+        val discardGenerationFloors =
             force ||
                 requiresFullMediaStoreScan ||
                 mixedGenerationFloors ||
@@ -64,20 +64,12 @@ internal data class LibraryRefreshRequest(
                 mergedSafTreeIds != null ||
                 targetedNetworkSourceIds != null ||
                 other.targetedNetworkSourceIds != null
-        ) {
+        val mergedGenerationFloor = if (discardGenerationFloors) {
             null
         } else {
             listOfNotNull(mediaStoreGenerationFloor, other.mediaStoreGenerationFloor).minOrNull()
-            }
-        val mergedGenerationFloors = if (
-            force ||
-                requiresFullMediaStoreScan ||
-                mixedGenerationFloors ||
-                mergedPaths.isNotEmpty() ||
-                mergedSafTreeIds != null ||
-                targetedNetworkSourceIds != null ||
-                other.targetedNetworkSourceIds != null
-        ) {
+        }
+        val mergedGenerationFloors = if (discardGenerationFloors) {
             emptyMap()
         } else {
             (mediaStoreGenerationFloors.keys + other.mediaStoreGenerationFloors.keys)

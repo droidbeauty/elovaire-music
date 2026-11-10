@@ -68,19 +68,9 @@ internal class PlaybackQueueMetadataRefresher {
         val songsByPath = HashMap<String, Song>(librarySongs.size)
         val ambiguousPaths = HashSet<String>()
         librarySongs.forEach { song ->
-            val identity = MediaIdentityResolver.stableKey(song)
-            if (identity !in ambiguousIdentities) {
-                if (songsByIdentity.putIfAbsent(identity, song) != null) {
-                    songsByIdentity.remove(identity)
-                    ambiguousIdentities += identity
-                }
-            }
-            val path = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
-            if (path != null && path !in ambiguousPaths) {
-                if (songsByPath.putIfAbsent(path, song) != null) {
-                    songsByPath.remove(path)
-                    ambiguousPaths += path
-                }
+            songsByIdentity.putUnique(MediaIdentityResolver.stableKey(song), song, ambiguousIdentities)
+            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { path ->
+                songsByPath.putUnique(path, song, ambiguousPaths)
             }
         }
         val trackMatcher by lazy { MediaIdentityResolver.prepareTrackMatcher(librarySongs) }
@@ -128,3 +118,10 @@ internal data class PlaybackQueueReconciliation(
 
 private fun List<Song>.queueMetadataSignature(): List<PlaybackMetadataSignature> =
     map(Song::playbackMetadataSignature)
+
+private fun <K> MutableMap<K, Song>.putUnique(key: K, song: Song, ambiguous: MutableSet<K>) {
+    if (key !in ambiguous && putIfAbsent(key, song) != null) {
+        remove(key)
+        ambiguous.add(key)
+    }
+}

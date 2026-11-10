@@ -135,15 +135,26 @@ internal class AppRuntimeCoordinator(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun runExclusiveAction(
         action: () -> Unit,
         onlyWhen: AppRuntimePhase? = null,
     ) {
         val ownsTransition = beginExclusiveAction(onlyWhen) ?: return
+        var actionFailure: Throwable? = null
         try {
             action()
+        } catch (failure: Throwable) {
+            actionFailure = failure
+            throw failure
         } finally {
-            if (ownsTransition) finishAction()
+            if (ownsTransition) {
+                val cleanupFailure = finishAction()
+                if (cleanupFailure != null) {
+                    if (actionFailure == null) throw cleanupFailure
+                    if (actionFailure !== cleanupFailure) actionFailure.addSuppressed(cleanupFailure)
+                }
+            }
         }
     }
 
@@ -196,15 +207,15 @@ internal class AppRuntimeCoordinator(
         } finally {
             lock.unlock()
         }
-        if (runPendingRelease) {
-            return try {
+        val failure = if (runPendingRelease) {
+            try {
                 releaseAction()
-                finishAction()
                 null
             } catch (failure: Throwable) {
-                finishAction()
                 failure
             }
+        } else {
+            null
         }
         lock.lock()
         try {
@@ -214,7 +225,7 @@ internal class AppRuntimeCoordinator(
         } finally {
             lock.unlock()
         }
-        return null
+        return failure
     }
 
     private fun awaitActionLocked() {

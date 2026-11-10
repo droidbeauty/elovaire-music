@@ -17,11 +17,17 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     @Query("SELECT * FROM user_playlists WHERE playlistId = :playlistId")
     suspend fun playlist(playlistId: Long): UserPlaylistEntity?
 
+    @Query("SELECT * FROM user_playlists WHERE playlistId IN (:ids)")
+    suspend fun playlistsByIds(ids: List<Long>): List<UserPlaylistEntity>
+
     @Query("SELECT * FROM user_playlist_entries ORDER BY playlistId, position")
     suspend fun playlistEntries(): List<UserPlaylistEntryEntity>
 
     @Query("SELECT * FROM user_playlist_entries WHERE playlistId = :playlistId ORDER BY position")
     suspend fun playlistEntries(playlistId: Long): List<UserPlaylistEntryEntity>
+
+    @Query("SELECT * FROM user_playlist_entries WHERE playlistId IN (:ids) ORDER BY playlistId, position")
+    suspend fun playlistEntriesByIds(ids: List<Long>): List<UserPlaylistEntryEntity>
 
     @Query("SELECT * FROM user_smart_playlists ORDER BY playlistId")
     suspend fun smartPlaylists(): List<UserSmartPlaylistEntity>
@@ -115,12 +121,15 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
         playlists.forEach { insertPlaylist(it) }
         if (entries.isNotEmpty()) insertPlaylistEntries(entries)
         val entriesByPlaylist = entries.groupBy(UserPlaylistEntryEntity::playlistId)
+        val idChunks = if (playlists.size >= 8) playlists.map(UserPlaylistEntity::playlistId).chunked(500) else null
+        val storedPlaylists = idChunks?.flatMap { playlistsByIds(it) }?.associateBy(UserPlaylistEntity::playlistId)
+        val storedEntries = idChunks?.flatMap { playlistEntriesByIds(it) }?.groupBy(UserPlaylistEntryEntity::playlistId)
         playlists.forEach { expected ->
-            check(playlist(expected.playlistId) == expected) {
+            check((storedPlaylists?.get(expected.playlistId) ?: playlist(expected.playlistId)) == expected) {
                 "Playlist import row readback failed for ${expected.playlistId}."
             }
             check(
-                playlistEntries(expected.playlistId) == entriesByPlaylist[expected.playlistId].orEmpty()
+                (storedEntries?.get(expected.playlistId) ?: if (storedEntries != null) emptyList() else playlistEntries(expected.playlistId)) == entriesByPlaylist[expected.playlistId].orEmpty()
                     .sortedBy(UserPlaylistEntryEntity::position),
             ) {
                 "Playlist import entry readback failed for ${expected.playlistId}."
@@ -357,37 +366,25 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
         val normalized = canonicalizeMediaIdRelocations(replacements).orEmpty()
         if (normalized.isEmpty()) return
 
-        fun resolve(id: Long): Long {
-            var current = id
-            val visited = HashSet<Long>()
-            while (true) {
-                val next = normalized[current] ?: return current
-                if (!visited.add(current) || next == current) return current
-                current = next
-            }
-        }
+        fun resolve(id: Long): Long = normalized[id] ?: id
 
         playlistEntries()
             .groupBy(UserPlaylistEntryEntity::playlistId)
             .forEach { (playlistId, entries) ->
-                val relocatedIds = entries
-                    .sortedBy(UserPlaylistEntryEntity::position)
-                    .map(UserPlaylistEntryEntity::songId)
+                val currentIds = entries.map(UserPlaylistEntryEntity::songId)
+                val relocatedIds = currentIds
                     .map(::resolve)
                     .distinct()
-                val currentIds = entries.sortedBy(UserPlaylistEntryEntity::position).map(UserPlaylistEntryEntity::songId)
                 if (relocatedIds != currentIds) {
                     replacePlaylistEntries(playlistId, relocatedIds)
                 }
             }
 
         val currentFavorites = favorites()
-        val relocatedFavorites = currentFavorites
-            .sortedBy(FavoriteSongEntity::position)
-            .map(FavoriteSongEntity::songId)
+        val currentFavoriteIds = currentFavorites.map(FavoriteSongEntity::songId)
+        val relocatedFavorites = currentFavoriteIds
             .map(::resolve)
             .distinct()
-        val currentFavoriteIds = currentFavorites.sortedBy(FavoriteSongEntity::position).map(FavoriteSongEntity::songId)
         if (relocatedFavorites != currentFavoriteIds) {
             clearFavorites()
             insertFavorites(relocatedFavorites.mapIndexed { position, songId -> FavoriteSongEntity(songId, position) })
@@ -408,7 +405,6 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
         val currentRecent = recentPlayback()
         val currentSongRecent = currentRecent
             .filter { it.kind == "song" }
-            .sortedBy(RecentPlaybackEntity::position)
         val relocatedSongRecent = currentSongRecent
             .map { it.copy(itemId = resolve(it.itemId)) }
             .distinctBy(RecentPlaybackEntity::itemId)

@@ -59,7 +59,7 @@ internal class NetworkLibraryBackend(
     fun start() {
         if (released.get() || sources.value.none(NetworkLibrarySource::enabled)) return
         synchronized(servicesLock) {
-            if (servicesStarted) return
+            if (released.get() || servicesStarted) return
             servicesStarted = true
             servicesJob = optionalScope.launch(ioDispatcher) {
                 try {

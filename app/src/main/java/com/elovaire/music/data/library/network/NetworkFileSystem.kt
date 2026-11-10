@@ -100,24 +100,19 @@ internal class NetworkFileSystemRegistry(
     private val _recoveryGeneration = MutableStateFlow(0L)
     val recoveryGeneration = _recoveryGeneration.asStateFlow()
     private val connectivityStateLock = Any()
+    private var lastConnectivityGeneration = 0L
     private val connectivityObserver = applicationContext?.let { context ->
         NetworkConnectivityObserver(
             context = context,
             localNetworkAccessAllowed = localNetworkAccessAllowed,
             onStateChanged = { state ->
-                val accepted = synchronized(connectivityStateLock) {
-                    if (
-                        released.get() ||
-                        !shouldApplyNetworkConnectivityGeneration(networkGeneration.get(), state.generation)
-                    ) {
-                        false
-                    } else {
-                        permissionAllowed.set(state.localNetworkAccessAllowed)
-                        networkGeneration.set(state.generation)
-                        true
-                    }
-                }
-                if (accepted) {
+                synchronized(connectivityStateLock) {
+                    if (released.get() ||
+                        !shouldApplyNetworkConnectivityGeneration(lastConnectivityGeneration, state.generation)
+                    ) return@synchronized
+                    lastConnectivityGeneration = state.generation
+                    permissionAllowed.set(state.localNetworkAccessAllowed)
+                    networkGeneration.incrementAndGet()
                     invalidateAll()
                     if (state.networkAvailable && !state.networkBlocked && state.localNetworkAccessAllowed) {
                         _recoveryGeneration.value = state.generation
@@ -152,6 +147,9 @@ internal class NetworkFileSystemRegistry(
             val resource = resourceTracker.acquire(BackendResourceKind.ActiveNetworkListing)
             try {
                 checkNotReleased()
+                if (!checkLocalNetworkAccess(throwOnDenied = false)) {
+                    return@withPermit NetworkProbeResult(NetworkAvailability.LocalNetworkPermissionRequired)
+                }
                 fileSystems[source.protocol]?.probeBlocking(source, credentials)
                     ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
             } finally {
@@ -167,6 +165,7 @@ internal class NetworkFileSystemRegistry(
             val resource = resourceTracker.acquire(BackendResourceKind.ActiveNetworkListing)
             try {
                 checkNotReleased()
+                checkLocalNetworkAccess()
                 fileSystems[source.protocol]?.listBlocking(source, credentials)
                     ?: throw IOException("Network protocol is unavailable")
             } finally {
@@ -274,6 +273,7 @@ internal class NetworkFileSystemRegistry(
         var handedOff = false
         return try {
             checkNotReleased()
+            checkLocalNetworkAccess()
             if (
                 !isCurrent(sourceRecord, sourceGeneration) ||
                     credentialStore.generation(sourceRecord.credentialKey) != credentialGeneration ||
@@ -348,12 +348,14 @@ internal class NetworkFileSystemRegistry(
     }
 
     fun start() {
-        connectivityObserver?.start()
+        synchronized(connectivityStateLock) {
+            if (!released.get()) connectivityObserver?.start()
+        }
     }
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        connectivityObserver?.close()
+        synchronized(connectivityStateLock) { connectivityObserver?.close() }
         operationAdmission.close()
         val handles = synchronized(activeHandlesLock) {
             activeHandles.toList().also { activeHandles.clear() }
@@ -374,14 +376,14 @@ internal class NetworkFileSystemRegistry(
 
     private fun checkLocalNetworkAccess(throwOnDenied: Boolean): Boolean {
         connectivityObserver?.syncPermission()
-        if (connectivityObserver == null) {
+        val allowed = synchronized(connectivityStateLock) {
             val allowed = localNetworkAccessAllowed()
-            if (permissionAllowed.getAndSet(allowed) != allowed) {
+            if (!released.get() && permissionAllowed.getAndSet(allowed) != allowed) {
                 networkGeneration.incrementAndGet()
                 invalidateAll()
             }
+            allowed
         }
-        val allowed = permissionAllowed.get()
         if (!allowed && throwOnDenied) throw NetworkLocalNetworkPermissionException()
         return allowed
     }

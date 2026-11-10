@@ -33,6 +33,73 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlaybackRecoveryInstrumentedTest {
     @Test
+    fun incompleteDualFileGenerationDoesNotRestoreAnUnrelatedPosition() {
+        val target = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = object : ContextWrapper(target) {
+            override fun getApplicationContext(): Context = this
+            override fun getSharedPreferences(name: String, mode: Int) =
+                super.getSharedPreferences("incomplete_generation_test_$name", mode)
+        }
+        val structure = context.getSharedPreferences("playback_session_structure", Context.MODE_PRIVATE)
+        val recovery = context.getSharedPreferences("playback_session_recovery", Context.MODE_PRIVATE)
+        try {
+            assertTrue(structure.edit().putInt("format_version", DUAL_FILE_FORMAT_VERSION)
+                .putLong("generation", 2L).putString("queue_song_ids", "41,42").commit())
+            assertTrue(recovery.edit().putLong("position_ms", 1234L).putInt("current_index", 1)
+                .putLong("current_song_id", 42L).putBoolean("was_playing", true)
+                .putLong("saved_at_wall_time_ms", System.currentTimeMillis()).commit())
+            val result = checkNotNull(PlaybackSessionStore(context).load())
+            assertEquals(0L, result.positionMs)
+            assertEquals(0, result.currentIndex)
+            assertFalse(result.wasPlaying)
+            assertTrue(structure.edit().remove("generation").commit())
+            val legacy = checkNotNull(PlaybackSessionStore(context).load())
+            assertEquals(1234L, legacy.positionMs)
+            assertEquals(1, legacy.currentIndex)
+            assertTrue(legacy.wasPlaying)
+        } finally {
+            listOf("playback_session_committed", "playback_session_structure", "playback_session_recovery", "playback_session")
+                .forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
+        }
+    }
+
+    @Test
+    fun newerDualFilePlaybackSessionIsPreserved() {
+        val target = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = object : ContextWrapper(target) {
+            override fun getApplicationContext(): Context = this
+            override fun getSharedPreferences(name: String, mode: Int) =
+                super.getSharedPreferences("future_dual_playback_test_$name", mode)
+        }
+        val structure = context.getSharedPreferences("playback_session_structure", Context.MODE_PRIVATE)
+        val recovery = context.getSharedPreferences("playback_session_recovery", Context.MODE_PRIVATE)
+        try {
+            assertTrue(structure.edit().putInt("format_version", CURRENT_FORMAT_VERSION + 1)
+                .putString("queue_song_ids", "42").commit())
+            assertTrue(recovery.edit().putLong("position_ms", 1234L).commit())
+            val store = PlaybackSessionStore(context)
+            assertEquals(null, store.load())
+            store.clear()
+            store.save(PersistedPlaybackSession(emptyList(), null, -1, 0L, PlaybackRepeatMode.Off, false, null, false, 0L))
+            assertEquals("42", structure.getString("queue_song_ids", null))
+            assertEquals(1234L, recovery.getLong("position_ms", -1L))
+            assertTrue(structure.edit().clear().commit())
+            assertTrue(recovery.edit().clear().commit())
+            val legacy = context.getSharedPreferences("playback_session", Context.MODE_PRIVATE)
+            assertTrue(legacy.edit().putInt("format_version", CURRENT_FORMAT_VERSION + 1)
+                .putString("queue_song_ids", "99").commit())
+            val olderApp = PlaybackSessionStore(context)
+            assertEquals(null, olderApp.load())
+            olderApp.clear()
+            olderApp.save(PersistedPlaybackSession(emptyList(), null, -1, 0L, PlaybackRepeatMode.Off, false, null, false, 0L))
+            assertEquals("99", legacy.getString("queue_song_ids", null))
+        } finally {
+            listOf("playback_session_committed", "playback_session_structure", "playback_session_recovery", "playback_session")
+                .forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
+        }
+    }
+
+    @Test
     fun newerPlaybackSessionIsNotErasedByAnOlderAppVersion() {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         val context = object : ContextWrapper(target) {

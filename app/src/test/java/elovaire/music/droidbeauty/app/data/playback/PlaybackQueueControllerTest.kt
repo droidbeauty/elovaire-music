@@ -285,6 +285,28 @@ class PlaybackQueueControllerTest {
         assertEquals(listOf(0), result?.unresolvedOriginalIndices)
     }
 
+    @Test
+    fun reconciliationDoesNotRestoreAnIdentityAfterMultipleDuplicates() {
+        val queued = song(1L)
+        val duplicates = (2L..4L).map { id ->
+            song(id).copy(uri = queued.uri, title = "Different $id")
+        }
+        val result = PlaybackQueueMetadataRefresher().reconcileQueue(listOf(queued), duplicates)
+        assertEquals(emptyList<Song>(), result?.queue)
+        assertEquals(listOf(0), result?.unresolvedOriginalIndices)
+    }
+
+    @Test
+    fun reconciliationDoesNotRestoreAPathAfterMultipleDuplicates() {
+        val queued = song(1L).copy(libraryPath = "/music/shared.mp3")
+        val duplicates = (2L..4L).map { id ->
+            song(id).copy(libraryPath = queued.libraryPath, title = "Different $id")
+        }
+        val result = PlaybackQueueMetadataRefresher().reconcileQueue(listOf(queued), duplicates)
+        assertEquals(emptyList<Song>(), result?.queue)
+        assertEquals(listOf(0), result?.unresolvedOriginalIndices)
+    }
+
     private fun song(id: Long) = Song(
         id = id,
         title = "Song $id",

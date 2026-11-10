@@ -103,6 +103,19 @@ class UserDataDaoTest {
     }
 
     @Test
+    fun largePlaylistImportPreservesEntryOrderAndEmptyPlaylists() = runBlocking {
+        val playlists = (1L..12L).map { UserPlaylistEntity(it, "Playlist $it", false) }
+        val entries = (1L..11L).flatMap { id ->
+            listOf(UserPlaylistEntryEntity(id, id * 100 + 2, 1), UserPlaylistEntryEntity(id, id * 100 + 1, 0))
+        }.reversed()
+        dao.insertPlaylistsWithEntries(playlists, entries)
+        playlists.dropLast(1).forEach { playlist ->
+            assertEquals(listOf(playlist.playlistId * 100 + 1, playlist.playlistId * 100 + 2), dao.songIdsForPlaylist(playlist.playlistId))
+        }
+        assertTrue(dao.playlistEntries(12L).isEmpty())
+    }
+
+    @Test
     fun criticalPlaylistLookupUsesOrderingIndex() = runBlocking {
         dao.insertPlaylist(UserPlaylistEntity(1L, "Test", false))
         dao.replacePlaylistEntries(1L, listOf(10L, 20L, 30L))

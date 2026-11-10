@@ -97,6 +97,37 @@ class AppRuntimeCoordinatorTest {
     }
 
     @Test
+    fun deferred_release_failure_is_propagated_after_memory_pressure() {
+        val failure = IllegalStateException("release failed")
+        lateinit var coordinator: AppRuntimeCoordinator
+        coordinator = AppRuntimeCoordinator(
+            startPlaybackAction = {},
+            startAction = {},
+            memoryPressureAction = { coordinator.release() },
+            releaseAction = { throw failure },
+        )
+        val thrown = runCatching { coordinator.onMemoryPressure(MemoryPressure.Critical) }.exceptionOrNull()
+        assertSame(failure, thrown)
+        assertEquals(AppRuntimePhase.Released, coordinator.currentPhase())
+    }
+
+    @Test
+    fun deferred_release_failure_is_suppressed_when_the_action_also_fails() {
+        val actionFailure = IllegalStateException("action failed")
+        val releaseFailure = IllegalStateException("release failed")
+        lateinit var coordinator: AppRuntimeCoordinator
+        coordinator = AppRuntimeCoordinator(
+            startPlaybackAction = {},
+            startAction = {},
+            memoryPressureAction = { coordinator.release(); throw actionFailure },
+            releaseAction = { throw releaseFailure },
+        )
+        val thrown = runCatching { coordinator.onMemoryPressure(MemoryPressure.Critical) }.exceptionOrNull()
+        assertSame(actionFailure, thrown)
+        assertEquals(listOf(releaseFailure), thrown?.suppressed?.toList())
+    }
+
+    @Test
     fun concurrent_full_start_waits_for_playback_start_to_finish() {
         val playbackEntered = CountDownLatch(1)
         val releasePlayback = CountDownLatch(1)
