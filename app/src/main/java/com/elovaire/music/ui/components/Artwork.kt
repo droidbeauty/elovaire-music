@@ -178,23 +178,27 @@ fun rememberArtworkBitmap(
         purpose = artworkPurposeForSize(normalizedSize),
     )
     val cachedImage = requestKey?.let { ArtworkBitmapCache[it.cacheKey]?.asImageBitmap() }
-    val fallbackImage = requestKey?.let {
+    val fallbackImage = if (cachedImage == null) requestKey?.let {
         ArtworkBitmapCache.bestForUri(it.uri, it.targetPx, it.purpose)?.asImageBitmap()
-    }
+    } else null
     return produceState<ImageBitmap?>(
         initialValue = cachedImage ?: fallbackImage,
         key1 = requestKey,
         key2 = resourceTracker,
         key3 = invalidationRevision,
     ) {
-        val cached = requestKey?.let { ArtworkBitmapCache[it.cacheKey] }
+        if (requestKey == null) {
+            value = null
+            return@produceState
+        }
+        val cached = ArtworkBitmapCache[requestKey.cacheKey]
         if (cached != null) {
             value = cached.asImageBitmap()
             return@produceState
         }
         value = fallbackImage
         val loaded = withContext(Dispatchers.IO) {
-            requestKey?.let { loadArtworkBitmapAwaitingAdmission(context, it, resourceTracker) }?.also { bitmap ->
+            loadArtworkBitmapAwaitingAdmission(context, requestKey, resourceTracker)?.also { bitmap ->
                 bitmap.prepareToDraw()
             }?.asImageBitmap()
         }
@@ -217,6 +221,10 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
         key2 = resourceTracker,
         key3 = invalidationRevision,
     ) {
+        if (uri == null) {
+            value = defaultArtworkGradient(fallbackColor, foundation)
+            return@produceState
+        }
         val cached = ArtworkGradientCache.gradient(cacheKey)
         if (cached != null) {
             value = cached.toComposeColors()
@@ -249,7 +257,11 @@ fun rememberArtworkPaletteAccent(
         key2 = resourceTracker,
         key3 = invalidationRevision,
     ) {
-        val cached = cacheKey?.let { ArtworkGradientCache.accent(it) }
+        if (cacheKey == null) {
+            value = null
+            return@produceState
+        }
+        val cached = ArtworkGradientCache.accent(cacheKey)
         if (cached != null) {
             value = Color(cached)
             return@produceState
@@ -269,7 +281,7 @@ fun rememberArtworkPaletteAccent(
             }
         }
         value = accent
-        if (cacheKey != null && accent != null) {
+        if (accent != null) {
             ArtworkGradientCache.putAccent(cacheKey, accent.toArgb(), invalidationRevision)
         }
     }

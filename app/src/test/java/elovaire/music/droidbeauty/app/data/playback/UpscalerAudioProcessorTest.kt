@@ -8,6 +8,7 @@ import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 import org.junit.Assert.assertArrayEquals
@@ -17,6 +18,46 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpscalerAudioProcessorTest {
+    @Test
+    fun interpolationMatchesReferenceAcrossRingWrapAndStreamEdges() {
+        for (factor in listOf(2, 4, 8)) for (channels in listOf(1, 2, 6, 8)) {
+            for (precision in listOf(false, true)) for (frames in listOf(1, 17, 65, 259)) {
+                val samples = ShortArray(frames * channels) { ((it * 7919 % 60001) - 30000).toShort() }
+                val settings = UpscalerSettings(true, factor, precision, 0)
+                assertArrayEquals(
+                    "factor=$factor channels=$channels precision=$precision frames=$frames",
+                    referenceInterpolation(samples, channels, factor, if (precision) 32 else 16),
+                    process(samples, channels, settings, 11),
+                )
+            }
+        }
+    }
+
+    private fun referenceInterpolation(samples: ShortArray, channels: Int, factor: Int, radius: Int): ShortArray {
+        val kernels = Array(factor) { phase ->
+            val fraction = phase.toDouble() / factor
+            val weights = DoubleArray(radius * 2) { tap ->
+                val distance = tap - radius + 1 - fraction
+                val sinc = if (distance == 0.0) 1.0 else sin(PI * distance) / (PI * distance)
+                val window = 0.42 + 0.5 * cos(PI * distance / radius) + 0.08 * cos(2 * PI * distance / radius)
+                sinc * window
+            }
+            val sum = weights.sum()
+            FloatArray(weights.size) { (weights[it] / sum).toFloat() }
+        }
+        val frames = samples.size / channels
+        return ShortArray(frames * factor * channels) { index ->
+            val outputFrame = index / channels
+            val channel = index % channels
+            val center = outputFrame / factor
+            var sample = 0f
+            kernels[outputFrame % factor].forEachIndexed { tap, weight ->
+                val source = center + tap - radius + 1
+                if (source in 0 until frames) sample += (samples[source * channels + channel] / 32768f) * weight
+            }
+            (sample * 32768f).roundToInt().coerceIn(-32768, 32767).toShort()
+        }
+    }
     @Test
     fun defaultsBypassAndInvalidPreferencesAreSanitized() {
         assertFalse(UpscalerSettings().enabled)

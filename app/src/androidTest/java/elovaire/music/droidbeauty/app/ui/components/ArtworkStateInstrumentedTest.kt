@@ -86,20 +86,24 @@ class ArtworkStateInstrumentedTest {
         val uri = Uri.parse("content://artwork/state-${System.nanoTime()}")
         val selectedUri = mutableStateOf<Uri?>(uri)
         val observed = AtomicReference<ImageBitmap?>()
+        val observedAccent = AtomicReference<Color?>()
         val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(android.graphics.Color.BLUE) }
         val key = requireNotNull(artworkRequestKey(uri, 96, ArtworkPurpose.UiGrid))
         try {
             ArtworkBitmapCache.put(key.cacheKey, bitmap)
             composeRule.setContent {
                 val image = rememberArtworkBitmap(selectedUri.value, 96).value
-                SideEffect { observed.set(image) }
+                val accent = rememberArtworkPaletteAccent(selectedUri.value, 96).value
+                SideEffect { observed.set(image); observedAccent.set(accent) }
             }
-            composeRule.waitUntil(5_000L) { observed.get() != null }
+            composeRule.waitUntil(5_000L) { observed.get() != null && observedAccent.get() != null }
 
             composeRule.runOnIdle { selectedUri.value = null }
             composeRule.waitForIdle()
 
             assertNull("A song without artwork must not show the preceding song's cover", observed.get())
+            assertNull("A song without artwork must not retain the preceding cover's accent", observedAccent.get())
         } finally {
             invalidateArtworkCaches(listOf(uri))
         }

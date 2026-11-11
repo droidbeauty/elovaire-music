@@ -116,14 +116,17 @@ internal class UpscalerAudioProcessor(
         val coefficients = kernels[(outputFrames % factor).toInt()]
         val channels = inputAudioFormat.channelCount
         frameSamples.fill(0f)
-        for (tap in coefficients.indices) {
-            val frame = center + tap - radius + 1
-            if (frame >= 0 && frame < inputFrames) {
-                val offset = (frame % capacity).toInt() * channels
+        val firstTap = (radius - 1L - center).coerceIn(0L, coefficients.size.toLong()).toInt()
+        val lastTap = (inputFrames - center + radius - 1L).coerceIn(0L, coefficients.size.toLong()).toInt()
+        if (firstTap < lastTap) {
+            var slot = ((center + firstTap - radius + 1L) % capacity).toInt()
+            for (tap in firstTap until lastTap) {
+                val offset = slot * channels
                 val weight = coefficients[tap]
                 repeat(channels) { channel ->
                     frameSamples[channel] += history[offset + channel] * weight
                 }
+                if (++slot == capacity) slot = 0
             }
         }
         repeat(channels) { channel ->
