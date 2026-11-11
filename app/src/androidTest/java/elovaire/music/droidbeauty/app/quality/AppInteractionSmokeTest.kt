@@ -78,7 +78,7 @@ class AppInteractionSmokeTest {
 
     @Test
     fun topLevelNavigationMenuAndPlayerSmoke() {
-        clickTopLevel("Albums")
+        clickTopLevel("Library")
         waitForApp()
         clickTopLevel("Playlists")
         waitForApp()
@@ -241,19 +241,28 @@ class AppInteractionSmokeTest {
     }
 
     private fun findAppOwnedStrictModeViolation(logcat: String): String? {
-        return logcat
-            .split("StrictMode policy violation")
-            .drop(1)
+        val violations = mutableListOf<StringBuilder>()
+        var currentViolation: StringBuilder? = null
+        logcat.lineSequence().forEach { line ->
+            when {
+                line.contains(" D StrictMode: StrictMode policy violation") -> {
+                    currentViolation = StringBuilder(line).also(violations::add)
+                }
+                currentViolation != null && line.contains(" D StrictMode:") -> {
+                    currentViolation.append('\n').append(line)
+                }
+                else -> currentViolation = null
+            }
+        }
+        return violations
             .firstOrNull { violation ->
                 !violation.contains("# via Binder call with stack:") &&
-                    violation
-                        .lineSequence()
-                        .takeWhile { line -> !line.contains("StrictMode policy violation") }
-                        .any { line ->
-                            line.contains("\tat elovaire.music.droidbeauty.app.") &&
-                                !line.contains(".quality.")
-                        }
+                    violation.lineSequence().any { line ->
+                        line.contains("\tat elovaire.music.droidbeauty.app.") &&
+                            !line.contains(".quality.")
+                    }
             }
+            ?.toString()
             ?.trim()
     }
 

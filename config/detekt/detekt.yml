@@ -8,23 +8,23 @@ complexity:
     allowedConditions: 5
   CyclomaticComplexMethod:
     active: true
-    allowedComplexity: 35
+    allowedComplexity: 25
   LargeClass:
     active: true
-    allowedLines: 900
+    allowedLines: 600
   LongMethod:
     active: true
-    allowedLines: 120
+    allowedLines: 100
   NestedBlockDepth:
     active: true
-    allowedDepth: 5
+    allowedDepth: 4
   TooManyFunctions:
     active: true
-    allowedFunctionsPerFile: 60
-    allowedFunctionsPerClass: 30
-    allowedFunctionsPerInterface: 20
-    allowedFunctionsPerObject: 30
-    allowedFunctionsPerEnum: 20
+    allowedFunctionsPerFile: 45
+    allowedFunctionsPerClass: 20
+    allowedFunctionsPerInterface: 15
+    allowedFunctionsPerObject: 20
+    allowedFunctionsPerEnum: 15
 
 empty-blocks:
   active: true

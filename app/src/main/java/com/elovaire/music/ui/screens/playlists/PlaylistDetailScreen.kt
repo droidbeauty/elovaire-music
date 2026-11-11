@@ -160,12 +160,20 @@ internal fun PlaylistDetailScreen(
     val draftSaver = remember(playlistState.id) {
         listSaver<PlaylistEditDraft, Any>(
             save = { draft -> listOf(draft.playlistId, draft.originalSongIds, draft.songIds, draft.markedForRemoval.toList()) },
-            restore = { values ->
+            restore = restore@{ values ->
+                val playlistId = values.getOrNull(0) as? Long ?: return@restore null
+                fun songIds(index: Int): List<Long>? {
+                    val savedIds = values.getOrNull(index) as? List<*> ?: return null
+                    return savedIds.filterIsInstance<Long>().takeIf { it.size == savedIds.size }
+                }
+                val originalSongIds = songIds(1) ?: return@restore null
+                val songIds = songIds(2) ?: return@restore null
+                val markedForRemoval = songIds(3) ?: return@restore null
                 PlaylistEditDraft(
-                    playlistId = values[0] as Long,
-                    originalSongIds = values[1] as List<Long>,
-                    songIds = values[2] as List<Long>,
-                    markedForRemoval = (values[3] as List<Long>).toSet(),
+                    playlistId = playlistId,
+                    originalSongIds = originalSongIds,
+                    songIds = songIds,
+                    markedForRemoval = markedForRemoval.toSet(),
                 )
             },
         )

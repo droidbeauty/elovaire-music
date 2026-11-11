@@ -113,10 +113,20 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
                     "elovaire.music.droidbeauty.app.core.AppContainer",
                     "elovaire.music.droidbeauty.app.core.AppServices",
                     "elovaire.music.droidbeauty.app.data.playback.PlaybackManager",
-                    "androidx.compose.ui",
                     "androidx.compose.material",
                 )
                 forbiddenWidgetDependencies.firstOrNull(code::contains)?.let { dependency ->
+                    violations += "$path depends on $dependency instead of the widget boundary"
+                }
+                val composeUiImports = Regex("(?m)^import\\s+(androidx[.]compose[.]ui[.][\\w.]+)$")
+                    .findAll(code)
+                    .map { it.groupValues[1] }
+                val glanceInteropImports = setOf(
+                    "androidx.compose.ui.graphics.Color",
+                    "androidx.compose.ui.unit.dp",
+                    "androidx.compose.ui.unit.sp",
+                )
+                composeUiImports.firstOrNull { it !in glanceInteropImports }?.let { dependency ->
                     violations += "$path depends on $dependency instead of the widget boundary"
                 }
             }
@@ -165,6 +175,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         val NATIVE_ALLOWED = emptySet<String>()
         val SHARED_PREFERENCES_ALLOWED = setOf(
             "/core/AppExitDiagnostics.kt",
+            "/data/library/DeviceDeletePendingStore.kt",
             "/data/playback/PlaybackSessionStore.kt",
             "/data/playback/AudiobookProgressStore.kt",
             "/data/playback/UsbDacHardwareVolumeManager.kt",

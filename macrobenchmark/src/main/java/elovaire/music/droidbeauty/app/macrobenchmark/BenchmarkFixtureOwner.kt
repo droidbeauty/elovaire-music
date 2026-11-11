@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.benchmark.macro.ExperimentalMetricApi
+import androidx.benchmark.macro.FrameTimingGfxInfoMetric
 import androidx.test.uiautomator.UiDevice
 import java.util.UUID
 import org.junit.After
@@ -14,6 +16,9 @@ import org.junit.Before
 
 abstract class BenchmarkFixtureOwner {
     private var fixture: BenchmarkMediaFixture? = null
+
+    @OptIn(ExperimentalMetricApi::class)
+    protected fun frameTimingMetrics() = listOf(FrameTimingGfxInfoMetric())
 
     @Before
     fun installBenchmarkFixture() {
@@ -99,7 +104,7 @@ private class BenchmarkMediaFixture(
                 if (cleanupFailure == null) {
                     cleanupFailure = failure
                 } else {
-                    cleanupFailure?.addSuppressed(failure)
+                    cleanupFailure.addSuppressed(failure)
                 }
             }
         }

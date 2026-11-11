@@ -159,7 +159,6 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
             "lyrics.ovh",
             "coverartarchive.org",
             "api.acoustid.org",
-            "musicbrainz.org/ws",
             "fanart.tv",
             "theaudiodb.com/api",
             "youtube.googleapis.com",

@@ -73,11 +73,13 @@ internal object RapidUiSurfaceCatalog {
         route("route.artist_detail", RootRouteRegistry.ARTIST, "Albums > artist", "Back"),
         route("route.equalizer", RootRouteRegistry.EQUALIZER, "Menu > Equalizer", "Back"),
         route("route.crossfade", RootRouteRegistry.CROSSFADE, "Settings > Crossfade", "Back"),
+        route("route.upscaler", RootRouteRegistry.UPSCALER, "Settings > Upscaler", "Back"),
         route("route.audiobook_settings", RootRouteRegistry.AUDIOBOOK_SETTINGS, "Settings > Audiobook", "Back"),
         route("route.settings", RootRouteRegistry.SETTINGS, "Menu > Settings", "Back"),
         route("route.manage_playlists", RootRouteRegistry.MANAGE_PLAYLISTS, "Settings > Manage playlists", "Back"),
         route("route.library_folders", RootRouteRegistry.LIBRARY_FOLDERS, "Settings > Library folders", "Back"),
         route("route.now_playing_bar_style", RootRouteRegistry.NOW_PLAYING_BAR_STYLE, "Settings > Now Playing bar", "Back"),
+        route("route.home_layout", RootRouteRegistry.HOME_LAYOUT, "Settings > Home layout", "Back"),
         route("route.smart_playlist_settings", RootRouteRegistry.SMART_PLAYLIST_SETTINGS, "Settings > Smart playlists", "Back"),
         route("route.changelog", RootRouteRegistry.CHANGELOG, "Menu > Changelog", "Back"),
         route("route.about", RootRouteRegistry.ABOUT, "Settings > About", "Back"),
@@ -174,6 +176,7 @@ internal object RapidUiSurfaceCatalog {
         surface("equalizer.reverb", RapidUiSurfaceKind.Mode, "Equalizer", "profile, duration, reset"),
         surface("equalizer.presets", RapidUiSurfaceKind.Popup, "Equalizer", "select or dismiss"),
         surface("crossfade.controls", RapidUiSurfaceKind.Mode, "Crossfade", "toggle, adjust, or Back"),
+        surface("upscaler.controls", RapidUiSurfaceKind.Mode, "Upscaler", "toggle, adjust, or Back"),
         surface("audiobook_settings.controls", RapidUiSurfaceKind.Mode, "Audiobook settings", "step controls and Back"),
         surface("smart_playlist_settings.controls", RapidUiSurfaceKind.Mode, "Smart playlist settings", "toggle, adjust, or Back"),
         surface("now_playing_style.options", RapidUiSurfaceKind.Mode, "Now Playing bar style", "select and re-enter"),
@@ -251,6 +254,7 @@ internal object RapidUiSurfaceCatalog {
         "tag" -> "tag_editors"
         "equalizer" -> "equalizer"
         "crossfade" -> "settings_descendants"
+        "upscaler" -> "settings_descendants"
         "audiobook_settings" -> "settings_descendants"
         "smart_playlist_settings" -> "settings_descendants"
         "now_playing_style" -> "settings_descendants"

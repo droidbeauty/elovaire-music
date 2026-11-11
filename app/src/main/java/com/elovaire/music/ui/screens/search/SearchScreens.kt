@@ -1092,7 +1092,7 @@ private fun SearchHistorySectionHeader(
 }
 
 @Composable
-private fun SearchAudiobooksResults(
+internal fun SearchAudiobooksResults(
     books: List<Audiobook>,
     onBookSelected: (Audiobook) -> Unit,
 ) {
@@ -1100,12 +1100,12 @@ private fun SearchAudiobooksResults(
     val copy = audiobookCopy(language)
     val listState = rememberLazyListState()
     ModuleCard(
-        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
+        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 18.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             SearchResultsCategoryHeader(
                 title = copy.title,
-                iconResId = R.drawable.ic_lucide_library,
+                iconResId = R.drawable.ic_lucide_book_audio,
             )
             LazyRow(
                 state = listState,
@@ -1123,6 +1123,7 @@ private fun SearchAudiobooksResults(
                         ArtworkImage(
                             uri = book.artUri,
                             title = book.title,
+                            placeholderIconResId = R.drawable.ic_lucide_book_headphones,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(0.75f),

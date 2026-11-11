@@ -57,7 +57,7 @@ fun MotionVisibilityHost(
     )
     LaunchedEffect(visible, state.currentState, state.targetState, state.isIdle) {
         exitCallbackGate.onCurrentStateChanged(state.currentState)
-        motionObservation?.onSettled(state.currentState, state.isIdle)
+        motionObservation?.onSettled(state.currentState, state.targetState, state.isIdle)
         if (
             state.isIdle &&
             !state.currentState &&
@@ -199,6 +199,7 @@ fun InlineActionMotionHost(
 internal class MotionVisibilityObservation(private val surfaceId: String) {
     private var lastTarget: Boolean? = null
     private var settledTarget: Boolean? = null
+    private var motionPending = false
 
     fun onTargetChanged(visible: Boolean) {
         if (lastTarget == visible) return
@@ -215,12 +216,14 @@ internal class MotionVisibilityObservation(private val surfaceId: String) {
             visible = visible,
         )
         lastTarget = visible
+        motionPending = true
     }
 
-    fun onSettled(visible: Boolean, isIdle: Boolean) {
-        if (!isIdle || settledTarget == visible) return
-        settledTarget = visible
-        MotionDiagnosticRecorder.recordMotion(surfaceId, "motion_settled", visible)
+    fun onSettled(currentState: Boolean, targetState: Boolean, isIdle: Boolean) {
+        if (!isIdle || currentState != targetState || !motionPending) return
+        motionPending = false
+        settledTarget = currentState
+        MotionDiagnosticRecorder.recordMotion(surfaceId, "motion_settled", currentState)
     }
 }
 

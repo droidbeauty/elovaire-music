@@ -37,7 +37,7 @@ internal fun LibraryHubRouteHost(
     LibraryHubScreen(
         libraryState = routeState.appState.library,
         audiobookProgressByKey = audiobookProgressByKey,
-        currentSongId = routeState.appState.playback.currentSong?.id,
+        currentSongId = routeState.appState.playback.currentSong?.id.takeIf { routeState.isPlaybackActuallyPlaying },
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.libraryScrollRequestVersion,
@@ -57,8 +57,15 @@ internal fun AudiobooksRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
+    val audiobookProgressRevision by routeActions.playback.audiobookProgressRevision.collectAsStateWithLifecycle()
+    val progressByBookKey = remember(routeState.appState.library.audiobooks, audiobookProgressRevision) {
+        routeState.appState.library.audiobooks.mapNotNull { book ->
+            routeActions.playback.audiobookProgress(book.stableKey)?.let { book.stableKey to it }
+        }.toMap()
+    }
     AudiobooksScreen(
         books = routeState.appState.library.audiobooks,
+        progressByBookKey = progressByBookKey,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onBookSelected = { book -> routeActions.openAudiobook(book.stableKey) },

@@ -104,7 +104,7 @@ class BackdropBlurRenderingTest {
         val bounds = composeRule.onNodeWithTag("artwork_shadow").fetchSemanticsNode().boundsInRoot
         val pixels = composeRule.onNodeWithTag("artwork_shadow_fixture").captureToImage().toPixelMap()
         val shadowOffset = (4f * composeRule.activity.resources.displayMetrics.density).roundToInt()
-        val sampleY = bounds.center.y.toInt()
+        val sampleY = bounds.bottom.toInt() - (3f * composeRule.activity.resources.displayMetrics.density).roundToInt()
         val nearShadow = pixels[(bounds.right + shadowOffset).toInt(), sampleY]
         val clearBackgroundOffset = (40f * composeRule.activity.resources.displayMetrics.density).roundToInt()
         val clearBackground = pixels[(bounds.right + clearBackgroundOffset).toInt(), sampleY]

@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.macrobenchmark
 
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.ExperimentalMetricApi
-import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.TraceSectionMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
@@ -71,8 +70,7 @@ class FocusedInteractionBenchmark : BenchmarkFixtureOwner() {
         waitForAppVisible()
     }
 
-    private fun metrics() = listOf(
-        FrameTimingMetric(),
+    private fun metrics() = frameTimingMetrics() + listOf(
         TraceSectionMetric(
             sectionName = "route_change",
             mode = TraceSectionMetric.Mode.Count,

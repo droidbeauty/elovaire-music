@@ -13,6 +13,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -104,11 +105,26 @@ class HomeLayoutInteractionTest {
         rule.setContent {
             CompositionLocalProvider(LocalAppLanguage provides AppLanguage.English) {
                 ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
-                    AudiobookSettingsScreen(settings, speed, 0.dp, {}, {}, {}, {}, { speed = it }, { settings = settings.copy(rewindOnResume = it) })
+                    androidx.compose.material3.Surface(
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.background,
+                        contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                    ) {
+                        AudiobookSettingsScreen(
+                            settings, speed, 0.dp, {},
+                            { settings = settings.copy(rewindSeconds = it) },
+                            { settings = settings.copy(forwardSeconds = it) },
+                            {}, { speed = it }, { settings = settings.copy(rewindOnResume = it) },
+                        )
+                    }
                 }
             }
         }
         rule.onNodeWithText("1.0").assertIsDisplayed()
+        val rewindIncrease = rule.onAllNodesWithText("+")[0]
+        val rewindBounds = rewindIncrease.getUnclippedBoundsInRoot()
+        assertTrue(rewindBounds.right - rewindBounds.left >= 48.dp)
+        rewindIncrease.performClick()
+        rule.runOnIdle { assertEquals(20, settings.rewindSeconds) }
         rule.onNodeWithContentDescription("Playback speed").performSemanticsAction(SemanticsActions.SetProgress) { it(1.25f) }
         rule.runOnIdle { assertEquals(1.25f, speed, 0.001f) }
         rule.onNodeWithContentDescription("Playback speed").performTouchInput { click(Offset(center.x * 1.9f, center.y)) }

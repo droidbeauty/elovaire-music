@@ -993,6 +993,11 @@ internal fun NowPlayingScreen(
                                         ArtworkImage(
                                             uri = animatedSong.artUri,
                                             title = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(animatedSong.title, animatedSong.id, language),
+                                            placeholderIconResId = if (animatedSong.mediaKind == AudioMediaKind.Audiobook) {
+                                                R.drawable.ic_lucide_book_headphones
+                                            } else {
+                                                R.drawable.ic_lucide_music
+                                            },
                                             modifier = Modifier
                                                 .width(animatedArtworkWidth)
                                                 .aspectRatio(1f)
@@ -1718,11 +1723,10 @@ private fun rememberRenderedPlaybackProgress(
     return if (freezeUpdates) frozenProgress else liveProgress
 }
 
-private fun audiobookChapterIndexAt(chapters: List<AudiobookChapter>, positionMs: Long): Int {
+internal fun audiobookChapterIndexAt(chapters: List<AudiobookChapter>, positionMs: Long): Int {
     val activeIndex = chapters.indexOfLast { positionMs >= it.startMs && positionMs < it.endMs }
     return activeIndex.takeIf { it >= 0 }
-        ?: chapters.lastIndex.takeIf { chapters.lastOrNull()?.let { positionMs >= it.endMs } == true }
-        ?: -1
+        ?: chapters.indexOfLast { positionMs >= it.startMs }
 }
 
 @Composable

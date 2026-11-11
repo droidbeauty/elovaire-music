@@ -233,6 +233,7 @@ internal class AudiobookTagEditorViewModel(
     }
 
     private fun updateDraft(transform: (AudiobookTagEditorUiState) -> AudiobookTagEditorUiState) {
+        if (_uiState.value.isSaving) return
         val next = transform(_uiState.value).recalculateFlags()
         _uiState.value = next
         persistDraft(next)

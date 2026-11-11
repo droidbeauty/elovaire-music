@@ -303,11 +303,15 @@ class MediaMutationJournalTest {
                     stored[entity.mutationId] = entity
                     Unit
                 }
-                "recoverableMutationBatch" -> {
+                "recoverableLocalMutationBatch" -> {
                     recoverableMutationBatchFailure?.let { throw it }
                     val limit = arguments?.get(0) as Int
                     val recoverable = stored.values
-                        .filter { it.recoveryBackupPath != null || it.status !in setOf("Completed", "Cancelled", "Failed", "NeedsRepair") }
+                        .filter {
+                            it.recoveryNetworkSourceFingerprint == null &&
+                                (it.recoveryBackupPath != null ||
+                                    it.status !in setOf("Completed", "Cancelled", "Failed", "NeedsRepair"))
+                        }
                         .sortedWith(compareBy(LibraryMutationEntity::updatedAtMs, LibraryMutationEntity::mutationId))
                     RecoverableMutationBatch(recoverable.size, recoverable.take(limit))
                 }

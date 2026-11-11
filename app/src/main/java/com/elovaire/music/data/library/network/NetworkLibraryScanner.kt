@@ -44,7 +44,7 @@ internal class NetworkLibraryScanner(
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
     metadataReaderOverride: NetworkMetadataReader? = null,
 ) {
-    private val artworkCache by lazy { NetworkArtworkCache(context) }
+    private val artworkCache by lazy { NetworkArtworkCache(context, clock) }
     private val metadataReader = metadataReaderOverride ?: NetworkMetadataReader(
         registry,
         context,
@@ -637,11 +637,14 @@ internal fun NetworkFileEntry.artworkPriorityOrNull(): Int? {
     }
 }
 
-private class NetworkArtworkCache(context: Context) {
+private class NetworkArtworkCache(
+    context: Context,
+    private val clock: AppClock,
+) {
     private val directory = context.applicationContext.filesDir.resolve("network_artwork_v1")
 
     init {
-        removeStaleNetworkArtworkTemps(directory, System.currentTimeMillis())
+        removeStaleNetworkArtworkTemps(directory, clock.wallTimeMs())
     }
 
     fun uriFor(

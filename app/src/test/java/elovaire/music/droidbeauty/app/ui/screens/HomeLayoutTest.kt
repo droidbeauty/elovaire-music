@@ -6,12 +6,27 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
+import elovaire.music.droidbeauty.app.domain.model.AudiobookChapter
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import java.lang.reflect.Proxy
 
 class HomeLayoutTest {
+    @Test
+    fun audiobookChapterIndicatorUsesThePreviousChapterInMetadataGaps() {
+        val chapters = listOf(
+            AudiobookChapter("One", 1_000L, 2_000L),
+            AudiobookChapter("Two", 3_000L, 4_000L),
+            AudiobookChapter("Three", 5_000L, 6_000L),
+        )
+        assertEquals(-1, audiobookChapterIndexAt(emptyList(), 3_000L))
+        assertEquals(-1, audiobookChapterIndexAt(chapters, 500L))
+        assertEquals(0, audiobookChapterIndexAt(chapters, 2_500L))
+        assertEquals(1, audiobookChapterIndexAt(chapters, 4_500L))
+        assertEquals(2, audiobookChapterIndexAt(chapters, 6_000L))
+    }
+
     @Test
     fun restoredLayoutRepairsMissingDuplicateAndUnknownModules() {
         val restored = parseHomeLayout("FavoriteAlbums,FavoriteAlbums,RecentlyPlayed,unknown,LastPlayed")

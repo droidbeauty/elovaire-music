@@ -90,6 +90,10 @@ val quickQuality = tasks.register("quickQuality") {
         ":app:testDebugUnitTest",
         ":app:lintDebug",
         ":app:detekt",
+        ":app:checkHiddenApiUsage",
+        ":app:checkDeprecatedAndroidApiUsage",
+        ":app:checkArchitectureBoundaries",
+        ":app:checkResourceStructure",
         "buildStructureCheck",
         checkTrackedSourceSecrets,
     )
@@ -126,6 +130,21 @@ benchmarkRegressionCheck.configure {
     mustRunAfter(":macrobenchmark:connectedCheck")
 }
 
+val benchmarkMetricQualityCheck = tasks.register<BenchmarkMetricQualityCheckTask>("benchmarkMetricQualityCheck") {
+    group = "verification"
+    description = "Verifies that interactive Macrobenchmarks produced usable frame-time and jank distributions."
+    resultsDir.set(
+        layout.projectDirectory.dir(
+            "macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark",
+        ),
+    )
+    selectedBenchmarkTest.set(providers.gradleProperty(ANDROID_TEST_CLASS_PROPERTY).orElse(""))
+    dependsOn(":macrobenchmark:connectedCheck")
+}
+benchmarkMetricQualityCheck.configure {
+    mustRunAfter(":macrobenchmark:connectedCheck")
+}
+
 val performanceQuality = tasks.register("performanceQuality") {
     group = "verification"
     description = "Runs physical-device Macrobenchmark, Baseline Profile, and regression qualification."
@@ -135,11 +154,19 @@ val performanceQuality = tasks.register("performanceQuality") {
         ":app:assembleBenchmark",
         ":macrobenchmark:connectedCheck",
         "generateBaselineProfile",
+        benchmarkMetricQualityCheck,
         benchmarkRegressionCheck,
     )
 }
 performanceQuality.configure {
     mustRunAfter(deviceQuality)
+}
+
+gradle.projectsEvaluated {
+    val connectedDeviceTests = project(":app").tasks.named("connectedDebugAndroidTest")
+    project(":macrobenchmark").tasks.named("connectedBenchmarkAndroidTest") {
+        mustRunAfter(connectedDeviceTests)
+    }
 }
 
 val releaseQuality = tasks.register("releaseQuality") {

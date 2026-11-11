@@ -2,61 +2,367 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:AboutScreens.kt:private fun localizedAboutDescription: String</ID>
-    <ID>CyclomaticComplexMethod:AboutScreens.kt:private fun localizedAboutLinkLabel: String</ID>
-    <ID>CyclomaticComplexMethod:AlbumTagEditorService.kt:AlbumTagEditorService$suspend fun applyEdits: TagEditApplyResult</ID>
-    <ID>CyclomaticComplexMethod:PhraseStrings.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
-    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun localizedCountLabel: String</ID>
-    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun miscPhrase: String</ID>
-    <ID>CyclomaticComplexMethod:PrivacyStrings.kt:internal fun privacySafetyCopy: PrivacySafetyCopy</ID>
-    <ID>CyclomaticComplexMethod:SearchStrings.kt:internal fun searchSortModeLabel: String</ID>
+    <ID>ComplexCondition:NetworkMetadataReader.kt:NetworkMetadataReader$metadata.durationMs == null &amp;&amp; metadata.title == null &amp;&amp; metadata.artist == null &amp;&amp; metadata.albumArtist == null &amp;&amp; metadata.album == null &amp;&amp; metadata.description == null &amp;&amp; metadata.releaseYear == null &amp;&amp; metadata.genre == null &amp;&amp; metadata.trackNumber == null &amp;&amp; metadata.discNumber == null &amp;&amp; metadata.volumeNormalization == null</ID>
+    <ID>CyclomaticComplexMethod:AboutScreens.kt:internal fun localizedAboutDescription: String</ID>
+    <ID>CyclomaticComplexMethod:AboutScreens.kt:internal fun localizedAboutLinkLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AboutScreens.kt:internal fun localizedAboutTitle: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:internal fun aboutUpdateCopy: AboutUpdateCopy</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:internal fun bundledLicensesLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:internal fun droidBeautyDescription: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:internal fun localizedResourceTitle: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:internal fun localizedUpdateError: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:internal fun updateActionCopy: UpdateActionCopy</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun githubUpdateCheckFailed: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun stagedUpdateUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun tooManyUpdateRedirects: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateCheckUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateDownloadFailed: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateDownloadIncomplete: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateDownloadInvalid: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateDownloadTooLarge: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateFileNameInvalid: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateHandoffSaveFailed: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateInstallPermission: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateNotNewer: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateNotValidApp: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updatePermissionSettingsUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateRedirectInvalid: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateSourceInvalid: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateTargetsAnotherApp: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateUnknownCertificate: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateVerificationFailed: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateVerificationUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:AboutUpdateStrings.kt:private fun updateVersionInvalid: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun artworkPlaceholderLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun closeQueueAccessibilityLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun crossfadeToggleAccessibilityLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun editLyricsAccessibilityLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun lyricsAccessibilityCopy: LyricsAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun mediaOptionsAccessibilityCopy: MediaOptionsAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun navigationAccessibilityCopy: NavigationAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun playbackNavigationAccessibilityCopy: PlaybackNavigationAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun playerControlAccessibilityCopy: PlayerControlAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun playlistAccessibilityCopy: PlaylistAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun settingsAccessibilityCopy: SettingsAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun showAllSongResultsLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun shuffleAccessibilityCopy: ShuffleAccessibilityCopy</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun songFavoriteAccessibilityLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AccessibilityStrings.kt:internal fun viewModeAccessibilityCopy: ViewModeAccessibilityCopy</ID>
     <ID>CyclomaticComplexMethod:AlbumScreens.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
+    <ID>CyclomaticComplexMethod:AlbumScreens.kt:@Composable internal fun AlbumScreen</ID>
+    <ID>CyclomaticComplexMethod:AlbumTagEditorScreen.kt:internal fun tagEditorCopy: AlbumTagEditorCopy</ID>
+    <ID>CyclomaticComplexMethod:AlbumTagEditorViewModel.kt:AlbumTagEditorViewModel$private suspend fun performSave</ID>
+    <ID>CyclomaticComplexMethod:ArtistInfoStrings.kt:internal fun artistInfoCopy: ArtistInfoCopy</ID>
+    <ID>CyclomaticComplexMethod:ArtistInfoStrings.kt:internal fun closeArtistInfoLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AudioContainerSignatureDetector.kt:AudioContainerSignatureDetector$fun detect: AudioContainerSignature?</ID>
+    <ID>CyclomaticComplexMethod:AudioFormatDetector.kt:AudioFormatDetector$@Suppress("TooGenericExceptionCaught") fun detect: DetectedAudioFormat</ID>
+    <ID>CyclomaticComplexMethod:AudioFormatPolicy.kt:AudioFormatPolicy$fun displayName: String</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun audiobookChapterLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun audiobookCopy: AudiobookUiCopy</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun audiobookDescriptionCopy: AudiobookDescriptionCopy</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun audiobookFinishedLabel: String</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun audiobookPartsCount: String</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun audiobookUnavailableCopy: AudiobookUnavailableCopy</ID>
+    <ID>CyclomaticComplexMethod:AudiobookStrings.kt:internal fun localizedAudiobookAuthor: String</ID>
+    <ID>CyclomaticComplexMethod:AudiobookTagEditorScreen.kt:internal fun audiobookTagEditorCopy: AudiobookTagEditorCopy</ID>
+    <ID>CyclomaticComplexMethod:AudiobookTagEditorViewModel.kt:AudiobookTagEditorViewModel$private suspend fun performSave</ID>
+    <ID>CyclomaticComplexMethod:BundledShortcutCopyTest.kt:BundledShortcutCopyTest$@Test fun eachSupportedLanguagePackagesEveryShortcutLabel</ID>
+    <ID>CyclomaticComplexMethod:CarMediaStrings.kt:internal fun carMediaCopy: CarMediaCopy</ID>
+    <ID>CyclomaticComplexMethod:ChangelogStrings.kt:internal fun AppLanguage.appLocale: Locale</ID>
+    <ID>CyclomaticComplexMethod:CrossfadeCueAnalysis.kt:CrossfadeCueAnalyzer$@Suppress("NestedBlockDepth", "TooGenericExceptionCaught", "LongMethod") private fun decodeCompressed: DecodeRegionResult</ID>
+    <ID>CyclomaticComplexMethod:ElovaireMediaId.kt:ElovaireMediaIds$fun parse: ElovaireMediaId?</ID>
+    <ID>CyclomaticComplexMethod:ElovaireMediaTree.kt:ElovaireMediaTree$override fun item: MediaItem?</ID>
+    <ID>CyclomaticComplexMethod:ElovaireStringsTest.kt:ElovaireStringsTest$@Test fun updateInstallationFailureIsLocalized</ID>
+    <ID>CyclomaticComplexMethod:EqualizerScreen.kt:@Composable internal fun ThinContinuousSlider</ID>
+    <ID>CyclomaticComplexMethod:EqualizerStrings.kt:internal fun equalizerCopy: EqualizerCopy</ID>
+    <ID>CyclomaticComplexMethod:EqualizerStrings.kt:internal fun preampLabel: String</ID>
+    <ID>CyclomaticComplexMethod:ExternalAudioStrings.kt:internal fun externalAudioLabel: String</ID>
+    <ID>CyclomaticComplexMethod:HomeLayoutScreen.kt:@Composable internal fun HomeLayoutScreen</ID>
+    <ID>CyclomaticComplexMethod:HomeLayoutScreen.kt:internal fun homeLayoutEditorCopy: HomeLayoutEditorCopy</ID>
+    <ID>CyclomaticComplexMethod:HomeLayoutScreen.kt:internal fun homeLayoutSubtitle: String</ID>
+    <ID>CyclomaticComplexMethod:HomeLayoutScreen.kt:internal fun homeLayoutTitle: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun albumOfDayTitle: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun availableReleasesLabel: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun homeCopy: HomeUiCopy</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun localizedCountLabel: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun repeatModeLabel: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:internal fun rootUiCopy: RootUiCopy</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:private fun firstLaunchPermissionButton: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:private fun firstLaunchPermissionMessage: String</ID>
+    <ID>CyclomaticComplexMethod:HomeStrings.kt:private fun firstLaunchPermissionTitle: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryAudioFileFilter.kt:LibraryAudioFileFilter$fun evaluate: AudioFileFilterDecision</ID>
+    <ID>CyclomaticComplexMethod:LibraryRefreshRequests.kt:LibraryRefreshRequest$fun mergedWith: LibraryRefreshRequest</ID>
+    <ID>CyclomaticComplexMethod:LibraryScanCoordinator.kt:LibraryScanCoordinator$internal suspend fun scanWithStatus: CoordinatedLibraryScan</ID>
+    <ID>CyclomaticComplexMethod:LibraryScreens.kt:@OptIn(ExperimentalHazeApi::class) @Composable internal fun HomeScreen</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun commonUiCopy: CommonUiCopy</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun localizedAlbumTitle: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun localizedArtistName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun localizedAudioFormat: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun localizedSelectedCount: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun miscPhrase: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:internal fun unknownGenreLabel: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun albumName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun artistName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun autoUpdatingLabel: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun dateAddedName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun durationName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun genreName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun playCountName: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun randomOrderLabel: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun smartMixesLabel: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun sortedByLabel: String</ID>
+    <ID>CyclomaticComplexMethod:LibraryStrings.kt:private fun titleName: String</ID>
+    <ID>CyclomaticComplexMethod:NetworkMetadataReader.kt:NetworkMetadataReader$suspend fun read: NetworkMetadataReadResult?</ID>
+    <ID>CyclomaticComplexMethod:NetworkMetadataReader.kt:internal suspend fun oggVorbisMetadataPrefix: Long?</ID>
+    <ID>CyclomaticComplexMethod:NetworkSourceCoordinator.kt:NetworkSourceCoordinator$@Suppress("TooGenericExceptionCaught") private suspend fun saveLocked: PersistedNetworkSourceSave</ID>
+    <ID>CyclomaticComplexMethod:NowPlayingScreens.kt:@Composable internal fun LyricsOverlay</ID>
     <ID>CyclomaticComplexMethod:NowPlayingScreens.kt:@Composable internal fun NowPlayingScreen</ID>
-    <ID>CyclomaticComplexMethod:SearchScreens.kt:@Composable private fun SearchScreen</ID>
+    <ID>CyclomaticComplexMethod:PhraseStrings.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun artistTopTracksSubtitle: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun discLabel: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun localizedAllSongsSource: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun localizedEqualizerPreset: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun localizedSearchResultsSource: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun pauseLabel: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun playLabel: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun playingFromPrefix: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun privacyPolicySettingsSubtitle: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun queueTitle: String</ID>
+    <ID>CyclomaticComplexMethod:PlaybackStrings.kt:internal fun sleepTimerCopy: SleepTimerCopy</ID>
     <ID>CyclomaticComplexMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistDetailScreen</ID>
+    <ID>CyclomaticComplexMethod:PlaylistFeedbackStrings.kt:internal fun localizedPlaylistCreateError: String</ID>
+    <ID>CyclomaticComplexMethod:PlaylistFeedbackStrings.kt:private fun playlistDatabaseFailure: String</ID>
+    <ID>CyclomaticComplexMethod:PlaylistFeedbackStrings.kt:private fun playlistMutationNoResult: String</ID>
+    <ID>CyclomaticComplexMethod:PlaylistFeedbackStrings.kt:private fun playlistUserDataOperationFailure: String</ID>
+    <ID>CyclomaticComplexMethod:PlaylistFeedbackStrings.kt:private fun playlistUserDataStoreClosed: String</ID>
+    <ID>CyclomaticComplexMethod:PlaylistFeedbackStrings.kt:private fun playlistUserDataStoreFailure: String</ID>
+    <ID>CyclomaticComplexMethod:PortableUserDataBackup.kt:internal fun PortableUserData.mergeInto: PortableUserDataImport</ID>
     <ID>CyclomaticComplexMethod:PreferenceStore.kt:PreferenceStore$private fun resolveDeviceLanguage: AppLanguage</ID>
-    <ID>LargeClass:PlaybackManager.kt:PlaybackManager : PlaybackReaderPlaybackController</ID>
+    <ID>CyclomaticComplexMethod:PrivacyStrings.kt:internal fun libraryFoldersCopy: LibraryFoldersCopy</ID>
+    <ID>CyclomaticComplexMethod:PrivacyStrings.kt:internal fun networkSourcesCopy: NetworkSourcesCopy</ID>
+    <ID>CyclomaticComplexMethod:PrivacyStrings.kt:internal fun privacyPolicyCopy: PrivacySafetyCopy</ID>
+    <ID>CyclomaticComplexMethod:PrivacyStrings.kt:private fun privacyPolicySections: List&lt;PrivacySafetySectionCopy&gt;</ID>
+    <ID>CyclomaticComplexMethod:SafTreeLibraryScanner.kt:SafTreeLibraryScanner$@Suppress("LongMethod") private suspend fun scanTree: SafTreeScanOutcome</ID>
+    <ID>CyclomaticComplexMethod:SearchModels.kt:internal fun scoreMatch: Int?</ID>
+    <ID>CyclomaticComplexMethod:SearchScreens.kt:@Composable private fun SearchScreen</ID>
+    <ID>CyclomaticComplexMethod:SearchStrings.kt:SearchUiCopy$fun matchingArtists: String</ID>
+    <ID>CyclomaticComplexMethod:SearchStrings.kt:SearchUiCopy$private fun matchingItems: String</ID>
+    <ID>CyclomaticComplexMethod:SearchStrings.kt:internal fun nowPlayingBarStyleCopy: NowPlayingBarStyleCopy</ID>
+    <ID>CyclomaticComplexMethod:SearchStrings.kt:internal fun recentAdditionsEmptyMessage: String</ID>
+    <ID>CyclomaticComplexMethod:SearchStrings.kt:internal fun searchCopy: SearchUiCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsFeatureStrings.kt:internal fun audiobookExtraCopy: AudiobookExtraCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsFeatureStrings.kt:internal fun audiobookPlaybackCategory: String</ID>
+    <ID>CyclomaticComplexMethod:SettingsFeatureStrings.kt:internal fun audiobookSettingsCopy: AudiobookSettingsCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsFeatureStrings.kt:internal fun smartPlaylistSettingsCopy: SmartPlaylistSettingsCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt:private fun crossfadeSummary: String</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt:private fun languageFlag: String</ID>
+    <ID>CyclomaticComplexMethod:SettingsStrings.kt:internal fun SettingsLanguageCopy.withLocalizedSettingsEntries: SettingsLanguageCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsStrings.kt:internal fun libraryScanStatusCopy: LibraryScanStatusCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsStrings.kt:internal fun settingsCopy: SettingsLanguageCopy</ID>
+    <ID>CyclomaticComplexMethod:SettingsStrings.kt:internal fun volumeNormalizationSubtitle: String</ID>
+    <ID>CyclomaticComplexMethod:SettingsStrings.kt:private fun volumeNormalizationTitle: String</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistActionCopy: SmartPlaylistActionCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistDeleteCopy: SmartPlaylistDeleteCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistEditRulesLabel: String</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistEditorHeadingCopy: SmartPlaylistEditorHeadingCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistEmptyCopy: SmartPlaylistEmptyCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistMatchCopy: SmartPlaylistMatchCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistMissingCopy: SmartPlaylistMissingCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistPreviewLabel: String</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistDetailStrings.kt:internal fun smartPlaylistRemoveRuleLabel: String</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistRuleStrings.kt:internal fun smartPlaylistInputCopy: SmartPlaylistInputCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistRuleStrings.kt:internal fun smartPlaylistOrderCopy: SmartPlaylistOrderCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistRuleStrings.kt:internal fun smartPlaylistOtherRuleCopy: SmartPlaylistOtherRuleCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistRuleStrings.kt:internal fun smartPlaylistTextRuleCopy: SmartPlaylistTextRuleCopy</ID>
+    <ID>CyclomaticComplexMethod:SmartPlaylistRuleStrings.kt:internal fun smartPlaylistValueCopy: SmartPlaylistValueCopy</ID>
+    <ID>CyclomaticComplexMethod:SortStrings.kt:private fun sortNames: SortNames</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:internal fun localizedTagSaveFailure: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:internal fun localizedTagSaveStatus: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:internal fun localizedTagValidationError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:internal fun tagAdditionalIssuesCopy: TagAdditionalIssuesCopy</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun albumRequiredFields: Pair&lt;String, String&gt;</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun artworkTooLargeError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun audiobookRequiredFields: Pair&lt;String, String&gt;</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun cannotReadArtworkError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun emptyTagSource: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun fileWriteOpenError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun insufficientTagStorage: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun invalidTrackSelectionError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsFolderAccessLost: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsInvalidMediaAddress: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsMetadataUpdateFailed: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsPreparationFailed: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsProviderRejectsReplacement: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsRollbackFailure: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsSourceReadFailed: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsTooLargeError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsUnsupportedFormat: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsUnsupportedSynced: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsVerificationAfterSave: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsVerificationBeforeSave: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsWriteAccessUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun lyricsWriteFailed: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun noTagsSaved: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun sourceFileOpenError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagDocumentWriteAccessMissing: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagDocumentWriteCapabilityError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagFolderWriteAccessMissing: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagNotReadyError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagOutputWriteError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagPermissionDeniedAfterGrant: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagProviderDoesNotAllowEditing: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagProviderDoesNotSupportWriting: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagRollbackFailure: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagSaveAwaitingAccess: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagSourceAlreadyBeingEdited: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagSourceLocationUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagSourceNotWritable: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagSourceReadError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagTemporaryWriteFailure: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagTextTooLongError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagVerificationAfterSaveError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagVerificationBeforeSaveError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagWriteAccessNotGranted: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagWritePermissionRequired: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagWriteRequestPending: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun tagWriteRequestUnavailable: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun trackArtistAndChapterTitleErrors: Pair&lt;String, String&gt;</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun trackNumbersError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun trackTitleError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun unableToSaveAudiobookTags: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun unableToSaveTags: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun unsupportedArtworkError: String</ID>
+    <ID>CyclomaticComplexMethod:TagFeedbackStrings.kt:private fun unsupportedTagUriError: String</ID>
+    <ID>CyclomaticComplexMethod:UpscalerStrings.kt:internal fun upscalerCopy: UpscalerCopy</ID>
+    <ID>CyclomaticComplexMethod:UpscalerStrings.kt:internal fun upscalerSetToDefault: String</ID>
+    <ID>CyclomaticComplexMethod:VerifiedMediaFileMutationTransaction.kt:VerifiedMediaFileMutationTransaction$@Suppress("TooGenericExceptionCaught") suspend fun &lt;T&gt; execute: VerifiedMediaFileMutationResult&lt;T&gt;</ID>
+    <ID>CyclomaticComplexMethod:WebDavConditionalWriter.kt:WebDavConditionalWriter$fun replace</ID>
+    <ID>CyclomaticComplexMethod:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem$override fun openBlocking: NetworkReadHandle</ID>
+    <ID>CyclomaticComplexMethod:WidgetCopy.kt:internal fun widgetCopy: WidgetCopy</ID>
+    <ID>LargeClass:ElovaireStringsTest.kt:ElovaireStringsTest</ID>
+    <ID>LargeClass:EqualizerAudioProcessor.kt:EqualizerAudioProcessor : BaseAudioProcessor</ID>
+    <ID>LargeClass:PreferenceStore.kt:PreferenceStore : AppearanceSettingsStoreAppearanceSettingsWriterLibrarySettingsWriterPlaybackSettingsWriterEqualizerSettingsStoreNowPlayingSettingsStoreUpdatePreferencesStorePlaybackIntegrationSettings</ID>
+    <ID>LargeClass:RoomUserDataStore.kt:RoomUserDataStore : CollectionSettingsStoreMediaLibraryUserDataReaderPlaylistStoreFavoritesStorePlaybackHistoryStoreSearchHistoryStoreAudiobookProgressRepository</ID>
+    <ID>LargeClass:UsbDacHardwareVolumeManager.kt:UsbDacHardwareVolumeManager</ID>
     <ID>LongMethod:AboutScreens.kt:@Composable internal fun ChangelogBottomSheetOverlay</ID>
+    <ID>LongMethod:AlbumScreens.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
+    <ID>LongMethod:AlbumScreens.kt:@Composable internal fun AlbumScreen</ID>
+    <ID>LongMethod:AlbumScreens.kt:@Composable private fun AlbumSongRow</ID>
+    <ID>LongMethod:AlbumTagEditorRouteHost.kt:@Composable private fun AlbumTagWriteEffects</ID>
     <ID>LongMethod:AlbumTagEditorScreen.kt:@Composable internal fun AlbumTagEditorScreen</ID>
-    <ID>LongMethod:AlbumTagEditorService.kt:AlbumTagEditorService$suspend fun applyEdits: TagEditApplyResult</ID>
-    <ID>LongMethod:PhraseStrings.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
-    <ID>LongMethod:HomeStrings.kt:internal fun homeCopy: HomeUiCopy</ID>
-    <ID>LongMethod:HomeStrings.kt:internal fun localizedCountLabel: String</ID>
-    <ID>LongMethod:LibraryStrings.kt:internal fun miscPhrase: String</ID>
-    <ID>LongMethod:HomeStrings.kt:internal fun rootUiCopy: RootUiCopy</ID>
+    <ID>LongMethod:AlbumTagEditorScreen.kt:@Composable private fun EditableTrackCard</ID>
+    <ID>LongMethod:AlbumTagEditorViewModel.kt:AlbumTagEditorViewModel$private suspend fun performSave</ID>
+    <ID>LongMethod:AudiobookScreens.kt:@Composable private fun AudiobookCollectionContent</ID>
+    <ID>LongMethod:CrossfadeScreen.kt:@Composable internal fun CrossfadeScreen</ID>
+    <ID>LongMethod:DirectPlaybackPolicy.kt:BitPerfectEligibilityPolicy$fun evaluate: BitPerfectPlaybackStatus</ID>
+    <ID>LongMethod:ElovaireAppShell.kt:@Composable internal fun ElovaireAppShell</ID>
+    <ID>LongMethod:ElovaireRootReadyHost.kt:@Composable internal fun ElovaireRootReadyHost</ID>
+    <ID>LongMethod:ElovaireStringsTest.kt:ElovaireStringsTest$@Test fun updateInstallationFailureIsLocalized</ID>
+    <ID>LongMethod:EqualizerInteractionTest.kt:EqualizerInteractionTest$@Test fun preampTracksFastGesturesAndPresetsRequireExplicitReplaceAndDelete</ID>
+    <ID>LongMethod:EqualizerScreen.kt:@Composable internal fun EqHorizontalScrollbar</ID>
     <ID>LongMethod:EqualizerScreen.kt:@Composable internal fun EqToneKnob</ID>
     <ID>LongMethod:EqualizerScreen.kt:@Composable internal fun EqualizerScreen</ID>
     <ID>LongMethod:EqualizerScreen.kt:@Composable private fun DigitalSoundKnob</ID>
+    <ID>LongMethod:EqualizerScreen.kt:@Composable private fun EqPresetMenu</ID>
     <ID>LongMethod:EqualizerScreen.kt:@Composable private fun EqResponseGraph</ID>
-    <ID>LongMethod:EqualizerScreen.kt:@Composable private fun ReverbStepSlider</ID>
-    <ID>LongMethod:AlbumScreens.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
-    <ID>LongMethod:AlbumScreens.kt:@Composable internal fun AlbumScreen</ID>
-    <ID>LongMethod:NowPlayingScreens.kt:@Composable internal fun NowPlayingScreen</ID>
+    <ID>LongMethod:HomeStrings.kt:@Suppress("CyclomaticComplexMethod") private fun localizedComplexCountLabel: String?</ID>
+    <ID>LongMethod:HomeStrings.kt:internal fun localizedCountLabel: String</ID>
+    <ID>LongMethod:LibraryFoldersScreen.kt:@Composable private fun NetworkSourceEditorScreen</ID>
+    <ID>LongMethod:LibraryFoldersScreen.kt:private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorItems</ID>
+    <ID>LongMethod:LibraryRepository.kt:LibraryRepository$@Suppress("TooGenericExceptionCaught") private fun bootstrapLibrary</ID>
+    <ID>LongMethod:LibraryScanCoordinator.kt:LibraryScanCoordinator$private suspend fun scanLocalSources: LocalSourceScanResult</ID>
+    <ID>LongMethod:LibraryScreens.kt:@Composable internal fun ArtistDetailScreen</ID>
+    <ID>LongMethod:LibraryScreens.kt:@Composable internal fun ArtistDiscographyPopup</ID>
+    <ID>LongMethod:LibraryScreens.kt:@Composable internal fun LibraryHubScreen</ID>
     <ID>LongMethod:LibraryScreens.kt:@Composable private fun AlbumCollectionContent</ID>
     <ID>LongMethod:LibraryScreens.kt:@Composable private fun LastPlayedAlbumModule</ID>
     <ID>LongMethod:LibraryScreens.kt:@Composable private fun LastPlayedPlaylistModule</ID>
-    <ID>LongMethod:NowPlayingScreens.kt:@Composable private fun LyricsOverlay</ID>
-    <ID>LongMethod:NowPlayingScreens.kt:@Composable private fun QueueSheet</ID>
-    <ID>LongMethod:SearchScreens.kt:@Composable private fun SearchScreen</ID>
     <ID>LongMethod:LibraryScreens.kt:@OptIn(ExperimentalHazeApi::class) @Composable internal fun HomeScreen</ID>
-    <ID>LongMethod:LibraryFoldersScreen.kt:@Composable internal fun LibraryFoldersScreen</ID>
+    <ID>LongMethod:LibrarySnapshotStore.kt:LibrarySnapshotStore$fun load: CachedLibrarySnapshot?</ID>
+    <ID>LongMethod:ManagePlaylistsScreen.kt:@Composable internal fun ManagePlaylistsScreen</ID>
+    <ID>LongMethod:NetworkLibraryScanner.kt:NetworkLibraryScanner$private suspend fun scanSource: NetworkLibrarySourceScanResult</ID>
+    <ID>LongMethod:NetworkMetadataReader.kt:NetworkMetadataReader$suspend fun read: NetworkMetadataReadResult?</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable @OptIn(ExperimentalHazeApi::class) private fun AudiobookChapterList</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable @OptIn(ExperimentalHazeApi::class) private fun QueueSheet</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable internal fun FavoriteSongButton</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable internal fun LyricsOverlay</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable internal fun NowPlayingScreen</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable internal fun SongOverflowMenuButton</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable private fun LyricsReadyContent</ID>
+    <ID>LongMethod:NowPlayingScreens.kt:@Composable private fun PlaybackProgressBar</ID>
+    <ID>LongMethod:PhraseStrings.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
+    <ID>LongMethod:PlaybackIntegrationCoordinator.kt:PlaybackIntegrationCoordinator$fun start</ID>
     <ID>LongMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistDetailScreen</ID>
     <ID>LongMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistSongRow</ID>
+    <ID>LongMethod:PlaylistDialogs.kt:@Composable internal fun PlaylistCreateFullScreenLayer</ID>
+    <ID>LongMethod:PlaylistDialogs.kt:@Composable internal fun PlaylistNameDialog</ID>
     <ID>LongMethod:PlaylistDialogs.kt:@Composable internal fun PlaylistSelectionDialog</ID>
     <ID>LongMethod:PlaylistsScreen.kt:@Composable internal fun PlaylistsScreen</ID>
     <ID>LongMethod:RootCompactNowPlayingDock.kt:@Composable private fun NowPlayingBar</ID>
+    <ID>LongMethod:RootPermissionsHost.kt:@Composable internal fun FirstLaunchPermissionLoadingScreen</ID>
+    <ID>LongMethod:RootSharedTopBar.kt:@Composable internal fun PinnedBackTopBar</ID>
     <ID>LongMethod:RootSharedTopBar.kt:@Composable internal fun SharedTopBarOverlay</ID>
+    <ID>LongMethod:RootSystemEffects.kt:@Composable internal fun rememberRootPermissionController: RootPermissionController</ID>
+    <ID>LongMethod:ScreenScroll.kt:@Composable private fun BoxScope.FastScrollbarTrack</ID>
+    <ID>LongMethod:SearchScreens.kt:@Composable private fun SearchScreen</ID>
+    <ID>LongMethod:SettingsFeatureStrings.kt:@Suppress("CyclomaticComplexMethod") internal fun smartPlaylistDescription: String</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable internal fun SettingsScreen</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable private fun LanguageSelectionDialog</ID>
-    <ID>LongMethod:SettingsScreen.kt:@Composable private fun TextSizeStepper</ID>
-    <ID>TooGenericExceptionCaught:AlbumTagEditorService.kt:AlbumTagEditorService$throwable: Throwable</ID>
-    <ID>TooGenericExceptionCaught:AlbumTagEditorService.kt:AlbumTagEditorService$writeFailure: Throwable</ID>
-    <ID>TooGenericExceptionCaught:AlbumTagEditorViewModel.kt:AlbumTagEditorViewModel$throwable: Throwable</ID>
-    <ID>TooGenericExceptionCaught:EmbeddedLyricsWriter.kt:EmbeddedLyricsWriter$throwable: Throwable</ID>
-    <ID>TooManyFunctions:ElovaireMotion.kt:ElovaireMotion</ID>
+    <ID>LongMethod:SmartPlaylistScreens.kt:@Composable internal fun SmartPlaylistDetailScreen</ID>
+    <ID>LongMethod:SteppedSlider.kt:@Composable internal fun SteppedSlider</ID>
+    <ID>LongMethod:UpscalerScreen.kt:@Composable internal fun UpscalerScreen</ID>
+    <ID>LongMethod:VerifiedMediaFileMutationTransaction.kt:VerifiedMediaFileMutationTransaction$@Suppress("TooGenericExceptionCaught") suspend fun &lt;T&gt; execute: VerifiedMediaFileMutationResult&lt;T&gt;</ID>
+    <ID>LongMethod:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem$override fun openBlocking: NetworkReadHandle</ID>
+    <ID>NestedBlockDepth:ElovaireStringsTest.kt:ElovaireStringsTest$@Test fun majorUiCopyDoesNotLeaveEnglishSentencesInOtherLanguages</ID>
+    <ID>NestedBlockDepth:LocalLyricsResolver.kt:LocalLyricsResolver$private suspend fun copyAudioToTemporaryFile: Boolean</ID>
+    <ID>NestedBlockDepth:MediaFileMutationRunner.kt:MediaFileMutationRunner$fun copySongToTemp: File</ID>
+    <ID>NestedBlockDepth:MediaStoreRowProcessor.kt:MediaStoreRowProcessor$private suspend fun queryGenre: String?</ID>
+    <ID>NestedBlockDepth:NetworkLibraryScanner.kt:NetworkArtworkCache$private fun downloadArtwork: Boolean</ID>
+    <ID>NestedBlockDepth:NetworkMetadataReader.kt:NetworkMetadataReader$private suspend fun readStaged: NetworkMetadataReadResult</ID>
+    <ID>NestedBlockDepth:NetworkMetadataReader.kt:NetworkMetadataReader$private suspend fun readWindowedWav: EmbeddedTagMetadata?</ID>
+    <ID>NestedBlockDepth:SmartPlaylistEngineTest.kt:SmartPlaylistEngineTest$@Test fun limitedResultsMatchFullStableSortForEveryFieldAndDirection</ID>
+    <ID>NestedBlockDepth:SmbConditionalWriter.kt:SmbConditionalWriter$fun cleanup</ID>
+    <ID>NestedBlockDepth:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem$private fun executePropFind: ByteArray</ID>
+    <ID>SwallowedException:NetworkMetadataReader.kt:NetworkMetadataReader$failure: IOException</ID>
+    <ID>TooGenericExceptionCaught:CancellableContentResolverQuery.kt:failure: Exception</ID>
+    <ID>TooGenericExceptionCaught:ElovaireMediaLibraryService.kt:PlaybackForegroundRequests$failure: RuntimeException</ID>
+    <ID>TooGenericExceptionCaught:NetworkFileSystem.kt:failure: Exception</ID>
+    <ID>TooGenericExceptionCaught:NetworkFileSystem.kt:releaseFailure: Throwable</ID>
+    <ID>TooGenericExceptionCaught:NetworkLibraryBackend.kt:failure: RuntimeException</ID>
+    <ID>TooGenericExceptionCaught:NetworkLibraryBackendLifecycleTest.kt:NetworkLibraryBackendLifecycleTest$failure: Exception</ID>
+    <ID>TooGenericExceptionCaught:PlaybackPlayerFactory.kt:PlaybackPlayerFactory$failure: Exception</ID>
+    <ID>TooGenericExceptionCaught:PlaylistDialogs.kt:failure: Exception</ID>
+    <ID>TooGenericExceptionCaught:ScannerMetadataCacheTest.kt:ScannerMetadataCacheTest$failure: Throwable</ID>
+    <ID>TooGenericExceptionCaught:VerifiedMediaFileMutationTransaction.kt:failure: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem$closeFailure: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem$failure: RuntimeException</ID>
+    <ID>TooGenericExceptionCaught:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem$failure: Throwable</ID>
+    <ID>TooManyFunctions:AlbumTagEditorService.kt:AlbumTagEditorService : AlbumTagEditorTagMutationEditor</ID>
+    <ID>TooManyFunctions:AlbumTagEditorViewModel.kt:AlbumTagEditorViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:AudioFormatPolicy.kt:AudioFormatPolicy</ID>
+    <ID>TooManyFunctions:AudioFormatPolicyTest.kt:AudioFormatPolicyTest</ID>
+    <ID>TooManyFunctions:AudiobookTagEditorViewModel.kt:AudiobookTagEditorViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:ElovaireMediaItems.kt:ElovaireMediaItems</ID>
+    <ID>TooManyFunctions:ElovaireMediaTree.kt:ElovaireMediaTree : MediaCatalogPort</ID>
+    <ID>TooManyFunctions:ElovaireMediaTree.kt:ElovaireMediaTree$MediaTreeSnapshot</ID>
+    <ID>TooManyFunctions:ElovaireStringsTest.kt:ElovaireStringsTest</ID>
+    <ID>TooManyFunctions:EqualizerAudioProcessor.kt:EqualizerAudioProcessor : BaseAudioProcessor</ID>
+    <ID>TooManyFunctions:GitHubUpdateController.kt:GitHubUpdateController : UpdateController</ID>
+    <ID>TooManyFunctions:LibraryAudioFileFilterTest.kt:LibraryAudioFileFilterTest</ID>
+    <ID>TooManyFunctions:LibraryRefreshRequestsTest.kt:LibraryRefreshRequestsTest</ID>
+    <ID>TooManyFunctions:LibraryScanCoordinator.kt:LibraryScanCoordinator</ID>
+    <ID>TooManyFunctions:LibraryScreens.kt:elovaire.music.droidbeauty.app.ui.screens.LibraryScreens.kt</ID>
+    <ID>TooManyFunctions:LocalLyricsResolver.kt:LocalLyricsResolver</ID>
+    <ID>TooManyFunctions:MetadataWritePersistenceTest.kt:MetadataWritePersistenceTest</ID>
     <ID>TooManyFunctions:MotionTransitions.kt:MotionTransitions</ID>
-    <ID>TooManyFunctions:PlaybackManager.kt:PlaybackManager : PlaybackReaderPlaybackController</ID>
-    <ID>TooManyFunctions:PreferenceStore.kt:PreferenceStore : RootSettingsReaderAppearanceSettingsWriterLibrarySettingsWriterPlaybackSettingsWriterPlaylistStoreFavoritesStore</ID>
+    <ID>TooManyFunctions:NowPlayingScreens.kt:elovaire.music.droidbeauty.app.ui.screens.NowPlayingScreens.kt</ID>
+    <ID>TooManyFunctions:PlaybackCrossfadeEnvelopeTest.kt:PlaybackCrossfadeEnvelopeTest</ID>
+    <ID>TooManyFunctions:RapidNavigationQualificationTest.kt:RapidNavigationQualificationTest</ID>
+    <ID>TooManyFunctions:SearchIndexTest.kt:SearchIndexTest</ID>
+    <ID>TooManyFunctions:SettingsContracts.kt:PlaybackSettingsWriter</ID>
+    <ID>TooManyFunctions:TagFeedbackStrings.kt:elovaire.music.droidbeauty.app.ui.i18n.TagFeedbackStrings.kt</ID>
+    <ID>TooManyFunctions:TestUri.kt:TestUri : Uri</ID>
     <ID>TooManyFunctions:UsbDacHardwareVolumeManager.kt:UsbDacHardwareVolumeManager</ID>
+    <ID>TooManyFunctions:WebDavNetworkFileSystem.kt:WebDavNetworkFileSystem : NetworkFileSystem</ID>
   </CurrentIssues>
 </SmellBaseline>

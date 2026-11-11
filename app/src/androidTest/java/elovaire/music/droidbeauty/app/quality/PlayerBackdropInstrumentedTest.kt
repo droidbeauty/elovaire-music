@@ -24,6 +24,7 @@ import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.AudiobookChapter
 import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -40,6 +41,7 @@ import java.lang.reflect.Proxy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,6 +49,66 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlayerBackdropInstrumentedTest {
     @get:Rule val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
+
+    @Test
+    fun audiobookChapterQueueSeeksToSelectedChapter() {
+        val song = Song(
+            id = 1L, title = "A Book", isExplicit = false, artist = "Author", album = "Book",
+            releaseYear = null, genre = "", audioFormat = "M4B", audioQuality = null,
+            fileName = "book.m4b", albumId = 1L, durationMs = 180_000L, trackNumber = 1,
+            discNumber = 1, dateAddedSeconds = 1L, uri = Uri.parse("content://backdrop-test/book"),
+            artUri = null, mediaKind = AudioMediaKind.Audiobook,
+        )
+        val progress = MutableStateFlow(PlaybackProgressState(positionMs = 65_000, displayPositionMs = 65_000,
+            durationMs = 180_000, currentMediaId = song.id))
+        var seekPosition: Long? = null
+        val playback = Proxy.newProxyInstance(NowPlayingPlayback::class.java.classLoader,
+            arrayOf(NowPlayingPlayback::class.java)) { proxy, method, args ->
+            when (method.name) {
+                "equals" -> proxy === args?.firstOrNull()
+                "hashCode" -> System.identityHashCode(proxy)
+                "toString" -> "Audiobook player fixture"
+                "getProgressState" -> progress
+                "setProgressConsumerActive", "cancelScrub" -> Unit
+                "seekTo" -> { seekPosition = args?.firstOrNull() as Long; Unit }
+                else -> error("Unexpected playback call: ${method.name}")
+            }
+        } as NowPlayingPlayback
+        val chapters = object : AudiobookChapterReader {
+            override suspend fun chapters(song: Song): List<AudiobookChapter> = listOf(
+                AudiobookChapter("First chapter", 0L, 60_000L),
+                AudiobookChapter("Second chapter", 70_000L, 120_000L),
+                AudiobookChapter("Third chapter", 130_000L, 180_000L),
+            )
+        }
+        composeRule.setContent {
+            CompositionLocalProvider(LocalAppLanguage provides AppLanguage.English) {
+                ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                    NowPlayingScreen(
+                        playbackManager = playback, audiobookChapterReader = chapters, isPlayerVisible = true,
+                        playerUiState = PlayerUiState(currentSong = song, queue = listOf(song), currentIndex = 0),
+                        enrichedSongsById = mapOf(song.id to song), audiobookSettings = AudiobookSettings(),
+                        isFavorite = false, playlists = emptyList(),
+                        lyricsUiState = LyricsUiState.Ready(LyricsPayload(emptyList(), false), song.toLyricsIdentity().cacheKeys.first()),
+                        lyricsEditorUiState = LyricsEditorUiState(), activeLyricsLineIndex = -1,
+                        onLyricsVisibilityChanged = {}, onSaveLyrics = {}, onClearLyricsEditorError = {},
+                        onBack = {}, onOpenCurrentAlbum = {}, onTogglePlayback = {}, onSkipPrevious = {}, onSkipNext = {},
+                        onCycleRepeatMode = {}, onToggleShuffle = {}, onToggleFavorite = {},
+                        onAddCurrentSongToPlaylist = { _, _ -> CompletableDeferred(PlaylistMutationResult.InvalidInput) },
+                        onCreatePlaylist = { CompletableDeferred(PlaylistMutationResult.InvalidInput) },
+                        onQueueItemSelected = {}, onQueueItemRemoved = {}, onOpenEqualizer = {},
+                        onToggleCrossfade = {}, onSleepTimerSelected = {}, onVolumeChanged = {}, transitionSnapshot = null,
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithContentDescription("Rewind").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Forward").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Queue").performClick()
+        composeRule.onNodeWithText("Chapters").assertIsDisplayed()
+        composeRule.onNodeWithText("Second chapter").assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals(70_000L, seekPosition) }
+    }
 
     @Test
     fun queueTimerAndLyricsCanRenderTheirBackdropsWithoutCapturingThemselves() {

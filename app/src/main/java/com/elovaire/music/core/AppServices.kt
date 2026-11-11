@@ -397,7 +397,9 @@ internal class AppServices(
 
     fun startPlayback() {
         startAudiobookProgressKeyMigration()
-        widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
+        appScope.launch(appDispatchers.io) {
+            widgetUpdateRuntimeDelegate.value.onProviderLifecycleChanged()
+        }
         networkBackend.start()
         mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.startPlayback()

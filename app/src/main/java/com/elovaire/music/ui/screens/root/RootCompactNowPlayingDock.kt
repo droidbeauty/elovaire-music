@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
@@ -418,7 +419,7 @@ private fun CompactNowPlayingBar(
                                     }
                                 } else {
                                     Icon(
-                                        painter = painterResource(id = R.drawable.ic_lucide_music),
+                                        painter = painterResource(id = if (song.mediaKind == AudioMediaKind.Audiobook) R.drawable.ic_lucide_book_headphones else R.drawable.ic_lucide_music),
                                         contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                         tint = contentColor.copy(alpha = 0.72f),
                                         modifier = Modifier.size(20.dp),
@@ -683,7 +684,7 @@ private fun NowPlayingBar(
                             }
                         } else {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_music),
+                                painter = painterResource(id = if (song.mediaKind == AudioMediaKind.Audiobook) R.drawable.ic_lucide_book_headphones else R.drawable.ic_lucide_music),
                                 contentDescription = elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText(song.title, song.id, LocalAppLanguage.current),
                                 tint = controlIconTint.copy(alpha = 0.72f),
                                 modifier = Modifier.size(20.dp),

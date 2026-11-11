@@ -13,12 +13,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
 class AboutScreenCopyInstrumentedTest {
     @Test
-    fun bundledChangelogEntriesHaveTranslations() {
+    fun bundledChangelogEntriesRemainEnglish() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val entries = ChangelogRepository(context).loadReleases().flatMap { it.changes }
         assertTrue(entries.isNotEmpty())
@@ -27,25 +26,7 @@ class AboutScreenCopyInstrumentedTest {
         }
         AppLanguage.entries.filterNot { it == AppLanguage.English }.forEach { language ->
             entries.forEach { entry ->
-                assertFalse("Untranslated changelog entry for $language: $entry", localizedChangelogItem(entry, language) == entry)
-            }
-            entries.firstOrNull { it.startsWith("Added support for 11 new languages") }?.let { languagesEntry ->
-                val separator = if (language == AppLanguage.Japanese || language == AppLanguage.ChineseSimplified) "、" else ", "
-                val names = localizedChangelogItem(languagesEntry, language).substringAfter(": ")
-                val englishNames = listOf("sq", "bs", "bg", "ca", "fi", "id", "ro", "sr", "sl", "pa", "ur")
-                    .joinToString(separator) { Locale.forLanguageTag(it).getDisplayLanguage(Locale.ENGLISH) }
-                assertFalse("Language names fell back to English for $language", names == englishNames)
-                if (language in setOf(
-                        AppLanguage.Bengali, AppLanguage.Bulgarian, AppLanguage.ChineseSimplified,
-                        AppLanguage.Greek, AppLanguage.Hindi, AppLanguage.Japanese, AppLanguage.Korean,
-                        AppLanguage.Macedonian, AppLanguage.Punjabi, AppLanguage.Russian, AppLanguage.Serbian,
-                        AppLanguage.Thai, AppLanguage.Ukrainian, AppLanguage.Urdu,
-                    )
-                ) {
-                    names.split(separator).forEach { name ->
-                        assertTrue("Untranslated language name for $language: $name", name.any { it.code > 127 })
-                    }
-                }
+                assertEquals("Changelog content must remain English for $language", entry, localizedChangelogItem(entry, language))
             }
         }
     }

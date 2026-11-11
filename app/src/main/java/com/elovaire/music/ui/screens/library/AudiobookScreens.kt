@@ -148,14 +148,14 @@ private fun AudiobookMiniCard(
 ) {
     val copy = audiobookCopy(LocalAppLanguage.current)
     val partPrefixDurations = remember(book) { audiobookPartPrefixDurations(book.parts) }
-    val progressFraction = remember(book, progress) {
+    val resolvedProgress = remember(book, progress) {
         resolveAudiobookProgress(
             book = book,
             savedProgress = progress,
             currentSongId = null,
             currentPositionMs = 0L,
             partPrefixDurations = partPrefixDurations,
-        ).progressFraction
+        )
     }
     Column(
         modifier = Modifier
@@ -201,12 +201,13 @@ private fun AudiobookMiniCard(
             )
         }
         when {
-            progress?.completed == true -> Text(copy.completed, style = MaterialTheme.typography.labelSmall, color = readableSecondaryTextColor())
             isCurrentlyPlaying -> Text(copy.listening, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            progressFraction > 0f -> {
+            resolvedProgress.completed -> Text(copy.completed, style = MaterialTheme.typography.labelSmall, color = readableSecondaryTextColor())
+            resolvedProgress.progressFraction > 0f -> {
                 LinearProgressIndicator(
-                    progress = { progressFraction },
+                    progress = { resolvedProgress.progressFraction },
                     modifier = Modifier.fillMaxWidth(),
+                    drawStopIndicator = {},
                 )
                 Text(copy.continueListening, style = MaterialTheme.typography.labelSmall, color = readableSecondaryTextColor())
             }
@@ -217,6 +218,7 @@ private fun AudiobookMiniCard(
 @Composable
 internal fun AudiobooksScreen(
     books: List<Audiobook>,
+    progressByBookKey: Map<String, AudiobookProgress>,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onBookSelected: (Audiobook) -> Unit,
@@ -256,10 +258,8 @@ internal fun AudiobooksScreen(
         selectedBookKeys = emptySet()
         showPlaylistPicker = false
     }
-    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val gridState = rememberElovaireLazyGridState("audiobooks_screen_grid")
     fun onBookClick(book: Audiobook) {
-        if (selectionModeActive) {
+        if (selectedBookKeys.isNotEmpty()) {
             selectedBookKeys = toggleAudiobookSelection(selectedBookKeys, book.stableKey)
         } else {
             onBookSelected(book)
@@ -277,6 +277,7 @@ internal fun AudiobooksScreen(
         ) {
             AudiobookCollectionContent(
                 books = books,
+                progressByBookKey = progressByBookKey,
                 layoutMode = layoutMode,
                 bottomPadding = bottomPadding,
                 selectionTopInset = selectionTopInset,
@@ -330,6 +331,7 @@ internal fun AudiobooksScreen(
 @Composable
 private fun AudiobookCollectionContent(
     books: List<Audiobook>,
+    progressByBookKey: Map<String, AudiobookProgress>,
     layoutMode: AlbumLayoutMode,
     bottomPadding: Dp,
     selectionTopInset: Dp,
@@ -370,6 +372,7 @@ private fun AudiobookCollectionContent(
                 ) { index, book ->
                     AudiobookCollectionRow(
                         book = book,
+                        progress = progressByBookKey[book.stableKey],
                         selectionMode = selectionModeActive,
                         selected = book.stableKey in selectedBookKeys,
                         onClick = { onBookClick(book) },
@@ -568,12 +571,16 @@ internal fun AudiobookUnavailableScreen(
 @Composable
 private fun AudiobookCollectionRow(
     book: Audiobook,
+    progress: AudiobookProgress?,
     selectionMode: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
 ) {
     val artworkAspectRatio = audiobookArtworkAspectRatio(book)
+    val resolvedProgress = remember(book, progress) {
+        resolveAudiobookProgress(book, progress, currentSongId = null, currentPositionMs = 0L)
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -614,11 +621,35 @@ private fun AudiobookCollectionRow(
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                 )
-                Text(
-                    text = "${audiobookPartsCount(book.parts.size, LocalAppLanguage.current)}  •  ${formatDuration(book.durationMs)}",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                    color = readableSecondaryTextColor(),
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${audiobookPartsCount(book.parts.size, LocalAppLanguage.current)}  •  ${formatDuration(book.durationMs)}",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = readableSecondaryTextColor(),
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (resolvedProgress.completed) {
+                        Box(
+                            modifier = Modifier.size(16.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_check),
+                                contentDescription = audiobookFinishedLabel(LocalAppLanguage.current),
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(10.dp),
+                            )
+                        }
+                    } else {
+                        CircularProgressIndicator(
+                            progress = { resolvedProgress.progressFraction },
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                        )
+                    }
+                }
             }
             if (selectionMode) {
                 SelectionIndicatorIcon(
@@ -805,7 +836,7 @@ internal fun AudiobookDetailScreen(
                 AudiobookActionButton(
                     text = if (isCompleted) copy.playAgain else if (currentPart != null) copy.resume else copy.play,
                     iconResId = R.drawable.ic_lucide_circle_play,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     backgroundColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                     onClick = {
@@ -831,7 +862,14 @@ internal fun AudiobookDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, top = 12.dp, end = 20.dp),
+                    .padding(start = 20.dp, top = 20.dp, end = 20.dp)
+                    .then(
+                        if (!description.isNullOrBlank()) {
+                            Modifier.elovaireClickable { showDescriptionDialog = true }
+                        } else {
+                            Modifier
+                        },
+                    ),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 AudiobookSectionHeader(
@@ -897,7 +935,7 @@ internal fun AudiobookDetailScreen(
                 number = part.number,
                 selected = index == currentPart,
                 progress = audiobookPartProgress(index, part, resolvedProgress, partPrefixDurations),
-                isPlaying = index == currentPart && isPlaying,
+                isPlaying = index == currentPart && isPlaying && currentSongId != null && activeSongId == currentSongId,
                 finishedLabel = audiobookFinishedLabel(LocalAppLanguage.current),
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                 onClick = { onPlay(part, false) },

@@ -65,15 +65,15 @@ class RapidNavigationQualificationTest {
     fun topLevelRouteStormConvergesAtEverySupportedCadence() {
         CADENCES_MS.forEach { cadenceMs ->
             burstDescriptions(
-                descriptions = listOf("Albums", "Playlists", "Search", "Home"),
+                descriptions = listOf("Library", "Playlists", "Search", "Home"),
                 interInputDelayMs = cadenceMs,
             )
             burstDescriptions(
-                descriptions = listOf("Home", "Search", "Playlists", "Albums"),
+                descriptions = listOf("Home", "Search", "Playlists", "Library"),
                 interInputDelayMs = cadenceMs,
             )
             burstDescriptions(
-                descriptions = listOf("Albums", "Search", "Playlists", "Albums", "Home", "Search"),
+                descriptions = listOf("Library", "Search", "Playlists", "Library", "Home", "Search"),
                 interInputDelayMs = cadenceMs,
             )
 
@@ -88,7 +88,7 @@ class RapidNavigationQualificationTest {
 
     @Test
     fun backNavigationReturnsToHomeWithoutAnInvisibleBlockingLayer() {
-        requireDescription("Albums")
+        requireDescription("Library")
         requireDescription("Playlists")
         requireDescription("Search")
 
@@ -287,7 +287,7 @@ class RapidNavigationQualificationTest {
         const val ACTION_TIMEOUT_MS = 10_000L
         const val STALE_RETRY_COUNT = 3
         val CADENCES_MS = longArrayOf(160L, 100L, 64L, 32L, 16L)
-        val TOP_LEVEL_DESCRIPTIONS = listOf("Home", "Albums", "Playlists", "Search")
+        val TOP_LEVEL_DESCRIPTIONS = listOf("Home", "Library", "Playlists", "Search")
         val PERMISSION_CONTROLLER_PACKAGES = Pattern.compile(
             "com\\.android\\.permissioncontroller|com\\.google\\.android\\.permissioncontroller|" +
                 "com\\.android\\.packageinstaller|com\\.samsung\\.android\\.permissioncontroller",

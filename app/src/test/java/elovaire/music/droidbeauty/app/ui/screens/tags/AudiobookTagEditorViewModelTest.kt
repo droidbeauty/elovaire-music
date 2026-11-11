@@ -40,6 +40,8 @@ class AudiobookTagEditorViewModelTest {
 
         viewModel.onBookTitleChange("Renamed")
         viewModel.requestSave()
+        viewModel.onBookTitleChange("Must not replace the pending draft")
+        assertEquals("Renamed", viewModel.uiState.value.bookTitle)
         val action = viewModel.uiState.value.platformAction as AudiobookTagEditorPlatformAction.RequestWritePermission
         viewModel.consumePlatformAction(action.operationId)
         viewModel.onWritePermissionNotRequired(action.operationId)
@@ -110,6 +112,8 @@ class AudiobookTagEditorViewModelTest {
         assertTrue(viewModel.uiState.value.hasUnsavedChanges)
         assertTrue(viewModel.uiState.value.canSave)
         assertTrue(editor.requests.isEmpty())
+        viewModel.onBookTitleChange("Retry title")
+        assertEquals("Retry title", viewModel.uiState.value.bookTitle)
         viewModel.requestSave()
         assertTrue(viewModel.uiState.value.platformAction is AudiobookTagEditorPlatformAction.RequestWritePermission)
     }

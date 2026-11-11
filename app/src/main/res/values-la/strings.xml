@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_played">Nuper audita</string>
+    <string name="shortcut_albums">Alba</string>
+    <string name="shortcut_playlists">Indices carminum</string>
+    <string name="shortcut_search">Quaerere</string>
+</resources>

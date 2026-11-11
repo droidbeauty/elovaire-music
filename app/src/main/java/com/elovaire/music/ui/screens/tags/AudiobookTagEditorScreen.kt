@@ -23,10 +23,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,8 +47,8 @@ import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.screens.DetailListTopBar
 import elovaire.music.droidbeauty.app.ui.screens.FastScrollbar
 import elovaire.music.droidbeauty.app.ui.screens.ensureSingleItemRubberBand
+import elovaire.music.droidbeauty.app.ui.screens.sharedTopBarOccupiedHeight
 import elovaire.music.droidbeauty.app.ui.screens.TopBarActionSpec
-import elovaire.music.droidbeauty.app.ui.screens.common.EditorTextField
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 
@@ -65,6 +71,14 @@ internal fun AudiobookTagEditorScreen(
 ) {
     val copy = remember(appLanguage) { audiobookTagEditorCopy(appLanguage) }
     val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val contentTop = sharedTopBarOccupiedHeight() + ElovaireSpacing.sectionVerticalGap
+    LaunchedEffect(state.saveFailures, state.statusMessage, state.isSaving) {
+        if (!state.isSaving && (state.saveFailures.isNotEmpty() || state.statusMessage != null)) {
+            listState.animateScrollToItem(0)
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -79,12 +93,17 @@ internal fun AudiobookTagEditorScreen(
                 modifier = Modifier.fillMaxSize().imePadding().ensureSingleItemRubberBand(listState),
                 contentPadding = PaddingValues(
                     start = 18.dp,
-                    top = ElovaireSpacing.topBarContentHeight + 44.dp,
+                    top = contentTop,
                     end = 18.dp,
                     bottom = 28.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                if (state.validationErrors.isNotEmpty() || state.saveFailures.isNotEmpty() || state.statusMessage != null) {
+                    item(key = "feedback") {
+                        AudiobookTagEditorFeedback(state, appLanguage)
+                    }
+                }
                 item {
                     AudiobookBookMetadataSection(
                         state = state,
@@ -103,34 +122,40 @@ internal fun AudiobookTagEditorScreen(
                         index = index,
                         part = part,
                         copy = copy,
+                        enabled = !state.isSaving,
                         onPartTitleChange = onPartTitleChange,
                         onPartArtistChange = onPartArtistChange,
                         onPartTrackNumberChange = onPartTrackNumberChange,
                         onPartDiscNumberChange = onPartDiscNumberChange,
                     )
                 }
-                item {
-                    AudiobookTagEditorFeedback(state, appLanguage)
-                }
             }
         }
-        if (state.originalBook != null) {
-            FastScrollbar(state = listState, topInset = ElovaireSpacing.topBarContentHeight + 44.dp, bottomInset = 28.dp)
-            DetailListTopBar(
-                title = copy.editorTitle,
-                subtitle = state.bookTitle,
-                onBack = onBack,
-                actions = listOf(
+        if (state.originalBook != null && !state.isLoading) {
+            FastScrollbar(state = listState, topInset = contentTop, bottomInset = 28.dp)
+        }
+        DetailListTopBar(
+            title = copy.editorTitle,
+            subtitle = state.bookTitle.takeIf { it.isNotBlank() },
+            onBack = onBack,
+            actions = if (state.originalBook != null) {
+                listOf(
                     TopBarActionSpec(
                         iconResId = R.drawable.ic_lucide_check,
                         contentDescription = copy.save,
-                        onClick = onSave,
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboard?.hide()
+                            onSave()
+                        },
                         enabled = state.canSave && !state.isSaving,
                     ),
-                ),
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
-        }
+                )
+            } else {
+                emptyList()
+            },
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
     }
 }
 
@@ -161,7 +186,7 @@ private fun AudiobookBookMetadataSection(
                     placeholderIconResId = R.drawable.ic_lucide_book_headphones,
                     modifier = Modifier
                         .size(112.dp)
-                        .elovaireClickable(onClick = onPickCoverArt),
+                        .elovaireClickable(enabled = !state.isSaving, onClick = onPickCoverArt),
                     requestedSizePx = 256,
                 )
                 Column(
@@ -172,20 +197,21 @@ private fun AudiobookBookMetadataSection(
                     Text(copy.coverHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            EditorTextField(state.bookTitle, onBookTitleChange, copy.bookTitle, Modifier.fillMaxWidth())
-            EditorTextField(state.author, onAuthorChange, copy.author, Modifier.fillMaxWidth())
-            EditorTextField(
+            AudiobookEditorTextField(state.bookTitle, onBookTitleChange, copy.bookTitle, Modifier.fillMaxWidth(), enabled = !state.isSaving)
+            AudiobookEditorTextField(state.author, onAuthorChange, copy.author, Modifier.fillMaxWidth(), enabled = !state.isSaving)
+            AudiobookEditorTextField(
                 value = state.description,
                 onValueChange = onDescriptionChange,
                 modifier = Modifier.fillMaxWidth(),
                 label = copy.description,
+                enabled = !state.isSaving,
                 singleLine = false,
                 minLines = 4,
                 maxLines = 8,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                EditorTextField(state.releaseYear, onReleaseYearChange, copy.year, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                EditorTextField(state.genre, onGenreChange, copy.genre, Modifier.weight(1f))
+                AudiobookEditorTextField(state.releaseYear, onReleaseYearChange, copy.year, Modifier.weight(1f), enabled = !state.isSaving, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                AudiobookEditorTextField(state.genre, onGenreChange, copy.genre, Modifier.weight(1f), enabled = !state.isSaving)
             }
         }
     }
@@ -196,6 +222,7 @@ private fun AudiobookPhysicalPartCard(
     index: Int,
     part: EditableAudiobookPartState,
     copy: AudiobookTagEditorCopy,
+    enabled: Boolean,
     onPartTitleChange: (Long, String) -> Unit,
     onPartArtistChange: (Long, String) -> Unit,
     onPartTrackNumberChange: (Long, String) -> Unit,
@@ -213,14 +240,53 @@ private fun AudiobookPhysicalPartCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            EditorTextField(part.title, { onPartTitleChange(part.songId, it) }, copy.partTitle, Modifier.fillMaxWidth())
-            EditorTextField(part.artist, { onPartArtistChange(part.songId, it) }, copy.partAuthor, Modifier.fillMaxWidth())
+            AudiobookEditorTextField(part.title, { onPartTitleChange(part.songId, it) }, copy.partTitle, Modifier.fillMaxWidth(), enabled = enabled)
+            AudiobookEditorTextField(part.artist, { onPartArtistChange(part.songId, it) }, copy.partAuthor, Modifier.fillMaxWidth(), enabled = enabled)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                EditorTextField(part.trackNumber, { onPartTrackNumberChange(part.songId, it) }, copy.partNumber, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                EditorTextField(part.discNumber, { onPartDiscNumberChange(part.songId, it) }, copy.discNumber, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                AudiobookEditorTextField(part.trackNumber, { onPartTrackNumberChange(part.songId, it) }, copy.partNumber, Modifier.weight(1f), enabled = enabled, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                AudiobookEditorTextField(part.discNumber, { onPartDiscNumberChange(part.songId, it) }, copy.discNumber, Modifier.weight(1f), enabled = enabled, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
         }
     }
+}
+
+@Composable
+private fun AudiobookEditorTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+) {
+    val colors = MaterialTheme.colorScheme
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        label = { Text(label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)) },
+        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+        shape = RoundedCornerShape(ElovaireRadii.input),
+        singleLine = singleLine,
+        minLines = minLines,
+        maxLines = maxLines,
+        keyboardOptions = keyboardOptions,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = colors.surfaceVariant,
+            unfocusedContainerColor = colors.surfaceVariant,
+            disabledContainerColor = colors.surfaceVariant,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            focusedLabelColor = colors.primary,
+            unfocusedLabelColor = colors.onSurface.copy(alpha = 0.7f),
+            cursorColor = colors.primary,
+        ),
+    )
 }
 
 @Composable

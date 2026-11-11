@@ -2,9 +2,9 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
 import elovaire.music.droidbeauty.app.data.audio.AudioTagIO
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
@@ -26,7 +26,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.jaudiotagger.tag.FieldKey
@@ -35,8 +34,7 @@ import java.util.UUID
 @RunWith(AndroidJUnit4::class)
 class SmbServerIntegrationTest {
     @Test(timeout = 30000L)
-    fun tagEditorWritesRealMp3ThroughSmb() = runBlocking {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("smbIntegration") == "true")
+    fun tagEditorWritesRealMp3ThroughSmb() = runSmbIntegration {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val id = UUID.randomUUID().toString()
         val source = NetworkLibrarySource(id, "Test", NetworkLibraryProtocol.Smb,
@@ -83,9 +81,7 @@ class SmbServerIntegrationTest {
     }
 
     @Test(timeout = 30000L)
-    fun stagedReplacementAndRecoveryUseSmbServerOperations() {
-        val arguments = InstrumentationRegistry.getArguments()
-        assumeTrue(arguments.getString("smbIntegration") == "true")
+    fun stagedReplacementAndRecoveryUseSmbServerOperations() = runSmbIntegration {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val source = NetworkLibrarySource("integration", "Test", NetworkLibraryProtocol.Smb,
             "127.0.0.1:1445", "NAS", "test", "integration")
@@ -121,5 +117,10 @@ class SmbServerIntegrationTest {
             expected.delete()
             replacement.delete()
         }
+    }
+
+    private fun runSmbIntegration(block: suspend () -> Unit) {
+        if (InstrumentationRegistry.getArguments().getString("smbIntegration") != "true") return
+        runBlocking { block() }
     }
 }

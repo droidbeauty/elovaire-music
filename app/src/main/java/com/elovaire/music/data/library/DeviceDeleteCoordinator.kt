@@ -2,11 +2,9 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
-import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueMutationPort
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -51,9 +49,7 @@ internal class DeviceDeleteCoordinator(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : DeviceDeleteHandler {
-    private val pendingDeletePreferences = allowStrictModeDiskReads {
-        PreferenceStorage(context.applicationContext).preferences
-    }
+    private val pendingDeleteStore: DeviceDeletePendingStore = PreferenceBackedDeviceDeleteStore(context.applicationContext)
 
     override suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan? {
         val uniqueSongs = songs.distinctBy(Song::id)
@@ -152,11 +148,11 @@ internal class DeviceDeleteCoordinator(
             .put(KEY_FILE_PATHS, filePaths)
             .put(KEY_PARENT_DIRECTORIES, parents)
             .toString()
-        return persistPendingDeleteState(pendingDeletePreferences, plan.operationId, serializedPlan)
+        return pendingDeleteStore.persist(plan.operationId, serializedPlan)
     }
 
     private fun readPendingDelete(): DeviceDeletePlan? {
-        val raw = readPendingDeleteState() ?: return null
+        val raw = pendingDeleteStore.read() ?: return null
         val decoded = runCatching {
             val root = JSONObject(raw)
             val operationId = root.optString(KEY_OPERATION_ID).takeIf(String::isNotBlank)
@@ -203,21 +199,8 @@ internal class DeviceDeleteCoordinator(
         }.getOrDefault(emptySet())
     }
 
-    private fun readPendingDeleteState(): String? = synchronized(pendingDeletePreferences) {
-        pendingDeletePreferences.getString(KEY_PENDING_DEVICE_DELETE_PLAN, null)
-    }
-
     private fun clearPendingDeleteState(operationId: String): Boolean {
-        return synchronized(pendingDeletePreferences) {
-            if (pendingDeletePreferences.getString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, null) != operationId) {
-                true
-            } else {
-                pendingDeletePreferences.edit()
-                    .remove(KEY_PENDING_DEVICE_DELETE_OPERATION_ID)
-                    .remove(KEY_PENDING_DEVICE_DELETE_PLAN)
-                    .commit()
-            }
-        }
+        return pendingDeleteStore.clear(operationId)
     }
 
     private companion object {
@@ -232,21 +215,6 @@ internal class DeviceDeleteCoordinator(
         const val MAX_PENDING_TARGETS = 10_000
     }
 }
-
-internal fun persistPendingDeleteState(
-    preferences: android.content.SharedPreferences,
-    operationId: String,
-    serializedPlan: String,
-): Boolean = synchronized(preferences) {
-    if (preferences.contains(KEY_PENDING_DEVICE_DELETE_PLAN)) return@synchronized false
-    preferences.edit()
-        .putString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, operationId)
-        .putString(KEY_PENDING_DEVICE_DELETE_PLAN, serializedPlan)
-        .commit()
-}
-
-private const val KEY_PENDING_DEVICE_DELETE_OPERATION_ID = "pending_device_delete_operation_id"
-private const val KEY_PENDING_DEVICE_DELETE_PLAN = "pending_device_delete_plan"
 
 internal suspend fun <T : Any> launchPreparedDelete(
     createRequest: () -> T?,

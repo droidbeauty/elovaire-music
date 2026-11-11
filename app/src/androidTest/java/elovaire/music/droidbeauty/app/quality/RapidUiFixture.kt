@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.settings.elovaireSettingsDataStore
 import elovaire.music.droidbeauty.app.data.settings.editSettings
 import elovaire.music.droidbeauty.app.data.settings.putString
 import elovaire.music.droidbeauty.app.data.settings.remove
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import java.io.IOException
 import java.io.File
 import java.util.UUID
@@ -46,6 +47,8 @@ internal class RapidUiFixture(
     private var originalBootSnapshot: SharedPreferencesSnapshot? = null
     private var originalDataStoreLibraryFolders: String? = null
     private var hadOriginalDataStoreLibraryFolders = false
+    private var originalDataStoreAppLanguage: String? = null
+    private var hadOriginalDataStoreAppLanguage = false
     private var libraryFoldersCaptured = false
     private var fixtureRootSelected = false
 
@@ -157,13 +160,24 @@ internal class RapidUiFixture(
                 val settings = settingsDataStore.data.first()
                 hadOriginalDataStoreLibraryFolders = settings.contains(libraryFoldersKey)
                 originalDataStoreLibraryFolders = settings[libraryFoldersKey]
+                val appLanguageKey = stringPreferencesKey(APP_LANGUAGE_KEY)
+                hadOriginalDataStoreAppLanguage = settings.contains(appLanguageKey)
+                originalDataStoreAppLanguage = settings[appLanguageKey]
             }
             libraryFoldersCaptured = true
         }
         fixtureRootSelected = true
-        check(libraryPreferences.edit().putString(LIBRARY_FOLDERS_KEY, encodedSelection).commit())
+        check(
+            libraryPreferences.edit()
+                .putString(LIBRARY_FOLDERS_KEY, encodedSelection)
+                .putString(APP_LANGUAGE_KEY, AppLanguage.English.name)
+                .commit(),
+        )
         runBlocking {
-            settingsDataStore.editSettings { putString(LIBRARY_FOLDERS_KEY, encodedSelection) }
+            settingsDataStore.editSettings {
+                putString(LIBRARY_FOLDERS_KEY, encodedSelection)
+                putString(APP_LANGUAGE_KEY, AppLanguage.English.name)
+            }
         }
         updateBootLibraryFolderSelection(encodedSelection)
     }
@@ -178,6 +192,11 @@ internal class RapidUiFixture(
                         putString(LIBRARY_FOLDERS_KEY, checkNotNull(originalDataStoreLibraryFolders))
                     } else {
                         remove(LIBRARY_FOLDERS_KEY)
+                    }
+                    if (hadOriginalDataStoreAppLanguage) {
+                        putString(APP_LANGUAGE_KEY, checkNotNull(originalDataStoreAppLanguage))
+                    } else {
+                        remove(APP_LANGUAGE_KEY)
                     }
                 }
             }
@@ -220,7 +239,10 @@ internal class RapidUiFixture(
         val ownerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val backup = PortableSettingsBackup(context, ownerScope = ownerScope)
-            val values = backup.bootSettingsSnapshot().asMap() + (LIBRARY_FOLDERS_KEY to encodedSelection)
+            val values = backup.bootSettingsSnapshot().asMap() + mapOf(
+                LIBRARY_FOLDERS_KEY to encodedSelection,
+                APP_LANGUAGE_KEY to AppLanguage.English.name,
+            )
             backup.checkpointBootSettings(values)
             runBlocking { backup.flushBootSnapshot() }
         } finally {
@@ -245,9 +267,10 @@ internal class RapidUiFixture(
         const val FIXTURE_RELATIVE_PATH_PREFIX = "Music/ElovaireRapidUi/"
         const val LIBRARY_FOLDERS_KEY = "library_folders"
         const val BOOT_SNAPSHOT_FILE_NAME = "settings_boot_snapshot"
+        private const val APP_LANGUAGE_KEY = "app_language"
         val FIXTURES = listOf(
             Fixture(
-                "playback-fixture.wav",
+                "playback-ui-fixture.wav",
                 "Original Playback Fixture",
                 "Rapid Artist One",
                 "Rapid Album One",

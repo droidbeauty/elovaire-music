@@ -94,7 +94,7 @@ internal fun AudiobookSettingsScreen(
                 end = 18.dp,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(52.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -196,11 +196,13 @@ private fun AudiobookSeekSettingRow(
         }
         Spacer(modifier = Modifier.size(12.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(0.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AudiobookStepButton(
                 label = "−",
+                touchTargetSize = 48.dp,
+                actionLabel = "$title −",
                 enabled = value > 5,
                 onClick = { onValueChanged((value - 5).coerceAtLeast(5)) },
             )
@@ -216,6 +218,8 @@ private fun AudiobookSeekSettingRow(
             }
             AudiobookStepButton(
                 label = "+",
+                touchTargetSize = 48.dp,
+                actionLabel = "$title +",
                 enabled = value < 30,
                 onClick = { onValueChanged((value + 5).coerceAtMost(30)) },
             )
@@ -228,23 +232,29 @@ private fun AudiobookStepButton(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
+    touchTargetSize: Dp = 36.dp,
+    actionLabel: String? = null,
 ) {
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.9f else 0.35f),
-            )
-            .elovaireClickable(enabled = enabled, onClick = onClick),
+            .size(touchTargetSize)
+            .elovaireClickable(enabled = enabled, onClickLabel = actionLabel, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.35f),
-        )
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.9f else 0.35f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.35f),
+            )
+        }
     }
 }
 
