@@ -127,6 +127,31 @@ class UpscalerAudioProcessorTest {
     }
 
     @Test
+    fun highBitDepthPcmIsUpsampledWithSignedSamplesAndChannelsIntact() {
+        for (encoding in listOf(C.ENCODING_PCM_24BIT, C.ENCODING_PCM_32BIT)) {
+            val processor = UpscalerAudioProcessor(UpscalerSettings(true, 2, headroomDb = 0)) { _, _ -> true }
+            assertEquals(96_000, processor.configure(format(channels = 2, encoding = encoding)).sampleRate)
+            processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            val input = ByteBuffer.allocateDirect(if (encoding == C.ENCODING_PCM_24BIT) 6 else 8)
+                .order(ByteOrder.nativeOrder())
+            if (encoding == C.ENCODING_PCM_24BIT) {
+                listOf(0, 0, 0x40, 0, 0, 0xc0).forEach { input.put(it.toByte()) }
+            } else {
+                input.putInt(0x40000000).putInt(-0x40000000)
+            }
+            input.flip()
+            processor.queueInput(input)
+            processor.getOutput()
+            processor.queueEndOfStream()
+            val result = read(processor)
+            assertEquals(4, result.size)
+            assertEquals(16384, result[0].toInt())
+            assertEquals(-16384, result[1].toInt())
+            assertTrue(processor.isEnded)
+        }
+    }
+
+    @Test
     fun endOfStreamPreservesPendingAndAlreadyReturnedOutputBuffers() {
         for (fetchBeforeEnd in listOf(false, true)) {
             val processor = activeProcessor(1, UpscalerSettings(true, 8, headroomDb = 0))

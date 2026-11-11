@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.library.network.RemoteIoFailureKind
 import elovaire.music.droidbeauty.app.data.library.network.NetworkRemoteIoException
 import elovaire.music.droidbeauty.app.data.library.network.remoteIoFailureKind
 import java.io.IOException
+import java.io.InputStream
 
 /** Routes only Elovaire's network URI scheme to the protocol adapters. */
 @UnstableApi
@@ -36,6 +37,7 @@ private class RoutingDataSource(
     private var networkHandle: NetworkReadHandle? = null
     private var currentUri: android.net.Uri? = null
     private var networkTransferStarted = false
+    private var networkBytesRemaining: Long? = null
 
     override fun open(dataSpec: DataSpec): Long {
         close()
@@ -65,6 +67,7 @@ private class RoutingDataSource(
             )
         }
         networkHandle = handle
+        networkBytesRemaining = handle.length
         transferStarted(dataSpec)
         networkTransferStarted = true
         return handle.length ?: C_LENGTH_UNKNOWN
@@ -73,7 +76,7 @@ private class RoutingDataSource(
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         networkHandle?.let { handle ->
             val read = try {
-                handle.input.read(buffer, offset, length)
+                readNetworkPlayback(handle.input, buffer, offset, length, networkBytesRemaining)
             } catch (failure: NetworkRemoteIoException) {
                 throw DataSourceException(failure, failure.media3ErrorCode())
             } catch (failure: IOException) {
@@ -84,6 +87,7 @@ private class RoutingDataSource(
                 )
                 throw DataSourceException(remoteFailure, remoteFailure.media3ErrorCode())
             }
+            if (read > 0) networkBytesRemaining = networkBytesRemaining?.minus(read)
             if (read > 0) bytesTransferred(read)
             return read
         }
@@ -101,6 +105,7 @@ private class RoutingDataSource(
             delegate?.close()
         } finally {
             networkHandle = null
+            networkBytesRemaining = null
             delegate = null
             currentUri = null
             if (shouldEndTransfer) {
@@ -113,6 +118,15 @@ private class RoutingDataSource(
     private companion object {
         const val C_LENGTH_UNKNOWN = -1L
     }
+}
+
+internal fun readNetworkPlayback(input: InputStream, buffer: ByteArray, offset: Int, length: Int, remaining: Long?): Int {
+    if (length == 0) return 0
+    val count = input.read(buffer, offset, length)
+    if (count < 0 && remaining != null && remaining > 0L) {
+        throw NetworkRemoteIoException(RemoteIoFailureKind.ConnectionReset, "Network media ended before the expected length")
+    }
+    return count
 }
 
 private fun NetworkRemoteIoException.media3ErrorCode(): Int = when (kind) {

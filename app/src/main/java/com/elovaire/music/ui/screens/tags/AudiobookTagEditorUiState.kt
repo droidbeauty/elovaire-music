@@ -105,7 +105,8 @@ internal fun Audiobook.toTagEditorUiState(): AudiobookTagEditorUiState {
 
 internal fun AudiobookTagEditorUiState.toAudiobookTagEditRequest(): AudiobookTagEditRequest? {
     val book = originalBook ?: return null
-    val originalSongs = book.canonicalSongs().associateBy { it.id }
+    val songs = book.canonicalSongs()
+    val originalSongs = songs.associateBy { it.id }
     val tracks = parts.mapNotNull { part ->
         val original = originalSongs[part.songId] ?: return@mapNotNull null
         val trackNumber = part.trackNumber.toIntOrNull()?.coerceAtLeast(1) ?: part.originalTrackNumber
@@ -126,10 +127,10 @@ internal fun AudiobookTagEditorUiState.toAudiobookTagEditRequest(): AudiobookTag
             durationMs = part.durationMs,
         )
     }
-    val originalYear = book.canonicalSongs().mapNotNull { it.releaseYear }.firstOrNull()?.toString().orEmpty()
+    val originalYear = songs.firstNotNullOfOrNull { it.releaseYear }?.toString().orEmpty()
     return AudiobookTagEditRequest(
         bookKey = book.stableKey,
-        songs = book.canonicalSongs(),
+        songs = songs,
         bookTitle = bookTitle.toTextEdit(book.title),
         author = author.toTextEdit(book.author),
         description = description.toTextEdit(book.description.orEmpty()),
@@ -138,7 +139,7 @@ internal fun AudiobookTagEditorUiState.toAudiobookTagEditRequest(): AudiobookTag
             releaseYear.isBlank() -> TagFieldEdit.Cleared
             else -> releaseYear.toIntOrNull()?.let(TagFieldEdit<Int>::Value) ?: TagFieldEdit.Unchanged
         },
-        genre = genre.toTextEdit(book.canonicalSongs().firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty()),
+        genre = genre.toTextEdit(songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty()),
         coverArtUri = selectedArtworkUri?.takeIf { it.toString() != book.artUri?.toString() },
         coverArtBytes = selectedArtworkBytes,
         tracks = tracks,

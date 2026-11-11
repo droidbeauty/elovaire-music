@@ -85,6 +85,7 @@ internal fun PlaylistsScreen(
 ) {
     val motionTransitions = rememberMotionTransitions()
     val motionSpecs = rememberMotionSpecs()
+    val playlistGridColumns = adaptiveGridColumnCount(2, LocalRootWindowSizeClass.current.width)
     val scope = rememberCoroutineScope()
     var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
@@ -136,7 +137,7 @@ internal fun PlaylistsScreen(
             LazyVerticalGrid(
                 state = gridState,
                 overscrollEffect = null,
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(playlistGridColumns),
                 modifier = Modifier
                     .fillMaxSize()
                     .ensureSingleItemRubberBand(gridState),

@@ -130,6 +130,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -388,7 +389,7 @@ internal fun NowPlayingScreen(
     playlists: List<Playlist>,
     lyricsUiState: LyricsUiState,
     lyricsEditorUiState: LyricsEditorUiState,
-    activeLyricsLineIndex: Int,
+    activeLyricsLineIndex: State<Int>,
     onLyricsVisibilityChanged: (Boolean) -> Unit,
     onSaveLyrics: (String) -> Unit,
     onClearLyricsEditorError: () -> Unit,
@@ -666,14 +667,30 @@ internal fun NowPlayingScreen(
         val sourceSurfaceBounds = (activeTransitionSnapshot?.barBounds ?: fallbackSourceBounds).coerceWithin(fullSurfaceBounds)
         val sourceArtworkBounds = (activeTransitionSnapshot?.artworkBounds ?: fallbackSourceBounds).coerceWithin(fullSurfaceBounds)
         val statusBarTopInsetPx = WindowInsets.statusBars.getTop(density).toFloat()
-        val fallbackTargetArtworkBounds = remember(screenWidthPx, statusBarTopInsetPx, density) {
+        val navigationBarBottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
+        val fallbackTargetArtworkBounds = remember(
+            screenWidthPx,
+            screenHeightPx,
+            statusBarTopInsetPx,
+            navigationBarBottomInsetPx,
+            density,
+        ) {
             val horizontalInset = with(density) { 20.dp.toPx() }
-            val artworkSize = screenWidthPx - (horizontalInset * 2f)
+            val landscape = screenWidthPx > screenHeightPx * 1.15f
+            val availableContentHeight = screenHeightPx - statusBarTopInsetPx - navigationBarBottomInsetPx -
+                with(density) { 108.dp.toPx() }
+            val artworkSize = if (landscape) {
+                min(screenWidthPx - (horizontalInset * 2f), availableContentHeight * 0.34f)
+                    .coerceAtLeast(with(density) { 120.dp.toPx() })
+            } else {
+                screenWidthPx - (horizontalInset * 2f)
+            }
             val topInset = statusBarTopInsetPx + with(density) { 70.dp.toPx() }
+            val artworkLeft = (screenWidthPx - artworkSize) / 2f
             androidx.compose.ui.geometry.Rect(
-                left = horizontalInset,
+                left = artworkLeft,
                 top = topInset,
-                right = horizontalInset + artworkSize,
+                right = artworkLeft + artworkSize,
                 bottom = topInset + artworkSize,
             )
         }
@@ -964,8 +981,17 @@ internal fun NowPlayingScreen(
                                 },
                             ),
                     ) {
-                        val expandedArtworkWidth = maxWidth
-                        val compactArtworkWidth = (maxWidth * 0.38f) - 10.dp
+                        val landscape = maxWidth > maxHeight * 1.15f
+                        val expandedArtworkWidth = if (landscape) {
+                            minOf(maxWidth, maxHeight * 0.34f).coerceAtLeast(120.dp)
+                        } else {
+                            maxWidth
+                        }
+                        val compactArtworkWidth = if (landscape) {
+                            expandedArtworkWidth * 0.38f
+                        } else {
+                            (maxWidth * 0.38f) - 10.dp
+                        }
                         val animatedArtworkWidth by animateDpAsState(
                             targetValue = if (showQueueSheet) compactArtworkWidth else expandedArtworkWidth,
                             animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
@@ -3964,7 +3990,7 @@ internal fun LyricsOverlay(
     song: Song?,
     lyricsUiState: LyricsUiState,
     lyricsEditorUiState: LyricsEditorUiState,
-    activeLyricsLineIndex: Int,
+    activeLyricsLineIndex: State<Int>,
     tintColor: Color,
     contentColor: Color,
     secondaryContentColor: Color,
@@ -4326,7 +4352,7 @@ internal fun LyricsOverlay(
                                     LyricsReadyContent(
                                         songKey = content.songKey,
                                         payload = state.payload,
-                                        activeLyricLineIndex = if (content.songKey == songKey) activeLyricsLineIndex else -1,
+                                        activeLyricLineIndex = if (content.songKey == songKey) activeLyricsLineIndex.value else -1,
                                         listState = remember(content.songKey) { listState },
                                         autoScrollHeld = autoScrollHeld || content.songKey != songKey,
                                         setAutoScrollHeld = { autoScrollHeld = it },
@@ -4391,7 +4417,7 @@ internal fun LyricsOverlay(
                                     ))
                                     noiseFactor(0.012f)
                                 },
-                                performanceMode = HazePerformanceMode.Quality,
+                                performanceMode = HazePerformanceMode.Balanced,
                             )
                             .drawWithContent {
                                 drawContent()
@@ -4959,8 +4985,14 @@ private fun LyricsReadyContent(
     val autoScrollCenterOffsetPx = with(density) { 180.dp.roundToPx() }
     val latestActiveLineIndex = rememberUpdatedState(activeLyricLineIndex)
     val latestOnSeekTo by rememberUpdatedState(onSeekTo)
-    LaunchedEffect(songKey, payload.isSynced, autoScrollHeld) {
-        if (autoScrollHeld || !payload.isSynced) return@LaunchedEffect
+    var pendingSeekIndex by remember(songKey, payload) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(pendingSeekIndex, activeLyricLineIndex) {
+        val target = pendingSeekIndex ?: return@LaunchedEffect
+        if (activeLyricLineIndex != target) delay(1_600L)
+        if (pendingSeekIndex == target) pendingSeekIndex = null
+    }
+    LaunchedEffect(songKey, payload.isSynced, autoScrollHeld, pendingSeekIndex) {
+        if (autoScrollHeld || pendingSeekIndex != null || !payload.isSynced) return@LaunchedEffect
         snapshotFlow { latestActiveLineIndex.value }
             .distinctUntilChanged()
             .collectLatest { index ->
@@ -4984,19 +5016,19 @@ private fun LyricsReadyContent(
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .drawWithCache {
                 val maskStartY = (size.height - bottomMaskHeightPx).coerceAtLeast(0f)
-                val maskStartFraction = if (size.height == 0f) 0f else {
-                    (maskStartY / size.height).coerceIn(0f, 1f)
-                }
                 val edgeMask = Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0f to Color.Black,
-                        maskStartFraction to Color.Black,
-                        1f to Color.Transparent,
-                    ),
+                    colors = listOf(Color.Transparent, Color.Black),
+                    startY = maskStartY,
+                    endY = size.height,
                 )
                 onDrawWithContent {
                     drawContent()
-                    drawRect(brush = edgeMask, blendMode = BlendMode.DstIn)
+                    drawRect(
+                        brush = edgeMask,
+                        topLeft = Offset(0f, maskStartY),
+                        size = androidx.compose.ui.geometry.Size(size.width, size.height - maskStartY),
+                        blendMode = BlendMode.DstOut,
+                    )
                 }
             }
             .nestedScroll(lyricsScrollObserver)
@@ -5010,9 +5042,8 @@ private fun LyricsReadyContent(
         itemsIndexed(
             items = payload.lines,
             key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
+            contentType = { _, _ -> "lyric_line" },
         ) { index, line ->
-            val latestLyricsLines by rememberUpdatedState(payload.lines)
-            val latestLyricsSynced by rememberUpdatedState(payload.isSynced)
             val isActive = payload.isSynced && index == activeLyricLineIndex
             val lineAlpha = animateFloatAsState(
                 targetValue = if (isActive) 1f else 0.7f,
@@ -5036,19 +5067,22 @@ private fun LyricsReadyContent(
                     .graphicsLayer {
                         alpha = lineAlpha.value
                     }
-                    .pointerInput(songKey, payload.lines.size) {
-                        detectTapGestures {
-                            lyricsSeekPositionMs(
-                                lines = latestLyricsLines,
-                                index = index,
-                                isSynced = latestLyricsSynced,
-                            )?.let { seekPositionMs ->
-                                setAutoScrollHeld(false)
-                                setUserLyricsScrollActive(false)
-                                autoScrollResumeJob?.cancel()
-                                setAutoScrollResumeJob(null)
-                                latestOnSeekTo(seekPositionMs)
-                            }
+                    .clickable(
+                        enabled = payload.isSynced && line.startTimeMs != null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        lyricsSeekPositionMs(
+                            lines = payload.lines,
+                            index = index,
+                            isSynced = payload.isSynced,
+                        )?.let { seekPositionMs ->
+                            pendingSeekIndex = index
+                            setAutoScrollHeld(false)
+                            setUserLyricsScrollActive(false)
+                            autoScrollResumeJob?.cancel()
+                            setAutoScrollResumeJob(null)
+                            latestOnSeekTo(seekPositionMs)
                         }
                     },
             )

@@ -6,8 +6,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
+import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
+import elovaire.music.droidbeauty.app.domain.model.Song
+import android.net.TestUri
 
 class AudiobookDescriptionMatchingTest {
+    @Test
+    fun lookupUsesYearOnlyWhenAllKnownPartYearsAgree() = runBlocking {
+        val google = FakeProvider(AudiobookDescriptionProviderResult.NoMatch)
+        val reader = GoogleBooksAudiobookDescriptionReader(google, FakeProvider(AudiobookDescriptionProviderResult.NoMatch))
+        val song = Song(
+            id = 1, title = "Part", isExplicit = false, artist = "Author", album = "Book",
+            releaseYear = 2020, genre = "", audioFormat = "MP3", audioQuality = null,
+            fileName = "part.mp3", albumId = 1, durationMs = 1, trackNumber = 1,
+            discNumber = 1, dateAddedSeconds = 0, uri = TestUri(), artUri = null,
+        )
+        val book = Audiobook("book", "Book", "Author", null, 1, listOf(
+            AudiobookPart(song, 1), AudiobookPart(song.copy(releaseYear = null), 2),
+        ))
+        reader.description(book)
+        assertEquals(2020, google.lastMetadata?.releaseYear)
+        reader.description(book.copy(parts = book.parts + AudiobookPart(song.copy(releaseYear = 2021), 3)))
+        assertNull(google.lastMetadata?.releaseYear)
+    }
     @Test
     fun normalizationIsStableAcrossDiacriticsAndPunctuation() {
         assertEquals(
@@ -136,9 +157,12 @@ class AudiobookDescriptionMatchingTest {
     ) : AudiobookDescriptionProvider {
         var calls: Int = 0
             private set
+        var lastMetadata: AudiobookLookupMetadata? = null
+            private set
 
         override suspend fun lookup(metadata: AudiobookLookupMetadata): AudiobookDescriptionProviderResult {
             calls += 1
+            lastMetadata = metadata
             return result
         }
     }

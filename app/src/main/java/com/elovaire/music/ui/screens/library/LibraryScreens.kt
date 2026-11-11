@@ -420,6 +420,7 @@ internal fun HomeScreen(
     val motionRuntime = LocalMotionRuntime.current
     val motionSpecs = rememberMotionSpecs()
     val motionTransitions = rememberMotionTransitions()
+    val recentAlbumColumns = adaptiveGridColumnCount(2, LocalRootWindowSizeClass.current.width).coerceAtMost(4)
     var revealModules by rememberSaveable(playInitialReveal) { mutableStateOf(!playInitialReveal) }
     LaunchedEffect(resetScrollOnColdStart) {
         if (resetScrollOnColdStart) {
@@ -635,7 +636,7 @@ internal fun HomeScreen(
                                             iconResId = R.drawable.ic_lucide_gallery_vertical_end,
                                             onClick = onOpenRecentlyAdded,
                                         )
-                                        recentlyAddedAlbums.take(4).chunked(2).forEach { rowAlbums ->
+                                        recentlyAddedAlbums.take(4).chunked(recentAlbumColumns).forEach { rowAlbums ->
                                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                                 rowAlbums.forEach { album ->
                                                     AlbumGridCard(
@@ -644,7 +645,7 @@ internal fun HomeScreen(
                                                         onOpen = { origin -> onAlbumSelected(album, origin) },
                                                     )
                                                 }
-                                                repeat((2 - rowAlbums.size).coerceAtLeast(0)) {
+                                                repeat((recentAlbumColumns - rowAlbums.size).coerceAtLeast(0)) {
                                                     SpacerTile(modifier = Modifier.weight(1f))
                                                 }
                                             }
@@ -1169,6 +1170,9 @@ private fun AlbumCollectionContent(
     val revealRegistry = rememberMotionRevealRegistry()
     val motionTransitions = rememberMotionTransitions()
     val motionSpecs = rememberMotionSpecs()
+    val widthClass = LocalRootWindowSizeClass.current.width
+    val albumGridColumns = adaptiveGridColumnCount(2, widthClass)
+    val denseAlbumGridColumns = adaptiveGridColumnCount(3, widthClass)
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var selectedAlbumIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
@@ -1208,7 +1212,7 @@ private fun AlbumCollectionContent(
                 LazyVerticalGrid(
                     state = gridState,
                     overscrollEffect = null,
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Fixed(albumGridColumns),
                     modifier = Modifier
                         .fillMaxSize()
                         .ensureSingleItemRubberBand(gridState),
@@ -1221,7 +1225,7 @@ private fun AlbumCollectionContent(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    item(span = { GridItemSpan(2) }) {
+                    item(span = { GridItemSpan(albumGridColumns) }) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1289,7 +1293,7 @@ private fun AlbumCollectionContent(
                 LazyVerticalGrid(
                     state = gridState,
                     overscrollEffect = null,
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Fixed(denseAlbumGridColumns),
                     modifier = Modifier
                         .fillMaxSize()
                         .ensureSingleItemRubberBand(gridState),
@@ -1302,7 +1306,7 @@ private fun AlbumCollectionContent(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    item(span = { GridItemSpan(3) }) {
+                    item(span = { GridItemSpan(denseAlbumGridColumns) }) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1819,6 +1823,7 @@ internal fun LibraryHubScreen(
 ) {
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
+    val recentAlbumColumns = adaptiveGridColumnCount(2, LocalRootWindowSizeClass.current.width).coerceAtMost(4)
     val musicSongs = remember(libraryState.songs) {
         libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music }
     }
@@ -1896,7 +1901,7 @@ internal fun LibraryHubScreen(
                                 iconResId = R.drawable.ic_lucide_gallery_vertical_end,
                                 onClick = onOpenRecentlyAdded,
                             )
-                            recentlyAddedAlbums.chunked(2).take(4).forEach { rowAlbums ->
+                            recentlyAddedAlbums.chunked(recentAlbumColumns).take(4).forEach { rowAlbums ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     rowAlbums.forEach { album ->
                                         AlbumGridCard(
@@ -1905,7 +1910,7 @@ internal fun LibraryHubScreen(
                                             onOpen = { origin -> onAlbumSelected(album, origin) },
                                         )
                                     }
-                                    repeat((2 - rowAlbums.size).coerceAtLeast(0)) {
+                                    repeat((recentAlbumColumns - rowAlbums.size).coerceAtLeast(0)) {
                                         SpacerTile(modifier = Modifier.weight(1f))
                                     }
                                 }

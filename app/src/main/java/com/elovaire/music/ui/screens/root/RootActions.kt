@@ -240,7 +240,7 @@ internal fun rememberRootPlaylistActions(
 internal fun List<Song>.playbackSourceLabel(
     fallbackAlbum: String,
 ): String {
-    val distinctAlbums = asSequence().map { it.album }.filter { it.isNotBlank() }.distinct().toList()
+    val distinctAlbums = asSequence().map { it.album }.filter { it.isNotBlank() }.distinct().take(2).toList()
     return when {
         distinctAlbums.size == 1 -> distinctAlbums.first()
         else -> ALL_SONGS_PLAYBACK_SOURCE

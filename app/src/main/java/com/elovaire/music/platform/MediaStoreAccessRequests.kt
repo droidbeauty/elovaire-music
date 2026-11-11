@@ -7,7 +7,7 @@ import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.activity.result.IntentSenderRequest
-import elovaire.music.droidbeauty.app.core.AndroidCapabilities
+import androidx.annotation.RequiresApi
 
 internal sealed interface MediaWriteTarget {
     val uri: Uri
@@ -113,23 +113,31 @@ internal fun mediaStoreWritePendingIntent(
     context: Context,
     uris: Collection<Uri>,
 ): android.app.PendingIntent? {
-    if (!AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION.SDK_INT)) return null
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
     val requestUris = MediaWriteTargetClassifier.mediaStoreItems(context, uris)
     if (requestUris.isEmpty()) return null
-    return MediaStore.createWriteRequest(context.contentResolver, requestUris)
+    return createMediaStoreWritePendingIntent(context, requestUris)
 }
+
+@RequiresApi(Build.VERSION_CODES.R)
+private fun createMediaStoreWritePendingIntent(context: Context, uris: List<Uri>) =
+    MediaStore.createWriteRequest(context.contentResolver, uris)
 
 internal fun mediaStoreDeleteRequest(
     context: Context,
     uris: Collection<Uri>,
 ): IntentSenderRequest? {
-    if (!AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION.SDK_INT)) return null
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
     val requestUris = MediaWriteTargetClassifier.mediaStoreItems(context, uris)
     if (requestUris.isEmpty()) return null
     return IntentSenderRequest.Builder(
-        MediaStore.createDeleteRequest(context.contentResolver, requestUris).intentSender,
+        createMediaStoreDeletePendingIntent(context, requestUris).intentSender,
     ).build()
 }
+
+@RequiresApi(Build.VERSION_CODES.R)
+private fun createMediaStoreDeletePendingIntent(context: Context, uris: List<Uri>) =
+    MediaStore.createDeleteRequest(context.contentResolver, uris)
 
 internal fun takePersistableTreePermission(
     context: Context,

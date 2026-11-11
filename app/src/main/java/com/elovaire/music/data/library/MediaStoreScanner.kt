@@ -2,6 +2,9 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.provider.MediaStore
+import android.os.Build
+import android.os.ext.SdkExtensions
+import androidx.annotation.RequiresApi
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
@@ -55,6 +58,14 @@ internal class MediaStoreScanner(
     }
 
     internal fun currentSyncState(): LibraryMediaStoreSyncState? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+            SdkExtensions.getExtensionVersion(Build.VERSION_CODES.R) < 1
+        ) return null
+        return currentSyncStateApi30()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun currentSyncStateApi30(): LibraryMediaStoreSyncState? {
         return runCatching {
             val volumes = MediaStore.getExternalVolumeNames(context)
                 .sorted()

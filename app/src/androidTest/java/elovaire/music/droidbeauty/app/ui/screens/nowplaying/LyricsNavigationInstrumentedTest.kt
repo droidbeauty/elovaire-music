@@ -230,7 +230,7 @@ class LyricsNavigationInstrumentedTest {
                 activity.setContent {
                     val track by nowPlaying.collectAsStateWithLifecycle()
                     val lyrics by model.lyricsUiState.collectAsStateWithLifecycle()
-                    val activeLine by model.activeLyricsLineIndex.collectAsStateWithLifecycle()
+                    val activeLine = model.activeLyricsLineIndex.collectAsStateWithLifecycle()
                     ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
                         LyricsOverlay(
                             playbackManager = playback, song = track.currentSong, lyricsUiState = lyrics,

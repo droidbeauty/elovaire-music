@@ -173,7 +173,9 @@ internal class WebDavNetworkFileSystem(
                         rangeLength != null &&
                         (requestedEnd == null || contentRange.end <= requestedEnd) &&
                         (responseLength == null || responseLength == rangeLength) &&
-                        (contentRange.totalLength == null || contentRange.end < contentRange.totalLength)
+                        (contentRange.totalLength == null || contentRange.end == minOf(
+                            requestedEnd ?: Long.MAX_VALUE, contentRange.totalLength - 1L,
+                        ))
                     if (!valid) throw IOException("WebDAV server returned an invalid Content-Range")
                     rangeCapabilities[source.id] = NetworkRangeCapability.Supported
                     input = connection.openInputStreamOrDisconnect()

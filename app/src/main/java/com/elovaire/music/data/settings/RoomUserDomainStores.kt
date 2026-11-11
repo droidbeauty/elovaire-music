@@ -82,7 +82,7 @@ internal class RoomFavoritesStore(
 
     fun relocate(replacements: Map<Long, Long>) {
         if (replacements.isEmpty()) return
-        publish(_favoriteSongIds.value.map { resolveRelocatedSongId(it, replacements) }.distinct())
+        publish(_favoriteSongIds.value.map { resolveRelocatedSongId(it, replacements) })
     }
 }
 

@@ -2,6 +2,10 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import elovaire.music.droidbeauty.app.data.playback.readNetworkPlayback
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,6 +15,41 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NetworkReadPolicyInstrumentedTest {
+    @Test
+    fun incompletePartialResponseCannotMasqueradeAsACompleteTrack() {
+        val source = NetworkLibrarySource("id", "NAS", NetworkLibraryProtocol.WebDav,
+            "https://nas.example", "Music", "user", "key")
+        val connection = object : HttpURLConnection(URL("https://nas.example/Music/song.mp3")) {
+            override fun connect() = Unit
+            override fun disconnect() = Unit
+            override fun usingProxy() = false
+            override fun getResponseCode() = HTTP_PARTIAL
+            override fun getContentLengthLong() = 3L
+            override fun getHeaderField(name: String?) = if (name == "Content-Range") "bytes 0-2/10" else null
+            override fun getInputStream() = ByteArrayInputStream(byteArrayOf(1, 2, 3))
+        }
+        val filesystem = WebDavNetworkFileSystem(connectionFactory = { connection })
+        try {
+            assertThrows(IOException::class.java) {
+                filesystem.openBlocking(source, NetworkCredentials("user", "pass"), "Music/song.mp3", 0, -1)
+            }
+        } finally {
+            filesystem.release()
+        }
+    }
+
+    @Test
+    fun playbackReportsUnexpectedEndOfKnownLengthStream() {
+        val stream = ByteArrayInputStream(byteArrayOf(1, 2, 3))
+        val buffer = ByteArray(8)
+        assertEquals(3, readNetworkPlayback(stream, buffer, 0, buffer.size, 5))
+        assertEquals(0, readNetworkPlayback(stream, buffer, 0, 0, 2))
+        val failure = assertThrows(NetworkRemoteIoException::class.java) { readNetworkPlayback(stream, buffer, 0, buffer.size, 2) }
+        assertEquals(RemoteIoFailureKind.ConnectionReset, failure.kind)
+        assertEquals(-1, readNetworkPlayback(stream, buffer, 0, buffer.size, 0))
+        assertEquals(-1, readNetworkPlayback(stream, buffer, 0, buffer.size, null))
+    }
+
     @Test
     fun webDavParserRejectsTruncatedListingsOnDevice() {
         val source = NetworkLibrarySource("id", "NAS", NetworkLibraryProtocol.WebDav,

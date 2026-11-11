@@ -1,7 +1,7 @@
 object AppBuildConfig {
     object Android {
         const val compileSdk = 37
-        const val minSdk = 30
+        const val minSdk = 29
         const val targetSdk = 37
     }
 
@@ -13,8 +13,8 @@ object AppBuildConfig {
 
     object Application {
         const val packageName = "elovaire.music.droidbeauty.app"
-        const val versionCode = 261001183
-        const val versionName = "3.1.2"
+        const val versionCode = 261001185
+        const val versionName = "3.2"
         const val macrobenchmarkNamespace = "elovaire.music.droidbeauty.app.macrobenchmark"
     }
 

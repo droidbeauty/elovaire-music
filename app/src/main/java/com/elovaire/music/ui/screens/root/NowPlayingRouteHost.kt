@@ -49,7 +49,7 @@ internal fun NowPlayingRouteHost(
     val playerUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
     val lyricsEditorUiState by viewModel.lyricsEditorUiState.collectAsStateWithLifecycle()
-    val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
+    val activeLyricsLineIndex = viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
     val context = LocalContext.current
     PerformanceScreenState("now_playing")
     PerformanceState(

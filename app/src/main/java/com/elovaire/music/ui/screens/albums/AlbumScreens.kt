@@ -271,7 +271,10 @@ import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
-import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchIndexedAlbumsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchIndexedSongsForPicker
+import elovaire.music.droidbeauty.app.domain.search.toSearchableAlbum
+import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchPlaylists
 import elovaire.music.droidbeauty.app.domain.search.searchSongsForPicker
@@ -400,6 +403,9 @@ internal fun AlbumScreen(
     }
 
     val language = LocalAppLanguage.current
+    val windowSizeClass = LocalRootWindowSizeClass.current
+    val useLandscapeAlbumHeader = windowSizeClass.width >= RootWindowWidthClass.Medium &&
+        windowSizeClass.isLandscape
     var allowHeavyAlbumEffects by remember(album.id) { mutableStateOf(false) }
     LaunchedEffect(album.id) {
         withFrameNanos { }
@@ -553,7 +559,8 @@ internal fun AlbumScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxWidth(if (useLandscapeAlbumHeader) 0.5f else 1f)
+                            .align(Alignment.CenterHorizontally)
                             .aspectRatio(1f),
                     ) {
                         Box(
@@ -1137,11 +1144,10 @@ internal fun AddSongsToPlaylistOverlay(
             }
             .sortedBy { it.first.name.lowercase() }
     }
+    val albumSearchIndex = remember(albums) { lazy(LazyThreadSafetyMode.NONE) { albums.map(Album::toSearchableAlbum) } }
+    val songSearchIndex = remember(candidateSongs) { lazy(LazyThreadSafetyMode.NONE) { candidateSongs.map(Song::toSearchableSong) } }
     val filteredAlbums = remember(albums, normalizedQuery) {
-        searchAlbumsForPicker(
-            albums = albums,
-            query = normalizedQuery,
-        )
+        if (normalizedQuery.value.isBlank()) albums else searchIndexedAlbumsForPicker(albumSearchIndex.value, normalizedQuery)
     }
     val filteredArtists = remember(artists, normalizedQuery) {
         searchArtistsForPicker(
@@ -1153,10 +1159,7 @@ internal fun AddSongsToPlaylistOverlay(
         )
     }
     val filteredSongs = remember(candidateSongs, normalizedQuery) {
-        searchSongsForPicker(
-            songs = candidateSongs,
-            query = normalizedQuery,
-        )
+        if (normalizedQuery.value.isBlank()) candidateSongs else searchIndexedSongsForPicker(songSearchIndex.value, normalizedQuery)
     }
     val selectedAlbum = remember(selectedAlbumId, albums) {
         albums.firstOrNull { it.id == selectedAlbumId }

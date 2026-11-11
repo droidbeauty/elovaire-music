@@ -52,7 +52,9 @@ class AudiobookTagEditorModelsTest {
             ),
         )
 
-        assertEquals(1, book.toTagEditorUiState().parts.size)
+        val state = book.toTagEditorUiState()
+        assertEquals(1, state.parts.size)
+        assertEquals(listOf(song), state.toAudiobookTagEditRequest()!!.songs)
     }
 
     @Test

@@ -9,6 +9,22 @@ import org.junit.Test
 
 class ScopedSearchTest {
     @Test
+    fun reusablePickerIndexesMatchUnindexedSearchAcrossQueries() {
+        val songs = listOf(
+            song(1L, "Northern Signal", "Aurora", "Glass"),
+            song(2L, "Signal", "Auróra", "Other"),
+            song(3L, "Different", "Artist", "Glass"),
+        )
+        val albums = listOf(album(1L, "Glass", "Aurora"), album(2L, "Other", "Artist"))
+        val songIndex = songs.map(Song::toSearchableSong)
+        val albumIndex = albums.map(Album::toSearchableAlbum)
+        listOf("signal", "auróra", "glss", "missing").forEach { raw ->
+            val query = NormalizedSearchQuery.from(raw)
+            assertEquals(searchSongsForPicker(songs, query), searchIndexedSongsForPicker(songIndex, query))
+            assertEquals(searchAlbumsForPicker(albums, query), searchIndexedAlbumsForPicker(albumIndex, query))
+        }
+    }
+    @Test
     fun searchSongsForPicker_matchesAcrossNormalizedFields() {
         val songs = listOf(
             song(

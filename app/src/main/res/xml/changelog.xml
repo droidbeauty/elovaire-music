@@ -6,8 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.1.2">
-        <item>Performance optimizations</item>
-        <item>General bug fixes</item>
+    <release version="3.2">
+        <item>Added basic tablet layout support in horizontal orientation</item>
+        <item>Added support for the app to work on Huawei devices with Kirin CPUs</item>
     </release>
 </changelog>

@@ -10,6 +10,23 @@ import org.junit.Test
 
 class RootChromePolicyTest {
     @Test
+    fun windowSizeClassesKeepPhoneGridsUnchangedAndExpandTabletGrids() {
+        val phone = rootWindowSizeClass(412.dp, 915.dp)
+        val tablet = rootWindowSizeClass(1280.dp, 800.dp)
+
+        assertEquals(RootWindowWidthClass.Compact, phone.width)
+        assertEquals(RootWindowHeightClass.Expanded, phone.height)
+        assertEquals(RootWindowWidthClass.Large, tablet.width)
+        assertEquals(RootWindowHeightClass.Medium, tablet.height)
+        assertTrue(tablet.isLandscape)
+        assertFalse(phone.isLandscape)
+        assertEquals(2, adaptiveGridColumnCount(2, phone.width))
+        assertEquals(5, adaptiveGridColumnCount(2, tablet.width))
+        assertEquals(3, adaptiveGridColumnCount(3, phone.width))
+        assertEquals(6, adaptiveGridColumnCount(3, tablet.width))
+    }
+
+    @Test
     fun libraryNavigationFallbackUsesTheCorrectScreenName() {
         assertEquals("Library", DefaultTopLevelDestinations.single { it.route == ALBUMS_ROUTE }.contentDescription)
     }

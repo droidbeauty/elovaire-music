@@ -149,11 +149,10 @@ internal class GoogleBooksAudiobookDescriptionReader internal constructor(
     }
 
     private fun Audiobook.lookupMetadata(): AudiobookLookupMetadata {
-        val years = parts.mapNotNull { it.song.releaseYear }.distinct()
         return AudiobookLookupMetadata(
             title = title.trim(),
             author = author.trim().takeIf { it.isMeaningfulBookAuthor() },
-            releaseYear = years.singleOrNull(),
+            releaseYear = uniqueReleaseYear(),
         )
     }
 
@@ -387,12 +386,18 @@ internal fun parseGoogleBooksDescription(body: String, book: Audiobook): String?
     val metadata = AudiobookLookupMetadata(
         title = book.title.trim(),
         author = book.author.trim().takeIf(String::isMeaningfulBookAuthor),
-        releaseYear = book.parts.mapNotNull { it.song.releaseYear }.distinct().singleOrNull(),
+        releaseYear = book.uniqueReleaseYear(),
     )
     return AudiobookDescriptionMatcher
         .select(metadata, parseGoogleBooksCandidates(body))
         ?.description
 }
+
+private fun Audiobook.uniqueReleaseYear(): Int? = parts.asSequence()
+    .mapNotNull { it.song.releaseYear }
+    .distinct()
+    .take(2)
+    .singleOrNull()
 
 internal fun parseGoogleBooksCandidates(body: String): List<AudiobookDescriptionCandidate> {
     val items = JSONObject(body).optJSONArray("items") ?: return emptyList()

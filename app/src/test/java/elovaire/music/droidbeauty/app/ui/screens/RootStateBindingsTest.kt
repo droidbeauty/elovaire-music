@@ -13,6 +13,15 @@ import org.junit.Test
 
 class RootStateBindingsTest {
     @Test
+    fun playbackSourceLabelPreservesSingleAndMixedAlbumBehavior() {
+        val first = song(1L, 1L).copy(album = "Album")
+        val blank = song(2L, 2L).copy(album = " ")
+        val other = song(3L, 3L).copy(album = "Other")
+        assertEquals("Album", listOf(blank, first, first).playbackSourceLabel("Fallback"))
+        assertEquals(elovaire.music.droidbeauty.app.domain.model.ALL_SONGS_PLAYBACK_SOURCE, listOf(first, other).playbackSourceLabel("Fallback"))
+        assertEquals(elovaire.music.droidbeauty.app.domain.model.ALL_SONGS_PLAYBACK_SOURCE, emptyList<Song>().playbackSourceLabel("Fallback"))
+    }
+    @Test
     fun libraryUiStatePreservesWhetherTheLibraryScanIsAuthoritative() {
         assertFalse(
             libraryUiStateOf(

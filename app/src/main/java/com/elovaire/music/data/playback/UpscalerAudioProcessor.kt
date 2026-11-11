@@ -41,7 +41,9 @@ internal class UpscalerAudioProcessor(
         pendingFactor = 1
         if (!settings.enabled || inputAudioFormat.channelCount !in 1..8 ||
             inputAudioFormat.sampleRate <= 0 ||
-            inputAudioFormat.encoding !in intArrayOf(C.ENCODING_PCM_16BIT, C.ENCODING_PCM_FLOAT)
+            inputAudioFormat.encoding !in intArrayOf(
+                C.ENCODING_PCM_16BIT, C.ENCODING_PCM_24BIT, C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT,
+            )
         ) return AudioProcessor.AudioFormat.NOT_SET
         var candidate = settings.multiplier
         while (candidate >= 2) {
@@ -73,10 +75,16 @@ internal class UpscalerAudioProcessor(
         repeat(frames) {
             val offset = (inputFrames % capacity).toInt() * channels
             repeat(channels) { channel ->
-                history[offset + channel] = if (inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT) {
-                    inputBuffer.float.let { if (it.isFinite()) it.coerceIn(-1f, 1f) else 0f }
-                } else {
-                    inputBuffer.short / 32768f
+                history[offset + channel] = when (inputAudioFormat.encoding) {
+                    C.ENCODING_PCM_FLOAT -> inputBuffer.float.let { if (it.isFinite()) it.coerceIn(-1f, 1f) else 0f }
+                    C.ENCODING_PCM_24BIT -> {
+                        val value = (inputBuffer.get().toInt() and 0xff) or
+                            ((inputBuffer.get().toInt() and 0xff) shl 8) or
+                            (inputBuffer.get().toInt() shl 16)
+                        value / 8_388_608f
+                    }
+                    C.ENCODING_PCM_32BIT -> inputBuffer.int / 2_147_483_648f
+                    else -> inputBuffer.short / 32768f
                 }
             }
             inputFrames++

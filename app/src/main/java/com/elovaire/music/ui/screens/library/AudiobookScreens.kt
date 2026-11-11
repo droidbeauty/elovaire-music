@@ -343,6 +343,9 @@ private fun AudiobookCollectionContent(
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val gridState = rememberElovaireLazyGridState("audiobooks_screen_grid")
+    val widthClass = LocalRootWindowSizeClass.current.width
+    val audiobookGridColumns = adaptiveGridColumnCount(2, widthClass)
+    val denseAudiobookGridColumns = adaptiveGridColumnCount(3, widthClass)
     Box(modifier = Modifier.fillMaxSize().elovaireContentChangeMotion(layoutMode)) {
         when (layoutMode) {
         AlbumLayoutMode.Compact -> {
@@ -391,7 +394,7 @@ private fun AudiobookCollectionContent(
         AlbumLayoutMode.Grid -> {
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(audiobookGridColumns),
                 modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(gridState),
                 overscrollEffect = null,
                 contentPadding = PaddingValues(
@@ -403,7 +406,7 @@ private fun AudiobookCollectionContent(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                item(key = "audiobooks_view_switcher", span = { GridItemSpan(2) }) {
+                item(key = "audiobooks_view_switcher", span = { GridItemSpan(audiobookGridColumns) }) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd,
@@ -435,7 +438,7 @@ private fun AudiobookCollectionContent(
             AlbumLayoutMode.DenseGrid -> {
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Fixed(denseAudiobookGridColumns),
                     modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(gridState),
                     overscrollEffect = null,
                     contentPadding = PaddingValues(
@@ -447,7 +450,7 @@ private fun AudiobookCollectionContent(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item(key = "audiobooks_view_switcher", span = { GridItemSpan(3) }) {
+                    item(key = "audiobooks_view_switcher", span = { GridItemSpan(denseAudiobookGridColumns) }) {
                         Box(
                             modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.CenterEnd,

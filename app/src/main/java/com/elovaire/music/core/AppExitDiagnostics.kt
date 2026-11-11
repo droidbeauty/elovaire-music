@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import android.content.Context
+import android.os.Build
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnostics
 import elovaire.music.droidbeauty.app.core.backend.BackendDiagnosticContext
@@ -75,18 +76,10 @@ internal class AppExitDiagnostics(
 
     fun inspect(): AppExitSnapshot {
         val previousBreadcrumb = readBreadcrumb()
-        val activityManager = appContext.getSystemService(ActivityManager::class.java)
-        val platformRecords = runCatching {
-            activityManager?.getHistoricalProcessExitReasons(appContext.packageName, 0, MAX_PLATFORM_RECORDS)
-        }.getOrNull().orEmpty().map { info ->
-            AppExitRecord(
-                reason = info.reason,
-                status = info.status,
-                importance = info.importance,
-                timestampMs = info.timestamp,
-                category = classifyAppExitReason(info.reason, info.description),
-                versionCode = BuildConfig.VERSION_CODE,
-            )
+        val platformRecords = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            readPlatformExitRecords()
+        } else {
+            emptyList()
         }
         val records = (platformRecords + readStored())
             .distinctBy { it.timestampMs to it.reason }
@@ -98,6 +91,23 @@ internal class AppExitDiagnostics(
             suppressOptionalStartup = shouldSuppressOptionalStartup(records, clock.wallTimeMs()),
             previousProcessBreadcrumb = previousBreadcrumb,
         )
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
+    private fun readPlatformExitRecords(): List<AppExitRecord> {
+        val activityManager = appContext.getSystemService(ActivityManager::class.java)
+        return runCatching {
+            activityManager?.getHistoricalProcessExitReasons(appContext.packageName, 0, MAX_PLATFORM_RECORDS)
+        }.getOrNull().orEmpty().map { info ->
+            AppExitRecord(
+                reason = info.reason,
+                status = info.status,
+                importance = info.importance,
+                timestampMs = info.timestamp,
+                category = classifyAppExitReason(info.reason, info.description),
+                versionCode = BuildConfig.VERSION_CODE,
+            )
+        }
     }
 
     fun checkpointRuntime(
