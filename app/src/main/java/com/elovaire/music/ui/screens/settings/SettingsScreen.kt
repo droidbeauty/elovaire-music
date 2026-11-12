@@ -161,6 +161,7 @@ internal fun SettingsScreen(
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val styleCopy = remember(appLanguage) { nowPlayingBarStyleCopy(appLanguage) }
     val upscalerCopy = elovaire.music.droidbeauty.app.ui.i18n.upscalerCopy(appLanguage)
+    val upscalerStatusCopy = remember(appLanguage) { upscalerStateCopy(appLanguage) }
     val audiobookCopy = remember(appLanguage) { audiobookSettingsCopy(appLanguage) }
     val smartPlaylistCopy = remember(appLanguage) { smartPlaylistSettingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
@@ -349,7 +350,11 @@ internal fun SettingsScreen(
                             )
                             SettingNavigationRow(
                                 title = upscalerCopy.title,
-                                subtitle = if (upscalerSettings.enabled) "${upscalerSettings.multiplier}× · ${upscalerCopy.subtitle}" else upscalerCopy.off,
+                                subtitle = if (upscalerSettings.enabled) {
+                                    "${upscalerStatusCopy.enabled} - ${upscalerSettings.multiplier}x"
+                                } else {
+                                    upscalerStatusCopy.disabled
+                                },
                                 onClick = onOpenUpscaler,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                             )

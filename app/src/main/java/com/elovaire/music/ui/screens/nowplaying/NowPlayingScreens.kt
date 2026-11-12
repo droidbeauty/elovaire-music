@@ -4019,12 +4019,16 @@ internal fun LyricsOverlay(
     var overlayEntered by remember { mutableStateOf(false) }
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 92.dp
+    val lyricsTopSoftEdgeHeight = 20.dp
+    val lyricsDividerBottomGap = 14.dp
     val lyricsButtonArea = 72.dp
     val navigationBarInset = navigationBarInsetDp()
     val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInset
     val lyricsHazeState = backdropHazeState ?: rememberHazeState()
     val surface = MaterialTheme.colorScheme.surface
     val listState = remember(songKey) { LazyListState() }
+    var lyricsOverlayTopPx by remember(songKey) { mutableFloatStateOf(0f) }
+    var lyricsViewportTopPx by remember(songKey) { mutableFloatStateOf(0f) }
     var autoScrollHeld by remember(songKey) { mutableStateOf(false) }
     var autoScrollResumeJob by remember(songKey) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var userLyricsScrollActive by remember(songKey) { mutableStateOf(false) }
@@ -4136,6 +4140,9 @@ internal fun LyricsOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                lyricsOverlayTopPx = coordinates.boundsInRoot().top
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -4264,7 +4271,7 @@ internal fun LyricsOverlay(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 14.dp)
+                        .padding(bottom = lyricsDividerBottomGap)
                         .graphicsLayer {
                             alpha = dividerReveal
                             translationY = (1f - dividerReveal) * (-12.dp.toPx())
@@ -4283,6 +4290,9 @@ internal fun LyricsOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .onGloballyPositioned { coordinates ->
+                            lyricsViewportTopPx = coordinates.boundsInRoot().top
+                        }
                         .graphicsLayer {
                             alpha = contentReveal
                             translationY = (1f - contentReveal) * (-10.dp.toPx())
@@ -4361,6 +4371,7 @@ internal fun LyricsOverlay(
                                         setUserLyricsScrollActive = { userLyricsScrollActive = it },
                                         lyricsScrollObserver = lyricsScrollObserver,
                                         hideButtonArea = hideButtonArea,
+                                        topSoftEdgeHeight = lyricsTopSoftEdgeHeight,
                                         lyricsBottomBlurArea = lyricsBottomBlurArea,
                                         contentColor = contentColor,
                                         onSeekTo = { position ->
@@ -4374,6 +4385,69 @@ internal fun LyricsOverlay(
                         }
                     }
                 }
+            }
+        }
+
+        val density = LocalDensity.current
+        val lyricsTopEdgeOffsetPx = lyricsViewportTopPx - lyricsOverlayTopPx -
+            with(density) { lyricsDividerBottomGap.toPx() }
+        val lyricsTopEdgeOffset = with(density) { lyricsTopEdgeOffsetPx.toDp() }
+        ElovaireAnimatedVisibility(
+            visible = overlayEntered && !isEditingLyrics && lyricsTopEdgeOffsetPx > 0f,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = lyricsTopEdgeOffset)
+                .fillMaxWidth()
+                .height(lyricsTopSoftEdgeHeight)
+                .zIndex(3f),
+            enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard)),
+            exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Fast)),
+            label = "lyrics_top_soft_edge_visibility",
+        ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val edgeMask = rememberSoftEdgeBlurMask(
+                    startIntensity = 1f,
+                    endIntensity = 0f,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                        .hazeBlur(
+                            input = HazeInput.Sources(lyricsHazeState),
+                            style = HazeBlurStyle {
+                                blurRadius(34.dp)
+                                backgroundColor(surface.copy(alpha = 0.42f))
+                                colorEffects(listOf(
+                                    HazeColorEffect.tint(surface.copy(alpha = 0.12f)),
+                                    HazeColorEffect.tint(tintColor.copy(alpha = 0.025f)),
+                                ))
+                                noiseFactor(0.012f)
+                            },
+                            performanceMode = HazePerformanceMode.Balanced,
+                        )
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush = edgeMask,
+                                blendMode = BlendMode.DstIn,
+                            )
+                        },
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    surface.copy(alpha = 0.7f),
+                                    surface.copy(alpha = 0.18f),
+                                    Color.Transparent,
+                                ),
+                            ),
+                        ),
+                )
             }
         }
 
@@ -4976,13 +5050,14 @@ private fun LyricsReadyContent(
     setUserLyricsScrollActive: (Boolean) -> Unit,
     lyricsScrollObserver: NestedScrollConnection,
     hideButtonArea: Dp,
+    topSoftEdgeHeight: Dp,
     lyricsBottomBlurArea: Dp,
     contentColor: Color,
     onSeekTo: (Long) -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
     val density = LocalDensity.current
-    val autoScrollCenterOffsetPx = with(density) { 180.dp.roundToPx() }
+    val autoScrollTopInsetPx = with(density) { topSoftEdgeHeight.roundToPx() }
     val latestActiveLineIndex = rememberUpdatedState(activeLyricLineIndex)
     val latestOnSeekTo by rememberUpdatedState(onSeekTo)
     var pendingSeekIndex by remember(songKey, payload) { mutableStateOf<Int?>(null) }
@@ -4993,13 +5068,21 @@ private fun LyricsReadyContent(
     }
     LaunchedEffect(songKey, payload.isSynced, autoScrollHeld, pendingSeekIndex) {
         if (autoScrollHeld || pendingSeekIndex != null || !payload.isSynced) return@LaunchedEffect
-        snapshotFlow { latestActiveLineIndex.value }
+        snapshotFlow {
+            latestActiveLineIndex.value to listState.layoutInfo.visibleItemsInfo.map { it.index }
+        }
             .distinctUntilChanged()
-            .collectLatest { index ->
-                if (index >= 0) {
-                    listState.animateLyricJumpToItem(
+            .collect { (index, visibleIndices) ->
+                if (index !in payload.lines.indices || visibleIndices.isEmpty()) return@collect
+                if (index !in visibleIndices) {
+                    listState.scrollToItem(
                         index = index,
-                        scrollOffset = -autoScrollCenterOffsetPx,
+                        scrollOffset = -autoScrollTopInsetPx,
+                    )
+                } else if (shouldPageLyricsToActiveLine(index, visibleIndices)) {
+                    listState.animateScrollToItem(
+                        index = index,
+                        scrollOffset = -autoScrollTopInsetPx,
                     )
                 }
             }

@@ -197,6 +197,7 @@ internal fun AlbumTagEditorScreen(
                                         fallbackArtworkUri = album.artUri,
                                         title = copy.changeCoverHint,
                                         enabled = !state.isSaving,
+                                        accentColor = previewAccent ?: fallbackAccent ?: MaterialTheme.colorScheme.primary,
                                         onClick = onPickCoverArt,
                                     )
                                     Column(
@@ -222,7 +223,6 @@ internal fun AlbumTagEditorScreen(
                                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                         )
-                                        CoverArtIndicator(color = previewAccent ?: fallbackAccent ?: MaterialTheme.colorScheme.primary)
                                     }
                                 }
                             }
@@ -567,7 +567,7 @@ private fun AlbumTagEditorSaveAction(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = ElovaireSpacing.screenHorizontalPadding)
-                .padding(top = 12.dp, bottom = 20.dp),
+                .padding(vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             (state.validationErrors.firstOrNull()?.let { localizedTagValidationError(it, language) }
@@ -638,6 +638,7 @@ private fun EditableArtworkCard(
     fallbackArtworkUri: Uri?,
     title: String,
     enabled: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
@@ -681,14 +682,17 @@ private fun EditableArtworkCard(
                 )
             }
         }
+        CoverArtIndicator(
+            color = accentColor,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+        )
     }
 }
 
 @Composable
-private fun CoverArtIndicator(color: Color) {
+private fun CoverArtIndicator(color: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
-            .padding(top = 5.dp)
+        modifier = modifier
             .size(32.dp)
             .clip(CircleShape)
             .background(color),

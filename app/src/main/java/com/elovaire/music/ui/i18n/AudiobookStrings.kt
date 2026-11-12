@@ -159,6 +159,51 @@ internal data class AudiobookUiCopy(
     val editTags: String,
 )
 
+internal data class AudiobookSortCopy(val alreadyListened: String, val neverListened: String)
+
+internal fun audiobookSortCopy(language: AppLanguage): AudiobookSortCopy = when (language) {
+    AppLanguage.Albanian -> AudiobookSortCopy("Dëgjuar tashmë", "Nuk janë dëgjuar kurrë")
+    AppLanguage.Bengali -> AudiobookSortCopy("ইতিমধ্যে শোনা হয়েছে", "কখনও শোনা হয়নি")
+    AppLanguage.Bosnian -> AudiobookSortCopy("Već preslušano", "Nikad preslušano")
+    AppLanguage.Bulgarian -> AudiobookSortCopy("Вече слушани", "Непрослушани")
+    AppLanguage.Catalan -> AudiobookSortCopy("Ja escoltats", "Mai escoltats")
+    AppLanguage.ChineseSimplified -> AudiobookSortCopy("已听过", "从未听过")
+    AppLanguage.Croatian -> AudiobookSortCopy("Već preslušano", "Nikad preslušano")
+    AppLanguage.Czech -> AudiobookSortCopy("Již poslechnuté", "Nikdy neposlechnuté")
+    AppLanguage.Danish -> AudiobookSortCopy("Allerede lyttet", "Aldrig lyttet")
+    AppLanguage.Dutch -> AudiobookSortCopy("Al beluisterd", "Nog nooit beluisterd")
+    AppLanguage.English -> AudiobookSortCopy("Already listened", "Never listened")
+    AppLanguage.Estonian -> AudiobookSortCopy("Juba kuulatud", "Kuulamata")
+    AppLanguage.Finnish -> AudiobookSortCopy("Jo kuunneltu", "Ei koskaan kuunneltu")
+    AppLanguage.French -> AudiobookSortCopy("Déjà écoutés", "Jamais écoutés")
+    AppLanguage.German -> AudiobookSortCopy("Bereits gehört", "Noch nie gehört")
+    AppLanguage.Greek -> AudiobookSortCopy("Έχουν ήδη ακουστεί", "Δεν έχουν ακουστεί")
+    AppLanguage.Hindi -> AudiobookSortCopy("पहले सुने गए", "कभी नहीं सुने गए")
+    AppLanguage.Hungarian -> AudiobookSortCopy("Már meghallgatva", "Még nem hallgatva")
+    AppLanguage.Indonesian -> AudiobookSortCopy("Sudah didengarkan", "Belum pernah didengarkan")
+    AppLanguage.Italian -> AudiobookSortCopy("Già ascoltati", "Mai ascoltati")
+    AppLanguage.Japanese -> AudiobookSortCopy("再生済み", "未再生")
+    AppLanguage.Korean -> AudiobookSortCopy("이미 들음", "아직 듣지 않음")
+    AppLanguage.Latvian -> AudiobookSortCopy("Jau noklausīti", "Vēl nav klausīti")
+    AppLanguage.Lithuanian -> AudiobookSortCopy("Jau perklausytos", "Dar neklausytos")
+    AppLanguage.Macedonian -> AudiobookSortCopy("Веќе преслушани", "Никогаш неслушани")
+    AppLanguage.Malay -> AudiobookSortCopy("Sudah didengar", "Belum pernah didengar")
+    AppLanguage.Norwegian -> AudiobookSortCopy("Allerede lyttet", "Aldri lyttet")
+    AppLanguage.Polish -> AudiobookSortCopy("Już odsłuchane", "Nigdy nieodsłuchane")
+    AppLanguage.Portuguese -> AudiobookSortCopy("Já ouvidos", "Nunca ouvidos")
+    AppLanguage.Punjabi -> AudiobookSortCopy("ਪਹਿਲਾਂ ਸੁਣੀਆਂ", "ਕਦੇ ਨਹੀਂ ਸੁਣੀਆਂ")
+    AppLanguage.Romanian -> AudiobookSortCopy("Deja ascultate", "Niciodată ascultate")
+    AppLanguage.Russian -> AudiobookSortCopy("Уже прослушаны", "Ещё не прослушаны")
+    AppLanguage.Serbian -> AudiobookSortCopy("Већ преслушано", "Никад неслушано")
+    AppLanguage.Slovak -> AudiobookSortCopy("Už vypočuté", "Ešte nevypočuté")
+    AppLanguage.Slovenian -> AudiobookSortCopy("Že poslušane", "Še neposlušane")
+    AppLanguage.Spanish -> AudiobookSortCopy("Ya escuchados", "Nunca escuchados")
+    AppLanguage.Swedish -> AudiobookSortCopy("Redan lyssnade", "Aldrig lyssnade")
+    AppLanguage.Thai -> AudiobookSortCopy("ฟังแล้ว", "ยังไม่เคยฟัง")
+    AppLanguage.Ukrainian -> AudiobookSortCopy("Уже прослухані", "Ще не прослухані")
+    AppLanguage.Urdu -> AudiobookSortCopy("پہلے سنی گئی", "کبھی نہیں سنی گئی")
+}
+
 internal data class AudiobookDescriptionCopy(
     val about: String,
     val loading: String,

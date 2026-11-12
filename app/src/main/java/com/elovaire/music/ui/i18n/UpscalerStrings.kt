@@ -15,6 +15,51 @@ internal data class UpscalerCopy(
     val explanation: String = "Upsampling preserves pitch, duration and audio channels. It cannot restore detail lost during compression; the highest supported factor is used, up to 384 kHz, otherwise the original rate is kept; Android may resample again for your output, and enabling this uses software processing instead of direct or offloaded playback",
 )
 
+internal data class UpscalerStateCopy(val enabled: String, val disabled: String)
+
+internal fun upscalerStateCopy(language: AppLanguage): UpscalerStateCopy = when (language) {
+    AppLanguage.Albanian -> UpscalerStateCopy("Aktivizuar", "Çaktivizuar")
+    AppLanguage.Bengali -> UpscalerStateCopy("সক্রিয়", "নিষ্ক্রিয়")
+    AppLanguage.Bosnian -> UpscalerStateCopy("Omogućeno", "Onemogućeno")
+    AppLanguage.Bulgarian -> UpscalerStateCopy("Включено", "Изключено")
+    AppLanguage.Catalan -> UpscalerStateCopy("Activat", "Desactivat")
+    AppLanguage.ChineseSimplified -> UpscalerStateCopy("已启用", "已停用")
+    AppLanguage.Croatian -> UpscalerStateCopy("Omogućeno", "Onemogućeno")
+    AppLanguage.Czech -> UpscalerStateCopy("Zapnuto", "Vypnuto")
+    AppLanguage.Danish -> UpscalerStateCopy("Aktiveret", "Deaktiveret")
+    AppLanguage.Dutch -> UpscalerStateCopy("Ingeschakeld", "Uitgeschakeld")
+    AppLanguage.English -> UpscalerStateCopy("Enabled", "Disabled")
+    AppLanguage.Estonian -> UpscalerStateCopy("Lubatud", "Keelatud")
+    AppLanguage.Finnish -> UpscalerStateCopy("Käytössä", "Ei käytössä")
+    AppLanguage.French -> UpscalerStateCopy("Activé", "Désactivé")
+    AppLanguage.German -> UpscalerStateCopy("Aktiviert", "Deaktiviert")
+    AppLanguage.Greek -> UpscalerStateCopy("Ενεργό", "Ανενεργό")
+    AppLanguage.Hindi -> UpscalerStateCopy("चालू", "बंद")
+    AppLanguage.Hungarian -> UpscalerStateCopy("Bekapcsolva", "Kikapcsolva")
+    AppLanguage.Indonesian -> UpscalerStateCopy("Aktif", "Nonaktif")
+    AppLanguage.Italian -> UpscalerStateCopy("Attivo", "Disattivato")
+    AppLanguage.Japanese -> UpscalerStateCopy("有効", "無効")
+    AppLanguage.Korean -> UpscalerStateCopy("사용", "사용 안 함")
+    AppLanguage.Latvian -> UpscalerStateCopy("Ieslēgts", "Izslēgts")
+    AppLanguage.Lithuanian -> UpscalerStateCopy("Įjungta", "Išjungta")
+    AppLanguage.Macedonian -> UpscalerStateCopy("Овозможено", "Оневозможено")
+    AppLanguage.Malay -> UpscalerStateCopy("Diaktifkan", "Dilumpuhkan")
+    AppLanguage.Norwegian -> UpscalerStateCopy("Aktivert", "Deaktivert")
+    AppLanguage.Polish -> UpscalerStateCopy("Włączony", "Wyłączony")
+    AppLanguage.Portuguese -> UpscalerStateCopy("Ativado", "Desativado")
+    AppLanguage.Punjabi -> UpscalerStateCopy("ਚਾਲੂ", "ਬੰਦ")
+    AppLanguage.Romanian -> UpscalerStateCopy("Activat", "Dezactivat")
+    AppLanguage.Russian -> UpscalerStateCopy("Включено", "Выключено")
+    AppLanguage.Serbian -> UpscalerStateCopy("Омогућено", "Онемогућено")
+    AppLanguage.Slovak -> UpscalerStateCopy("Zapnuté", "Vypnuté")
+    AppLanguage.Slovenian -> UpscalerStateCopy("Omogočeno", "Onemogočeno")
+    AppLanguage.Spanish -> UpscalerStateCopy("Activado", "Desactivado")
+    AppLanguage.Swedish -> UpscalerStateCopy("Aktiverad", "Inaktiverad")
+    AppLanguage.Thai -> UpscalerStateCopy("เปิดใช้งาน", "ปิดใช้งาน")
+    AppLanguage.Ukrainian -> UpscalerStateCopy("Увімкнено", "Вимкнено")
+    AppLanguage.Urdu -> UpscalerStateCopy("فعال", "غیر فعال")
+}
+
 internal fun upscalerCopy(language: AppLanguage): UpscalerCopy = when (language) {
     AppLanguage.Albanian -> AlbanianTranslations.upscaler_upscalerCopy_1
     AppLanguage.Bengali -> BengaliTranslations.upscaler_upscalerCopy_1

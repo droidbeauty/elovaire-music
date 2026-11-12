@@ -80,6 +80,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookPartsCount
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookDescriptionCopy
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookFinishedLabel
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookSortCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAudiobookAuthor
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
@@ -90,11 +91,14 @@ import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 import elovaire.music.droidbeauty.app.ui.screens.common.MutedSectionHeader
+import elovaire.music.droidbeauty.app.ui.screens.common.SortOptionsPopup
 import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
+import elovaire.music.droidbeauty.app.ui.screens.tags.audiobookTagEditorCopy
+import java.util.Locale
 
 @Composable
 internal fun AudiobookMiniGallery(
@@ -230,10 +234,33 @@ internal fun AudiobooksScreen(
 ) {
     val copy = audiobookCopy(LocalAppLanguage.current)
     var layoutModeName by rememberSaveable { mutableStateOf(AlbumLayoutMode.Compact.name) }
+    var sortModeName by rememberSaveable { mutableStateOf(AudiobookSortMode.Title.name) }
+    var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var selectedBookKeys by rememberSaveable { mutableStateOf(setOf<String>()) }
     var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
     val layoutMode = remember(layoutModeName) {
         AlbumLayoutMode.entries.firstOrNull { it.name == layoutModeName } ?: AlbumLayoutMode.Compact
+    }
+    val sortMode = remember(sortModeName) {
+        AudiobookSortMode.entries.firstOrNull { it.name == sortModeName } ?: AudiobookSortMode.Title
+    }
+    val sortedBooks = remember(books, progressByBookKey, sortMode) {
+        val byTitle = compareBy<Audiobook> { it.title.lowercase(Locale.ROOT) }
+        when (sortMode) {
+            AudiobookSortMode.Author -> books.sortedWith(
+                compareBy<Audiobook> { it.author.lowercase(Locale.ROOT) }
+                    .thenBy { it.title.lowercase(Locale.ROOT) },
+            )
+            AudiobookSortMode.Title -> books.sortedWith(byTitle.thenBy { it.author.lowercase(Locale.ROOT) })
+            AudiobookSortMode.AlreadyListened -> books.sortedWith(
+                compareBy<Audiobook> { if (progressByBookKey[it.stableKey]?.completed == true) 0 else 1 }
+                    .then(byTitle),
+            )
+            AudiobookSortMode.NeverListened -> books.sortedWith(
+                compareBy<Audiobook> { if ((progressByBookKey[it.stableKey]?.positionMs ?: 0L) == 0L) 0 else 1 }
+                    .then(byTitle),
+            )
+        }
     }
     val selectionModeActive = selectedBookKeys.isNotEmpty()
     val selectedBooks = remember(books, selectedBookKeys) {
@@ -276,7 +303,7 @@ internal fun AudiobooksScreen(
                 .background(MaterialTheme.colorScheme.background),
         ) {
             AudiobookCollectionContent(
-                books = books,
+                books = sortedBooks,
                 progressByBookKey = progressByBookKey,
                 layoutMode = layoutMode,
                 bottomPadding = bottomPadding,
@@ -284,6 +311,13 @@ internal fun AudiobooksScreen(
                 selectionModeActive = selectionModeActive,
                 selectedBookKeys = selectedBookKeys,
                 onLayoutModeChanged = { layoutModeName = it.name },
+                sortMode = sortMode,
+                sortOptionsExpanded = showSortOptions,
+                onSortOptionsToggle = { showSortOptions = !showSortOptions },
+                onSortModeChanged = {
+                    sortModeName = it.name
+                    showSortOptions = false
+                },
                 onBookClick = ::onBookClick,
                 onBookLongPress = ::onBookLongPress,
             )
@@ -338,11 +372,16 @@ private fun AudiobookCollectionContent(
     selectionModeActive: Boolean,
     selectedBookKeys: Set<String>,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    sortMode: AudiobookSortMode,
+    sortOptionsExpanded: Boolean,
+    onSortOptionsToggle: () -> Unit,
+    onSortModeChanged: (AudiobookSortMode) -> Unit,
     onBookClick: (Audiobook) -> Unit,
     onBookLongPress: (Audiobook) -> Unit,
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val gridState = rememberElovaireLazyGridState("audiobooks_screen_grid")
+    val motionSpecs = rememberMotionSpecs()
     val widthClass = LocalRootWindowSizeClass.current.width
     val audiobookGridColumns = adaptiveGridColumnCount(2, widthClass)
     val denseAudiobookGridColumns = adaptiveGridColumnCount(3, widthClass)
@@ -361,12 +400,14 @@ private fun AudiobookCollectionContent(
                 ),
             ) {
                 item(key = "audiobooks_view_switcher") {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterEnd,
-                    ) {
-                        AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
-                    }
+                    AudiobookCollectionControls(
+                        sortMode = sortMode,
+                        sortOptionsExpanded = sortOptionsExpanded,
+                        layoutMode = layoutMode,
+                        onSortOptionsToggle = onSortOptionsToggle,
+                        onSortModeChanged = onSortModeChanged,
+                        onLayoutModeChanged = onLayoutModeChanged,
+                    )
                 }
                 itemsIndexed(
                     items = books,
@@ -378,6 +419,7 @@ private fun AudiobookCollectionContent(
                         progress = progressByBookKey[book.stableKey],
                         selectionMode = selectionModeActive,
                         selected = book.stableKey in selectedBookKeys,
+                        modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
                         onClick = { onBookClick(book) },
                         onLongPress = { onBookLongPress(book) },
                     )
@@ -407,12 +449,14 @@ private fun AudiobookCollectionContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item(key = "audiobooks_view_switcher", span = { GridItemSpan(audiobookGridColumns) }) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterEnd,
-                    ) {
-                        AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
-                    }
+                    AudiobookCollectionControls(
+                        sortMode = sortMode,
+                        sortOptionsExpanded = sortOptionsExpanded,
+                        layoutMode = layoutMode,
+                        onSortOptionsToggle = onSortOptionsToggle,
+                        onSortModeChanged = onSortModeChanged,
+                        onLayoutModeChanged = onLayoutModeChanged,
+                    )
                 }
                 items(
                     items = books,
@@ -423,6 +467,7 @@ private fun AudiobookCollectionContent(
                         book = book,
                         selectionMode = selectionModeActive,
                         selected = book.stableKey in selectedBookKeys,
+                        modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
                         onClick = { onBookClick(book) },
                         onLongPress = { onBookLongPress(book) },
                     )
@@ -451,12 +496,14 @@ private fun AudiobookCollectionContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item(key = "audiobooks_view_switcher", span = { GridItemSpan(denseAudiobookGridColumns) }) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterEnd,
-                        ) {
-                            AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
-                        }
+                        AudiobookCollectionControls(
+                            sortMode = sortMode,
+                            sortOptionsExpanded = sortOptionsExpanded,
+                            layoutMode = layoutMode,
+                            onSortOptionsToggle = onSortOptionsToggle,
+                            onSortModeChanged = onSortModeChanged,
+                            onLayoutModeChanged = onLayoutModeChanged,
+                        )
                     }
                     items(
                         items = books,
@@ -467,6 +514,7 @@ private fun AudiobookCollectionContent(
                             book = book,
                             selectionMode = selectionModeActive,
                             selected = book.stableKey in selectedBookKeys,
+                            modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
                             onClick = { onBookClick(book) },
                             onLongPress = { onBookLongPress(book) },
                         )
@@ -515,8 +563,7 @@ private fun AudiobooksViewSwitcher(
     val language = LocalAppLanguage.current
     val copy = remember(language) { viewModeAccessibilityCopy(language) }
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_list,
@@ -524,20 +571,143 @@ private fun AudiobooksViewSwitcher(
             contentDescription = copy.list,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Compact) },
         )
-        Spacer(modifier = Modifier.width(8.dp))
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_grid_2x2,
             selected = layoutMode == AlbumLayoutMode.Grid,
             contentDescription = copy.grid,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Grid) },
         )
-        Spacer(modifier = Modifier.width(8.dp))
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_grid_3x3,
             selected = layoutMode == AlbumLayoutMode.DenseGrid,
             contentDescription = copy.denseGrid,
             onClick = { onLayoutModeChanged(AlbumLayoutMode.DenseGrid) },
         )
+    }
+}
+
+@Composable
+private fun AudiobookCollectionControls(
+    sortMode: AudiobookSortMode,
+    sortOptionsExpanded: Boolean,
+    layoutMode: AlbumLayoutMode,
+    onSortOptionsToggle: () -> Unit,
+    onSortModeChanged: (AudiobookSortMode) -> Unit,
+    onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AudiobookSortControl(
+            selected = sortMode,
+            expanded = sortOptionsExpanded,
+            onToggleExpanded = onSortOptionsToggle,
+            onSelect = onSortModeChanged,
+        )
+        AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+    }
+}
+
+@Composable
+private fun AudiobookSortControl(
+    selected: AudiobookSortMode,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onSelect: (AudiobookSortMode) -> Unit,
+) {
+    val language = LocalAppLanguage.current
+    val motionSpecs = rememberMotionSpecs()
+    val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = motionSpecs.mediaRelease(),
+        label = "audiobook_sort_chevron",
+    )
+    val interactionSource = rememberElovaireInteractionSource()
+    Box {
+        Surface(
+            modifier = Modifier.elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "audiobook_sort_bump",
+            ),
+            onClick = onToggleExpanded,
+            interactionSource = interactionSource,
+            shape = RoundedCornerShape(ElovaireRadii.pill),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_arrow_down_up),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = audiobookSortLabel(language, selected),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_chevron_down),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp).rotate(chevronRotation),
+                )
+            }
+        }
+        SortOptionsPopup(
+            expanded = expanded,
+            onDismissRequest = { if (expanded) onToggleExpanded() },
+        ) {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                AudiobookSortMode.entries.forEachIndexed { index, mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .elovaireClickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = { onSelect(mode) },
+                            )
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = audiobookSortLabel(language, mode),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (mode == selected) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                        )
+                        if (mode == selected) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_check),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    if (index != AudiobookSortMode.entries.lastIndex) DividerLine()
+                }
+            }
+        }
+    }
+}
+
+private fun audiobookSortLabel(language: elovaire.music.droidbeauty.app.domain.model.AppLanguage, mode: AudiobookSortMode): String {
+    val copy = audiobookCopy(language)
+    val sortCopy = audiobookSortCopy(language)
+    return when (mode) {
+        AudiobookSortMode.Author -> copy.author
+        AudiobookSortMode.Title -> audiobookTagEditorCopy(language).bookTitle
+        AudiobookSortMode.AlreadyListened -> sortCopy.alreadyListened
+        AudiobookSortMode.NeverListened -> sortCopy.neverListened
     }
 }
 
@@ -577,6 +747,7 @@ private fun AudiobookCollectionRow(
     progress: AudiobookProgress?,
     selectionMode: Boolean,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
 ) {
@@ -585,7 +756,7 @@ private fun AudiobookCollectionRow(
         resolveAudiobookProgress(book, progress, currentSongId = null, currentPositionMs = 0L)
     }
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .elovaireCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -676,11 +847,12 @@ private fun AudiobookGridCard(
     book: Audiobook,
     selectionMode: Boolean,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .elovaireCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },

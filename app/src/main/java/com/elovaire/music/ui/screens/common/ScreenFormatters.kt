@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import androidx.compose.foundation.lazy.LazyListState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
@@ -310,20 +309,12 @@ internal fun lyricsSeekPositionMs(
     return null
 }
 
-internal suspend fun LazyListState.animateLyricJumpToItem(
-    index: Int,
-    scrollOffset: Int = 0,
-) {
-    val distance = kotlin.math.abs(firstVisibleItemIndex - index)
-    if (distance > 6) {
-        val landingIndex = if (index > firstVisibleItemIndex) {
-            (index - 2).coerceAtLeast(0)
-        } else {
-            (index + 2).coerceAtMost(layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
-        }
-        scrollToItem(landingIndex, scrollOffset)
-    }
-    animateScrollToItem(index = index, scrollOffset = scrollOffset)
+internal fun shouldPageLyricsToActiveLine(
+    activeIndex: Int,
+    visibleIndices: List<Int>,
+): Boolean {
+    val activePosition = visibleIndices.indexOf(activeIndex)
+    return activePosition > 0 && visibleIndices.lastIndex - activePosition <= 4
 }
 
 internal fun fractionToDurationPosition(

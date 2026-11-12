@@ -467,6 +467,13 @@ internal enum class AlbumLayoutMode {
     DenseGrid,
 }
 
+internal enum class AudiobookSortMode {
+    Author,
+    Title,
+    AlreadyListened,
+    NeverListened,
+}
+
 internal enum class SongSortMode(
     val label: String,
 ) {

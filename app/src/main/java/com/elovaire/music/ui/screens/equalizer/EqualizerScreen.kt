@@ -255,7 +255,6 @@ internal fun EqualizerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -280,6 +279,7 @@ internal fun EqualizerScreen(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
                         )
                     }
+                    Spacer(Modifier.height(12.dp))
                     ThinContinuousSlider(
                         value = settings.preampDb,
                         onValueChange = { onPreampChanged(EqValuePolicy.snapPreamp(it, magnetizeCenter = true)) },
@@ -290,8 +290,9 @@ internal fun EqualizerScreen(
                         stepDotAlpha = 1f,
                         modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = preampLabel(language) },
                     )
+                    Spacer(Modifier.height(10.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        listOf("−6 dB", "0 dB", "+6 dB").forEach { label ->
+                        listOf("−6", "0", "+6").forEach { label ->
                             Text(label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                 color = readableSecondaryTextColor())
                         }
@@ -299,42 +300,38 @@ internal fun EqualizerScreen(
                 }
             }
             item(key = "tone", contentType = "effects") {
-                ModuleCard {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    SettingsCategoryText(
+                        title = uiPhrase(language, UiPhrase.ToneShaping),
+                        iconResId = R.drawable.ic_lucide_audio_waveform,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.Top,
                     ) {
-                        SettingsCategoryText(
-                            title = uiPhrase(language, UiPhrase.ToneShaping),
-                            iconResId = R.drawable.ic_lucide_audio_waveform,
-                        )
-                        EqMacroSliderRow(
+                        EqMacroKnob(
                             title = uiPhrase(language, UiPhrase.Bass),
                             value = settings.bass.coerceIn(0f, 1f),
-                            valueText = "${(settings.bass.coerceIn(0f, 1f) * 100f).roundToInt()}%",
-                            onValueChange = onBassChanged,
                             valueRange = 0f..1f,
-                            visualStepSize = 0.125f,
+                            onValueChange = onBassChanged,
                             modifier = Modifier.testTag("eq_bass"),
                         )
-                        EqMacroSliderRow(
+                        EqMacroKnob(
                             title = uiPhrase(language, UiPhrase.Midrange),
                             value = settings.midrange.coerceIn(-1f, 1f),
-                            valueText = formatTonePercent(settings.midrange, signed = true),
-                            onValueChange = onMidrangeChanged,
                             valueRange = -1f..1f,
-                            centerValue = 0f,
-                            visualStepSize = 0.25f,
+                            onValueChange = onMidrangeChanged,
                             modifier = Modifier.testTag("eq_midrange"),
                         )
-                        EqMacroSliderRow(
+                        EqMacroKnob(
                             title = uiPhrase(language, UiPhrase.Treble),
                             value = settings.treble.coerceIn(-1f, 1f),
-                            valueText = formatTonePercent(settings.treble, signed = true),
-                            onValueChange = onTrebleChanged,
                             valueRange = -1f..1f,
-                            centerValue = 0f,
-                            visualStepSize = 0.25f,
+                            onValueChange = onTrebleChanged,
                             modifier = Modifier.testTag("eq_treble"),
                         )
                     }
@@ -1020,6 +1017,126 @@ private fun EqMacroSliderRow(
             modifier = modifier.semantics { contentDescription = title },
         )
     }
+}
+
+@Composable
+private fun EqMacroKnob(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val safeValue = value.takeIf(Float::isFinite)?.coerceIn(valueRange) ?: 0f.coerceIn(valueRange)
+    val currentValue by rememberUpdatedState(safeValue)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val range = valueRange.endInclusive - valueRange.start
+    val normalized = ((safeValue - valueRange.start) / range).coerceIn(0f, 1f)
+    val accent = Color(0xFF39E38E)
+    val valueText = formatTonePercent(safeValue, signed = valueRange.start < 0f)
+
+    Column(
+        modifier = modifier.width(84.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .semantics {
+                    contentDescription = title
+                    progressBarRangeInfo = ProgressBarRangeInfo(safeValue, valueRange, steps = (range * 100f).roundToInt() - 1)
+                    setProgress { requested ->
+                        currentOnValueChange(snapEqMacroValue(requested, valueRange))
+                        true
+                    }
+                }
+                .pointerInput(valueRange) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                            ?: return@awaitEachGesture
+                        var dragValue = currentValue.coerceIn(valueRange)
+                        var lastX = drag.position.x
+                        horizontalDrag(drag.id) { change ->
+                            val deltaX = change.position.x - lastX
+                            lastX = change.position.x
+                            change.consume()
+                            val fullRangeDragPx = size.width * 5f
+                            dragValue = snapEqMacroValue(
+                                dragValue + (deltaX / fullRangeDragPx) * range,
+                                valueRange,
+                            )
+                            currentOnValueChange(dragValue)
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val stroke = 2.4.dp.toPx()
+                val radius = size.minDimension / 2f - 3.dp.toPx()
+                val center = Offset(size.width / 2f, size.height / 2f)
+                drawCircle(
+                    color = accent.copy(alpha = 0.1f),
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = 4.dp.toPx()),
+                )
+                drawCircle(
+                    color = accent.copy(alpha = 0.36f),
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = stroke),
+                )
+                val angle = Math.toRadians((-135f + 270f * normalized).toDouble()).toFloat()
+                val markerCenter = Offset(
+                    x = center.x + cos(angle) * radius,
+                    y = center.y + kotlin.math.sin(angle) * radius,
+                )
+                drawCircle(
+                    color = accent.copy(alpha = 0.2f),
+                    radius = 5.dp.toPx(),
+                    center = markerCenter,
+                )
+                drawCircle(
+                    color = accent,
+                    radius = 2.5.dp.toPx(),
+                    center = markerCenter,
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = elovaireScaledSp(14f),
+                    fontWeight = FontWeight.SemiBold,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = readableSecondaryTextColor(),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+internal fun snapEqMacroValue(
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+): Float {
+    if (!value.isFinite()) return 0f.coerceIn(valueRange)
+    val stepCount = ((valueRange.endInclusive - valueRange.start) * 100f).roundToInt().coerceAtLeast(1)
+    val normalizedStep = ((value.coerceIn(valueRange) - valueRange.start) * 100f)
+        .roundToInt()
+        .coerceIn(0, stepCount)
+    return (valueRange.start + normalizedStep / 100f).coerceIn(valueRange)
 }
 
 private fun formatTonePercent(value: Float, signed: Boolean): String {

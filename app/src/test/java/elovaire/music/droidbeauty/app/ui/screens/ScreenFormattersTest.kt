@@ -6,6 +6,8 @@ import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScreenFormattersTest {
@@ -223,6 +225,17 @@ class ScreenFormattersTest {
         val result = suggestedAlbumsFor(LibraryUiState(albums = albums), playCounts, recentIds)
 
         assertEquals(expected, result)
+    }
+
+    @Test
+    fun syncedLyricsPageWhenActiveLineReachesFifthVisibleLineFromBottom() {
+        val visible = (20..31).toList()
+
+        assertFalse(shouldPageLyricsToActiveLine(activeIndex = 26, visibleIndices = visible))
+        assertTrue(shouldPageLyricsToActiveLine(activeIndex = 27, visibleIndices = visible))
+        assertTrue(shouldPageLyricsToActiveLine(activeIndex = 29, visibleIndices = visible))
+        assertFalse(shouldPageLyricsToActiveLine(activeIndex = 27, visibleIndices = (27..38).toList()))
+        assertFalse(shouldPageLyricsToActiveLine(activeIndex = 15, visibleIndices = visible))
     }
 
     private fun album(id: Long, addedAtSeconds: Long): Album {
