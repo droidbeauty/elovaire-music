@@ -7,6 +7,7 @@
       3. Add newer releases above older ones.
     -->
     <release version="3.2">
+        <item>UI tweaks in equalizer, lyrics and tag editing screen</item>
         <item>Added basic tablet layout support in horizontal orientation</item>
         <item>Added support for the app to work on Huawei devices with Kirin CPUs</item>
     </release>
