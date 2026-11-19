@@ -218,12 +218,13 @@ internal object MediaIdentityResolver {
     fun portableIdentityChanged(before: Song, after: Song): Boolean {
         return before.id != after.id ||
             before.durationMs.takeIf { it > 0L } != after.durationMs.takeIf { it > 0L } ||
-            before.title.matchIdentityText() != after.title.matchIdentityText() ||
-            before.artist.matchIdentityText() != after.artist.matchIdentityText() ||
-            before.album.matchIdentityText() != after.album.matchIdentityText() ||
-            before.albumArtist?.matchIdentityText().orEmpty() != after.albumArtist?.matchIdentityText().orEmpty() ||
-            before.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty() !=
-            after.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty() ||
+            !before.title.hasSameMatchIdentity(after.title) ||
+            !before.artist.hasSameMatchIdentity(after.artist) ||
+            !before.album.hasSameMatchIdentity(after.album) ||
+            !before.albumArtist.orEmpty().hasSameMatchIdentity(after.albumArtist.orEmpty()) ||
+            (before.fileName != after.fileName &&
+                before.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty() !=
+                after.fileName.matchIdentityText().takeIf(String::isNotBlank).orEmpty()) ||
             before.trackNumber.takeIf { it > 0 } != after.trackNumber.takeIf { it > 0 } ||
             before.discNumber.takeIf { it > 0 } != after.discNumber.takeIf { it > 0 }
     }
@@ -273,7 +274,8 @@ internal object MediaIdentityResolver {
         return TrackMatchResolution(confidence, bestSong.takeIf { confidence != TrackMatchConfidence.NoMatch })
     }
 
-    fun prepareTrackMatcher(songs: List<Song>): PreparedTrackMatcher = PreparedTrackMatcher(songs)
+    fun prepareTrackMatcher(songs: List<Song>, checkCancellation: () -> Unit = {}): PreparedTrackMatcher =
+        PreparedTrackMatcher(songs, checkCancellation)
 
     internal fun trackMatchConfidence(score: Int): TrackMatchConfidence = when {
         score >= STRONG_TRACK_MATCH_SCORE -> TrackMatchConfidence.Strong
@@ -358,14 +360,19 @@ internal object MediaIdentityResolver {
     }
 }
 
-internal class PreparedTrackMatcher(songs: List<Song>) {
-    private val candidates = songs.map(::PreparedTrackCandidate)
-    private val uniqueBySourceKey = HashMap<String, PreparedTrackCandidate>(candidates.size)
+internal class PreparedTrackMatcher(songs: List<Song>, private val checkCancellation: () -> Unit = {}) {
+    private val candidatesByTitle = HashMap<String, MutableList<PreparedTrackCandidate>>()
+    private val uniqueBySourceKey = HashMap<String, PreparedTrackCandidate>(songs.size)
     private val ambiguousSourceKeys = HashSet<String>()
 
     init {
-        candidates.forEach { candidate ->
-            if (candidate.sourceKey in ambiguousSourceKeys) return@forEach
+        songs.forEachIndexed { index, song ->
+            if (index and 127 == 0) checkCancellation()
+            val candidate = PreparedTrackCandidate(song)
+            if (candidate.normalizedTitle.isNotBlank()) {
+                candidatesByTitle.getOrPut(candidate.normalizedTitle, ::ArrayList).add(candidate)
+            }
+            if (candidate.sourceKey in ambiguousSourceKeys) return@forEachIndexed
             val previous = uniqueBySourceKey.putIfAbsent(candidate.sourceKey, candidate)
             if (previous != null) {
                 uniqueBySourceKey.remove(candidate.sourceKey)
@@ -389,8 +396,9 @@ internal class PreparedTrackMatcher(songs: List<Song>) {
         var bestCandidate: PreparedTrackCandidate? = null
         var bestScore: Int? = null
         var tied = false
-        candidates.forEach { candidate ->
-            val score = candidate.score(identity) ?: return@forEach
+        candidatesByTitle[identity.normalizedTitle]?.forEachIndexed { index, candidate ->
+            if (index and 127 == 0) checkCancellation()
+            val score = candidate.score(identity) ?: return@forEachIndexed
             when {
                 bestScore == null || score > bestScore -> {
                     bestCandidate = candidate
@@ -419,7 +427,7 @@ internal class PreparedTrackMatcher(songs: List<Song>) {
 
 private class PreparedTrackCandidate(val song: Song) {
     val sourceKey: String = MediaIdentityResolver.stableKey(song)
-    private val normalizedTitle = song.title.matchIdentityText()
+    val normalizedTitle = song.title.matchIdentityText()
     private val normalizedArtist = song.artist.matchIdentityText()
     private val normalizedAlbum = song.album.matchIdentityText()
     private val normalizedAlbumArtist = song.albumArtist?.matchIdentityText()
@@ -586,6 +594,9 @@ private fun utf8Length(value: String): Int {
 private fun String.matchIdentityText(): String {
     return trim().lowercase(Locale.ROOT).replace(MATCH_IDENTITY_WHITESPACE, " ")
 }
+
+private fun String.hasSameMatchIdentity(other: String): Boolean =
+    this == other || matchIdentityText() == other.matchIdentityText()
 
 private fun trackMatchScore(identity: TrackMatchIdentity, song: Song): Int? {
     val title = song.title.matchIdentityText()

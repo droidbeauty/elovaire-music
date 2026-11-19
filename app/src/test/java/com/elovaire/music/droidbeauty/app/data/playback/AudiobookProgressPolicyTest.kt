@@ -12,6 +12,18 @@ import org.junit.Test
 
 class AudiobookProgressPolicyTest {
     @Test
+    fun storageKeysRemainCompatibleWithExistingSha256Keys() {
+        val keys = listOf("", "book", "Zażółć gęślą jaźń", "📚/作者") +
+            (0 until 100).map { "book-$it" }
+        keys.forEach { key ->
+            val expected = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(key.toByteArray(Charsets.UTF_8))
+                .joinToString("") { byte -> "%02x".format(byte) }
+            assertEquals(expected, AudiobookProgressStore.storageKey(key))
+        }
+    }
+
+    @Test
     fun checkpointSelectionPrefersAValidRecordOverAnInvalidNewerRecord() {
         val valid = AudiobookProgress(7L, 500L, false, 10L)
         assertEquals(0, selectNewestValidCheckpoint(valid, null))

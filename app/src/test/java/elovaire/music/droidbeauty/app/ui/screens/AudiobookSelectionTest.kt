@@ -10,6 +10,17 @@ import org.junit.Test
 
 class AudiobookSelectionTest {
     @Test
+    fun emptySelectionDoesNotTraverseTheLibrary() {
+        val books = object : AbstractList<Audiobook>() {
+            override val size: Int get() = 10_000
+            override fun get(index: Int): Audiobook = error("Unexpected library traversal")
+        }
+
+        assertTrue(pruneAudiobookSelection(emptySet(), books).isEmpty())
+        assertTrue(selectedAudiobookSongs(books, emptySet()).isEmpty())
+    }
+
+    @Test
     fun togglingSelectionAddsAndRemovesBookKeys() {
         val selected = toggleAudiobookSelection(emptySet(), "book-a")
 

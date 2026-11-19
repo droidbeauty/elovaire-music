@@ -27,16 +27,25 @@ internal class LibrarySnapshotPublisher(
         removingSongIds: Set<Long>,
         removingAlbumIds: Set<Long>,
     ): LibraryContentState {
+        val current = currentState()
+        val contentRevision = snapshot.contentRevision.ifBlank {
+            librarySongsContentRevision(snapshot.songs)
+        }
         return LibraryContentState(
             songs = snapshot.songs,
             albums = snapshot.albums,
             audiobooks = snapshot.audiobooks,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
-            contentRevision = snapshot.contentRevision.ifBlank {
-                librarySongsContentRevision(snapshot.songs)
+            contentRevision = contentRevision,
+            // The content revision includes every field used by the portable projection.
+            portableMediaIdentityRevision = if (
+                contentRevision == current.contentRevision && current.portableMediaIdentityRevision.isNotBlank()
+            ) {
+                current.portableMediaIdentityRevision
+            } else {
+                MediaIdentityResolver.portableIdentityRevision(snapshot.songs)
             },
-            portableMediaIdentityRevision = MediaIdentityResolver.portableIdentityRevision(snapshot.songs),
         )
     }
 
@@ -82,7 +91,14 @@ internal class LibrarySnapshotPublisher(
             updatedSongs = updatedSongs,
             changedPositions = replacementPositions,
         )
-        val patches = replacementPositions.map { position ->
+        val changedPositions = if (canonicalUpdatedSongs === updatedSongs) {
+            replacementPositions
+        } else {
+            current.songs.indices.filter { position ->
+                position in replacementsByPosition || current.songs[position] != canonicalUpdatedSongs[position]
+            }
+        }
+        val patches = changedPositions.map { position ->
             LibrarySongPatch(
                 before = current.songs[position],
                 after = canonicalUpdatedSongs[position],
@@ -91,14 +107,14 @@ internal class LibrarySnapshotPublisher(
         val changeSet = LibraryChangeSetCalculator.fromPatches(patches)
 
         val affectedAlbumIds = buildSet {
-            replacementPositions.forEach { position -> add(current.songs[position].albumId) }
-            replacementPositions.forEach { position -> add(canonicalUpdatedSongs[position].albumId) }
+            changedPositions.forEach { position -> add(current.songs[position].albumId) }
+            changedPositions.forEach { position -> add(canonicalUpdatedSongs[position].albumId) }
         }
         val affectedPositions = buildSet {
             affectedAlbumIds.forEach { albumId ->
                 addAll(albumSongPositions[albumId].orEmpty())
             }
-            addAll(replacementPositions)
+            addAll(changedPositions)
         }
         val affectedSongsByAlbum = affectedPositions
             .asSequence()
@@ -120,7 +136,7 @@ internal class LibrarySnapshotPublisher(
                 audiobookContentChanged(
                     previousSongs = current.songs,
                     updatedSongs = canonicalUpdatedSongs,
-                    changedPositions = replacementPositions,
+                    changedPositions = changedPositions,
                     globalCanonicalization = canonicalUpdatedSongs !== updatedSongs,
                 ) ||
                 (current.audiobooks.isEmpty() && canonicalUpdatedSongs.any { it.mediaKind == AudioMediaKind.Audiobook })
@@ -176,6 +192,8 @@ internal class LibrarySnapshotPublisher(
         ) {
             current.removingSongIds == next.removingSongIds &&
                 current.removingAlbumIds == next.removingAlbumIds
+        } else if (current.contentRevision != next.contentRevision) {
+            false
         } else {
             current == next
         }

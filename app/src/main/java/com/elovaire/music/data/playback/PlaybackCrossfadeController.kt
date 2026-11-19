@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import android.os.Handler
 import android.util.Log
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -11,7 +12,11 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
@@ -64,6 +69,7 @@ internal class PlaybackCrossfadeController(
     private val onFailed: () -> Unit,
     private val clock: AppClock = AndroidAppClock,
     private val language: () -> elovaire.music.droidbeauty.app.domain.model.AppLanguage = { elovaire.music.droidbeauty.app.domain.model.AppLanguage.English },
+    private val preparationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     var state: CrossfadeState = CrossfadeState.Idle
         private set
@@ -89,6 +95,7 @@ internal class PlaybackCrossfadeController(
     private var fadeStartedAtElapsedMs = 0L
     private var transitionToken = 0L
     private var analysisJob: Job? = null
+    private var prewarmJob: Job? = null
 
     private var analysisRunnable: Runnable? = null
     private var prewarmRunnable: Runnable? = null
@@ -274,6 +281,8 @@ internal class PlaybackCrossfadeController(
         transitionToken += 1L
         analysisJob?.cancel()
         analysisJob = null
+        prewarmJob?.cancel()
+        prewarmJob = null
         analysisRunnable?.let(handler::removeCallbacks)
         analysisRunnable = null
         prewarmRunnable?.let(handler::removeCallbacks)
@@ -356,6 +365,56 @@ internal class PlaybackCrossfadeController(
         val transitionPlan = plan ?: return cancel()
         state = CrossfadeState.PreparingNext
         logDebug("prewarm position=${outgoingPlayer.currentPosition} fadeStart=${transitionPlan.fadeStartMs}")
+        prepareMediaItems(token, queue)
+    }
+
+    private fun prepareMediaItems(token: Long, songs: List<Song>) {
+        val selectedLanguage = try {
+            language()
+        } catch (_: RuntimeException) {
+            fail("secondary_media_item_setup_failure")
+            return
+        }
+        prewarmJob?.cancel()
+        prewarmJob = scope.launch(preparationDispatcher) {
+            val items = try {
+                val context = currentCoroutineContext()
+                songs.mapIndexed { index, song ->
+                    if (index % 128 == 0) context.ensureActive()
+                    song.toPlaybackMediaItem(selectedLanguage)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: RuntimeException) {
+                handler.post {
+                    if (token == transitionToken && state == CrossfadeState.PreparingNext) {
+                        fail("secondary_media_item_setup_failure")
+                    }
+                }
+                return@launch
+            }
+            handler.post {
+                if (token != transitionToken || state != CrossfadeState.PreparingNext) return@post
+                prewarmJob = null
+                val currentLanguage = try {
+                    language()
+                } catch (_: RuntimeException) {
+                    fail("secondary_media_item_setup_failure")
+                    return@post
+                }
+                if (currentLanguage != selectedLanguage) {
+                    prepareMediaItems(token, songs)
+                } else {
+                    finishPrewarm(token, items)
+                }
+            }
+        }
+    }
+
+    private fun finishPrewarm(token: Long, items: List<MediaItem>) {
+        if (token != transitionToken || state != CrossfadeState.PreparingNext) return
+        val outgoingPlayer = outgoing ?: return cancel()
+        val transitionPlan = plan ?: return cancel()
         val secondary = try {
             createPlayer()
         } catch (_: RuntimeException) {
@@ -369,13 +428,13 @@ internal class PlaybackCrossfadeController(
             secondary.shuffleModeEnabled = outgoingPlayer.shuffleModeEnabled
             try {
                 secondary.setMediaItems(
-                    queue.map { it.toPlaybackMediaItem(language()) },
+                    items,
                     nextQueueIndex,
                     transitionPlan.incomingMixInMs,
                 )
             } catch (_: RuntimeException) {
                 try {
-                    secondary.setMediaItems(queue.map { it.toPlaybackMediaItem(language()) }, nextQueueIndex, 0L)
+                    secondary.setMediaItems(items, nextQueueIndex, 0L)
                 } catch (_: RuntimeException) {
                     fail("secondary_media_item_setup_failure")
                     return

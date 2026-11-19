@@ -256,7 +256,7 @@ internal class AppServices(
     val playbackResumptionGateway = DefaultPlaybackResumptionGateway(
         hasAudioReadPermission = { applicationContext.hasAudioReadPermission() },
         persistedSessionReader = playbackSessionStore::load,
-        librarySongsReader = { librarySnapshotStore.load()?.snapshot?.songs.orEmpty() },
+        librarySongsReader = { librarySnapshotStore.loadSongs().orEmpty() },
         ioDispatcher = appDispatchers.io,
     )
     val libraryRepository = LibraryRepository(

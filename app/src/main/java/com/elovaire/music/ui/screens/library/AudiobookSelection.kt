@@ -18,6 +18,7 @@ internal fun pruneAudiobookSelection(
     selectedKeys: Set<String>,
     books: List<Audiobook>,
 ): Set<String> {
+    if (selectedKeys.isEmpty()) return emptySet()
     val availableKeys = books.mapTo(hashSetOf(), Audiobook::stableKey)
     return selectedKeys.filterTo(linkedSetOf()) { it in availableKeys }
 }
@@ -26,6 +27,7 @@ internal fun selectedAudiobookSongs(
     books: List<Audiobook>,
     selectedKeys: Set<String>,
 ): List<Song> {
+    if (selectedKeys.isEmpty()) return emptyList()
     return books
         .asSequence()
         .filter { it.stableKey in selectedKeys }

@@ -158,7 +158,7 @@ class AppInteractionSmokeTest {
         while (SystemClock.uptimeMillis() < deadlineMs) {
             val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
             val target = if (bottomNavigation) {
-                device.findObjects(appSelector).firstOrNull(::isBottomNavigationNode)
+                device.findObjects(appSelector).firstOrNull(::isNavigationNode)
             } else {
                 device.wait(Until.findObject(appSelector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
             } ?: continue
@@ -175,8 +175,10 @@ class AppInteractionSmokeTest {
         throw lastStale ?: error("Could not find $label")
     }
 
-    private fun isBottomNavigationNode(node: UiObject2): Boolean {
-        return node.visibleBounds.centerY() >= device.displayHeight * 4 / 5
+    private fun isNavigationNode(node: UiObject2): Boolean {
+        val bounds = node.visibleBounds
+        return bounds.centerY() >= device.displayHeight * 4 / 5 ||
+            bounds.centerX() <= device.displayWidth / 5
     }
 
     private fun UiObject2.clickActionable() {

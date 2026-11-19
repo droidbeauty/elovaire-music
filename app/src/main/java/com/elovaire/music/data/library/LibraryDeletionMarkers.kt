@@ -38,15 +38,8 @@ internal class LibraryDeletionMarkers {
         if (ids.isNotEmpty()) confirmedSongIds.update { it + ids }
     }
 
-    fun retainConfirmedSongsStillIn(scannedSongIds: Set<Long>) {
-        if (confirmedSongIds.value.isEmpty()) return
-        confirmedSongIds.update { tombstones ->
-            if (tombstones.all(scannedSongIds::contains)) {
-                tombstones
-            } else {
-                tombstones.filterTo(linkedSetOf(), scannedSongIds::contains)
-            }
-        }
+    fun clearConfirmedSongs(observed: Set<Long>, resolved: Set<Long>) {
+        if (resolved.isNotEmpty()) confirmedSongIds.update { if (it == observed) it - resolved else it }
     }
 
     fun clear() {

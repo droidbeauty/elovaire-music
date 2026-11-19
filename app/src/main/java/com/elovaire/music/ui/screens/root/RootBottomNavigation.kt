@@ -126,7 +126,7 @@ private fun BottomNavigationHazeBackground(
 }
 
 @Composable
-private fun BottomNavigationItemButton(
+internal fun BottomNavigationItemButton(
     iconResId: Int,
     contentDescription: String,
     baseTint: Color,

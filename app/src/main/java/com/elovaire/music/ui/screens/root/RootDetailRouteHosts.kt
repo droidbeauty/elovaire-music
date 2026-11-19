@@ -302,8 +302,13 @@ internal fun RecentlyAddedRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
+    val library = routeState.appState.library
+    val nowSeconds = System.currentTimeMillis() / 1_000L
+    val recentAlbums = remember(library.albums, nowSeconds) {
+        recentlyAddedAlbumsFor(library, nowSeconds = nowSeconds)
+    }
     RecentlyAddedAlbumsScreen(
-        albums = recentlyAddedAlbumsFor(routeState.appState.library),
+        albums = recentAlbums,
         playlists = routeState.appState.playlists,
         playlistSongsById = routeState.libraryDerivedState.songsById,
         favoriteSongIds = routeState.appState.favoriteSongIds,
@@ -367,9 +372,7 @@ internal fun ArtistRouteHost(
         }
     }
     val artistAlbums = remember(normalizedArtist, routeState.appState.library.albums) {
-        routeState.appState.library.albums
-            .filter { album -> album.artist.equals(normalizedArtist, ignoreCase = true) }
-            .sortedBy { it.title.lowercase() }
+        artistAlbumsFor(routeState.appState.library.albums, normalizedArtist)
     }
     val artistBackdropState by remember(normalizedArtist, artistSongs, artistAlbums, artistImageRepository) {
         artistImageRepository.backdropState(normalizedArtist, artistSongs, artistAlbums)

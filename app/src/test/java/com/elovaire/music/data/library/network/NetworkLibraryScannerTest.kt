@@ -23,6 +23,23 @@ class NetworkLibraryScannerTest {
     val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun networkFingerprintsRemainCompatibleWithExistingHexKeys() {
+        val inputs = listOf("", "source|path", "Zażółć/作者/📚") + (0 until 100).map { "source-$it" }
+        inputs.forEach { input ->
+            val expected = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(input.toByteArray(Charsets.UTF_8))
+                .joinToString("") { byte -> "%02x".format(java.util.Locale.ROOT, byte) }
+            assertEquals(expected, networkFingerprint(input))
+        }
+        val entry = NetworkFileEntry("cover.jpg", false, sizeBytes = 42L, modifiedAtMs = 7L, etag = null)
+        val oldIdentity = "6:source9:cover.jpg2:421:7-:"
+        val expected = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(oldIdentity.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(java.util.Locale.ROOT, byte) }
+        assertEquals(expected, networkArtworkCacheKey("source", entry))
+    }
+
+    @Test
     fun networkPlatformFallbackUsesLocalGenreNumberAndYearRules() {
         assertEquals("Rock", platformMetadataGenre(" Rock / Rock; Other "))
         assertEquals(3, platformMetadataNumber(" 3 / 12"))

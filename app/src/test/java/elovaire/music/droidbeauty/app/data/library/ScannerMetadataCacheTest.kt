@@ -13,6 +13,26 @@ import kotlin.concurrent.thread
 
 class ScannerMetadataCacheTest {
     @Test
+    fun combinedInvalidationRemovesAllMatchingIdsPathsAndFileNames() {
+        val first = song("content://media/external/audio/media/7", "First")
+        val sameId = song("content://media/secondary/audio/media/7", "Second")
+        val pathMatch = song("content://media/external/audio/media/8", "Third")
+            .copy(id = 8L, fileName = "shared.flac", libraryPath = "/music/one/shared.flac")
+        val nameMatch = song("content://media/external/audio/media/9", "Fourth")
+            .copy(id = 9L, fileName = "shared.flac", libraryPath = "/music/two/shared.flac")
+        val retained = song("content://media/external/audio/media/10", "Keep").copy(id = 10L)
+        val cache = ScannerMetadataCache()
+        cache.prime(listOf(first, sameId, pathMatch, nameMatch, retained))
+
+        cache.invalidate(listOf(7L), listOf(" /music/one/shared.flac "))
+
+        listOf(first, sameId, pathMatch, nameMatch).forEach {
+            assertNull(cache[MediaIdentityResolver.sourceKey(it)])
+        }
+        assertEquals("Keep", cache[MediaIdentityResolver.sourceKey(retained)]?.metadata?.title)
+    }
+
+    @Test
     fun prime_keepsMetadataSeparateForDifferentUrisWithTheSameMediaStoreId() {
         val first = song(uri = "content://media/external/audio/media/7", title = "First")
         val second = song(uri = "content://media/secondary/audio/media/7", title = "Second")

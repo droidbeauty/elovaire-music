@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertNotSame
 import org.junit.Test
 
 class NetworkBackendSafetyTest {
@@ -27,7 +28,12 @@ class NetworkBackendSafetyTest {
                 "sessionFor", NetworkLibrarySource::class.java, NetworkCredentials::class.java,
             ).apply { isAccessible = true }
             val source = networkSource(NetworkLibraryProtocol.Smb)
-            assertSame(sessionFor.invoke(fileSystem, source, credentials()), sessionFor.invoke(fileSystem, source, credentials()))
+            val first = sessionFor.invoke(fileSystem, source, credentials())
+            assertSame(first, sessionFor.invoke(fileSystem, source, credentials()))
+            val changed = credentials().copy(password = "changed-作者")
+            val replacement = sessionFor.invoke(fileSystem, source, changed)
+            assertNotSame(first, replacement)
+            assertSame(replacement, sessionFor.invoke(fileSystem, source, changed))
         } finally {
             fileSystem.release()
             scope.cancel()

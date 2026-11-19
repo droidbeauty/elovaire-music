@@ -32,6 +32,28 @@ class PlaybackResumptionGatewayTest {
     }
 
     @Test
+    fun unusableSessionsDoNotLoadTheLibrarySnapshot() = runTest(mainDispatcherRule.scheduler) {
+        val valid = PersistedPlaybackSession(
+            queueSongIds = listOf(1L), currentSongId = 1L, currentIndex = 0, positionMs = 0L,
+            repeatMode = PlaybackRepeatMode.Off, shuffleEnabled = false, sourcePlaylistId = null,
+            wasPlaying = false, savedAtWallTimeMs = 1L,
+        )
+        val sessions = listOf(null, valid.copy(queueSongIds = emptyList()),
+            valid.copy(currentSongId = null), valid.copy(currentSongId = 2L))
+        var libraryReads = 0
+        sessions.forEach { session ->
+            val gateway = DefaultPlaybackResumptionGateway(
+                hasAudioReadPermission = { true },
+                persistedSessionReader = { session },
+                librarySongsReader = { libraryReads++; emptyList() },
+                ioDispatcher = mainDispatcherRule.dispatcher,
+            )
+            assertNull(gateway.resolve())
+        }
+        assertEquals(0, libraryReads)
+    }
+
+    @Test
     fun resolutionUsesInjectedGatewayExecutionDispatcher() = runTest(mainDispatcherRule.scheduler) {
         val song = testSong()
         val session = PersistedPlaybackSession(

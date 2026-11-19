@@ -4,11 +4,19 @@ import android.net.TestUri
 import androidx.media3.common.Player
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.lang.reflect.Proxy
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class PlaybackQueueControllerTest {
     @Test
     fun queueStartIndexClampsOutOfRangeIndices() {
@@ -195,6 +203,74 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun removingSongsBatchesAdjacentItemsWithoutChangingTheCurrentSong() {
+        val songs = (1L..6L).map(::song)
+        val mediaItems = songs.toMutableList()
+        val removedRanges = mutableListOf<Pair<Int, Int>>()
+        var currentIndex = 2
+        val player = Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "getCurrentMediaItemIndex" -> currentIndex
+                "removeMediaItems" -> {
+                    val from = args!![0] as Int
+                    val to = args[1] as Int
+                    removedRanges += from to to
+                    mediaItems.subList(from, to).clear()
+                    if (to <= currentIndex) currentIndex -= to - from
+                    Unit
+                }
+                "isPlaying", "getPlayWhenReady" -> false
+                else -> null
+            }
+        } as Player
+        val runtime = RecordingQueueRuntime(PlaybackUiState(queue = songs, currentIndex = currentIndex))
+            .apply { playerDelegate = player }
+
+        PlaybackQueueController(runtime, PlaybackQueueMetadataRefresher())
+            .removeSongsFromQueue(setOf(1L, 2L, 4L, 5L))
+
+        assertEquals(listOf(3 to 5, 0 to 2), removedRanges)
+        assertEquals(listOf(3L, 6L), mediaItems.map(Song::id))
+        assertEquals(mediaItems, runtime.state.queue)
+        assertEquals(0, runtime.state.currentIndex)
+    }
+
+    @Test
+    fun removingCurrentSongRetainsIndividualRemovalOrder() {
+        val songs = (1L..4L).map(::song)
+        val mediaItems = songs.toMutableList()
+        val removedIndices = mutableListOf<Int>()
+        val player = Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "getCurrentMediaItemIndex" -> 1
+                "removeMediaItem" -> {
+                    val index = args!![0] as Int
+                    removedIndices += index
+                    mediaItems.removeAt(index)
+                    Unit
+                }
+                "isPlaying", "getPlayWhenReady" -> false
+                else -> null
+            }
+        } as Player
+        val runtime = RecordingQueueRuntime(PlaybackUiState(queue = songs, currentIndex = 1))
+            .apply { playerDelegate = player }
+
+        PlaybackQueueController(runtime, PlaybackQueueMetadataRefresher())
+            .removeSongsFromQueue(setOf(2L, 3L))
+
+        assertEquals(listOf(2, 1), removedIndices)
+        assertEquals(listOf(1L, 4L), runtime.state.queue.map(Song::id))
+        assertEquals(1, runtime.state.currentIndex)
+    }
+
+    @Test
     fun authoritativeReconciliationRemovesMissingItemsAndPreservesStableOrder() {
         val first = song(1L).copy(
             libraryPath = "/music/first.mp3",
@@ -219,7 +295,7 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
-    fun authoritativeReconciliationSelectsNextSurvivingTrackAfterRemovingCurrent() {
+    fun authoritativeReconciliationSelectsNextSurvivingTrackAfterRemovingCurrent() = runBlocking {
         val queue = (1L..5L).map(::song)
         val mediaItems = queue.toMutableList()
         var seekIndex = -1
@@ -266,6 +342,116 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun authoritativeReconciliationBatchesMissingItemsWithinThePlayerQueue() = runBlocking {
+        val songs = (1L..6L).map(::song)
+        val mediaItems = songs.take(5).toMutableList()
+        val removedRanges = mutableListOf<Pair<Int, Int>>()
+        var currentIndex = 2
+        val player = Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "getMediaItemCount" -> mediaItems.size
+                "getCurrentMediaItemIndex" -> currentIndex
+                "removeMediaItems" -> {
+                    val from = args!![0] as Int
+                    val to = args[1] as Int
+                    removedRanges += from to to
+                    mediaItems.subList(from, to).clear()
+                    if (to <= currentIndex) currentIndex -= to - from
+                    Unit
+                }
+                "isPlaying", "getPlayWhenReady" -> false
+                else -> null
+            }
+        } as Player
+        val runtime = RecordingQueueRuntime(PlaybackUiState(queue = songs, currentIndex = currentIndex))
+            .apply { playerDelegate = player }
+        val controller = PlaybackQueueController(runtime, PlaybackQueueMetadataRefresher())
+        controller.stageExternalQueue(songs, 2, "External", null, 80L, libraryBacked = true)
+
+        controller.refreshQueuedLibraryMetadataIfNeeded(listOf(songs[2]), authoritative = true)
+
+        assertEquals(listOf(3 to 5, 0 to 2), removedRanges)
+        assertEquals(listOf(3L), mediaItems.map(Song::id))
+        assertEquals(mediaItems, runtime.state.queue)
+        assertEquals(0, runtime.state.currentIndex)
+    }
+
+    @Test
+    fun authoritativeReconciliationRetriesWhenQueueChangesDuringPreparation() = runTest {
+        val songs = listOf(song(1L), song(2L))
+        val runtime = RecordingQueueRuntime(PlaybackUiState(queue = songs))
+        val controller = PlaybackQueueController(
+            runtime, PlaybackQueueMetadataRefresher(), defaultDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        controller.stageExternalQueue(songs, 0, "External", null, 80L, libraryBacked = true)
+        val job = launch(start = CoroutineStart.UNDISPATCHED) {
+            controller.refreshQueuedLibraryMetadataIfNeeded(listOf(songs[1]), authoritative = true)
+        }
+        runtime.publishState(runtime.state.copy(queue = listOf(songs[1])))
+
+        advanceUntilIdle()
+
+        assertTrue(job.isCompleted)
+        assertEquals(listOf(songs[1]), runtime.state.queue)
+        assertFalse(runtime.playerAccessed)
+    }
+
+    @Test
+    fun incrementalRefreshRetriesWhenQueueChangesDuringPreparation() = runTest {
+        val songs = listOf(song(1L), song(2L))
+        val runtime = RecordingQueueRuntime(PlaybackUiState(queue = songs))
+        val controller = PlaybackQueueController(
+            runtime, PlaybackQueueMetadataRefresher(), defaultDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        controller.stageExternalQueue(songs, 0, "External", null, 80L, libraryBacked = false)
+        val job = launch(start = CoroutineStart.UNDISPATCHED) {
+            controller.refreshQueuedLibraryMetadataIfNeeded(listOf(songs[0].copy(title = "Updated"), songs[1]))
+        }
+        runtime.publishState(runtime.state.copy(queue = listOf(songs[1])))
+
+        advanceUntilIdle()
+
+        assertTrue(job.isCompleted)
+        assertEquals(listOf(songs[1]), runtime.state.queue)
+        assertFalse(runtime.playerAccessed)
+    }
+
+    @Test
+    fun authoritativeReconciliationDoesNotTouchPlayerAfterRelease() = runTest {
+        val songs = listOf(song(1L), song(2L))
+        val runtime = RecordingQueueRuntime(PlaybackUiState(queue = songs))
+        val controller = PlaybackQueueController(
+            runtime, PlaybackQueueMetadataRefresher(), defaultDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        controller.stageExternalQueue(songs, 0, "External", null, 80L, libraryBacked = true)
+        val job = launch(start = CoroutineStart.UNDISPATCHED) {
+            controller.refreshQueuedLibraryMetadataIfNeeded(listOf(songs[1]), authoritative = true)
+        }
+        runtime.released = true
+
+        advanceUntilIdle()
+
+        assertTrue(job.isCompleted)
+        assertEquals(songs, runtime.state.queue)
+        assertFalse(runtime.playerAccessed)
+    }
+
+    @Test
+    fun authoritativeReconciliationStopsWhenCancelledDuringLibraryScan() {
+        val songs = (1L..300L).map(::song)
+        var checks = 0
+        assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+            PlaybackQueueMetadataRefresher().reconcileQueue(songs.take(1), songs) {
+                if (++checks == 2) throw kotlinx.coroutines.CancellationException("cancelled")
+            }
+        }
+        assertEquals(2, checks)
+    }
+
+    @Test
     fun authoritativeReconciliationDoesNotRebindAmbiguousMetadata() {
         val queued = song(1L).copy(
             title = "Duplicate",
@@ -291,7 +477,9 @@ class PlaybackQueueControllerTest {
         val duplicates = (2L..4L).map { id ->
             song(id).copy(uri = queued.uri, title = "Different $id")
         }
-        val result = PlaybackQueueMetadataRefresher().reconcileQueue(listOf(queued), duplicates)
+        val result = PlaybackQueueMetadataRefresher().reconcileQueue(
+            listOf(queued), duplicates + (100L..110L).map(::song),
+        )
         assertEquals(emptyList<Song>(), result?.queue)
         assertEquals(listOf(0), result?.unresolvedOriginalIndices)
     }
@@ -302,7 +490,9 @@ class PlaybackQueueControllerTest {
         val duplicates = (2L..4L).map { id ->
             song(id).copy(libraryPath = queued.libraryPath, title = "Different $id")
         }
-        val result = PlaybackQueueMetadataRefresher().reconcileQueue(listOf(queued), duplicates)
+        val result = PlaybackQueueMetadataRefresher().reconcileQueue(
+            listOf(queued), duplicates + (100L..110L).map(::song),
+        )
         assertEquals(emptyList<Song>(), result?.queue)
         assertEquals(listOf(0), result?.unresolvedOriginalIndices)
     }
@@ -337,6 +527,8 @@ private class RecordingQueueRuntime(
     var playerAccessed = false
     var playerDelegate: Player? = null
     var audioFocusGranted = true
+    var released = false
+    override val isReleased: Boolean get() = released
 
     override val player: Player
         get() {

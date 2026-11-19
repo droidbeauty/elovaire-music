@@ -8,6 +8,15 @@ import org.junit.Test
 
 class EffectiveDspStateTest {
     @Test
+    fun requestedChangesBlockDirectPlaybackEvenWhenCurrentPathBypassesThem() {
+        val metadata = VolumeNormalizationMetadata(trackGainDb = -6f)
+        assertTrue(hasRequestedSignalChanges(false, true, metadata))
+        assertTrue(hasRequestedSignalChanges(true, false, null))
+        assertTrue(hasRequestedSignalChanges(false, false, null, softwareGainActive = true))
+        assertFalse(hasRequestedSignalChanges(false, false, null))
+    }
+
+    @Test
     fun directPlaybackDisablesAllSoftwareSignalChanges() {
         val state = resolveEffectiveDspState(
             effectsRequested = true,

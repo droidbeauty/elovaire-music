@@ -169,6 +169,7 @@ class RoomUserDataStoreTest {
             store.userDataReadiness.first { it == UserDataReadiness.Ready }
         }
         val repository = store as AudiobookProgressRepository
+        assertEquals(null, repository.load("book-key"))
         repository.save(
             "book-key",
             AudiobookProgress(songId = 11L, positionMs = 120_000L, completed = false, updatedAtMs = 10L),

@@ -86,6 +86,7 @@ internal object LibraryChangeSetCalculator {
         previous: List<Song>,
         next: List<Song>,
     ): LibraryChangeSet {
+        if (previous == next) return LibraryChangeSet.Empty
         val previousByKey = indexByStableKey(previous)
         val nextByKey = indexByStableKey(next)
         val directRelocations = ArrayList<IndexedLibrarySongRelocation>()
@@ -97,12 +98,15 @@ internal object LibraryChangeSetCalculator {
         }
         val previousUnmatchedByPath = HashMap<String, IndexedLibrarySong>()
         previousByKey.forEach { (key, song) ->
-            if (key !in nextByKey) song.normalizedRealPath?.let { previousUnmatchedByPath[it] = song }
+            if (key !in nextByKey) {
+                LibrarySongDuplicateResolver.normalizedRealPath(song.song.libraryPath)
+                    ?.let { previousUnmatchedByPath[it] = song }
+            }
         }
         val reindexedRelocations = ArrayList<IndexedLibrarySongRelocation>()
         nextByKey.forEach { (key, after) ->
             if (key in previousByKey) return@forEach
-            val path = after.normalizedRealPath ?: return@forEach
+            val path = LibrarySongDuplicateResolver.normalizedRealPath(after.song.libraryPath) ?: return@forEach
             val before = previousUnmatchedByPath[path] ?: return@forEach
             if (sameLogicalContent(before.song, after.song)) {
                 reindexedRelocations += IndexedLibrarySongRelocation(before, after)
@@ -225,14 +229,12 @@ internal object LibraryChangeSetCalculator {
     private fun index(song: Song): IndexedLibrarySong = IndexedLibrarySong(
         song = song,
         stableKey = MediaIdentityResolver.stableKey(song),
-        normalizedRealPath = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath),
     )
 }
 
 private data class IndexedLibrarySong(
     val song: Song,
     val stableKey: String,
-    val normalizedRealPath: String?,
 )
 
 private data class IndexedLibrarySongPatch(

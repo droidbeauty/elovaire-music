@@ -26,6 +26,25 @@ class PreferenceCollectionCodecTest {
     }
 
     @Test
+    fun extraFieldsAreRejectedForLegacyAndVersionedRecords() {
+        val search = SearchHistoryEntry("key", SearchHistoryKind.Album, "title", "subtitle", null, null, null)
+        val folder = LibraryFolderSelection(null, "/music", "Music", false)
+        val records = listOf(
+            "key\u001fAlbum\u001ftitle\u001fsubtitle\u001f\u001f\u001f" to true,
+            PreferenceCollectionCodec.serializeSearchHistory(search) to true,
+            "\u001f/music\u001fMusic\u001ffalse" to false,
+            PreferenceCollectionCodec.serializeLibraryFolder(folder) to false,
+        )
+        records.forEach { (record, isSearch) ->
+            val decode: (String) -> Any? = if (isSearch) PreferenceCollectionCodec::deserializeSearchHistory
+                else PreferenceCollectionCodec::deserializeLibraryFolder
+            assertTrue(decode(record) != null)
+            assertEquals(null, decode("$record\u001f"))
+            assertEquals(null, decode(record + "\u001f".repeat(20_000)))
+        }
+    }
+
+    @Test
     fun emptyPlayCountsRemainEmpty() {
         assertTrue(PreferenceCollectionCodec.deserializePlayCounts("").isEmpty())
     }

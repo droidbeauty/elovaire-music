@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.quality
 
+import android.os.SystemClock
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -76,14 +77,19 @@ class RapidMotionInterleavingTest {
             }
             assertTrue("reversed enter did not settle", reenteredVisible.await(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS))
 
+            val deadline = SystemClock.elapsedRealtime() + TimeUnit.SECONDS.toMillis(TEST_TIMEOUT_SECONDS)
+            var settledAfterReversal = false
+            while (!settledAfterReversal && SystemClock.elapsedRealtime() < deadline) {
+                val motionEvents = MotionDiagnosticRecorder.eventsSince(motionMarker).second
+                val reversal = motionEvents.lastOrNull { it.surfaceId == "test.motion_reversal" && it.phase == "motion_reversed" }
+                settledAfterReversal = reversal != null && motionEvents.any {
+                    it.sequence > reversal.sequence && it.surfaceId == "test.motion_reversal" &&
+                        it.phase == "motion_settled" && it.visible == true
+                }
+                if (!settledAfterReversal) Thread.sleep(10L)
+            }
+            assertTrue("reversed motion did not settle", settledAfterReversal)
             assertEquals(0, exitCallbacks.get())
-            val motionEvents = MotionDiagnosticRecorder.eventsSince(motionMarker).second
-            assertTrue(motionEvents.any { it.surfaceId == "test.motion_reversal" && it.phase == "motion_reversed" })
-            assertTrue(
-                motionEvents.any {
-                    it.surfaceId == "test.motion_reversal" && it.phase == "motion_settled" && it.visible == true
-                },
-            )
         } finally {
             MotionDiagnosticRecorder.recordInteractionState(null)
             scenario.close()

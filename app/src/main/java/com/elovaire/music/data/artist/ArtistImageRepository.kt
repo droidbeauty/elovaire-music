@@ -76,6 +76,7 @@ internal class ArtistImageRepository(
     private val appContext: Context? = null,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val onUnexpectedFailure: (RuntimeException) -> Unit = { Log.w(TAG, "Artist artwork request failed", it) },
 ) : ArtistImageReader {
     private data class CachedImage(
         val uri: Uri?,
@@ -201,7 +202,7 @@ internal class ArtistImageRepository(
                         throw cancelled
                     } catch (failure: RuntimeException) {
                         failRemoteArtwork(artistKey, ownerDeferred, failure)
-                        Log.w(TAG, "Artist artwork request failed", failure)
+                        onUnexpectedFailure(failure)
                     }
                 }
                 ownerJob.invokeOnCompletion { cause ->

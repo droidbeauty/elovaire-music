@@ -29,7 +29,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -156,15 +160,14 @@ internal fun SteppedSlider(
                     .background(lineColor, RoundedCornerShape(ElovaireRadii.pill)),
             )
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val selectedDotRadius = 3.5.dp.toPx()
-                val defaultDotRadius = 2.5.dp.toPx()
                 val centerY = size.height / 2f
                 repeat(safeStepCount) { index ->
-                    drawCircle(
-                        color = dotColor,
-                        radius = if (index == safeSelectedIndex) selectedDotRadius else defaultDotRadius,
-                        center = Offset(size.width * index / maxIndex.toFloat(), centerY),
-                    )
+                    val x = size.width * index / maxIndex.toFloat()
+                    val width = 2.dp.toPx()
+                    val height = 6.dp.toPx()
+                    clipRect(top = centerY - 1.dp.toPx(), bottom = centerY + 1.dp.toPx(), clipOp = ClipOp.Difference) {
+                        drawRoundRect(dotColor, Offset(x - width / 2f, centerY - height / 2f), Size(width, height), CornerRadius(width / 2f))
+                    }
                 }
             }
             Box(

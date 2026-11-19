@@ -219,6 +219,60 @@ private fun AudiobookMiniCard(
     }
 }
 
+private data class AudiobookSortEntry(
+    val book: Audiobook,
+    val title: String,
+    val author: String,
+    val priority: Int,
+)
+
+internal fun sortAudiobooksForDisplay(
+    books: List<Audiobook>,
+    progressByBookKey: Map<String, AudiobookProgress>,
+    sortMode: AudiobookSortMode,
+): List<Audiobook> {
+    if (books.size < 2) return books
+    val entries = books.map { book ->
+        AudiobookSortEntry(
+            book = book,
+            title = book.title.lowercase(Locale.ROOT),
+            author = if (sortMode == AudiobookSortMode.Author || sortMode == AudiobookSortMode.Title) {
+                book.author.lowercase(Locale.ROOT)
+            } else "",
+            priority = when (sortMode) {
+                AudiobookSortMode.AlreadyListened -> if (progressByBookKey[book.stableKey]?.completed == true) 0 else 1
+                AudiobookSortMode.NeverListened -> if ((progressByBookKey[book.stableKey]?.positionMs ?: 0L) == 0L) 0 else 1
+                else -> 0
+            },
+        )
+    }
+    val comparator = when (sortMode) {
+        AudiobookSortMode.Author -> compareBy<AudiobookSortEntry> { it.author }.thenBy { it.title }
+        AudiobookSortMode.Title -> compareBy<AudiobookSortEntry> { it.title }.thenBy { it.author }
+        AudiobookSortMode.AlreadyListened, AudiobookSortMode.NeverListened ->
+            compareBy<AudiobookSortEntry> { it.priority }.thenBy { it.title }
+    }
+    return entries.sortedWith(comparator).map(AudiobookSortEntry::book)
+}
+
+@Composable
+internal fun rememberSortedAudiobooksForDisplay(
+    books: List<Audiobook>,
+    progressByBookKey: Map<String, AudiobookProgress>,
+    sortMode: AudiobookSortMode,
+): List<Audiobook> {
+    val sortProgress = remember(books, progressByBookKey, sortMode) {
+        when (sortMode) {
+            AudiobookSortMode.AlreadyListened -> books.map { progressByBookKey[it.stableKey]?.completed == true }
+            AudiobookSortMode.NeverListened -> books.map { (progressByBookKey[it.stableKey]?.positionMs ?: 0L) == 0L }
+            else -> null
+        }
+    }
+    return remember(books, sortProgress, sortMode) {
+        sortAudiobooksForDisplay(books, progressByBookKey, sortMode)
+    }
+}
+
 @Composable
 internal fun AudiobooksScreen(
     books: List<Audiobook>,
@@ -244,27 +298,10 @@ internal fun AudiobooksScreen(
     val sortMode = remember(sortModeName) {
         AudiobookSortMode.entries.firstOrNull { it.name == sortModeName } ?: AudiobookSortMode.Title
     }
-    val sortedBooks = remember(books, progressByBookKey, sortMode) {
-        val byTitle = compareBy<Audiobook> { it.title.lowercase(Locale.ROOT) }
-        when (sortMode) {
-            AudiobookSortMode.Author -> books.sortedWith(
-                compareBy<Audiobook> { it.author.lowercase(Locale.ROOT) }
-                    .thenBy { it.title.lowercase(Locale.ROOT) },
-            )
-            AudiobookSortMode.Title -> books.sortedWith(byTitle.thenBy { it.author.lowercase(Locale.ROOT) })
-            AudiobookSortMode.AlreadyListened -> books.sortedWith(
-                compareBy<Audiobook> { if (progressByBookKey[it.stableKey]?.completed == true) 0 else 1 }
-                    .then(byTitle),
-            )
-            AudiobookSortMode.NeverListened -> books.sortedWith(
-                compareBy<Audiobook> { if ((progressByBookKey[it.stableKey]?.positionMs ?: 0L) == 0L) 0 else 1 }
-                    .then(byTitle),
-            )
-        }
-    }
+    val sortedBooks = rememberSortedAudiobooksForDisplay(books, progressByBookKey, sortMode)
     val selectionModeActive = selectedBookKeys.isNotEmpty()
     val selectedBooks = remember(books, selectedBookKeys) {
-        books.filter { it.stableKey in selectedBookKeys }
+        if (selectedBookKeys.isEmpty()) emptyList() else books.filter { it.stableKey in selectedBookKeys }
     }
     val selectedSongs = remember(books, selectedBookKeys) {
         selectedAudiobookSongs(books, selectedBookKeys)
@@ -277,7 +314,8 @@ internal fun AudiobooksScreen(
         animationSpec = motionSpecs.contentSize(),
         label = "audiobook_selection_top_inset",
     )
-    LaunchedEffect(books.map(Audiobook::stableKey)) {
+    val bookKeys = remember(books) { books.map(Audiobook::stableKey) }
+    LaunchedEffect(bookKeys) {
         selectedBookKeys = pruneAudiobookSelection(selectedBookKeys, books)
         if (selectedBookKeys.isEmpty()) showPlaylistPicker = false
     }
@@ -1152,16 +1190,16 @@ private fun audiobookArtworkAspectRatio(book: Audiobook): Float {
     }
 }
 
-private data class AudiobookDescriptionPreview(
+internal data class AudiobookDescriptionPreview(
     val text: String,
     val hasMore: Boolean,
 )
 
-private fun audiobookDescriptionPreview(description: String?): AudiobookDescriptionPreview {
+internal fun audiobookDescriptionPreview(description: String?): AudiobookDescriptionPreview {
     val normalized = description.orEmpty().trim()
     if (normalized.isBlank()) return AudiobookDescriptionPreview("", false)
-    val sentences = normalized.split(Regex("(?<=[.!?])\\s+")).filter(String::isNotBlank)
-    val preview = sentences.take(5).joinToString(" ").ifBlank { normalized }
+    val preview = AUDIOBOOK_SENTENCE_BREAK.splitToSequence(normalized)
+        .filter(String::isNotBlank).take(5).joinToString(" ").ifBlank { normalized }
         .take(AUDIOBOOK_DESCRIPTION_PREVIEW_MAX_CHARACTERS)
         .trim()
     return AudiobookDescriptionPreview(
@@ -1171,6 +1209,7 @@ private fun audiobookDescriptionPreview(description: String?): AudiobookDescript
 }
 
 private const val AUDIOBOOK_DESCRIPTION_PREVIEW_MAX_CHARACTERS = 900
+private val AUDIOBOOK_SENTENCE_BREAK = Regex("(?<=[.!?])\\s+")
 
 @Composable
 private fun AudiobookSectionHeader(

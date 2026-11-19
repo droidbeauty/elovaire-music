@@ -11,6 +11,20 @@ internal data class EffectiveDspState(
     val configurationKey: String,
 )
 
+internal fun hasRequestedSignalChanges(
+    effectsRequested: Boolean,
+    normalizationRequested: Boolean,
+    normalizationMetadata: VolumeNormalizationMetadata?,
+    softwareGainActive: Boolean = false,
+): Boolean = resolveEffectiveDspState(
+    effectsRequested = effectsRequested,
+    normalizationRequested = normalizationRequested,
+    normalizationMetadata = normalizationMetadata,
+    directPlaybackActive = false,
+    softwareGainAllowed = true,
+    baseGain = 1f,
+).altersSignal || softwareGainActive
+
 internal fun resolveEffectiveDspState(
     effectsRequested: Boolean,
     normalizationRequested: Boolean,

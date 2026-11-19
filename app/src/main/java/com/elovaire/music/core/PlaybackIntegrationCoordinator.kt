@@ -27,11 +27,13 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -59,6 +61,7 @@ internal class PlaybackIntegrationCoordinator(
     private val diagnostics: BackendDiagnosticRecorder = BackendDiagnostics,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private var restorationState = SessionRestorationState.NotAttempted
     @Volatile
@@ -178,7 +181,7 @@ internal class PlaybackIntegrationCoordinator(
                 content.songs to scan.isAuthoritative
             }
                 .distinctUntilChanged()
-                .collect { (songs, isAuthoritative) ->
+                .collectLatest { (songs, isAuthoritative) ->
                     restoreSessionIfNeeded(songs, isAuthoritative)
                     playback.refreshQueuedLibraryMetadataIfNeeded(
                         updatedSongs = songs,
@@ -248,27 +251,32 @@ internal class PlaybackIntegrationCoordinator(
             restorationState == SessionRestorationState.TerminallyRejected
         ) return
         if (restorationState == SessionRestorationState.InProgress) return
-        if (playback.hasActiveQueue()) {
-            restorationState = SessionRestorationState.Completed
-            persistSession()
-            return
-        }
+        if (completeRestorationForActiveQueue()) return
         restorationState = SessionRestorationState.InProgress
         try {
             val persisted = withContext(ioDispatcher) { sessionStore.load() }
+            if (completeRestorationForActiveQueue()) return
             if (persisted == null || persisted.queueSongIds.isEmpty()) {
                 withContext(ioDispatcher) { sessionStore.clear() }
-                restorationState = SessionRestorationState.NoSession
+                if (!completeRestorationForActiveQueue()) restorationState = SessionRestorationState.NoSession
                 return
             }
-            val requestedSongIds = persisted.queueSongIds.toHashSet()
-            val songsById = songs.asSequence()
-                .filter { it.id in requestedSongIds }
-                .associateBy { it.id }
-            val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
-            if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys) && restoredQueue.isEmpty()) {
+            val restoredQueue = withContext(defaultDispatcher) {
+                val requestedSongIds = persisted.queueSongIds.toHashSet()
+                val songsById = HashMap<Long, elovaire.music.droidbeauty.app.domain.model.Song>()
+                songs.forEachIndexed { index, song ->
+                    if (index and 127 == 0) coroutineContext.ensureActive()
+                    if (song.id in requestedSongIds) songsById[song.id] = song
+                }
+                persisted.queueSongIds.mapIndexedNotNull { index, id ->
+                    if (index and 127 == 0) coroutineContext.ensureActive()
+                    songsById[id]
+                }
+            }
+            if (completeRestorationForActiveQueue()) return
+            if (restoredQueue.isEmpty()) {
                 withContext(ioDispatcher) { sessionStore.clear() }
-                restorationState = SessionRestorationState.NoSession
+                if (!completeRestorationForActiveQueue()) restorationState = SessionRestorationState.NoSession
                 return
             }
             val currentIndex = persisted.currentIndex
@@ -277,7 +285,10 @@ internal class PlaybackIntegrationCoordinator(
                     ?.let { id -> restoredQueue.indexOfFirst { it.id == id } }
                     ?.takeIf { it >= 0 }
                 ?: persisted.currentIndex.coerceIn(restoredQueue.indices)
-            playback.restoreSession(restoredQueue, currentIndex, persisted)
+            if (!playback.restoreSessionFromLibrary(restoredQueue, currentIndex, persisted)) {
+                if (!completeRestorationForActiveQueue()) restorationState = SessionRestorationState.RetryableFailure
+                return
+            }
             restorationState = SessionRestorationState.Completed
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             restorationState = SessionRestorationState.RetryableFailure
@@ -286,6 +297,13 @@ internal class PlaybackIntegrationCoordinator(
             restorationState = SessionRestorationState.RetryableFailure
             Log.w(TAG, "Playback session restoration will be retried.", failure)
         }
+    }
+
+    private suspend fun completeRestorationForActiveQueue(): Boolean {
+        if (!playback.hasActiveQueue()) return false
+        restorationState = SessionRestorationState.Completed
+        persistSession()
+        return true
     }
 
     private suspend fun persistSession(
@@ -399,14 +417,6 @@ private enum class SessionRestorationState {
 private enum class PlaybackCheckpoint {
     StateChange,
     RecoveryPosition,
-}
-
-internal fun isPlaybackSessionFullyResolved(
-    persistedSongIds: List<Long>,
-    resolvedSongIds: Collection<Long>,
-): Boolean {
-    if (persistedSongIds.isEmpty()) return false
-    return persistedSongIds.all(resolvedSongIds::contains)
 }
 
 private data class PersistedRecentPlayback(

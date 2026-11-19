@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.hardware.usb.UsbManager
 import android.database.ContentObserver
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -50,10 +49,13 @@ import elovaire.music.droidbeauty.app.ui.i18n.localizedGenreName
 import elovaire.music.droidbeauty.app.ui.i18n.localizedExternalAudioText
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,7 +70,6 @@ import kotlinx.coroutines.launch
 import java.io.Closeable
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 enum class PlaybackRepeatMode {
@@ -137,6 +138,7 @@ data class PlaybackUiState(
     val sourceLabel: String? = null,
     val volume: Float = 1f,
     val audioSessionId: Int = 0,
+    val hasDolbyAtmosContent: Boolean = false,
     val recentSongIds: List<Long> = emptyList(),
     val recentAlbumIds: List<Long> = emptyList(),
     val sourcePlaylistId: Long? = null,
@@ -151,6 +153,7 @@ data class PlaybackNowPlayingState(
     val currentSong: Song? = null,
     val sourceLabel: String? = null,
     val audioSessionId: Int = 0,
+    val hasDolbyAtmosContent: Boolean = false,
 )
 
 data class PlaybackTransportState(
@@ -210,6 +213,7 @@ internal class PlaybackManager internal constructor(
     ) -> Unit = { _, _, _, _ -> },
     private val clock: AppClock = AndroidAppClock,
     private val resourceTracker: BackendResourceTracker = BackendResourceRegistry,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : NowPlayingPlayback, PlaybackIntegrationPort, PlaybackQueueMutationPort {
     private val scope = scope
     private val appContext = context.applicationContext
@@ -224,7 +228,6 @@ internal class PlaybackManager internal constructor(
     private val _audiobookProgressRevision = MutableStateFlow(0L)
     override val audiobookProgressRevision: StateFlow<Long> = _audiobookProgressRevision.asStateFlow()
     private val audioManager = context.getSystemService(AudioManager::class.java)
-    private val usbManager = context.getSystemService(UsbManager::class.java)
     private val playbackAudioAttributes = AudioAttributes.Builder()
         .setUsage(androidx.media3.common.C.USAGE_MEDIA)
         .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -234,10 +237,7 @@ internal class PlaybackManager internal constructor(
         .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
         .build()
     private val audioOutputController = PlaybackAudioOutputController(
-        context = appContext,
         audioManager = audioManager,
-        usbManager = usbManager,
-        scope = scope,
         playbackAudioAttributes = platformPlaybackAudioAttributes,
     )
     private var userVolume: Float
@@ -246,10 +246,6 @@ internal class PlaybackManager internal constructor(
     private var volumeFineGain: Float
         get() = audioOutputController.volumeFineGain
         set(value) { audioOutputController.volumeFineGain = value }
-    private var ignoreObservedSystemVolumeStep: Int?
-        get() = audioOutputController.ignoreObservedSystemVolumeStep
-        set(value) { audioOutputController.ignoreObservedSystemVolumeStep = value }
-    private val usbDacHardwareVolumeManager get() = audioOutputController.usbDacHardwareVolumeManager
     private val bitPerfectUsbManager get() = audioOutputController.bitPerfectUsbManager
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
@@ -616,6 +612,7 @@ internal class PlaybackManager internal constructor(
                 currentSong = snapshot.currentSong,
                 sourceLabel = snapshot.sourceLabel,
                 audioSessionId = snapshot.audioSessionId,
+                hasDolbyAtmosContent = snapshot.hasDolbyAtmosContent,
             )
         }
         .distinctUntilChanged()
@@ -626,6 +623,7 @@ internal class PlaybackManager internal constructor(
                 currentSong = _state.value.currentSong,
                 sourceLabel = _state.value.sourceLabel,
                 audioSessionId = _state.value.audioSessionId,
+                hasDolbyAtmosContent = _state.value.hasDolbyAtmosContent,
             ),
         )
     override val transportState: StateFlow<PlaybackTransportState> = state
@@ -743,6 +741,8 @@ internal class PlaybackManager internal constructor(
                 get() = this@PlaybackManager.player
             override val state: PlaybackUiState
                 get() = _state.value
+            override val isReleased: Boolean
+                get() = released.get()
 
             override fun publishState(state: PlaybackUiState) {
                 publishPlaybackState(state)
@@ -871,16 +871,48 @@ internal class PlaybackManager internal constructor(
         }
     }
 
-    override fun restoreSession(
+    override suspend fun restoreSessionFromLibrary(
+        songs: List<Song>,
+        currentIndex: Int,
+        persisted: PersistedPlaybackSession,
+    ): Boolean {
+        if (released.get() || hasActiveQueue() || songs.isEmpty()) return false
+        var language: AppLanguage
+        var mediaItems: List<MediaItem>
+        do {
+            language = appLanguage.value
+            mediaItems = withContext(defaultDispatcher) {
+                songs.mapIndexed { index, song ->
+                    if (index and 127 == 0) coroutineContext.ensureActive()
+                    song.toPlaybackMediaItem(language)
+                }
+            }
+        } while (!released.get() && !hasActiveQueue() && language != appLanguage.value)
+        return restoreSessionPrepared(songs, currentIndex, persisted, mediaItems)
+    }
+
+    fun restoreSession(
         songs: List<Song>,
         currentIndex: Int,
         persisted: PersistedPlaybackSession,
     ) {
         if (released.get() || hasActiveQueue() || songs.isEmpty()) return
+        val language = appLanguage.value
+        val mediaItems = songs.mapTo(ArrayList(songs.size)) { it.toPlaybackMediaItem(language) }
+        restoreSessionPrepared(songs, currentIndex, persisted, mediaItems)
+    }
+
+    private fun restoreSessionPrepared(
+        songs: List<Song>,
+        currentIndex: Int,
+        persisted: PersistedPlaybackSession,
+        mediaItems: List<MediaItem>,
+    ): Boolean {
+        if (released.get() || hasActiveQueue() || songs.isEmpty()) return false
         val index = currentIndex.coerceIn(songs.indices)
         allowStrictModeDiskReads {
             player.setMediaItems(
-                songs.mapTo(ArrayList(songs.size)) { it.toPlaybackMediaItem(appLanguage.value) },
+                mediaItems,
                 index,
                 persisted.positionMs.coerceAtLeast(0L),
             )
@@ -889,7 +921,7 @@ internal class PlaybackManager internal constructor(
         player.shuffleModeEnabled = persisted.shuffleEnabled && songs.none { it.mediaKind == AudioMediaKind.Audiobook }
         player.playWhenReady = false
         player.prepare()
-        queueMetadataRefresher.onQueueReplaced(songs)
+        queueController.onLibraryQueueRestored(songs)
         _state.value = _state.value.copy(
             queue = songs,
             currentIndex = index,
@@ -918,6 +950,7 @@ internal class PlaybackManager internal constructor(
         publishProgressSnapshot(force = true)
         syncRuntimeObservers()
         syncProgressUpdateLoop()
+        return true
     }
 
     override fun hydrateRecentPlayback(
@@ -1307,18 +1340,11 @@ internal class PlaybackManager internal constructor(
     override fun setVolume(volume: Float) {
         if (released.get()) return
         val requestedVolume = volume.quantizedVolume()
-        if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
-            val handled = usbDacHardwareVolumeManager.setHardwareVolume(requestedVolume)
-            if (handled || usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
-                userVolume = usbDacHardwareVolumeManager.currentHardwareVolume() ?: requestedVolume
-                player.volume = effectivePlayerGain()
-                updateState()
-                return
-            }
-        }
         if (shouldBypassSystemStreamVolume()) {
             userVolume = requestedVolume
             volumeFineGain = userVolume
+            bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+            scheduleAudioPathReevaluation("volume-changed")
             player.volume = effectivePlayerGain()
             updateState()
             return
@@ -1398,12 +1424,13 @@ internal class PlaybackManager internal constructor(
         queueController.removeSongsFromQueue(songIds)
     }
 
-    override fun refreshQueuedLibraryMetadataIfNeeded(
+    override suspend fun refreshQueuedLibraryMetadataIfNeeded(
         updatedSongs: List<Song>,
         authoritative: Boolean,
     ) {
         if (released.get()) return
         queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs, authoritative)
+        if (released.get()) return
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         scheduleAudioPathReevaluation("queue-metadata-refreshed", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
@@ -1489,7 +1516,6 @@ internal class PlaybackManager internal constructor(
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         playbackHandler.removeCallbacks(statePublishRunnable)
         statePublishScheduled = false
-        usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
         runtimeResources.release()
         detachPlayerObservers(player)
@@ -1518,10 +1544,7 @@ internal class PlaybackManager internal constructor(
                 attributes = platformPlaybackAudioAttributes,
             )
             currentAudioRouteSnapshot = resolveAudioRouteSnapshot()
-            usbDacHardwareVolumeManager.updateAudioOutputDevice(
-                currentAudioRouteSnapshot.usbOutput,
-                currentAudioRouteSnapshot.generation,
-            )
+            bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
             bitPerfectUsbManager.refreshConnectedDevices(currentAudioRouteSnapshot)
         }.onFailure {
             outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
@@ -1751,6 +1774,7 @@ internal class PlaybackManager internal constructor(
             transportShowsPause = false,
             sourceLabel = null,
             audioSessionId = 0,
+            hasDolbyAtmosContent = false,
             sourcePlaylistId = null,
         )
         activeAudiobookContext = null
@@ -2058,7 +2082,7 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun supportsSoftwarePlaybackFade(): Boolean {
-        return !isDirectPlaybackActive && !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()
+        return !isDirectPlaybackActive
     }
 
     private fun requestAudioFocus(): Boolean {
@@ -2421,13 +2445,18 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun effectivePlayerGain(song: Song? = currentSong()): Float {
-        val baseGain = if (audioOutputController.usesFixedVolumeOutput()) userVolume else volumeFineGain
+        val baseGain = if (shouldBypassSystemStreamVolume()) userVolume else volumeFineGain
         val gain = effectiveDspState(baseGain, song).fineGain
         return if (duckedForAudioFocus) gain * DUCK_GAIN else gain
     }
 
     private fun hasActiveSignalAlteringEffects(): Boolean {
-        return crossfadeEnabled || upscalerSettingsProvider().enabled || effectiveDspState(baseGain = 1f).altersSignal
+        return crossfadeEnabled || upscalerSettingsProvider().enabled || hasRequestedSignalChanges(
+            effectsRequested = hasSignalAlteringEffects(),
+            normalizationRequested = volumeNormalizationEnabled,
+            normalizationMetadata = currentSong()?.volumeNormalization,
+            softwareGainActive = shouldBypassSystemStreamVolume() && userVolume < 1f,
+        )
     }
 
     private fun effectiveDspState(
@@ -2439,7 +2468,7 @@ internal class PlaybackManager internal constructor(
             normalizationRequested = volumeNormalizationEnabled,
             normalizationMetadata = song?.volumeNormalization,
             directPlaybackActive = isDirectPlaybackActive,
-            softwareGainAllowed = !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume(),
+            softwareGainAllowed = true,
             baseGain = baseGain,
         )
     }
@@ -2455,34 +2484,6 @@ internal class PlaybackManager internal constructor(
     ): Float = start + (stop - start) * fraction.coerceIn(0f, 1f)
 
     private fun applyFineGrainedVolume(targetVolume: Float) {
-        if (usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
-            userVolume = targetVolume
-            player.volume = 1f
-            return
-        }
-        if (isDirectPlaybackActive) {
-            val manager = audioManager
-            if (manager == null) {
-                userVolume = targetVolume
-                volumeFineGain = if (targetVolume <= 0f) 0f else 1f
-                return
-            }
-            val maxStep = runCatching {
-                manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            }.getOrDefault(1).coerceAtLeast(1)
-            val targetSystemStep = (targetVolume * maxStep.toFloat()).roundToInt().coerceIn(0, maxStep)
-            ignoreObservedSystemVolumeStep = targetSystemStep
-            runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0) }
-            volumeFineGain = if (targetSystemStep <= 0) 0f else 1f
-            userVolume = audioOutputController.currentSystemVolumeFraction().quantizedVolume()
-            return
-        }
-        if (audioOutputController.usesFixedVolumeOutput()) {
-            userVolume = targetVolume
-            volumeFineGain = targetVolume
-            player.volume = targetPlayerOutputGain()
-            return
-        }
         val manager = audioManager
         if (manager == null) {
             userVolume = targetVolume
@@ -2492,51 +2493,32 @@ internal class PlaybackManager internal constructor(
         val maxStep = runCatching {
             manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         }.getOrDefault(1).coerceAtLeast(1)
-        if (targetVolume <= 0f) {
-            ignoreObservedSystemVolumeStep = 0
-            runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0) }
-            volumeFineGain = 0f
-            userVolume = 0f
-            return
-        }
-
-        val exactSteps = targetVolume * maxStep.toFloat()
-        val targetSystemStep = ceil(exactSteps).toInt().coerceIn(1, maxStep)
-        ignoreObservedSystemVolumeStep = targetSystemStep
+        val targetSystemStep = (targetVolume * maxStep.toFloat()).roundToInt().coerceIn(0, maxStep)
         runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0) }
-        volumeFineGain = (exactSteps / targetSystemStep.toFloat()).coerceIn(0f, 1f)
-        userVolume = currentEffectiveVolumeFraction()
+        volumeFineGain = 1f
+        userVolume = audioOutputController.currentSystemVolumeFraction().quantizedVolume()
     }
 
     private fun syncFromObservedSystemVolume() {
         if (released.get()) return
         if (pauseFadeJob?.isActive == true) {
-            ignoreObservedSystemVolumeStep = null
             userVolume = currentEffectiveVolumeFraction()
             updateState()
             return
         }
-        if (isDirectPlaybackActive || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
-            ignoreObservedSystemVolumeStep = null
+        if (isDirectPlaybackActive) {
             player.volume = if (isPauseTransitioningToStopped && !player.isPlaying) 0f else 1f
             userVolume = currentEffectiveVolumeFraction()
             updateState()
             return
         }
         if (audioOutputController.usesFixedVolumeOutput()) {
-            ignoreObservedSystemVolumeStep = null
             player.volume = targetPlayerOutputGain()
             updateState()
             return
         }
-        val observedSystemStep = audioOutputController.currentSystemVolumeStep()
-        if (ignoreObservedSystemVolumeStep == observedSystemStep) {
-            ignoreObservedSystemVolumeStep = null
-            userVolume = currentEffectiveVolumeFraction()
-        } else {
-            volumeFineGain = if (observedSystemStep <= 0) 0f else 1f
-            userVolume = audioOutputController.currentSystemVolumeFraction().quantizedVolume()
-        }
+        volumeFineGain = 1f
+        userVolume = audioOutputController.currentSystemVolumeFraction().quantizedVolume()
         player.volume = targetPlayerOutputGain()
         updateState()
     }
@@ -2555,20 +2537,15 @@ internal class PlaybackManager internal constructor(
     }
 
     private fun currentEffectiveVolumeFraction(): Float {
-        if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
-            return usbDacHardwareVolumeManager.currentHardwareVolume() ?: userVolume
-        }
+        if (shouldBypassSystemStreamVolume()) return userVolume
         if (isDirectPlaybackActive) {
             return audioOutputController.currentSystemVolumeFraction().quantizedVolume()
         }
-        if (shouldBypassSystemStreamVolume()) return userVolume
-        val currentSystemFraction = audioOutputController.currentSystemVolumeFraction()
-        return (currentSystemFraction * volumeFineGain).coerceIn(0f, 1f).quantizedVolume()
+        return audioOutputController.currentSystemVolumeFraction().coerceIn(0f, 1f).quantizedVolume()
     }
 
     private fun shouldBypassSystemStreamVolume(): Boolean {
-        return usbDacHardwareVolumeManager.shouldOwnVolumeControls() ||
-            audioOutputController.usesFixedVolumeOutput()
+        return audioOutputController.usesFixedVolumeOutput() || audioManager == null
     }
 
     private fun resolveAudioRouteSnapshot(): AudioOutputRouteSnapshot {

@@ -14,6 +14,27 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AlbumCanonicalizationInstrumentedTest {
     @Test
+    fun metadataPatchPublishesEverySongMovedByAlbumCollision() {
+        val songs = List(1_000) { index ->
+            val item = song(index, collisions = false)
+            if (index in 20..39) {
+                item.copy(uri = Uri.parse("content://media/1234-5678/audio/media/${index + 1}"))
+            } else {
+                item
+            }
+        }
+        val initial = LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs)
+        val current = LibraryContentState(initial.songs, initial.albums, contentRevision = initial.contentRevision)
+        val edited = songs.first().copy(albumId = songs[20].albumId, album = songs[20].album)
+        val patch = LibrarySnapshotPublisher({}, { current }).patchSongs(listOf(edited), emptySet(), emptySet())
+        val expected = LibrarySnapshotAssembler.assembleDeduplicatedSongs(listOf(edited) + songs.drop(1))
+
+        assertEquals(expected.songs, patch.state.songs)
+        assertEquals(expected.albums.associateBy { it.id }, patch.state.albums.associateBy { it.id })
+        assertEquals((listOf(1L) + (21L..40L)).toSet(), patch.changeSet.updated.map { it.after.id }.toSet())
+    }
+
+    @Test
     fun canonicalizationPreservesOrderAndIdentityAtLibraryScale() {
         for (size in listOf(1_000, 10_000, 50_000)) {
             for (collisions in listOf(false, true)) {

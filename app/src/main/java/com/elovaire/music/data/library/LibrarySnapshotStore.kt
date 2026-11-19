@@ -43,7 +43,11 @@ internal class LibrarySnapshotStore(
     private var lastSavedFilterFingerprint: String? = null
     private var lastSavedSyncState: LibraryMediaStoreSyncState? = null
 
-    fun load(): CachedLibrarySnapshot? = synchronized(snapshotLock) {
+    fun load(): CachedLibrarySnapshot? = load(songsOnly = false)
+
+    fun loadSongs(): List<Song>? = load(songsOnly = true)?.snapshot?.songs
+
+    private fun load(songsOnly: Boolean): CachedLibrarySnapshot? = synchronized(snapshotLock) {
         try {
             val serialized = atomicFile.openRead().use { input ->
                 input.readBytes().toString(StandardCharsets.UTF_8)
@@ -65,22 +69,15 @@ internal class LibrarySnapshotStore(
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
                 repeat(songsArray.length()) { index ->
                     val songJson = songsArray.optJSONObject(index) ?: return@repeat
-                    val extension = songJson.optString("fileName").substringAfterLast('.', "")
-                    val inferredMediaKind = AudioMediaKindClassifier.classify(
-                        isAudiobook = null,
-                        extension = extension,
-                        relativePath = songJson.optString("libraryPath"),
-                        absolutePath = songJson.optString("libraryPath"),
-                    )
-                    val mediaKind = songJson.optString("mediaKind")
-                        .let { value -> runCatching { AudioMediaKind.valueOf(value) }.getOrNull() }
-                        .let { persisted ->
-                            if (persisted == AudioMediaKind.Audiobook || inferredMediaKind == AudioMediaKind.Audiobook) {
-                                AudioMediaKind.Audiobook
-                            } else {
-                                AudioMediaKind.Music
-                            }
-                        }
+                    val mediaKind = if (
+                        songJson.optString("mediaKind") == AudioMediaKind.Audiobook.name ||
+                        AudioMediaKindClassifier.classify(
+                            isAudiobook = null,
+                            extension = songJson.optString("fileName").substringAfterLast('.', ""),
+                            relativePath = songJson.optString("libraryPath"),
+                            absolutePath = songJson.optString("libraryPath"),
+                        ) == AudioMediaKind.Audiobook
+                    ) AudioMediaKind.Audiobook else AudioMediaKind.Music
                     add(
                         Song(
                             id = songJson.optLong("id"),
@@ -119,14 +116,26 @@ internal class LibrarySnapshotStore(
             }
             val loadedSongs = decodedSongs
             val songs = LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(loadedSongs)
-            val filteredSignature = signatureFromSongs(
-                songs = songs,
-                filterFingerprint = signature.filterFingerprint,
-            )
+            if (songsOnly && songs.size == loadedSongs.size) {
+                lastSavedContentRevision = null
+                lastSavedFilterFingerprint = null
+                lastSavedSyncState = null
+                return@synchronized CachedLibrarySnapshot(
+                    snapshot = LibrarySnapshot(
+                        songs = LibrarySnapshotAssembler.canonicalizeAlbumIds(songs),
+                        albums = emptyList(),
+                    ),
+                    signature = signature,
+                    syncState = syncState,
+                )
+            }
 
             val cachedSnapshot = CachedLibrarySnapshot(
                 snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs),
-                signature = if (songs.size == signature.songCount) signature else filteredSignature,
+                signature = if (songs.size == signature.songCount) signature else signatureFromSongs(
+                    songs = songs,
+                    filterFingerprint = signature.filterFingerprint,
+                ),
                 syncState = syncState,
             )
             if (songs.size != loadedSongs.size) {

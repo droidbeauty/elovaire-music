@@ -15,7 +15,6 @@ import com.hierynomus.smbj.share.DiskShare
 import java.io.IOException
 import java.io.InputStream
 import java.io.File
-import java.security.MessageDigest
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.CompletableFuture
@@ -327,7 +326,7 @@ internal class SmbNetworkFileSystem(
             shareOrPath = source.shareOrPath,
             username = credentials.username,
             domain = credentials.domain,
-            passwordFingerprint = credentials.password.fingerprint(),
+            passwordFingerprint = networkFingerprint(credentials.password),
         )
         val staleSessions = mutableListOf<SourceSession>()
         val selected = synchronized(sessionMapLock) {
@@ -567,10 +566,6 @@ internal class SmbNetworkFileSystem(
         val domain: String?,
         val passwordFingerprint: String,
     )
-
-    private fun String.fingerprint(): String = MessageDigest.getInstance("SHA-256")
-        .digest(toByteArray(Charsets.UTF_8))
-        .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun Throwable.asRemoteIoFailure(): NetworkRemoteIoException {
         if (this is CancellationException || this !is Exception) throw this

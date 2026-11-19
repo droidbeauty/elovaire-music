@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.material3.Text
@@ -68,6 +70,35 @@ class ScrollingResistanceTest {
         }
         rule.waitForIdle()
         drag(horizontal = true)
+        val resistedOffset = rule.runOnIdle { state.value }
+        assertTrue("Normal=$normalOffset resisted=$resistedOffset", resistedOffset in 1 until normalOffset)
+        assertTrue(resistedOffset.toFloat() / normalOffset > 0.88f)
+    }
+
+    @Test
+    fun verticalScrollUsesTheSameResistanceAsLazyLists() {
+        var resistance by mutableStateOf(false)
+        lateinit var state: ScrollState
+        lateinit var scope: CoroutineScope
+        rule.setContent {
+            state = rememberScrollState()
+            scope = rememberCoroutineScope()
+            Column(
+                Modifier.fillMaxSize().testTag("scroll_fixture")
+                    .then(if (resistance) Modifier.ensureSingleItemRubberBand(state) else Modifier)
+                    .verticalScroll(state, overscrollEffect = null),
+            ) {
+                repeat(40) { Box(Modifier.size(80.dp)) { Text("$it") } }
+            }
+        }
+        drag(horizontal = false)
+        val normalOffset = rule.runOnIdle { state.value }
+        rule.runOnIdle {
+            resistance = true
+            scope.launch { state.scrollTo(0) }
+        }
+        rule.waitForIdle()
+        drag(horizontal = false)
         val resistedOffset = rule.runOnIdle { state.value }
         assertTrue("Normal=$normalOffset resisted=$resistedOffset", resistedOffset in 1 until normalOffset)
         assertTrue(resistedOffset.toFloat() / normalOffset > 0.88f)

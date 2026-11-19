@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import elovaire.music.droidbeauty.app.domain.model.Song
 
 @Dao
 internal interface MediaMutationDao {
@@ -92,6 +93,21 @@ internal interface NetworkInventoryDao {
         discNumber: Int,
         description: String?,
     ): Int
+
+    @Transaction
+    suspend fun updateVerifiedNetworkTagsBatch(
+        sourceId: String,
+        fingerprint: String,
+        entries: List<Pair<String, Song>>,
+    ) {
+        entries.forEach { (path, song) ->
+            updateVerifiedNetworkTags(
+                sourceId, path, song.id, fingerprint, song.title, song.artist, song.album,
+                song.albumArtist, song.releaseYear, song.genre, song.trackNumber, song.discNumber,
+                song.description,
+            )
+        }
+    }
 
     @Query("SELECT * FROM network_inventory WHERE sourceId = :sourceId ORDER BY relativePath ASC")
     suspend fun networkInventory(sourceId: String): List<NetworkInventoryEntity>

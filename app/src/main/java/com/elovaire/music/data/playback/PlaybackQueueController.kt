@@ -6,10 +6,15 @@ import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
 import elovaire.music.droidbeauty.app.data.library.LibrarySongDuplicateResolver
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 
 internal interface PlaybackQueueRuntime {
     val player: Player
     val state: PlaybackUiState
+    val isReleased: Boolean get() = false
 
     fun publishState(state: PlaybackUiState)
     fun updateState()
@@ -32,8 +37,14 @@ internal class PlaybackQueueController(
     private val runtime: PlaybackQueueRuntime,
     private val queueMetadataRefresher: PlaybackQueueMetadataRefresher,
     private val language: () -> AppLanguage = { AppLanguage.English },
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private var queueBackedByLibrary = false
+
+    fun onLibraryQueueRestored(songs: List<Song>) {
+        queueBackedByLibrary = true
+        queueMetadataRefresher.onQueueReplaced(songs)
+    }
 
     fun setQueue(
         songs: List<Song>,
@@ -214,7 +225,12 @@ internal class PlaybackQueueController(
         val shouldKeepPlaying = state.transportShowsPause || player.isPlaying || player.playWhenReady
         runtime.cancelPauseFade(true)
         runtime.clearInterruptionResumeState()
-        indicesToRemove.asReversed().forEach(player::removeMediaItem)
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex in existingQueue.indices && existingQueue[currentIndex].id !in songIds) {
+            player.removeConsecutiveMediaItems(indicesToRemove)
+        } else {
+            indicesToRemove.asReversed().forEach(player::removeMediaItem)
+        }
         val updatedQueue = existingQueue.filterNot { it.id in songIds }
         runtime.publishState(
             state.copy(
@@ -233,50 +249,35 @@ internal class PlaybackQueueController(
         runtime.updateState()
     }
 
-    fun refreshQueuedLibraryMetadataIfNeeded(
+    suspend fun refreshQueuedLibraryMetadataIfNeeded(
         updatedSongs: List<Song>,
         authoritative: Boolean = false,
     ) {
-        val state = runtime.state
-        if (state.queue.isEmpty()) return
-        if (authoritative && queueBackedByLibrary) {
-            reconcileAuthoritativeLibrary(state, updatedSongs)
-            return
-        }
-        if (updatedSongs.isEmpty()) return
-        val queuedSongIds = linkedSetOf<Long>()
-        val queuedIdentities = hashSetOf<String>()
-        val queuedPaths = hashSetOf<String>()
-        state.queue.forEach { song ->
-            queuedSongIds += song.id
-            queuedIdentities += MediaIdentityResolver.stableKey(song)
-            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let(queuedPaths::add)
-        }
-        val remainingIds = queuedSongIds.toMutableSet()
-        val songsById = LinkedHashMap<Long, Song>(queuedSongIds.size)
-        val songsByIdentity = LinkedHashMap<String, Song>()
-        val songsByPath = LinkedHashMap<String, Song>()
-        val ambiguousPaths = hashSetOf<String>()
-        updatedSongs.forEach { song ->
-            if (remainingIds.remove(song.id)) songsById[song.id] = song
-
-            val identity = MediaIdentityResolver.stableKey(song)
-            if (identity in queuedIdentities) songsByIdentity[identity] = song
-
-            val path = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
-            if (path != null && path in queuedPaths && path !in ambiguousPaths) {
-                if (songsByPath.putIfAbsent(path, song) != null) {
-                    songsByPath.remove(path)
-                    ambiguousPaths += path
-                }
+        var state: PlaybackUiState
+        var lookup: QueuedMetadataLookup
+        do {
+            if (runtime.isReleased) return
+            state = runtime.state
+            if (state.queue.isEmpty()) return
+            if (authoritative && queueBackedByLibrary) {
+                reconcileAuthoritativeLibrary(updatedSongs)
+                return
             }
-        }
-        if (songsById.isEmpty() && songsByIdentity.isEmpty() && songsByPath.isEmpty()) return
+            if (updatedSongs.isEmpty()) return
+            val queue = state.queue
+            lookup = withContext(defaultDispatcher) {
+                val context = coroutineContext
+                prepareQueuedMetadataLookup(queue, updatedSongs) { context.ensureActive() }
+            }
+        } while (!runtime.isReleased && (runtime.state.queue !== state.queue || authoritative && queueBackedByLibrary))
+        if (runtime.isReleased) return
+        state = runtime.state
+        if (lookup.songsById.isEmpty() && lookup.songsByIdentity.isEmpty() && lookup.songsByPath.isEmpty()) return
         val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(
             queue = state.queue,
-            librarySongsById = songsById,
-            librarySongsByIdentity = songsByIdentity,
-            librarySongsByPath = songsByPath,
+            librarySongsById = lookup.songsById,
+            librarySongsByIdentity = lookup.songsByIdentity,
+            librarySongsByPath = lookup.songsByPath,
         ) ?: return
         val player = runtime.player
         val currentIndex = runtime.resolveCurrentQueueIndex(state)
@@ -306,19 +307,40 @@ internal class PlaybackQueueController(
         runtime.updateState()
     }
 
-    private fun reconcileAuthoritativeLibrary(
-        state: PlaybackUiState,
+    private suspend fun reconcileAuthoritativeLibrary(
         librarySongs: List<Song>,
     ) {
-        val reconciliation = queueMetadataRefresher.reconcileQueue(state.queue, librarySongs) ?: return
+        var state: PlaybackUiState
+        var reconciliation: PlaybackQueueReconciliation?
+        do {
+            if (runtime.isReleased || !queueBackedByLibrary) return
+            state = runtime.state
+            if (state.queue.isEmpty()) return
+            reconciliation = withContext(defaultDispatcher) {
+                val context = coroutineContext
+                queueMetadataRefresher.reconcileQueue(state.queue, librarySongs) { context.ensureActive() }
+            }
+        } while (!runtime.isReleased && queueBackedByLibrary && runtime.state.queue !== state.queue)
+        if (runtime.isReleased || !queueBackedByLibrary) return
+        state = runtime.state
+        reconciliation ?: return
         val player = runtime.player
         val oldCurrentIndex = runtime.resolveCurrentQueueIndex(state)
         val oldCurrentSong = state.queue.getOrNull(oldCurrentIndex)
         val currentWasRemoved = oldCurrentIndex in reconciliation.removedOriginalIndices
         val shouldKeepPlaying = state.transportShowsPause || player.isPlaying || player.playWhenReady
 
-        reconciliation.removedOriginalIndices.asReversed().forEach { index ->
-            if (index < player.mediaItemCount) player.removeMediaItem(index)
+        val removedIndices = reconciliation.removedOriginalIndices
+        if (
+            !currentWasRemoved &&
+            player.currentMediaItemIndex.let { it in state.queue.indices && it !in removedIndices }
+        ) {
+            val mediaItemCount = player.mediaItemCount
+            player.removeConsecutiveMediaItems(removedIndices.takeWhile { it < mediaItemCount })
+        } else {
+            removedIndices.asReversed().forEach { index ->
+                if (index < player.mediaItemCount) player.removeMediaItem(index)
+            }
         }
         if (reconciliation.queue.isEmpty()) {
             runtime.stopAndClearQueue()
@@ -375,3 +397,63 @@ internal class PlaybackQueueController(
 }
 
 internal fun List<Song>.safeStartIndex(startIndex: Int): Int = startIndex.coerceIn(indices)
+
+private data class QueuedMetadataLookup(
+    val songsById: Map<Long, Song>,
+    val songsByIdentity: Map<String, Song>,
+    val songsByPath: Map<String, Song>,
+)
+
+private fun prepareQueuedMetadataLookup(
+    queue: List<Song>,
+    updatedSongs: List<Song>,
+    checkCancellation: () -> Unit,
+): QueuedMetadataLookup {
+    val queuedSongIds = linkedSetOf<Long>()
+    val queuedIdentities = hashSetOf<String>()
+    val queuedPaths = hashSetOf<String>()
+    queue.forEachIndexed { index, song ->
+        if (index and 127 == 0) checkCancellation()
+        queuedSongIds += song.id
+        queuedIdentities += MediaIdentityResolver.stableKey(song)
+        LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let(queuedPaths::add)
+    }
+    val remainingIds = queuedSongIds.toMutableSet()
+    val songsById = LinkedHashMap<Long, Song>(queuedSongIds.size)
+    val songsByIdentity = LinkedHashMap<String, Song>()
+    val songsByPath = LinkedHashMap<String, Song>()
+    val ambiguousPaths = hashSetOf<String>()
+    updatedSongs.forEachIndexed { index, song ->
+        if (index and 127 == 0) checkCancellation()
+        if (remainingIds.remove(song.id)) songsById[song.id] = song
+        val identity = MediaIdentityResolver.stableKey(song)
+        if (identity in queuedIdentities) songsByIdentity[identity] = song
+        if (queuedPaths.isNotEmpty()) {
+            val path = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
+            if (path != null && path in queuedPaths && path !in ambiguousPaths) {
+                if (songsByPath.putIfAbsent(path, song) != null) {
+                    songsByPath.remove(path)
+                    ambiguousPaths += path
+                }
+            }
+        }
+    }
+    return QueuedMetadataLookup(songsById, songsByIdentity, songsByPath)
+}
+
+private fun Player.removeConsecutiveMediaItems(indices: List<Int>) {
+    if (indices.isEmpty()) return
+    var end = indices.last() + 1
+    var start = end - 1
+    for (index in indices.lastIndex - 1 downTo 0) {
+        val next = indices[index]
+        if (next == start - 1) {
+            start = next
+        } else {
+            removeMediaItems(start, end)
+            start = next
+            end = next + 1
+        }
+    }
+    removeMediaItems(start, end)
+}

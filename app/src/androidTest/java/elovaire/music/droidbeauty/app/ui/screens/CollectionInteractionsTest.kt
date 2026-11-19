@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.testTag
@@ -34,6 +35,7 @@ import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.localizedPlaylistCreateError
+import elovaire.music.droidbeauty.app.ui.i18n.playlistAccessibilityCopy
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -149,6 +151,59 @@ class CollectionInteractionsTest {
             rule.onNodeWithContentDescription("Clear search").performClick()
             rule.onNodeWithText("$term 01", useUnmergedTree = true).assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun pickerKeepsSearchAndSelectionWhenSwitchingTabs() {
+        var added = emptyList<Long>()
+        setContent {
+            AddSongsToPlaylistOverlay(songs, emptySet(), onDismiss = {}, onAddSongs = { added = it })
+        }
+        rule.onNode(hasSetTextAction()).performTextInput("01")
+        rule.onNodeWithText("Track 01", useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Albums", useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Album 01", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Artists", useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Artist 01", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Songs", useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Track 01", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithContentDescription(playlistAccessibilityCopy(AppLanguage.English).confirmSongs).performClick()
+        rule.runOnIdle { assertEquals(listOf(1L), added) }
+    }
+
+    @Test
+    fun pickerAlbumSelectionPreservesOrderAndUnrelatedSongs() {
+        val fixture = songs.take(4).mapIndexed { index, song ->
+            if (index < 3) song.copy(albumId = 1L, album = "Album 01") else song
+        }
+        var added = emptyList<Long>()
+        setContent {
+            AddSongsToPlaylistOverlay(fixture, emptySet(), onDismiss = {}, onAddSongs = { added = it })
+        }
+        rule.onNodeWithText("Track 01", useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Track 04", useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Albums", useUnmergedTree = true).performClick()
+        rule.onNodeWithTag("playlist_picker_album_selection_1", useUnmergedTree = true).performClick()
+        rule.onNodeWithContentDescription(playlistAccessibilityCopy(AppLanguage.English).confirmSongs).performClick()
+        rule.runOnIdle { assertEquals(listOf(1L, 4L, 2L, 3L), added) }
+        rule.onNodeWithTag("playlist_picker_album_selection_1", useUnmergedTree = true).performClick()
+        rule.onNodeWithContentDescription(playlistAccessibilityCopy(AppLanguage.English).confirmSongs).performClick()
+        rule.runOnIdle { assertEquals(listOf(4L), added) }
+    }
+
+    @Test
+    fun pickerArtistSearchRefreshesWhenAvailableSongsChange() {
+        val available = mutableStateOf(songs.take(2))
+        setContent {
+            AddSongsToPlaylistOverlay(available.value, emptySet(), onDismiss = {}, onAddSongs = {})
+        }
+        rule.onNodeWithText("Artists", useUnmergedTree = true).performClick()
+        rule.onNode(hasSetTextAction()).performTextInput("01")
+        rule.onNodeWithText("Artist 01", useUnmergedTree = true).assertIsDisplayed()
+        rule.runOnIdle { available.value = listOf(songs[1]) }
+        rule.onNodeWithText("Artist 01", useUnmergedTree = true).assertDoesNotExist()
+        rule.runOnIdle { available.value = listOf(songs[0].copy(artist = "Artist 01 New")) }
+        rule.onNodeWithText("Artist 01 New", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test

@@ -210,6 +210,18 @@ internal data class NetworkProbeResult(
     val message: String? = null,
 )
 
+internal fun networkFingerprint(value: String): String {
+    val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+    val digits = "0123456789abcdef"
+    return buildString(digest.size * 2) {
+        digest.forEach { byte ->
+            val value = byte.toInt() and 0xff
+            append(digits[value ushr 4])
+            append(digits[value and 0x0f])
+        }
+    }
+}
+
 internal object NetworkSourceIdentity {
     fun stableKey(source: NetworkLibrarySource): String {
         return "network:${source.id.trim()}"
@@ -242,9 +254,7 @@ internal object NetworkSourceIdentity {
                 .orEmpty()
         }
         val canonical = "${source.protocol.name}|$server|${NetworkPathPolicy.normalizeRelativePath(source.shareOrPath)}"
-        return MessageDigest.getInstance("SHA-256")
-            .digest(canonical.toByteArray(Charsets.UTF_8))
-            .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+        return networkFingerprint(canonical)
     }
 
     fun configurationFingerprint(source: NetworkLibrarySource): String {
@@ -259,9 +269,7 @@ internal object NetworkSourceIdentity {
             source.enabled.toString(),
         )
         val canonical = fields.joinToString(separator = "") { "${it.length}:$it" }
-        return MessageDigest.getInstance("SHA-256")
-            .digest(canonical.toByteArray(Charsets.UTF_8))
-            .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+        return networkFingerprint(canonical)
     }
 }
 

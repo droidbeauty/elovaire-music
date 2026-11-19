@@ -213,7 +213,10 @@ class RapidNavigationQualificationTest {
     private fun findTopLevelNode(description: String): UiObject2? {
         return device.findObjects(By.pkg(packageName).desc(description))
             .firstOrNull { node ->
-                node.visibleBounds.centerY() >= device.displayHeight * 4 / 5
+                val rail = node.parent?.parent?.visibleBounds
+                node.visibleBounds.centerY() >= device.displayHeight * 4 / 5 ||
+                    (rail != null && rail.left == 0 && rail.width() <= device.displayWidth / 5 &&
+                        rail.height() >= device.displayHeight / 2)
             }
     }
 

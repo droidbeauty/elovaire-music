@@ -8,9 +8,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.awaitCancellation
@@ -39,7 +39,7 @@ class ArtistImageRepositoryTest {
     @After
     fun tearDown() {
         repositories.forEach(ArtistImageRepository::release)
-        requestScope.cancel()
+        runBlocking { requestScope.coroutineContext[Job]?.cancelAndJoin() }
     }
 
     @Test
@@ -125,11 +125,13 @@ class ArtistImageRepositoryTest {
     @Test
     fun unexpectedRemoteFailureCompletesSharedLookup() = runBlocking {
         val calls = AtomicInteger()
+        val loggedFailure = CompletableDeferred<RuntimeException>()
         val repository = newRepository(
             ArtistImageClient {
                 calls.incrementAndGet()
                 throw UnsupportedOperationException("test failure")
             },
+            onUnexpectedFailure = { loggedFailure.complete(it) },
         )
 
         withTimeout(1_000L) {
@@ -137,6 +139,7 @@ class ArtistImageRepositoryTest {
         }
 
         assertEquals(1, calls.get())
+        assertEquals("test failure", withTimeout(1_000L) { loggedFailure.await() }.message)
     }
 
     @Test
@@ -265,10 +268,12 @@ class ArtistImageRepositoryTest {
     private fun newRepository(
         client: ArtistImageClient = ArtistImageClient { ArtistImageLookup.NotFound },
         clock: AppClock = MutableClock(0L),
+        onUnexpectedFailure: (RuntimeException) -> Unit = {},
     ): ArtistImageRepository = ArtistImageRepository(
         client = client,
         scope = requestScope,
         clock = clock,
+        onUnexpectedFailure = onUnexpectedFailure,
     ).also(repositories::add)
 
     private fun album(artUri: android.net.Uri?, songCount: Int) = Album(

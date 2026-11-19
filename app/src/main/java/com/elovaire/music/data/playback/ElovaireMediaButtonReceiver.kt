@@ -35,8 +35,11 @@ internal class DefaultPlaybackResumptionGateway(
 ) : PlaybackResumptionGateway {
     override suspend fun resolve(): MediaButtonPlaybackResumption? = withContext(ioDispatcher) {
         if (!hasAudioReadPermission()) return@withContext null
+        val persisted = persistedSessionReader() ?: return@withContext null
+        val currentSongId = persisted.currentSongId ?: return@withContext null
+        if (currentSongId !in persisted.queueSongIds) return@withContext null
         resolveMediaButtonResumption(
-            persisted = persistedSessionReader(),
+            persisted = persisted,
             songs = librarySongsReader(),
         )
     }
@@ -58,14 +61,21 @@ internal fun resolveMediaButtonResumption(
     songs: List<Song>,
 ): MediaButtonPlaybackResumption? {
     persisted ?: return null
-    if (songs.isEmpty()) return null
-    val songsById = songs.associateBy(Song::id)
+    if (songs.isEmpty() || persisted.queueSongIds.isEmpty() || persisted.currentSongId == null) return null
+    val songsById = if (persisted.queueSongIds.size >= songs.size / 2) {
+        songs.associateBy(Song::id)
+    } else {
+        val requestedIds = persisted.queueSongIds.toHashSet()
+        HashMap<Long, Song>(requestedIds.size).also { matches ->
+            songs.forEach { song ->
+                if (song.id in requestedIds) matches[song.id] = song
+            }
+        }
+    }
     val queue = persisted.queueSongIds.map { songsById[it] ?: return null }
     val index = persisted.currentIndex
         .takeIf { it in queue.indices && queue[it].id == persisted.currentSongId }
-        ?: persisted.currentSongId
-            ?.let { currentId -> queue.indexOfFirst { it.id == currentId } }
-            ?.takeIf { it >= 0 }
+        ?: queue.indexOfFirst { it.id == persisted.currentSongId }.takeIf { it >= 0 }
         ?: return null
     val currentSong = queue[index]
     val audiobookContext = if (currentSong.mediaKind == AudioMediaKind.Audiobook) {

@@ -494,12 +494,11 @@ internal fun Modifier.ensureSingleItemRubberBand(state: LazyGridState): Modifier
     )
 }
 
-internal fun Modifier.ensureSingleItemRubberBand(state: androidx.compose.foundation.ScrollState): Modifier = composed {
-    this.kuperRubberBand(
+internal fun Modifier.ensureSingleItemRubberBand(state: androidx.compose.foundation.ScrollState): Modifier =
+    kuperRubberBand(
         canScrollBackward = { state.canScrollBackward },
         canScrollForward = { state.canScrollForward },
     )
-}
 
 internal fun Modifier.ensureHorizontalRubberBand(state: androidx.compose.foundation.ScrollState): Modifier = composed {
     val baseModifier = this.kuperRubberBand(

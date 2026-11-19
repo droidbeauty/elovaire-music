@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.net.Uri
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -43,6 +44,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -51,6 +53,53 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AudiobookDetailInteractionTest {
     @get:Rule val rule = createAndroidComposeRule<PlaylistTestActivity>()
+
+    @Test
+    fun alphabeticalSortIgnoresProgressUpdatesWhileListeningSortTracksThem() {
+        val first = Audiobook("first", "Alpha", "Author", null, 100L, emptyList())
+        val second = Audiobook("second", "Beta", "Author", null, 100L, emptyList())
+        val books = listOf(second, first)
+        var progress by mutableStateOf(emptyMap<String, AudiobookProgress>())
+        var mode by mutableStateOf(AudiobookSortMode.Title)
+        var displayed = emptyList<Audiobook>()
+        rule.setContent {
+            val sorted = rememberSortedAudiobooksForDisplay(books, progress, mode)
+            SideEffect { displayed = sorted }
+        }
+        lateinit var initial: List<Audiobook>
+        rule.runOnIdle {
+            assertEquals(listOf(first, second), displayed)
+            initial = displayed
+            progress = mapOf("second" to AudiobookProgress(1L, 10L, true, 1L))
+        }
+        rule.runOnIdle {
+            assertSame(initial, displayed)
+            mode = AudiobookSortMode.AlreadyListened
+        }
+        rule.runOnIdle {
+            assertEquals(listOf(second, first), displayed)
+            initial = displayed
+            progress = mapOf("second" to AudiobookProgress(1L, 25L, true, 2L))
+        }
+        rule.runOnIdle {
+            assertSame(initial, displayed)
+            progress = mapOf("first" to AudiobookProgress(2L, 10L, true, 2L))
+        }
+        rule.runOnIdle {
+            assertEquals(listOf(first, second), displayed)
+            mode = AudiobookSortMode.NeverListened
+        }
+        rule.runOnIdle {
+            assertEquals(listOf(second, first), displayed)
+            initial = displayed
+            progress = mapOf("first" to AudiobookProgress(2L, 50L, false, 3L))
+        }
+        rule.runOnIdle {
+            assertSame(initial, displayed)
+            progress = mapOf("second" to AudiobookProgress(1L, 10L, false, 4L))
+        }
+        rule.runOnIdle { assertEquals(listOf(first, second), displayed) }
+    }
 
     @Test
     fun detailActionsRemainUsableWithLargeTextInLightTheme() {

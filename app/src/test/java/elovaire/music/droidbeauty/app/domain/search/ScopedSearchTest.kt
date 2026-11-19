@@ -16,7 +16,8 @@ class ScopedSearchTest {
             song(3L, "Different", "Artist", "Glass"),
         )
         val albums = listOf(album(1L, "Glass", "Aurora"), album(2L, "Other", "Artist"))
-        val songIndex = songs.map(Song::toSearchableSong)
+        val songIndex = buildPickerSongSearchIndex(songs)
+        assertEquals(songs.map(Song::toSearchableSong), songIndex)
         val albumIndex = albums.map(Album::toSearchableAlbum)
         listOf("signal", "auróra", "glss", "missing").forEach { raw ->
             val query = NormalizedSearchQuery.from(raw)
@@ -131,6 +132,21 @@ class ScopedSearchTest {
         )
 
         assertEquals(listOf("Miles North"), result.map { it.first })
+    }
+
+    @Test
+    fun reusableArtistIndexPreservesSearchResultsAcrossQueries() {
+        val artists = listOf(
+            "Auróra" to listOf(song(1L, "One", "Auróra", "Glass")),
+            "Aurora" to listOf(song(2L, "Two", "Aurora", "Glass"), song(3L, "Three", "Aurora", "Other")),
+            "Other" to listOf(song(4L, "Four", "Other", "Glass")),
+        )
+        val index = buildPickerArtistSearchIndex(artists, { it.first }, { it.second }, { it.second.size })
+        listOf("", "aurora", "aurora glass", "glss", "missing").forEach { raw ->
+            val query = NormalizedSearchQuery.from(raw)
+            val expected = searchArtistsForPicker(artists, query, { it.first }, { it.second }, { it.second.size })
+            assertEquals(expected, searchIndexedArtistsForPicker(index, query) { it.first })
+        }
     }
 
     @Test

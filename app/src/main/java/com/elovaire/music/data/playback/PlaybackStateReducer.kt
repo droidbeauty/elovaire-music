@@ -2,6 +2,9 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import elovaire.music.droidbeauty.app.domain.kernel.normalizePlaybackQueue
 import androidx.media3.common.Player
+import androidx.media3.common.C
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.domain.model.Song
 
@@ -93,6 +96,7 @@ internal class PlaybackStateReducer(
             sourceLabel = existingState.sourceLabel ?: currentSong?.album,
             volume = displayedVolume,
             audioSessionId = player.audioSessionId.takeIf { it > 0 } ?: 0,
+            hasDolbyAtmosContent = currentSong != null && hasSelectedDolbyAtmosTrack(player.currentTracks),
             recentSongIds = recentSongIds,
             recentAlbumIds = recentAlbumIds,
             lastPlayedCollectionKind = lastPlayedCollectionKind,
@@ -151,3 +155,12 @@ internal class PlaybackStateReducer(
         const val MAX_HISTORY_ITEMS = 12
     }
 }
+
+internal fun hasSelectedDolbyAtmosTrack(tracks: Tracks): Boolean = tracks.groups.any { group ->
+    group.type == C.TRACK_TYPE_AUDIO && (0 until group.length).any { index ->
+        isDolbyAtmosAudioTrack(group.isTrackSelected(index), group.getTrackFormat(index).sampleMimeType)
+    }
+}
+
+internal fun isDolbyAtmosAudioTrack(selected: Boolean, mimeType: String?): Boolean =
+    selected && mimeType == MimeTypes.AUDIO_E_AC3_JOC

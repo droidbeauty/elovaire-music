@@ -34,6 +34,38 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ArtworkBitmapCacheInstrumentedTest {
     @Test
+    fun indexedArtworkHitsRemainRecentlyUsedDuringEviction() {
+        val cache = ArtworkBitmapCache::class.java.getDeclaredField("cache")
+            .apply { isAccessible = true }.get(ArtworkBitmapCache) as android.util.LruCache<*, *>
+        for (useBestSize in listOf(true, false)) {
+            val prefix = "content://artwork/lru-${System.nanoTime()}"
+            val first = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+            val capacity = cache.maxSize() / first.allocationByteCount
+            val bitmaps = mutableListOf(first)
+            val uris = List(capacity + 1) { Uri.parse("$prefix/$it") }
+            val keys = uris.map { requireNotNull(artworkRequestKey(it, 512, ArtworkPurpose.UiLarge)) }
+            try {
+                repeat(capacity - 1) { bitmaps += Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888) }
+                bitmaps.forEachIndexed { index, bitmap -> ArtworkBitmapCache.put(keys[index].cacheKey, bitmap) }
+                val used = if (useBestSize) {
+                    ArtworkBitmapCache.bestForUri(uris[0], 768, ArtworkPurpose.UiLarge)
+                } else {
+                    ArtworkBitmapCache.sameSizeForEquivalentPurpose(uris[0], 512, ArtworkPurpose.UiLarge)
+                }
+                assertSame(first, used)
+                val incoming = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+                bitmaps += incoming
+                ArtworkBitmapCache.put(keys.last().cacheKey, incoming)
+                assertSame(first, ArtworkBitmapCache[keys[0].cacheKey])
+                assertNull(ArtworkBitmapCache[keys[1].cacheKey])
+            } finally {
+                ArtworkBitmapCache.removeAllMatchingUris(uris.map(Uri::toString))
+                bitmaps.forEach(Bitmap::recycle)
+            }
+        }
+    }
+
+    @Test
     fun failedSharedDecodePropagatesWithoutRetryingEachWaiter() {
         val executor = Executors.newFixedThreadPool(2)
         val started = CountDownLatch(1)

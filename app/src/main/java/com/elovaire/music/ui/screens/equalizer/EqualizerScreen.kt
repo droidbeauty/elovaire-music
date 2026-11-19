@@ -74,6 +74,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
@@ -2150,7 +2151,20 @@ internal fun ThinContinuousSlider(
         if (visualStepCount > 0) repeat(visualStepCount + 1) { index ->
             val stepX = inset + width * index / visualStepCount
             if (abs(stepX - x) > inset) {
-                drawCircle(knobColor.copy(alpha = stepDotAlpha * alpha), 2.dp.toPx(), Offset(stepX, y))
+                val tickWidth = 2.dp.toPx()
+                val tickHeight = 6.dp.toPx()
+                clipRect(
+                    top = y - lineThickness.toPx() / 2f,
+                    bottom = y + lineThickness.toPx() / 2f,
+                    clipOp = androidx.compose.ui.graphics.ClipOp.Difference,
+                ) {
+                    drawRoundRect(
+                        color = knobColor.copy(alpha = stepDotAlpha * alpha),
+                        topLeft = Offset(stepX - tickWidth / 2f, y - tickHeight / 2f),
+                        size = androidx.compose.ui.geometry.Size(tickWidth, tickHeight),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(tickWidth / 2f),
+                    )
+                }
             }
         }
         drawCircle(knobColor.copy(alpha = if (fullOpacityKnob) 1f else alpha), inset, Offset(x, y))

@@ -274,8 +274,9 @@ import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.searchIndexedAlbumsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchIndexedSongsForPicker
 import elovaire.music.droidbeauty.app.domain.search.toSearchableAlbum
-import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
-import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
+import elovaire.music.droidbeauty.app.domain.search.buildPickerSongSearchIndex
+import elovaire.music.droidbeauty.app.domain.search.buildPickerArtistSearchIndex
+import elovaire.music.droidbeauty.app.domain.search.searchIndexedArtistsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchPlaylists
 import elovaire.music.droidbeauty.app.domain.search.searchSongsForPicker
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
@@ -1108,58 +1109,84 @@ internal fun AddSongsToPlaylistOverlay(
     LaunchedEffect(listState, query) {
         listState.scrollToItem(0)
     }
-    val albums = remember(candidateSongs) {
-        candidateSongs.groupBy { it.albumId }
-            .values
-            .mapNotNull { songs ->
-                songs.firstOrNull()?.let { first ->
-                    val orderedSongs = songs.sortedWith(
-                        compareBy<Song> { it.discNumber.takeIf { disc -> disc > 0 } ?: Int.MAX_VALUE }
-                            .thenBy { it.trackNumber.takeIf { track -> track > 0 } ?: Int.MAX_VALUE }
-                            .thenBy { it.dateAddedSeconds }
-                            .thenBy { it.id },
-                    )
-                    Album(
-                        id = first.albumId,
-                        title = first.album,
-                        artist = first.artist,
-                        artUri = first.artUri,
-                        songCount = orderedSongs.size,
-                        durationMs = orderedSongs.sumDurationMs(),
-                        songs = orderedSongs,
-                    )
+    val albumGroups = remember(candidateSongs) {
+        lazy(LazyThreadSafetyMode.NONE) {
+            candidateSongs.groupBy { it.albumId }
+                .values
+                .mapNotNull { songs ->
+                    songs.firstOrNull()?.let { first ->
+                        val orderedSongs = songs.sortedWith(
+                            compareBy<Song> { it.discNumber.takeIf { disc -> disc > 0 } ?: Int.MAX_VALUE }
+                                .thenBy { it.trackNumber.takeIf { track -> track > 0 } ?: Int.MAX_VALUE }
+                                .thenBy { it.dateAddedSeconds }
+                                .thenBy { it.id },
+                        )
+                        AlbumCollectionSortEntry(
+                            Album(
+                                id = first.albumId,
+                                title = first.album,
+                                artist = first.artist,
+                                artUri = first.artUri,
+                                songCount = orderedSongs.size,
+                                durationMs = orderedSongs.sumDurationMs(),
+                                songs = orderedSongs,
+                            ),
+                        )
+                    }
                 }
-            }
-            .sortedWith(compareBy<Album> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
+                .let { sortAlbumCollection(it, AlbumSortMode.Artist) }
+        }
     }
-    val artists = remember(candidateSongs) {
-        candidateSongs.groupBy { it.libraryArtistName() }
-            .map { (artistName, songs) ->
-                ArtistEntry(
-                    name = artistName,
-                    artUri = songs.firstOrNull()?.artUri,
-                    albumCount = songs.map { it.albumId }.distinct().size,
-                    songCount = songs.size,
-                ) to songs.sortedBy { it.title.lowercase() }
-            }
-            .sortedBy { it.first.name.lowercase() }
+    val artistGroups = remember(candidateSongs) {
+        lazy(LazyThreadSafetyMode.NONE) {
+            candidateSongs.groupBy { it.libraryArtistName() }
+                .map { (artistName, songs) ->
+                    ArtistEntry(
+                        name = artistName,
+                        artUri = songs.firstOrNull()?.artUri,
+                        albumCount = songs.mapTo(hashSetOf(), Song::albumId).size,
+                        songCount = songs.size,
+                    ) to if (songs.size < 2) songs else songs.map { it to it.title.lowercase() }
+                        .sortedBy { it.second }
+                        .map { it.first }
+                }
+                .map { it to it.first.name.lowercase() }
+                .sortedBy { it.second }
+                .map { it.first }
+        }
     }
-    val albumSearchIndex = remember(albums) { lazy(LazyThreadSafetyMode.NONE) { albums.map(Album::toSearchableAlbum) } }
-    val songSearchIndex = remember(candidateSongs) { lazy(LazyThreadSafetyMode.NONE) { candidateSongs.map(Song::toSearchableSong) } }
+    val albums = if (selectedTab == PlaylistPickerTab.Albums) albumGroups.value else emptyList()
+    val artists = if (selectedTab == PlaylistPickerTab.Artists) artistGroups.value else emptyList()
+    val albumSearchIndex = remember(albumGroups) {
+        lazy(LazyThreadSafetyMode.NONE) { albumGroups.value.map(Album::toSearchableAlbum) }
+    }
+    val songSearchIndex = remember(candidateSongs) {
+        lazy(LazyThreadSafetyMode.NONE) { buildPickerSongSearchIndex(candidateSongs) }
+    }
+    val artistSearchIndex = remember(artistGroups) {
+        lazy(LazyThreadSafetyMode.NONE) {
+            buildPickerArtistSearchIndex(
+                artists = artistGroups.value,
+                name = { it.first.name },
+                songs = { it.second },
+                songCount = { it.first.songCount },
+            )
+        }
+    }
     val filteredAlbums = remember(albums, normalizedQuery) {
-        if (normalizedQuery.value.isBlank()) albums else searchIndexedAlbumsForPicker(albumSearchIndex.value, normalizedQuery)
+        if (albums.isEmpty() || normalizedQuery.value.isBlank()) albums
+        else searchIndexedAlbumsForPicker(albumSearchIndex.value, normalizedQuery)
     }
     val filteredArtists = remember(artists, normalizedQuery) {
-        searchArtistsForPicker(
-            artists = artists,
-            query = normalizedQuery,
-            name = { it.first.name },
-            songs = { it.second },
-            songCount = { it.first.songCount },
-        )
+        if (artists.isEmpty() || normalizedQuery.value.isBlank()) artists
+        else searchIndexedArtistsForPicker(artistSearchIndex.value, normalizedQuery) { it.first.name }
     }
-    val filteredSongs = remember(candidateSongs, normalizedQuery) {
-        if (normalizedQuery.value.isBlank()) candidateSongs else searchIndexedSongsForPicker(songSearchIndex.value, normalizedQuery)
+    val filteredSongs = remember(candidateSongs, normalizedQuery, selectedTab) {
+        when {
+            selectedTab != PlaylistPickerTab.Songs -> emptyList()
+            normalizedQuery.value.isBlank() -> candidateSongs
+            else -> searchIndexedSongsForPicker(songSearchIndex.value, normalizedQuery)
+        }
     }
     val selectedAlbum = remember(selectedAlbumId, albums) {
         albums.firstOrNull { it.id == selectedAlbumId }
@@ -1489,9 +1516,11 @@ internal fun AddSongsToPlaylistOverlay(
                                         onToggleSelection = {
                                             val albumSongIds = album.songs.map(Song::id)
                                             val current = selectedSongIdsState.value
-                                            val allSelected = albumSongIds.all { it in current }
+                                            val selectedIds = current.toHashSet()
+                                            val allSelected = albumSongIds.all { it in selectedIds }
                                             selectedSongIdsState.value = if (allSelected) {
-                                                current.filterNot { it in albumSongIds }
+                                                val albumIds = albumSongIds.toHashSet()
+                                                current.filterNot { it in albumIds }
                                             } else {
                                                 (current + albumSongIds).distinct()
                                             }
@@ -1797,6 +1826,7 @@ private fun SelectableAlbumPickerRow(
             Box(
                 modifier = Modifier
                     .size(32.dp)
+                    .testTag("playlist_picker_album_selection_${album.id}")
                     .clip(CircleShape)
                     .elovaireActionBump(
                         interactionSource = selectionInteractionSource,

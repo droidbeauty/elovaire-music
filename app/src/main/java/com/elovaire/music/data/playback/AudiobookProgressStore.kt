@@ -205,8 +205,15 @@ internal class AudiobookProgressStore(
 
         fun storageKey(bookKey: String): String {
             val digest = MessageDigest.getInstance("SHA-256")
-            .digest(bookKey.toByteArray(StandardCharsets.UTF_8))
-            return digest.joinToString("") { byte -> "%02x".format(byte) }
+                .digest(bookKey.toByteArray(StandardCharsets.UTF_8))
+            val digits = "0123456789abcdef"
+            return buildString(digest.size * 2) {
+                digest.forEach { byte ->
+                    val value = byte.toInt() and 0xff
+                    append(digits[value ushr 4])
+                    append(digits[value and 0x0f])
+                }
+            }
         }
 
         const val LEGACY_FILE_NAME = "audiobook_progress"

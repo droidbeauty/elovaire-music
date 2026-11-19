@@ -10,14 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -28,6 +29,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
+import elovaire.music.droidbeauty.app.ui.theme.InkText
 
 @Composable
 internal fun BoxScope.RootChromeHost(
@@ -181,8 +183,9 @@ private fun BoxScope.TabletNavigationRail(
 ) {
     val language = LocalAppLanguage.current
     val copy = androidx.compose.runtime.remember(language) { commonUiCopy(language) }
+    val iconColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) Color.White else InkText
     NavigationRail(
-        modifier = modifier,
+        modifier = modifier.selectableGroup(),
         containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
@@ -194,15 +197,14 @@ private fun BoxScope.TabletNavigationRail(
                 SEARCH_ROUTE -> copy.search
                 else -> destination.contentDescription
             }
-            NavigationRailItem(
+            BottomNavigationItemButton(
+                iconResId = destination.iconResId,
+                contentDescription = label,
+                baseTint = iconColor,
+                suppressEnterAnimation = false,
                 selected = currentRoute == destination.route,
-                onClick = { onNavigate(destination.route) },
-                icon = {
-                    androidx.compose.material3.Icon(
-                        painter = androidx.compose.ui.res.painterResource(destination.iconResId),
-                        contentDescription = label,
-                    )
-                },
+                testTag = "bottom_nav_${destination.route}",
+                onClickAction = { onNavigate(destination.route) },
             )
         }
     }

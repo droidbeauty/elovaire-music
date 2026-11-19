@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.DefaultPlaybackResumptionGateway
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.playback.resolveMediaButtonResumption
@@ -16,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,6 +100,44 @@ class MediaLibrarySessionCommandTest {
         assertEquals(500L, resolved?.persisted?.positionMs)
         assertEquals(PlaybackRepeatMode.All, resolved?.persisted?.repeatMode)
         assertEquals(true, resolved?.persisted?.shuffleEnabled)
+    }
+
+    @Test
+    fun mediaButtonResumptionPreservesDuplicatesAndTheLastLibraryMatch() {
+        val first = testSong()
+        val last = first.copy(title = "Updated")
+        val other = first.copy(id = 2L, uri = Uri.parse("content://elovaire.test/media/2"))
+        val persisted = PersistedPlaybackSession(
+            queueSongIds = listOf(1L, 2L, 1L), currentSongId = 1L, currentIndex = 2,
+            positionMs = 500L, repeatMode = PlaybackRepeatMode.Off, shuffleEnabled = false,
+            sourcePlaylistId = null, wasPlaying = false, savedAtWallTimeMs = 1L,
+        )
+        val unrelated = (3L..1_000L).map { first.copy(id = it) }
+
+        val resolved = resolveMediaButtonResumption(persisted, listOf(first, other) + unrelated + last)
+
+        assertEquals(listOf(last, other, last), resolved?.queue?.queue)
+        assertEquals(last, resolved?.queue?.startSong)
+        assertNull(resolveMediaButtonResumption(persisted.copy(currentSongId = null), listOf(first, other)))
+        assertNull(resolveMediaButtonResumption(persisted.copy(queueSongIds = emptyList()), listOf(first)))
+    }
+
+    @Test
+    fun mediaButtonGatewaySkipsLibraryReadForAnUnusableSession() = runBlocking {
+        val persisted = PersistedPlaybackSession(
+            queueSongIds = listOf(1L), currentSongId = 2L, currentIndex = 0, positionMs = 0L,
+            repeatMode = PlaybackRepeatMode.Off, shuffleEnabled = false, sourcePlaylistId = null,
+            wasPlaying = false, savedAtWallTimeMs = 1L,
+        )
+        var libraryReads = 0
+        val gateway = DefaultPlaybackResumptionGateway(
+            hasAudioReadPermission = { true },
+            persistedSessionReader = { persisted },
+            librarySongsReader = { libraryReads++; listOf(testSong()) },
+        )
+
+        assertNull(gateway.resolve())
+        assertEquals(0, libraryReads)
     }
 
     private fun testSong() = Song(

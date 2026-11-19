@@ -75,29 +75,33 @@ internal class ScannerMetadataCache {
         if (pressure != MemoryPressure.Normal) clear()
     }
 
+    fun invalidatePaths(paths: Collection<String>) = invalidate(emptyList(), paths)
+
+    fun invalidateSongIds(songIds: Collection<Long>) = invalidate(songIds, emptyList())
+
     @Synchronized
-    fun invalidatePaths(paths: Collection<String>) {
-        val normalizedPaths = paths.asSequence()
+    fun invalidate(songIds: Collection<Long>, paths: Collection<String>) {
+        val normalizedPaths = if (paths.isEmpty()) emptySet() else paths.asSequence()
             .map(String::trim)
             .filter(String::isNotBlank)
             .toSet()
-        if (normalizedPaths.isEmpty()) return
-        val fileNames = normalizedPaths.asSequence()
+        val ids = if (songIds.isEmpty()) emptySet() else songIds.toSet()
+        if (normalizedPaths.isEmpty() && ids.isEmpty()) return
+        val fileNames = if (normalizedPaths.isEmpty()) emptySet() else normalizedPaths.asSequence()
             .map(::File)
             .map(File::getName)
             .map(String::trim)
             .filter(String::isNotBlank)
             .toSet()
-        metadata.entries.removeAll { (_, cached) ->
-            cached.filePath in normalizedPaths || cached.fileName in fileNames
+        when {
+            ids.isEmpty() -> metadata.entries.removeAll { (_, cached) ->
+                cached.filePath in normalizedPaths || cached.fileName in fileNames
+            }
+            normalizedPaths.isEmpty() -> metadata.entries.removeAll { (_, cached) -> cached.songId in ids }
+            else -> metadata.entries.removeAll { (_, cached) ->
+                cached.songId in ids || cached.filePath in normalizedPaths || cached.fileName in fileNames
+            }
         }
-    }
-
-    @Synchronized
-    fun invalidateSongIds(songIds: Collection<Long>) {
-        if (songIds.isEmpty()) return
-        val ids = songIds.toSet()
-        metadata.entries.removeAll { (_, cached) -> cached.songId in ids }
     }
 }
 

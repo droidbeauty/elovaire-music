@@ -53,7 +53,15 @@ data class LibraryContentState(
     val removingAlbumIds: Set<Long> = emptySet(),
     val contentRevision: String = "",
     val portableMediaIdentityRevision: String = "",
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LibraryContentState || contentRevision != other.contentRevision) return false
+        return removingSongIds == other.removingSongIds && removingAlbumIds == other.removingAlbumIds &&
+            portableMediaIdentityRevision == other.portableMediaIdentityRevision &&
+            songs == other.songs && albums == other.albums && audiobooks == other.audiobooks
+    }
+}
 
 data class LibraryScanState(
     val permissionGranted: Boolean = false,
@@ -75,7 +83,17 @@ data class LibraryUiState(
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
     val errorMessage: String? = null,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LibraryUiState || contentRevision != other.contentRevision) return false
+        return permissionGranted == other.permissionGranted && isLoading == other.isLoading &&
+            java.lang.Float.compare(scanProgress, other.scanProgress) == 0 &&
+            isAuthoritative == other.isAuthoritative && removingSongIds == other.removingSongIds &&
+            removingAlbumIds == other.removingAlbumIds && errorMessage == other.errorMessage &&
+            songs == other.songs && albums == other.albums && audiobooks == other.audiobooks
+    }
+}
 
 private data class LibraryScanAttempt(
     val generation: Long,
@@ -254,27 +272,41 @@ internal class LibraryRepository internal constructor(
         _runtimeState.value = LibraryRuntimeState.Bootstrapping(bootstrapPermissionVersion)
         scanJob = scope.launch {
             try {
+                val songsBeforeBootstrap = _contentState.value.songs
                 val cachedSnapshot = withContext(ioDispatcher) {
                     ElovaireTrace.section("library_snapshot_load") { snapshotStore.load() }
                 }
                 if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
                 val cacheMatchesCurrentFilter = cachedSnapshot?.signature?.filterFingerprint == scanner.currentFilterFingerprint()
                 if (cachedSnapshot != null && cacheMatchesCurrentFilter) {
-                    scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
-                    val cachedSnapshotNeedsMetadata = cachedSnapshot.snapshot.songs.any { song ->
-                        !song.metadataResolved ||
-                            song.releaseYear == null ||
-                            song.qualityNeedsEnrichment() ||
-                            song.genre.isBlank() ||
-                            song.genre == "Unknown Genre"
+                    val (cachedContent, cachedSnapshotNeedsMetadata) = withContext(defaultDispatcher) {
+                        scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
+                        val needsMetadata = cachedSnapshot.snapshot.songs.any { song ->
+                            !song.metadataResolved ||
+                                song.releaseYear == null ||
+                                song.qualityNeedsEnrichment() ||
+                                song.genre.isBlank() ||
+                                song.genre == "Unknown Genre"
+                        }
+                        snapshotPublisher.stateForSnapshot(
+                            snapshot = cachedSnapshot.snapshot,
+                            removingSongIds = emptySet(),
+                            removingAlbumIds = emptySet(),
+                        ) to needsMetadata
                     }
-                    val cachedContent = snapshotPublisher.stateForSnapshot(
-                        snapshot = cachedSnapshot.snapshot,
-                        removingSongIds = deletionMarkers.pendingSongIds.value,
-                        removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
-                    )
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
-                    snapshotPublisher.publishState(cachedContent)
+                    val contentChanged = songsBeforeBootstrap !== _contentState.value.songs
+                    if (contentChanged) {
+                        withContext(defaultDispatcher) { scanner.clearMetadataCache() }
+                        if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
+                    } else {
+                        snapshotPublisher.publishState(
+                            cachedContent.copy(
+                                removingSongIds = deletionMarkers.pendingSongIds.value,
+                                removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
+                            ),
+                        )
+                    }
                     val cachedScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
@@ -296,9 +328,9 @@ internal class LibraryRepository internal constructor(
                         cachedSongCount = cachedSnapshot.snapshot.songs.size,
                         hasSafSelections = scanner.hasSafSelections(),
                     )
-                    if (syncDecision != LibrarySyncDecision.ReuseCached || networkSourceNeedsRefresh) {
+                    if (contentChanged || syncDecision != LibrarySyncDecision.ReuseCached || networkSourceNeedsRefresh) {
                         val incrementalRequest = if (
-                            syncDecision == LibrarySyncDecision.IncrementalScan &&
+                            !contentChanged && syncDecision == LibrarySyncDecision.IncrementalScan &&
                             !scanner.hasSafSelections()
                         ) {
                             cachedSnapshot.syncState?.let(::mediaStoreIncrementalRefreshRequest)
@@ -517,12 +549,12 @@ internal class LibraryRepository internal constructor(
         operation: BackendOperationContext,
     ) {
         if (!isCurrentScan(attempt)) return
-        val prepared = prepareVisibleSnapshot(
-            snapshot = scanResult.snapshot,
-            scanComplete = scanResult.isComplete,
-            attempt = attempt,
-        ) ?: return
         commitMutex.withLock {
+            val prepared = prepareVisibleSnapshot(
+                snapshot = scanResult.snapshot,
+                scanComplete = scanResult.isComplete,
+                attempt = attempt,
+            ) ?: return@withLock
             // Publish this completed snapshot even if another refresh is queued. The queued
             // request is reconciled after this commit; withholding valid snapshots during a
             // burst of media notifications can otherwise keep the UI stale until the burst ends.
@@ -555,7 +587,7 @@ internal class LibraryRepository internal constructor(
                 isAuthoritative = scanResult.isComplete,
             )
             if (_scanState.value != nextScanState) _scanState.value = nextScanState
-            snapshotPublisher.publishState(prepared.contentState)
+            snapshotPublisher.publishState(prepared.contentState.withCurrentDeletionMarkers())
             if (syncState != null) lastSuccessfulMediaStoreSyncState = syncState
             invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
             enqueueFollowUpRequests(scanResult, attempt, prepared)
@@ -586,6 +618,9 @@ internal class LibraryRepository internal constructor(
         val snapshot: LibrarySnapshot,
         val changeSet: LibraryChangeSet,
         val contentState: LibraryContentState,
+        val resolvedSongIds: Set<Long>,
+        val resolvedPaths: Set<String>,
+        val needsMetadata: Boolean,
     )
 
     private suspend fun applyRelocations(
@@ -614,54 +649,57 @@ internal class LibraryRepository internal constructor(
         scanComplete: Boolean,
         attempt: LibraryScanAttempt,
     ): PreparedLibrarySnapshot? {
-        if (!isCurrentScan(attempt)) return null
-        val songs = songsVisibleAfterDirectPathTombstones(snapshot.songs)
-        if (scanComplete) {
-            clearResolvedDirectPathTombstones(snapshot.songs)
-        }
-        val scannedSongIds = songs.mapTo(hashSetOf(), Song::id)
-        deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
-        var suppressedSongIds = deletionMarkers.suppressingSongIds()
-        var visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
-        var preparedSnapshot = if (visibleSongs === snapshot.songs) {
-            snapshot
-        } else {
-            ElovaireTrace.suspendSection("library_prepare_content") {
-                withContext(defaultDispatcher) {
-                    LibrarySnapshotAssembler.assembleDeduplicatedSongs(visibleSongs)
+        // The commit lock keeps the previous library stable while preparation runs off main.
+        // Deletion markers and direct-file events can still change, so retry with their latest values.
+        while (isCurrentScan(attempt)) {
+            val previousSongs = _contentState.value.songs
+            val tombstones = synchronized(directPathTombstonesLock) { directPathTombstones.toSet() }
+            val confirmedSongIds = deletionMarkers.confirmedSongIds.value
+            val suppressedSongIds = deletionMarkers.suppressingSongIds()
+            val prepared = withContext(defaultDispatcher) {
+                val resolvedPaths = if (scanComplete) resolvedDirectPathTombstones(snapshot.songs, tombstones) else emptySet()
+                val songs = songsVisibleAfterDirectPathTombstones(snapshot.songs, tombstones)
+                val resolvedSongIds = if (confirmedSongIds.isEmpty()) emptySet() else
+                    confirmedSongIds - songs.mapTo(hashSetOf(), Song::id)
+                val visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
+                val preparedSnapshot = if (visibleSongs === snapshot.songs) snapshot else {
+                    ElovaireTrace.section("library_prepare_content") {
+                        LibrarySnapshotAssembler.assembleDeduplicatedSongs(visibleSongs)
+                    }
                 }
-            }
-        }
-        if (!isCurrentScan(attempt)) return null
-        val latestSuppressedSongIds = deletionMarkers.suppressingSongIds()
-        if (latestSuppressedSongIds != suppressedSongIds) {
-            suppressedSongIds = latestSuppressedSongIds
-            visibleSongs = songsVisibleAfterDeletionMarkers(songs, suppressedSongIds)
-            preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content_refresh") {
-                withContext(defaultDispatcher) {
-                    LibrarySnapshotAssembler.assembleDeduplicatedSongs(visibleSongs)
+                val state = ElovaireTrace.section("library_prepare_content_state") {
+                    snapshotPublisher.stateForSnapshot(preparedSnapshot, emptySet(), emptySet())
                 }
+                val nextSnapshot = snapshotPublisher.snapshotOf(state)
+                val changeSet = ElovaireTrace.section("library_diff") {
+                    LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
+                }
+                val needsMetadata = !attempt.request.enrichMetadata && nextSnapshot.songs.any { song ->
+                    !song.metadataResolved ||
+                        song.releaseYear == null ||
+                        song.qualityNeedsEnrichment() ||
+                        song.genre.isBlank() ||
+                        song.genre == "Unknown Genre"
+                }
+                PreparedLibrarySnapshot(nextSnapshot, changeSet, state, resolvedSongIds, resolvedPaths, needsMetadata)
             }
+            if (!isCurrentScan(attempt)) return null
+            deletionMarkers.clearConfirmedSongs(confirmedSongIds, prepared.resolvedSongIds)
+            val expectedTombstones = if (prepared.resolvedPaths.isEmpty()) tombstones else tombstones - prepared.resolvedPaths
+            synchronized(directPathTombstonesLock) {
+                if (tombstones == directPathTombstones) directPathTombstones.removeAll(prepared.resolvedPaths)
+            }
+            // Resolved song markers match no remaining candidate after direct-path filtering.
+            val currentSuppressed = deletionMarkers.suppressingSongIds()
+            val sameVisibleSuppression = suppressedSongIds == currentSuppressed ||
+                (prepared.resolvedSongIds.isNotEmpty() &&
+                    suppressedSongIds - prepared.resolvedSongIds == currentSuppressed - prepared.resolvedSongIds)
+            if (previousSongs === _contentState.value.songs &&
+                sameVisibleSuppression &&
+                synchronized(directPathTombstonesLock) { expectedTombstones == directPathTombstones }
+            ) return prepared
         }
-        if (!isCurrentScan(attempt)) return null
-        val previousSongs = _contentState.value.songs
-        val nextContentState = ElovaireTrace.section("library_prepare_content_state") {
-            snapshotPublisher.stateForSnapshot(
-                snapshot = preparedSnapshot,
-                removingSongIds = deletionMarkers.pendingSongIds.value,
-                removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
-            )
-        }
-        val nextSnapshot = snapshotPublisher.snapshotOf(nextContentState)
-        val changeSet = ElovaireTrace.section("library_diff") {
-            LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
-        }
-        if (!isCurrentScan(attempt)) return null
-        return PreparedLibrarySnapshot(
-            snapshot = nextSnapshot,
-            changeSet = changeSet,
-            contentState = nextContentState,
-        )
+        return null
     }
 
     private suspend fun isCurrentScan(attempt: LibraryScanAttempt): Boolean {
@@ -734,14 +772,6 @@ internal class LibraryRepository internal constructor(
         attempt: LibraryScanAttempt,
         prepared: PreparedLibrarySnapshot,
     ) {
-        val snapshotNeedsMetadata = !attempt.request.enrichMetadata &&
-            prepared.snapshot.songs.any { song ->
-                !song.metadataResolved ||
-                    song.releaseYear == null ||
-                    song.qualityNeedsEnrichment() ||
-                    song.genre.isBlank() ||
-                    song.genre == "Unknown Genre"
-            }
         val retrySafProviderLoading =
             scanResult.retryableSafTreeIds.isNotEmpty() &&
                 attempt.request.safProviderRetryAttempt < MAX_SAF_PROVIDER_LOADING_RETRIES
@@ -754,7 +784,7 @@ internal class LibraryRepository internal constructor(
                     safProviderRetryAttempt = attempt.request.safProviderRetryAttempt + 1,
                 ),
             )
-        } else if (snapshotNeedsMetadata) {
+        } else if (prepared.needsMetadata) {
             refreshRequests.enqueue(enrichMetadata = true)
         }
     }
@@ -846,12 +876,7 @@ internal class LibraryRepository internal constructor(
             return LibraryDeleteResult(emptySet(), emptySet(), emptyList())
         }
         val current = _contentState.value
-        val fullyDeletedAlbumIds = request.albumIds.filterTo(linkedSetOf()) { albumId ->
-            current.albums
-                .firstOrNull { it.id == albumId }
-                ?.songs
-                ?.all { it.id in request.songIds } == true
-        }
+        val fullyDeletedAlbumIds = fullyDeletedAlbumIds(current.albums, request.albumIds, request.songIds)
         markDeletingSongs(request.songIds)
         markDeletingAlbums(fullyDeletedAlbumIds)
         observerController.expectSelfMutation(
@@ -862,28 +887,29 @@ internal class LibraryRepository internal constructor(
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         refreshRequests.clearIndexRefresh()
-        scanner.invalidateMetadataCacheForSongIds(request.songIds)
-        scanner.invalidateMetadataCacheForPaths(request.filePaths)
+        scanner.invalidateMetadataCache(request.songIds, request.filePaths)
 
         val publication = commitMutex.withLock {
             val previousState = _contentState.value
-            val remainingSongs = previousState.songs.filterNot { it.id in request.songIds }
-            val updatedState = snapshotPublisher.stateForSnapshot(
-                snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(remainingSongs),
-                removingSongIds = deletionMarkers.pendingSongIds.value,
-                removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
-            )
-            val changeSet = LibraryChangeSetCalculator.between(previousState.songs, updatedState.songs)
-            val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
-            withContext(ioDispatcher) {
+            val prepared = withContext(ioDispatcher) {
+                val remainingSongs = previousState.songs.filterNot { it.id in request.songIds }
+                val updatedState = snapshotPublisher.stateForSnapshot(
+                    snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(remainingSongs),
+                    removingSongIds = deletionMarkers.pendingSongIds.value,
+                    removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
+                )
+                val changeSet = LibraryChangeSetCalculator.between(previousState.songs, updatedState.songs)
+                val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
                 snapshotStore.save(
                     snapshot = updatedSnapshot,
                     filterFingerprint = scanner.currentFilterFingerprint(),
                     syncState = scanner.currentSyncState(),
                 )
+                LibraryContentPublication(state = updatedState, changeSet = changeSet)
             }
-            snapshotPublisher.publishState(updatedState)
-            LibraryContentPublication(state = updatedState, changeSet = changeSet)
+            val current = prepared.copy(state = prepared.state.withCurrentDeletionMarkers())
+            snapshotPublisher.publishState(current.state)
+            current
         }
         invalidateArtworkBitmapCache(publication.changeSet.artworkInvalidatedUris)
 
@@ -909,9 +935,7 @@ internal class LibraryRepository internal constructor(
             }
         }
         val deletedSongIds = request.songIds - stillPresent
-        val deletedAlbumIds = fullyDeletedAlbumIds.filterTo(linkedSetOf()) { albumId ->
-            publication.state.albums.none { it.id == albumId }
-        }
+        val deletedAlbumIds = missingAlbumIds(fullyDeletedAlbumIds, publication.state.albums)
         deletionMarkers.confirmDeletedSongs(deletedSongIds)
         clearPendingDeletedSongs(request.songIds)
         clearPendingDeletedAlbums(fullyDeletedAlbumIds)
@@ -929,13 +953,7 @@ internal class LibraryRepository internal constructor(
         return LibraryDeleteResult(
             deletedSongIds = deletedSongIds,
             deletedAlbumIds = deletedAlbumIds,
-            failed = stillPresent.map { songId ->
-                LibraryDeleteFailure(
-                    songId = songId,
-                    albumId = current.songs.firstOrNull { it.id == songId }?.albumId,
-                    reason = "The file is still present after deletion.",
-                )
-            },
+            failed = deletionFailures(current.songs, stillPresent),
         )
     }
 
@@ -948,6 +966,11 @@ internal class LibraryRepository internal constructor(
         }
     }
 
+    private fun LibraryContentState.withCurrentDeletionMarkers(): LibraryContentState = copy(
+        removingSongIds = deletionMarkers.pendingSongIds.value,
+        removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
+    )
+
     override suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
         if (editedSongs.isEmpty()) return
         val editedSongIds = editedSongs.map(Song::id)
@@ -956,12 +979,14 @@ internal class LibraryRepository internal constructor(
         withContext(ioDispatcher) { scanner.applyVerifiedNetworkTags(editedSongs) }
         val changeSet = commitMutex.withLock {
             val current = _contentState.value
-            val patch = snapshotPublisher.patchSongs(
-                editedSongs = editedSongs,
-                removingSongIds = current.removingSongIds,
-                removingAlbumIds = current.removingAlbumIds,
-                publishResult = false,
-            )
+            val patch = withContext(ioDispatcher) {
+                snapshotPublisher.patchSongs(
+                    editedSongs = editedSongs,
+                    removingSongIds = current.removingSongIds,
+                    removingAlbumIds = current.removingAlbumIds,
+                    publishResult = false,
+                )
+            }
             val updatedState = patch.state
             val patchChangeSet = patch.changeSet
             if (patchChangeSet.isEmpty) return@withLock patchChangeSet
@@ -973,7 +998,7 @@ internal class LibraryRepository internal constructor(
                     syncState = scanner.currentSyncState(),
                 )
             }
-            snapshotPublisher.publishState(updatedState)
+            snapshotPublisher.publishState(updatedState.withCurrentDeletionMarkers())
             patchChangeSet
         }
         invalidateArtworkBitmapCache(changeSet.artworkInvalidatedUris)
@@ -1164,8 +1189,7 @@ internal class LibraryRepository internal constructor(
         }
     }
 
-    private fun songsVisibleAfterDirectPathTombstones(songs: List<Song>): List<Song> {
-        val tombstones = synchronized(directPathTombstonesLock) { directPathTombstones.toSet() }
+    private fun songsVisibleAfterDirectPathTombstones(songs: List<Song>, tombstones: Set<String>): List<Song> {
         if (tombstones.isEmpty()) return songs
         val filtered = songs.filterNot { song ->
             isDirectPathTombstoned(song.libraryPath, tombstones)
@@ -1173,13 +1197,12 @@ internal class LibraryRepository internal constructor(
         return filtered.takeIf { it.size != songs.size } ?: songs
     }
 
-    private fun clearResolvedDirectPathTombstones(scannedSongs: List<Song>) {
+    private fun resolvedDirectPathTombstones(scannedSongs: List<Song>, tombstones: Set<String>): Set<String> {
+        if (tombstones.isEmpty()) return emptySet()
         val presentPaths = scannedSongs.asSequence()
             .mapNotNull { song -> LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath) }
             .toSet()
-        synchronized(directPathTombstonesLock) {
-            directPathTombstones.retainAll(directPathTombstonesStillPresent(directPathTombstones, presentPaths))
-        }
+        return tombstones - directPathTombstonesStillPresent(tombstones, presentPaths)
     }
 
     private data class LibraryContentPublication(
@@ -1267,13 +1290,67 @@ private fun LibraryRuntimeState.pendingRefreshIsFreshnessCritical(): Boolean {
     }
 }
 
+internal fun fullyDeletedAlbumIds(
+    albums: List<Album>,
+    requestedAlbumIds: Set<Long>,
+    deletedSongIds: Set<Long>,
+): Set<Long> {
+    if (requestedAlbumIds.isEmpty()) return emptySet()
+    if (requestedAlbumIds.size == 1) {
+        val id = requestedAlbumIds.first()
+        return if (albums.firstOrNull { it.id == id }?.songs?.all { it.id in deletedSongIds } == true) {
+            setOf(id)
+        } else {
+            emptySet()
+        }
+    }
+    val unmatched = requestedAlbumIds.toMutableSet()
+    val eligible = hashSetOf<Long>()
+    for (album in albums) {
+        if (unmatched.remove(album.id) && album.songs.all { it.id in deletedSongIds }) eligible += album.id
+        if (unmatched.isEmpty()) break
+    }
+    return requestedAlbumIds.filterTo(linkedSetOf()) { it in eligible }
+}
+
+internal fun missingAlbumIds(requestedAlbumIds: Set<Long>, albums: List<Album>): Set<Long> {
+    if (requestedAlbumIds.size <= 1) {
+        return requestedAlbumIds.filterTo(linkedSetOf()) { id -> albums.none { it.id == id } }
+    }
+    if (albums.isEmpty()) return requestedAlbumIds.toCollection(linkedSetOf())
+    val present = albums.mapTo(hashSetOf(), Album::id)
+    return requestedAlbumIds.filterTo(linkedSetOf()) { it !in present }
+}
+
+internal fun deletionFailures(songs: List<Song>, songIds: Set<Long>): List<LibraryDeleteFailure> {
+    val albumIds = if (songIds.size > 1) {
+        buildMap<Long, Long> {
+            for (song in songs) {
+                if (song.id in songIds && song.id !in this) put(song.id, song.albumId)
+                if (size == songIds.size) break
+            }
+        }
+    } else {
+        null
+    }
+    return songIds.map { songId ->
+        LibraryDeleteFailure(
+            songId = songId,
+            albumId = if (albumIds == null) songs.firstOrNull { it.id == songId }?.albumId else albumIds[songId],
+            reason = "The file is still present after deletion.",
+        )
+    }
+}
+
 private fun songsVisibleAfterDeletionMarkers(
     songs: List<Song>,
     suppressedSongIds: Set<Long>,
 ): List<Song> = if (suppressedSongIds.isEmpty()) {
     songs
 } else {
-    songs.filterNot { it.id in suppressedSongIds }
+    songs.filterNot { it.id in suppressedSongIds }.let { filtered ->
+        if (filtered.size == songs.size) songs else filtered
+    }
 }
 
 private class LibraryScanProgressThrottler(

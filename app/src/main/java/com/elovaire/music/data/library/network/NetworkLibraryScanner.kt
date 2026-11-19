@@ -19,7 +19,6 @@ import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.security.MessageDigest
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -756,9 +755,7 @@ internal fun networkArtworkCacheKey(sourceId: String, entry: NetworkFileEntry): 
     val identity = fields.joinToString(separator = "") { value ->
         value?.let { "${it.length}:$it" } ?: "-:"
     }
-    return MessageDigest.getInstance("SHA-256")
-        .digest(identity.toByteArray(Charsets.UTF_8))
-        .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+    return networkFingerprint(identity)
 }
 
 internal fun trimNetworkArtworkFiles(

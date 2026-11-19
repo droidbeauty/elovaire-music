@@ -117,6 +117,10 @@ internal class MediaStoreScanner(
         metadataCache.invalidateSongIds(songIds)
     }
 
+    fun invalidateMetadataCache(songIds: Collection<Long>, paths: Collection<String>) {
+        metadataCache.invalidate(songIds, paths)
+    }
+
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     suspend fun scan(
         refreshMediaIndex: Boolean = false,

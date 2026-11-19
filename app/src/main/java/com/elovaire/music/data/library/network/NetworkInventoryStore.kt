@@ -11,6 +11,8 @@ import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import java.io.File
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
@@ -73,14 +75,17 @@ internal class NetworkInventoryStore(
     }
 
     suspend fun applyVerifiedTags(source: NetworkLibrarySource, songs: List<Song>) {
-        val fingerprint = NetworkSourceIdentity.locationFingerprint(source)
-        for (song in songs) {
-            if (!NetworkResourceUri.isNetworkUri(song.uri) || NetworkResourceUri.sourceId(song.uri) != source.id) continue
-            val path = NetworkResourceUri.path(song.uri) ?: continue
-            dao.updateVerifiedNetworkTags(source.id, path, song.id, fingerprint, song.title, song.artist,
-                song.album, song.albumArtist, song.releaseYear, song.genre, song.trackNumber,
-                song.discNumber, song.description)
+        val context = currentCoroutineContext()
+        val entries = songs.mapIndexedNotNull { index, song ->
+            if (index % 128 == 0) context.ensureActive()
+            if (!NetworkResourceUri.isNetworkUri(song.uri) || NetworkResourceUri.sourceId(song.uri) != source.id) {
+                null
+            } else {
+                NetworkResourceUri.path(song.uri)?.let { it to song }
+            }
         }
+        if (entries.isEmpty()) return
+        dao.updateVerifiedNetworkTagsBatch(source.id, NetworkSourceIdentity.locationFingerprint(source), entries)
     }
 
     suspend fun remove(sourceId: String) {

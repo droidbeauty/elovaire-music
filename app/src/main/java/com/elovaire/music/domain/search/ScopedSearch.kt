@@ -10,7 +10,7 @@ internal data class SearchablePlaylist(
     val normalizedComposite: String,
 )
 
-private data class SearchablePickerArtist<T>(
+internal data class SearchablePickerArtist<T>(
     val value: T,
     val normalizedName: String,
     val normalizedComposite: String,
@@ -156,21 +156,37 @@ internal fun <T> searchArtistsForPicker(
 ): List<T> {
     if (query.value.isBlank()) return artists
 
+    return searchIndexedArtistsForPicker(
+        buildPickerArtistSearchIndex(artists, name, songs, songCount), query, name,
+    )
+}
+
+internal fun <T> buildPickerArtistSearchIndex(
+    artists: List<T>,
+    name: (T) -> String,
+    songs: (T) -> List<Song>,
+    songCount: (T) -> Int,
+): List<SearchablePickerArtist<T>> = artists.map { artist ->
+    val normalizedName = normalizeSearchText(name(artist))
+    val normalizedComposite = buildNormalizedComposite(
+        normalizedName,
+        songs(artist).firstOrNull()?.album.orEmpty().let(::normalizeSearchText),
+    )
+    SearchablePickerArtist(
+        value = artist,
+        normalizedName = normalizedName,
+        normalizedComposite = normalizedComposite,
+        songCount = songCount(artist),
+    )
+}
+
+internal fun <T> searchIndexedArtistsForPicker(
+    artists: List<SearchablePickerArtist<T>>,
+    query: NormalizedSearchQuery,
+    name: (T) -> String,
+): List<T> {
+    if (query.value.isBlank()) return artists.map(SearchablePickerArtist<T>::value)
     return artists
-        .map { artist ->
-            val artistSongs = songs(artist)
-            val normalizedName = normalizeSearchText(name(artist))
-            val normalizedComposite = buildNormalizedComposite(
-                normalizedName,
-                artistSongs.firstOrNull()?.album.orEmpty().let(::normalizeSearchText),
-            )
-            SearchablePickerArtist(
-                value = artist,
-                normalizedName = normalizedName,
-                normalizedComposite = normalizedComposite,
-                songCount = songCount(artist),
-            )
-        }
         .rankMatching(
             query = query,
             normalizedTitle = { it.normalizedName },

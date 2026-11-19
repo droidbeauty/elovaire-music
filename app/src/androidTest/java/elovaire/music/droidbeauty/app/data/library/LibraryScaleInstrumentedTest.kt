@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.settings.PreferenceCollectionCodec
+import elovaire.music.droidbeauty.app.data.playback.toPlaybackMediaItem
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistEngine
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSort
@@ -25,11 +26,19 @@ import elovaire.music.droidbeauty.app.domain.search.scoreMatch
 import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import elovaire.music.droidbeauty.app.domain.search.buildSearchIndex
 import elovaire.music.droidbeauty.app.domain.search.buildSearchResults
+import elovaire.music.droidbeauty.app.domain.search.buildPickerArtistSearchIndex
+import elovaire.music.droidbeauty.app.domain.search.buildPickerSongSearchIndex
+import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchIndexedArtistsForPicker
 import elovaire.music.droidbeauty.app.ui.screens.distinctMusicArtistCount
 import elovaire.music.droidbeauty.app.ui.screens.distinctMusicGenreCount
+import elovaire.music.droidbeauty.app.ui.screens.AlbumSortMode
+import elovaire.music.droidbeauty.app.ui.screens.albumCollectionSortEntries
+import elovaire.music.droidbeauty.app.ui.screens.sortAlbumCollection
 import elovaire.music.droidbeauty.app.ui.screens.favoriteAlbumsFor
 import elovaire.music.droidbeauty.app.ui.screens.recentlyAddedAlbumsFor
 import kotlin.system.measureNanoTime
+import java.util.Locale
 import java.util.PriorityQueue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -39,6 +48,302 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LibraryScaleInstrumentedTest {
+    @Test
+    fun playbackQueueMediaItemBuildAtLibraryScale() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        measure("playback_queue_items", songs.size, 3) {
+            val items = songs.map { it.toPlaybackMediaItem() }
+            assertEquals(songs.size, items.size)
+            assertEquals(songs.last().id.toString(), items.last().mediaId)
+        }
+    }
+
+    @Test
+    fun libraryUiRevisionComparisonSkipsLargeUnchangedPrefix() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val previous = LibraryUiState(songs = songs, contentRevision = "before")
+        val next = previous.copy(songs = songs.map { it.copy() }, contentRevision = "after")
+        val baseline = {
+            previous.permissionGranted == next.permissionGranted && previous.isLoading == next.isLoading &&
+                java.lang.Float.compare(previous.scanProgress, next.scanProgress) == 0 &&
+                previous.isAuthoritative == next.isAuthoritative && previous.songs == next.songs &&
+                previous.albums == next.albums && previous.audiobooks == next.audiobooks &&
+                previous.contentRevision == next.contentRevision && previous.removingSongIds == next.removingSongIds &&
+                previous.removingAlbumIds == next.removingAlbumIds && previous.errorMessage == next.errorMessage
+        }
+        val candidate = { previous == next }
+        assertEquals(baseline(), candidate())
+        measurePair("library_ui_revision_comparison", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun pickerAlbumSortingReusesCaseFoldedKeys() {
+        val albums = List(10_000) { index ->
+            val song = song(index.toLong() + 1L)
+            Album(song.albumId, "ALBUM ${10_000 - index}", "ARTIST ${index % 100}", null, 1, song.durationMs, listOf(song))
+        }
+        val baseline = { albums.sortedWith(compareBy<Album> { it.artist.lowercase() }.thenBy { it.title.lowercase() }) }
+        val candidate = { sortAlbumCollection(albumCollectionSortEntries(albums), AlbumSortMode.Artist) }
+        assertEquals(baseline(), candidate())
+        measurePair("picker_album_sort", albums.size, baseline, candidate)
+    }
+
+    @Test
+    fun metadataInvalidationCombinesIdAndPathPasses() {
+        val songs = List(10_000) { index ->
+            song(index.toLong() + 1L).copy(libraryPath = "/music/${index + 1}.mp3")
+        }
+        fun caches() = List(5) { ScannerMetadataCache().apply { prime(songs) } }
+        val baselineCaches = caches()
+        val candidateCaches = caches()
+        var baselineIndex = 0
+        var candidateIndex = 0
+        val ids = listOf(1L)
+        val paths = listOf("/music/5000.mp3")
+        val baseline = {
+            baselineCaches[baselineIndex++].apply {
+                invalidateSongIds(ids)
+                invalidatePaths(paths)
+            }
+        }
+        val candidate = { candidateCaches[candidateIndex++].apply { invalidate(ids, paths) } }
+        measurePair("metadata_invalidation", songs.size, baseline, candidate)
+        for (index in baselineCaches.indices) {
+            for (song in listOf(songs.first(), songs[4_999], songs.last())) {
+                val key = MediaIdentityResolver.sourceKey(song)
+                assertEquals(baselineCaches[index][key], candidateCaches[index][key])
+            }
+        }
+    }
+
+    @Test
+    fun bulkDeletionFailuresFindAlbumIdsInOnePass() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val failed = songs.asSequence().filterIndexed { index, _ -> index % 2 == 0 }
+            .mapTo(linkedSetOf(), Song::id).apply { add(99_999L) }
+        val baseline = {
+            failed.map { id ->
+                LibraryDeleteFailure(id, songs.firstOrNull { it.id == id }?.albumId, "The file is still present after deletion.")
+            }
+        }
+        val candidate = { deletionFailures(songs, failed) }
+        assertEquals(baseline(), candidate())
+        measurePair("bulk_deletion_failures", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun bulkAlbumDeletionFindsAlbumsInOnePass() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val albums = songs.map { song ->
+            Album(song.id, song.album, song.artist, song.artUri, 1, song.durationMs, listOf(song))
+        }
+        val selected = albums.asSequence().filterIndexed { index, _ -> index % 2 == 0 }
+            .mapTo(linkedSetOf(), Album::id)
+        val songIds = songs.mapTo(hashSetOf(), Song::id)
+        val baseline = {
+            selected.filterTo(linkedSetOf()) { id ->
+                albums.firstOrNull { it.id == id }?.songs?.all { it.id in songIds } == true
+            }
+        }
+        val candidate = { fullyDeletedAlbumIds(albums, selected, songIds) }
+        assertEquals(baseline().toList(), candidate().toList())
+        measurePair("bulk_album_deletion", albums.size, baseline, candidate)
+
+        val remaining = albums.filter { it.id !in selected }
+        val baselineMissing = { selected.filterTo(linkedSetOf()) { id -> remaining.none { it.id == id } } }
+        val candidateMissing = { missingAlbumIds(selected, remaining) }
+        assertEquals(baselineMissing().toList(), candidateMissing().toList())
+        measurePair("bulk_album_deletion_result", albums.size, baselineMissing, candidateMissing)
+    }
+
+    @Test
+    fun deletionMarkerComparisonSkipsUnchangedLibraryTraversal() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val previous = LibraryContentState(songs = songs, contentRevision = "same")
+        val next = previous.copy(songs = songs.map { it.copy() }, removingSongIds = setOf(1L))
+        val baseline = {
+            previous.contentRevision == next.contentRevision && previous.songs == next.songs &&
+                previous.albums == next.albums && previous.audiobooks == next.audiobooks &&
+                previous.removingSongIds == next.removingSongIds &&
+                previous.removingAlbumIds == next.removingAlbumIds &&
+                previous.portableMediaIdentityRevision == next.portableMediaIdentityRevision
+        }
+        val candidate = { previous == next }
+        assertEquals(baseline(), candidate())
+        measurePair("deletion_marker_comparison", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun unrelatedDeletionMarkerDoesNotRebuildTheSnapshot() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs)
+        val suppressed = setOf(90_000L)
+        val filter = Class.forName("elovaire.music.droidbeauty.app.data.library.LibraryRepositoryKt")
+            .getDeclaredMethod("songsVisibleAfterDeletionMarkers", List::class.java, Set::class.java)
+            .apply { isAccessible = true }
+        val baseline = {
+            LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs.filterNot { it.id in suppressed })
+        }
+        val candidate = {
+            @Suppress("UNCHECKED_CAST")
+            val visible = filter.invoke(null, songs, suppressed) as List<Song>
+            if (visible === songs) snapshot else LibrarySnapshotAssembler.assembleDeduplicatedSongs(visible)
+        }
+        assertEquals(baseline(), candidate())
+        measurePair("unrelated_deletion_marker", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun pickerArtistGroupsAvoidRepeatedCaseFolding() {
+        val songs = List(10_000) { index ->
+            song(index.toLong() + 1L).copy(artist = "Artist ${index % 100}", title = "TRACK ${10_000 - index}")
+        }
+        val groups = songs.groupBy(Song::artist)
+        val baseline = {
+            groups.map { (name, tracks) ->
+                Triple(name, tracks.map(Song::albumId).distinct().size, tracks.sortedBy { it.title.lowercase() })
+            }.sortedBy { it.first.lowercase() }
+        }
+        val candidate = {
+            groups.map { (name, tracks) ->
+                Triple(name, tracks.mapTo(hashSetOf(), Song::albumId).size,
+                    tracks.map { it to it.title.lowercase() }.sortedBy { it.second }.map { it.first })
+            }.map { it to it.first.lowercase() }.sortedBy { it.second }.map { it.first }
+        }
+        repeat(2) { assertEquals(baseline(), candidate()) }
+        measurePair("picker_artist_groups", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun collectionNameSortingCachesCaseFoldedKeys() {
+        val names = List(10_000) { "Artist ${10_000 - it}" }
+        val baseline = { names.sortedBy { it.lowercase() } }
+        val candidate = { names.map { it to it.lowercase() }.sortedBy { it.second }.map { it.first } }
+        repeat(2) { assertEquals(baseline(), candidate()) }
+        measurePair("collection_name_sort", names.size, baseline, candidate)
+    }
+
+    @Test
+    fun changedLibraryDiffSkipsPathsOfMatchedSongs() {
+        val songs = List(10_000) { song(it.toLong() + 1L).copy(libraryPath = "/storage/emulated/0/Music/track-$it.mp3") }
+        val next = songs.toMutableList().apply { this[lastIndex] = last().copy(title = "Changed") }
+        val baseline = {
+            songs.forEach { LibrarySongDuplicateResolver.normalizedRealPath(it.libraryPath) }
+            next.forEach { LibrarySongDuplicateResolver.normalizedRealPath(it.libraryPath) }
+            LibraryChangeSetCalculator.between(songs, next)
+        }
+        val candidate = { LibraryChangeSetCalculator.between(songs, next) }
+        repeat(2) { assertEquals(baseline(), candidate()) }
+        measurePair("changed_library_diff", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun unchangedSnapshotReusesPortableIdentityAtScale() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val snapshot = LibrarySnapshotAssembler.assembleDeduplicatedSongs(songs)
+        val revision = MediaIdentityResolver.portableIdentityRevision(snapshot.songs)
+        val current = LibraryContentState(
+            songs = snapshot.songs,
+            albums = snapshot.albums,
+            contentRevision = snapshot.contentRevision,
+            portableMediaIdentityRevision = revision,
+        )
+        val publisher = LibrarySnapshotPublisher({}, { current })
+        val baseline = { MediaIdentityResolver.portableIdentityRevision(snapshot.songs) }
+        val candidate = { publisher.stateForSnapshot(snapshot, emptySet(), emptySet()).portableMediaIdentityRevision }
+        repeat(2) { assertEquals(baseline(), candidate()) }
+        measurePair("unchanged_snapshot_identity", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun unchangedLibraryDiffAvoidsBuildingIdentityIndexes() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val next = songs.map { it.copy() }
+        val unoptimizedInput = object : AbstractList<Song>() {
+            override val size: Int get() = songs.size
+            override fun get(index: Int): Song = songs[index]
+            override fun equals(other: Any?): Boolean = this === other
+            override fun hashCode(): Int = System.identityHashCode(this)
+        }
+        val baseline = { LibraryChangeSetCalculator.between(unoptimizedInput, next) }
+        val candidate = { LibraryChangeSetCalculator.between(songs, next) }
+        repeat(2) {
+            assertEquals(baseline(), candidate())
+        }
+        measurePair("unchanged_library_diff", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun portableIdentityChecksAvoidNormalizingUnchangedFields() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val edited = songs.map { it.copy(audioQuality = "Lossless") }
+        val whitespace = Regex("\\s+")
+        fun normalize(value: String) = value.trim().lowercase(Locale.ROOT).replace(whitespace, " ")
+        val baseline = {
+            songs.indices.count { index ->
+                val before = songs[index]
+                val after = edited[index]
+                before.id != after.id ||
+                    before.durationMs.takeIf { it > 0L } != after.durationMs.takeIf { it > 0L } ||
+                    normalize(before.title) != normalize(after.title) ||
+                    normalize(before.artist) != normalize(after.artist) ||
+                    normalize(before.album) != normalize(after.album) ||
+                    normalize(before.albumArtist.orEmpty()) != normalize(after.albumArtist.orEmpty()) ||
+                    normalize(before.fileName).takeIf(String::isNotBlank).orEmpty() !=
+                    normalize(after.fileName).takeIf(String::isNotBlank).orEmpty() ||
+                    before.trackNumber.takeIf { it > 0 } != after.trackNumber.takeIf { it > 0 } ||
+                    before.discNumber.takeIf { it > 0 } != after.discNumber.takeIf { it > 0 }
+            }
+        }
+        val candidate = { songs.indices.count { MediaIdentityResolver.portableIdentityChanged(songs[it], edited[it]) } }
+        assertEquals(0, baseline())
+        assertEquals(baseline(), candidate())
+        repeat(2) {
+            baseline()
+            candidate()
+        }
+        measurePair("portable_identity_checks", songs.size, baseline, candidate)
+    }
+
+    @Test
+    fun pickerSongIndexReusesRepeatedMetadata() {
+        val songs = List(10_000) { song(it.toLong() + 1L) }
+        val baseline = { songs.map(Song::toSearchableSong) }
+        val candidate = { buildPickerSongSearchIndex(songs) }
+        assertEquals(baseline(), candidate())
+        repeat(2) {
+            baseline()
+            candidate()
+        }
+        measurePair("picker_song_index", songs.size, baseline, candidate)
+        val uniqueMetadata = songs.map { song ->
+            song.copy(artist = "Artist ${song.id}", album = "Album ${song.id}", albumArtist = "Album artist ${song.id}")
+        }
+        val uniqueBaseline = { uniqueMetadata.map(Song::toSearchableSong) }
+        val uniqueCandidate = { buildPickerSongSearchIndex(uniqueMetadata) }
+        assertEquals(uniqueBaseline(), uniqueCandidate())
+        measurePair("picker_song_index_unique_metadata", songs.size, uniqueBaseline, uniqueCandidate)
+    }
+
+    @Test
+    fun reusableArtistSearchIndexMatchesAndAvoidsRepeatedNormalization() {
+        val artists = List(10_000) { index ->
+            "Artist $index" to listOf(song(index.toLong() + 1L))
+        }
+        val index = buildPickerArtistSearchIndex(artists, { it.first }, { it.second }, { it.second.size })
+        val queries = listOf("artist 10", "artist 100", "artist 1000").map(NormalizedSearchQuery::from)
+        val baseline = {
+            queries.map { query -> searchArtistsForPicker(artists, query, { it.first }, { it.second }, { it.second.size }) }
+        }
+        val candidate = { queries.map { query -> searchIndexedArtistsForPicker(index, query) { it.first } } }
+        assertEquals(baseline(), candidate())
+        repeat(2) {
+            baseline()
+            candidate()
+        }
+        measurePair("artist_search_reuse", artists.size, baseline, candidate)
+    }
+
     @Test
     fun limitedSmartPlaylistsMatchFullSortAtScale() {
         val songs = List(50_000) { song(it.toLong() + 1) }.shuffled(kotlin.random.Random(17))

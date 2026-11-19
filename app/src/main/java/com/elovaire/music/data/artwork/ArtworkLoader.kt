@@ -468,8 +468,10 @@ internal object ArtworkBitmapCache {
         requestedSize: Int,
         purpose: ArtworkPurpose,
     ): Bitmap? {
-        val sizes = indexedBitmaps["$uri|${artworkDecodeProfile(uri, purpose)}"] ?: return null
-        return sizes.ceilingEntry(requestedSize)?.value ?: sizes.lastEntry()?.value
+        val profile = artworkDecodeProfile(uri, purpose)
+        val sizes = indexedBitmaps["$uri|$profile"] ?: return null
+        val size = sizes.ceilingKey(requestedSize) ?: sizes.lastEntry()?.key ?: return null
+        return cache.get("$uri|$size|$profile")
     }
 
     @Synchronized
@@ -478,7 +480,7 @@ internal object ArtworkBitmapCache {
         requestedSize: Int,
         purpose: ArtworkPurpose,
     ): Bitmap? {
-        return indexedBitmaps["$uri|${artworkDecodeProfile(uri, purpose)}"]?.get(requestedSize)
+        return cache.get("$uri|$requestedSize|${artworkDecodeProfile(uri, purpose)}")
     }
 
     fun put(key: String, bitmap: Bitmap) {

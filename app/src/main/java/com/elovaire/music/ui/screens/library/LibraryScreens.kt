@@ -653,13 +653,6 @@ internal fun HomeScreen(
                                     }
                                 }
                             }
-                        } else if (!isLibraryLoading) {
-                            item(key = "home_recently_added_empty") {
-                                EmptyStateCard(
-                                    title = homeCopy.noRecentAdditionsTitle,
-                                    message = homeCopy.noRecentAdditionsMessage,
-                                )
-                            }
                         }
 
                     }
@@ -2018,8 +2011,10 @@ internal fun LibraryCollectionScreen(
 ) {
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
-    val musicSongs = remember(libraryState.songs) {
-        libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music }
+    val musicSongs = if (kind == LibraryCollectionKind.Albums) emptyList() else {
+        remember(libraryState.songs) {
+            libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music }
+        }
     }
     when (kind) {
         LibraryCollectionKind.Songs -> SongCollectionScreen(

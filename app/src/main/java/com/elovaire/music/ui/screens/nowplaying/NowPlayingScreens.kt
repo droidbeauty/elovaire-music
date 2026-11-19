@@ -136,6 +136,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -679,12 +680,12 @@ internal fun NowPlayingScreen(
             val landscape = screenWidthPx > screenHeightPx * 1.15f
             val availableContentHeight = screenHeightPx - statusBarTopInsetPx - navigationBarBottomInsetPx -
                 with(density) { 108.dp.toPx() }
-            val artworkSize = if (landscape) {
+            val artworkSize = (if (landscape) {
                 min(screenWidthPx - (horizontalInset * 2f), availableContentHeight * 0.34f)
                     .coerceAtLeast(with(density) { 120.dp.toPx() })
             } else {
                 screenWidthPx - (horizontalInset * 2f)
-            }
+            }) - with(density) { 10.dp.toPx() }
             val topInset = statusBarTopInsetPx + with(density) { 70.dp.toPx() }
             val artworkLeft = (screenWidthPx - artworkSize) / 2f
             androidx.compose.ui.geometry.Rect(
@@ -982,13 +983,13 @@ internal fun NowPlayingScreen(
                             ),
                     ) {
                         val landscape = maxWidth > maxHeight * 1.15f
-                        val expandedArtworkWidth = if (landscape) {
+                        val expandedArtworkWidth = (if (landscape) {
                             minOf(maxWidth, maxHeight * 0.34f).coerceAtLeast(120.dp)
                         } else {
                             maxWidth
-                        }
+                        }) - 10.dp
                         val compactArtworkWidth = if (landscape) {
-                            expandedArtworkWidth * 0.38f
+                            (expandedArtworkWidth + 10.dp) * 0.38f
                         } else {
                             (maxWidth * 0.38f) - 10.dp
                         }
@@ -1014,6 +1015,7 @@ internal fun NowPlayingScreen(
                                         targetState = currentSong.id,
                                         transitionSpec = { motionTransitions.quickContentSwapTransform() },
                                         label = "player_artwork_content",
+                                        modifier = Modifier.align(if (showQueueSheet) Alignment.CenterStart else Alignment.Center),
                                     ) { songId ->
                                         val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
                                         ArtworkImage(
@@ -1587,6 +1589,7 @@ internal fun NowPlayingScreen(
                         if (state == EnterExitState.Visible) 1f else 0.97f
                     }
                     QueueSheet(
+                        visible = showQueueSheet,
                         queue = playerUiState.queue,
                         currentIndex = playerUiState.currentIndex,
                         backdropHazeState = playerBackdropHazeState,
@@ -1889,6 +1892,7 @@ private fun SongFileInfoPill(
 @Composable
 @OptIn(ExperimentalHazeApi::class)
 private fun QueueSheet(
+    visible: Boolean,
     queue: List<Song>,
     currentIndex: Int,
     backdropHazeState: HazeState,
@@ -1967,10 +1971,8 @@ private fun QueueSheet(
                     localizedCountLabel(queue.size, "track", language)
                 },
                 title = if (audiobookMode) audiobookCopy(language).chapters else queueTitle(language),
-                language = language,
                 tint = tint,
                 secondaryTint = secondaryTint,
-                onDismiss = onDismiss,
                 modifier = Modifier.hazeSource(backdropHazeState, zIndex = 1f),
             )
             Box(
@@ -2007,6 +2009,7 @@ private fun QueueSheet(
                 }
             }
             QueueSheetFooter(
+                visible = visible,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(footerHeight)
@@ -2044,10 +2047,8 @@ private fun QueueSheet(
 private fun QueueSheetHeader(
     countText: String,
     title: String,
-    language: AppLanguage,
     tint: Color,
     secondaryTint: Color,
-    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -2083,7 +2084,6 @@ private fun QueueSheetHeader(
                 )
             }
             Row(
-                modifier = Modifier.offset(x = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2092,30 +2092,6 @@ private fun QueueSheetHeader(
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryTint.copy(alpha = 0.7f),
                 )
-                val closeQueueInteractionSource = rememberElovaireInteractionSource()
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(tint.copy(alpha = 0.1f))
-                        .elovaireActionBump(
-                            interactionSource = closeQueueInteractionSource,
-                            label = "close_queue_bump",
-                        )
-                        .clickable(
-                            interactionSource = closeQueueInteractionSource,
-                            indication = null,
-                            onClick = onDismiss,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_x),
-                        contentDescription = closeQueueAccessibilityLabel(language),
-                        tint = tint.copy(alpha = 0.92f),
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
             }
         }
     }
@@ -2123,6 +2099,7 @@ private fun QueueSheetHeader(
 
 @Composable
 private fun QueueSheetFooter(
+    visible: Boolean,
     modifier: Modifier,
     statusText: String?,
     tint: Color,
@@ -2173,10 +2150,16 @@ private fun QueueSheetFooter(
                 }
             }
         }
-        Row(
+        androidx.compose.animation.AnimatedVisibility(
+            visible = visible,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
+                .align(Alignment.BottomCenter),
+            enter = fadeIn(animationSpec = motionSpecs.fadeIn()) +
+                slideInVertically(animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = MotionEasing.SoftOut)) { it / 4 },
+            exit = fadeOut(animationSpec = motionSpecs.fadeOut()) +
+                slideOutVertically(animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = MotionEasing.RefinedAccelerate)) { it / 4 },
+        ) {
+        Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2190,7 +2173,7 @@ private fun QueueSheetFooter(
                     showBackground = crossfadeEnabled,
                     onClick = onToggleCrossfade,
                 )
-                Spacer(modifier = Modifier.width(20.dp))
+                Spacer(modifier = Modifier.width(18.dp))
             }
             PlayerSecondaryActionButton(
                 iconResId = R.drawable.ic_lucide_sliders_vertical,
@@ -2203,7 +2186,7 @@ private fun QueueSheetFooter(
                     onOpenEqualizer()
                 },
             )
-            Spacer(modifier = Modifier.width(20.dp))
+            Spacer(modifier = Modifier.width(18.dp))
             PlayerSecondaryActionButton(
                 iconResId = R.drawable.ic_lucide_timer,
                 label = "",
@@ -2214,7 +2197,7 @@ private fun QueueSheetFooter(
                 onClick = onOpenSleepTimer,
             )
             if (!audiobookMode) {
-                Spacer(modifier = Modifier.width(20.dp))
+                Spacer(modifier = Modifier.width(18.dp))
                 PlayerSecondaryActionButton(
                     iconResId = R.drawable.ic_lucide_shuffle,
                     label = "",
@@ -2224,6 +2207,25 @@ private fun QueueSheetFooter(
                     onClick = onToggleShuffle,
                 )
             }
+            Spacer(modifier = Modifier.width(10.dp))
+            val closeQueueInteractionSource = rememberElovaireInteractionSource()
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .elovaireActionBump(interactionSource = closeQueueInteractionSource, label = "close_queue_bump")
+                    .clip(CircleShape)
+                    .background(tint.copy(alpha = 0.2f))
+                    .clickable(interactionSource = closeQueueInteractionSource, indication = null, onClick = onDismiss),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_x),
+                    contentDescription = closeQueueAccessibilityLabel(language),
+                    tint = tint.copy(alpha = 0.92f),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
         }
     }
 }
@@ -5268,7 +5270,7 @@ private fun PlaybackProgressBar(
     val latestOnScrubFractionChanged by rememberUpdatedState(onScrubFractionChanged)
     val latestOnScrubFinished by rememberUpdatedState(onScrubFinished)
     val motionSpecs = rememberMotionSpecs()
-    var chapterPillWidthPx by remember { mutableStateOf(0) }
+    var chapterPillWidthPx by remember { mutableIntStateOf(0) }
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,

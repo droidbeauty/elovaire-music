@@ -51,6 +51,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -170,8 +172,8 @@ internal fun SettingsScreen(
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
     var scanPopupVisible by remember { mutableStateOf(false) }
     var scanPopupDone by remember { mutableStateOf(false) }
-    var scanRequestId by remember { mutableStateOf(0) }
-    var scanStartedAtMillis by remember { mutableStateOf(0L) }
+    var scanRequestId by remember { mutableIntStateOf(0) }
+    var scanStartedAtMillis by remember { mutableLongStateOf(0L) }
     var scanStartingContentRevision by remember { mutableStateOf("") }
     var scanObservedLoading by remember { mutableStateOf(false) }
 
@@ -351,7 +353,7 @@ internal fun SettingsScreen(
                             SettingNavigationRow(
                                 title = upscalerCopy.title,
                                 subtitle = if (upscalerSettings.enabled) {
-                                    "${upscalerStatusCopy.enabled} - ${upscalerSettings.multiplier}x"
+                                    "${upscalerStatusCopy.enabled} · ${upscalerSettings.multiplier}x"
                                 } else {
                                     upscalerStatusCopy.disabled
                                 },
@@ -1188,7 +1190,7 @@ private fun crossfadeSummary(
         AppLanguage.Ukrainian -> UkrainianTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
         AppLanguage.Urdu -> UrduTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
         AppLanguage.English -> EnglishTranslations.settingsScreen_crossfadeSummary_dynamic_1(formattedDuration, silence)
-    }
+    }.replace("$formattedDuration s", "${formattedDuration}s")
 }
 
 @Suppress("CyclomaticComplexMethod")

@@ -232,6 +232,13 @@ class SearchIndexTest {
     }
 
     @Test
+    fun scoreMatchPreservesTitleAcronymsAndWordScores() {
+        val title = normalizeSearchText("Northern Signal Memories")
+        assertEquals(0, scoreMatch(NormalizedSearchQuery.from("nsm"), title, ""))
+        assertEquals(49, scoreMatch(NormalizedSearchQuery.from("signal"), title, ""))
+    }
+
+    @Test
     fun scoreMatch_allowsConservativeSingleCharacterTypoForLongTokens() {
         val score = scoreMatch(
             query = NormalizedSearchQuery.from("californicaton"),

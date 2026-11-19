@@ -60,26 +60,39 @@ internal class PlaybackQueueMetadataRefresher {
     fun reconcileQueue(
         queue: List<Song>,
         librarySongs: List<Song>,
+        checkCancellation: () -> Unit = {},
     ): PlaybackQueueReconciliation? {
         if (queue.isEmpty()) return null
 
-        val songsByIdentity = HashMap<String, Song>(librarySongs.size)
+        val filterToQueue = queue.size < librarySongs.size / 2
+        val queuedIdentities = if (filterToQueue) queue.mapTo(HashSet(queue.size), MediaIdentityResolver::stableKey) else null
+        val queuedPaths = if (filterToQueue) queue.mapNotNullTo(HashSet()) {
+            LibrarySongDuplicateResolver.normalizedRealPath(it.libraryPath)
+        } else null
+        val songsByIdentity = HashMap<String, Song>(minOf(queue.size, librarySongs.size))
         val ambiguousIdentities = HashSet<String>()
-        val songsByPath = HashMap<String, Song>(librarySongs.size)
+        val songsByPath = HashMap<String, Song>(queuedPaths?.size ?: librarySongs.size)
         val ambiguousPaths = HashSet<String>()
-        librarySongs.forEach { song ->
-            songsByIdentity.putUnique(MediaIdentityResolver.stableKey(song), song, ambiguousIdentities)
-            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { path ->
-                songsByPath.putUnique(path, song, ambiguousPaths)
+        librarySongs.forEachIndexed { index, song ->
+            if (index and 127 == 0) checkCancellation()
+            val identity = MediaIdentityResolver.stableKey(song)
+            if (queuedIdentities == null || identity in queuedIdentities) {
+                songsByIdentity.putUnique(identity, song, ambiguousIdentities)
+            }
+            if (queuedPaths == null || queuedPaths.isNotEmpty()) {
+                LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { path ->
+                    if (queuedPaths == null || path in queuedPaths) songsByPath.putUnique(path, song, ambiguousPaths)
+                }
             }
         }
-        val trackMatcher by lazy { MediaIdentityResolver.prepareTrackMatcher(librarySongs) }
+        val trackMatcher by lazy { MediaIdentityResolver.prepareTrackMatcher(librarySongs, checkCancellation) }
 
         val retained = ArrayList<Song>(queue.size)
         val retainedOriginalIndices = ArrayList<Int>(queue.size)
         val removedOriginalIndices = ArrayList<Int>()
         val unresolvedOriginalIndices = ArrayList<Int>()
         queue.forEachIndexed { index, queuedSong ->
+            if (index and 127 == 0) checkCancellation()
             val match = songsByIdentity[MediaIdentityResolver.stableKey(queuedSong)]
                 ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
                     ?.let(songsByPath::get)

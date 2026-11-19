@@ -2,15 +2,28 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import android.net.TestUri
 import androidx.media3.common.Player
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.Tracks
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @Suppress("UNCHECKED_CAST")
 class PlaybackStateReducerTest {
+    @Test
+    fun detectsOnlySelectedDolbyAtmosAudioTracks() {
+        assertTrue(isDolbyAtmosAudioTrack(true, MimeTypes.AUDIO_E_AC3_JOC))
+        assertFalse(isDolbyAtmosAudioTrack(false, MimeTypes.AUDIO_E_AC3_JOC))
+        assertFalse(isDolbyAtmosAudioTrack(true, MimeTypes.AUDIO_E_AC3))
+        assertFalse(isDolbyAtmosAudioTrack(true, MimeTypes.AUDIO_AAC))
+        assertFalse(isDolbyAtmosAudioTrack(true, null))
+        assertFalse(hasSelectedDolbyAtmosTrack(Tracks.EMPTY))
+    }
     @Test
     fun reduceUsesCallerSnapshotForQueueIndexAndVolume() {
         val playerHandler = CountingPlayerHandler()
@@ -100,6 +113,7 @@ private class CountingPlayerHandler : InvocationHandler {
                 -1
             }
             "getCurrentMediaItem" -> null
+            "getCurrentTracks" -> Tracks.EMPTY
             "getCurrentPosition" -> 100L
             "isPlaying", "getPlayWhenReady", "getShuffleModeEnabled" -> false
             "getRepeatMode", "getAudioSessionId" -> 0

@@ -29,15 +29,10 @@ internal object PreferenceCollectionCodec {
         if (value.length > MAX_SERIALIZED_FIELD_CHARS) return null
         val versioned = value.startsWith(VERSIONED_PREFIX)
         if (!versioned && VERSIONED_PREFIX_MARKER.containsMatchIn(value)) return null
-        val parts = if (versioned) {
-            value.removePrefix(VERSIONED_PREFIX)
-                .split(FIELD_SEPARATOR)
-                .map(::decodeField)
-        } else {
-            value.split(FIELD_SEPARATOR).map { it }
-        }
-        if (parts.size != 7 || parts.any { it == null }) return null
-        val fields = parts.mapNotNull { it }
+        val parts = (if (versioned) value.removePrefix(VERSIONED_PREFIX) else value)
+            .split(FIELD_SEPARATOR, limit = 8)
+        if (parts.size != 7) return null
+        val fields = if (versioned) parts.map { decodeField(it) ?: return null } else parts
         val kind = SearchHistoryKind.entries.firstOrNull { it.name == fields[1] } ?: return null
         return SearchHistoryEntry(
             key = fields[0],
@@ -61,15 +56,10 @@ internal object PreferenceCollectionCodec {
         if (value.length > MAX_SERIALIZED_FIELD_CHARS) return null
         val versioned = value.startsWith(VERSIONED_PREFIX)
         if (!versioned && VERSIONED_PREFIX_MARKER.containsMatchIn(value)) return null
-        val parts = if (versioned) {
-            value.removePrefix(VERSIONED_PREFIX)
-                .split(FIELD_SEPARATOR)
-                .map(::decodeField)
-        } else {
-            value.split(FIELD_SEPARATOR).map { it }
-        }
-        if (parts.size != 4 || parts.any { it == null }) return null
-        val fields = parts.mapNotNull { it }
+        val parts = (if (versioned) value.removePrefix(VERSIONED_PREFIX) else value)
+            .split(FIELD_SEPARATOR, limit = 5)
+        if (parts.size != 4) return null
+        val fields = if (versioned) parts.map { decodeField(it) ?: return null } else parts
         val path = fields[1].trimCodecWhitespace()
         val uri = fields[0].takeIf(String::isNotBlank)?.let(::parseStoredFolderUri)
         if (fields[0].isNotBlank() && uri == null) return null

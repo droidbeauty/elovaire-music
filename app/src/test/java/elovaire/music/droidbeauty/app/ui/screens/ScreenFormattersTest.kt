@@ -12,6 +12,75 @@ import org.junit.Test
 
 class ScreenFormattersTest {
     @Test
+    fun durationFormattingMatchesLocalizedFormatterAcrossBoundaries() {
+        val original = java.util.Locale.getDefault(java.util.Locale.Category.FORMAT)
+        val locales = java.util.Locale.getAvailableLocales().toList() +
+            listOf("en-US", "pl-PL", "ar-EG", "fa-IR", "bn-BD", "ar-EG-u-nu-latn")
+                .map(java.util.Locale::forLanguageTag)
+        val durations = listOf(1L, 999L, 1_000L, 59_999L, 60_000L, 3_599_999L, 3_600_000L, Long.MAX_VALUE)
+        try {
+            locales.forEach { locale ->
+                java.util.Locale.setDefault(java.util.Locale.Category.FORMAT, locale)
+                durations.forEach { duration ->
+                    val seconds = duration / 1_000L
+                    val expected = if (seconds >= 3_600L) {
+                        "%d:%02d:%02d".format(seconds / 3_600L, seconds % 3_600L / 60L, seconds % 60L)
+                    } else {
+                        "%d:%02d".format(seconds / 60L, seconds % 60L)
+                    }
+                    assertEquals("$locale / $duration", expected, formatDuration(duration))
+                    assertEquals(expected, formatPlaybackPosition(duration))
+                }
+            }
+        } finally {
+            java.util.Locale.setDefault(java.util.Locale.Category.FORMAT, original)
+        }
+        assertEquals("--:--", formatDuration(0L))
+        assertEquals("00:00", formatPlaybackPosition(0L))
+    }
+
+    @Test
+    fun artistAlbumsMatchCaseInsensitivelyAndKeepEqualTitlesInOrder() {
+        val albums = listOf(
+            album(1L, 1L).copy(artist = "ARTIST", title = "Beta"),
+            album(2L, 1L).copy(artist = "Artist", title = "alpha"),
+            album(3L, 1L).copy(artist = "Other", title = "Alpha"),
+            album(4L, 1L).copy(artist = "artist", title = "ALPHA"),
+            album(5L, 1L).copy(artist = "Artist", title = "Éclair"),
+        )
+
+        assertEquals(listOf(2L, 4L, 1L, 5L), artistAlbumsFor(albums, "artist").map(Album::id))
+        assertTrue(artistAlbumsFor(albums, "Missing").isEmpty())
+    }
+
+    @Test
+    fun artistAndGenreSortsKeepInputOrderForEqualCaseFoldedNames() {
+        val songs = listOf("zebra", "Artist", "artist", "Éclair", "ARTIST").mapIndexed { index, name ->
+            song(index.toLong() + 1L, albumId = index.toLong() + 1L, durationMs = 1_000L)
+                .copy(artist = name, genre = name)
+        }
+        val expected = songs.map(Song::artist).sortedBy { it.lowercase() }
+
+        assertEquals(expected, artistEntriesFor(songs).map { it.name })
+        assertEquals(expected, genreEntriesFor(songs).map { it.name })
+    }
+
+    @Test
+    fun favoriteAlbumsWithoutHistoryUsesRecentSourcesWithoutScanningLibrary() {
+        val albums = (1L..9L).map { id -> album(id, id) }
+        val unvisitedLibrary = object : AbstractList<Album>() {
+            override val size: Int get() = error("Library must not be scanned")
+            override fun get(index: Int): Album = error("Library must not be scanned")
+        }
+        val result = favoriteAlbumsFor(
+            libraryState = LibraryUiState(albums = unvisitedLibrary),
+            songPlayCounts = emptyMap(),
+            recentAlbums = listOf(albums[1], albums[0], albums[1]),
+            recentlyAddedAlbums = listOf(albums[0]) + albums.drop(2),
+        )
+        assertEquals(listOf(2L, 1L, 3L, 4L, 5L, 6L), result.map(Album::id))
+    }
+    @Test
     fun recentlyAddedAlbumsFor_sortsRecentAlbumsByLatestTimestamp() {
         val nowSeconds = System.currentTimeMillis() / 1_000L
         val albums = (1L..5L).map { id -> album(id, addedAtSeconds = nowSeconds - id) }
@@ -35,6 +104,17 @@ class ScreenFormattersTest {
             recentlyAddedAlbumsFor(LibraryUiState(albums = albums), limit = 2).map(Album::id),
         )
         assertEquals(emptyList<Album>(), recentlyAddedAlbumsFor(LibraryUiState(albums = albums), limit = 0))
+    }
+
+    @Test
+    fun recentlyAddedAlbumsExpireAtTheSameSecondAsBefore() {
+        val nowSeconds = 2_000_000L
+        val cutoff = nowSeconds - 14L * 24L * 60L * 60L
+        val albums = listOf(album(1L, cutoff), album(2L, cutoff + 1L))
+        val library = LibraryUiState(albums = albums)
+
+        assertEquals(listOf(2L, 1L), recentlyAddedAlbumsFor(library, nowSeconds = nowSeconds).map(Album::id))
+        assertEquals(listOf(2L), recentlyAddedAlbumsFor(library, nowSeconds = nowSeconds + 1L).map(Album::id))
     }
 
     @Test

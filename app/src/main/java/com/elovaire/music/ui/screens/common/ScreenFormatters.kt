@@ -7,13 +7,16 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.PriorityQueue
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import kotlin.math.roundToLong
 
 internal fun recentlyAddedAlbumsFor(
     libraryState: LibraryUiState,
     limit: Int? = null,
+    nowSeconds: Long = System.currentTimeMillis() / 1_000L,
 ): List<Album> {
-    val cutoffSeconds = (System.currentTimeMillis() / 1_000L) - RECENTLY_ADDED_WINDOW_SECONDS
+    val cutoffSeconds = nowSeconds - RECENTLY_ADDED_WINDOW_SECONDS
     if (limit == null || limit >= libraryState.albums.size) {
         return libraryState.albums.mapNotNull { album ->
             val timestampSeconds = album.songs.maxOfOrNull(Song::recentLibraryTimestampSeconds)
@@ -84,6 +87,12 @@ internal fun favoriteAlbumsFor(
     recentAlbums: List<Album>,
     recentlyAddedAlbums: List<Album>,
 ): List<Album> {
+    if (songPlayCounts.isEmpty()) {
+        return (recentAlbums.asSequence() + recentlyAddedAlbums.asSequence())
+            .distinctBy(Album::id)
+            .take(HOME_FAVORITE_ALBUM_LIMIT)
+            .toList()
+    }
     val comparator = compareByDescending<RankedFavoriteAlbum> { it.playCount }
         .thenBy { it.artistKey }
         .thenBy { it.titleKey }
@@ -169,6 +178,11 @@ internal data class AlbumCollectionSortEntry(
 internal fun albumCollectionSortEntries(albums: List<Album>): List<AlbumCollectionSortEntry> =
     albums.map(::AlbumCollectionSortEntry)
 
+internal fun artistAlbumsFor(albums: List<Album>, artist: String): List<Album> =
+    albums.mapNotNull { album ->
+        if (album.artist.equals(artist, ignoreCase = true)) album to album.title.lowercase() else null
+    }.sortedBy { it.second }.map { it.first }
+
 internal fun sortAlbumCollection(
     entries: List<AlbumCollectionSortEntry>,
     sortMode: AlbumSortMode,
@@ -226,8 +240,8 @@ internal fun artistEntriesFor(songs: List<Song>): List<ArtistEntry> {
             artUri = counts.artUri,
             albumCount = counts.albumIds.size,
             songCount = counts.songCount,
-        )
-    }.sortedBy { it.name.lowercase() }
+        ) to name.lowercase()
+    }.sortedBy { it.second }.map { it.first }
 }
 
 internal fun genreEntriesFor(songs: List<Song>): List<GenreEntry> {
@@ -237,8 +251,8 @@ internal fun genreEntriesFor(songs: List<Song>): List<GenreEntry> {
         albumIdsByGenre.getOrPut(genre, ::HashSet).add(song.albumId)
     }
     return albumIdsByGenre.map { (name, albumIds) ->
-        GenreEntry(name = name, albumCount = albumIds.size)
-    }.sortedBy { it.name.lowercase() }
+        GenreEntry(name = name, albumCount = albumIds.size) to name.lowercase()
+    }.sortedBy { it.second }.map { it.first }
 }
 
 internal fun suggestedAlbumsFor(
@@ -343,10 +357,27 @@ private fun formatTimestamp(durationMs: Long): String {
     val hours = totalSeconds / 3600
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        val remainingMinutes = (totalSeconds % 3600) / 60
-        "%d:%02d:%02d".format(hours, remainingMinutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
+    val locale = Locale.getDefault(Locale.Category.FORMAT)
+    val cached = timestampDigits
+    val zero = if (cached?.first == locale) cached.second else {
+        DecimalFormatSymbols.getInstance(locale).zeroDigit.also { timestampDigits = locale to it }
+    }
+    return buildString(16) {
+        fun appendNumber(value: Long, padded: Boolean = false) {
+            if (padded && value < 10L) append(zero)
+            value.toString().forEach { digit -> append((zero.code + digit.code - '0'.code).toChar()) }
+        }
+        if (hours > 0L) {
+            appendNumber(hours)
+            append(':')
+            appendNumber((totalSeconds % 3600) / 60, padded = true)
+        } else {
+            appendNumber(minutes)
+        }
+        append(':')
+        appendNumber(seconds, padded = true)
     }
 }
+
+@Volatile
+private var timestampDigits: Pair<Locale, Char>? = null

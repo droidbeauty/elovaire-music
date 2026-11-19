@@ -163,7 +163,7 @@ internal class RoomUserDataStore(
     override val searchHistory get() = searchHistoryStore.searchHistory
 
     override fun load(bookKey: String): AudiobookProgress? {
-        if (bookKey.isBlank()) return null
+        if (bookKey.isBlank() || audiobookProgressByBookKey.isEmpty()) return null
         return audiobookProgressByBookKey[storageKeyForBook(bookKey)]
     }
 

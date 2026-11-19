@@ -94,7 +94,7 @@ internal interface PlaybackIntegrationPort : PlaybackReader {
     fun setCrossfadeSilenceThresholdDb(value: Float)
     fun setVolumeNormalizationEnabled(enabled: Boolean)
 
-    fun refreshQueuedLibraryMetadataIfNeeded(
+    suspend fun refreshQueuedLibraryMetadataIfNeeded(
         updatedSongs: List<Song>,
         authoritative: Boolean = false,
     )
@@ -112,11 +112,11 @@ internal interface PlaybackIntegrationPort : PlaybackReader {
 
     fun checkpointAudiobookProgress(force: Boolean = false)
 
-    fun restoreSession(
+    suspend fun restoreSessionFromLibrary(
         songs: List<Song>,
         currentIndex: Int,
         persisted: PersistedPlaybackSession,
-    )
+    ): Boolean
 }
 
 /** Queue mutation needed after a device delete has been committed. */

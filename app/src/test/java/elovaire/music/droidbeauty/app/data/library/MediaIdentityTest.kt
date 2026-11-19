@@ -137,6 +137,32 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun portableIdentityChangeMatchesRevisionAcrossNormalizedAndUnrelatedEdits() {
+        val original = song(modifiedSeconds = 10L)
+        val revision = MediaIdentityResolver.portableIdentityRevision(listOf(original))
+        val edits = listOf(
+            original.copy(artUri = TestUri("content://art/changed")),
+            original.copy(title = "  TITLE  "),
+            original.copy(title = "Different"),
+            original.copy(artist = "  ARTIST  "),
+            original.copy(artist = "Other"),
+            original.copy(album = "New album"),
+            original.copy(albumArtist = "   "),
+            original.copy(albumArtist = "Another artist"),
+            original.copy(fileName = " SONG.MP3 "),
+            original.copy(fileName = "other.mp3"),
+            original.copy(durationMs = 2_000L),
+            original.copy(trackNumber = 0),
+        )
+        edits.forEach { edited ->
+            assertEquals(
+                revision != MediaIdentityResolver.portableIdentityRevision(listOf(edited)),
+                MediaIdentityResolver.portableIdentityChanged(original, edited),
+            )
+        }
+    }
+
+    @Test
     fun unknownContentProviderDoesNotFallBackToMutablePath() {
         val song = song(10L).copy(uri = TestUri("content://example.provider/item/1"))
 
@@ -194,6 +220,33 @@ class MediaIdentityTest {
                 MediaIdentityResolver.resolveTrackMatch(identity, candidates),
                 matcher.resolve(identity),
             )
+        }
+    }
+
+    @Test
+    fun preparedTrackMatcherPreservesResultsAcrossTitleGroupsAndDuplicateSources() {
+        val candidates = (1L..120L).map { id ->
+            song(id).copy(
+                id = id,
+                title = when {
+                    id % 11L == 0L -> "  "
+                    id % 3L == 0L -> " Repeated   Title "
+                    else -> "Title ${id % 17}"
+                },
+                artist = "Artist ${id % 4}",
+                trackNumber = (id % 5).toInt(),
+                libraryPath = null,
+                uri = TestUri("content://media/external/audio/media/$id"),
+            )
+        }.let { it + it[0].copy(id = 999L) }
+        val matcher = MediaIdentityResolver.prepareTrackMatcher(candidates)
+        val identities = candidates.flatMap { candidate ->
+            val identity = MediaIdentityResolver.trackMatchIdentity(candidate)
+            listOf(identity, identity.copy(sourceStableKey = null), identity.copy(normalizedTitle = "missing"))
+        } + MediaIdentityResolver.trackMatchIdentity(candidates.first()).copy(version = 99)
+
+        identities.forEach { identity ->
+            assertEquals(MediaIdentityResolver.resolveTrackMatch(identity, candidates), matcher.resolve(identity))
         }
     }
 

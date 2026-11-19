@@ -351,6 +351,18 @@ private fun tokenMatchFeatures(
     normalizedAlbumArtist: String,
     normalizedAlbum: String,
 ): Int {
+    val compositeContains = normalizedComposite.contains(token)
+    val titleAcronymStartsWith = !compositeContains && acronymStartsWith(normalizedTitle, token)
+    val artistAcronymStartsWith = acronymStartsWith(normalizedArtist, token)
+    val albumArtistAcronymStartsWith = acronymStartsWith(normalizedAlbumArtist, token)
+    val albumAcronymStartsWith = acronymStartsWith(normalizedAlbum, token)
+    val hasAcronymMatch = titleAcronymStartsWith ||
+        artistAcronymStartsWith ||
+        albumArtistAcronymStartsWith ||
+        albumAcronymStartsWith
+    if (!compositeContains && !hasAcronymMatch &&
+        !(token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
+    ) return 0
     val titleStartsWith = normalizedTitle.startsWith(token)
     val artistStartsWith = normalizedArtist.startsWith(token)
     val albumArtistStartsWith = normalizedAlbumArtist.startsWith(token)
@@ -359,18 +371,6 @@ private fun tokenMatchFeatures(
     val artistWordStartsWith = wordStartsWith(normalizedArtist, token)
     val albumArtistWordStartsWith = wordStartsWith(normalizedAlbumArtist, token)
     val albumWordStartsWith = wordStartsWith(normalizedAlbum, token)
-    val titleAcronymStartsWith = acronymStartsWith(normalizedTitle, token)
-    val artistAcronymStartsWith = acronymStartsWith(normalizedArtist, token)
-    val albumArtistAcronymStartsWith = acronymStartsWith(normalizedAlbumArtist, token)
-    val albumAcronymStartsWith = acronymStartsWith(normalizedAlbum, token)
-    val compositeContains = normalizedComposite.contains(token)
-    val hasAcronymMatch = titleAcronymStartsWith ||
-        artistAcronymStartsWith ||
-        albumArtistAcronymStartsWith ||
-        albumAcronymStartsWith
-    if (!compositeContains && !hasAcronymMatch &&
-        !(token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
-    ) return 0
     val fuzzyTitleMatch = token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)
 
     var features = TOKEN_MATCHED
@@ -441,6 +441,19 @@ internal fun buildNormalizedComposite(vararg parts: String): String {
 }
 
 internal fun Song.toSearchableSong(): SearchableSong = toSearchableSong(::normalizeSearchText)
+
+internal fun buildPickerSongSearchIndex(songs: List<Song>): List<SearchableSong> {
+    val normalizedMetadata = HashMap<String, String>()
+    return songs.map { song ->
+        song.toSearchableSong { value ->
+            normalizedMetadata[value] ?: normalizeSearchText(value).also { normalized ->
+                if (normalizedMetadata.size < PICKER_METADATA_CACHE_LIMIT) normalizedMetadata[value] = normalized
+            }
+        }
+    }
+}
+
+private const val PICKER_METADATA_CACHE_LIMIT = 4_096
 
 private fun Song.toSearchableSong(normalizeMetadata: (String) -> String): SearchableSong {
     val normalizedTitle = normalizeSearchText(title)

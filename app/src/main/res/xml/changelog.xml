@@ -10,5 +10,7 @@
         <item>UI tweaks in equalizer, lyrics and tag editing screen</item>
         <item>Added basic tablet layout support in horizontal orientation</item>
         <item>Added support for the app to work on Huawei devices with Kirin CPUs</item>
+        <item>Improved reliability of automatic bit-perfect playback and separate volume controls on external DACs</item>
+        <item>Further refined performance during fast navigation through the UI</item>
     </release>
 </changelog>

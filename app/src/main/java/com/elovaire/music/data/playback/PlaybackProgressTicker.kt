@@ -30,9 +30,8 @@ internal class PlaybackProgressTicker(
                     val nowMs = elapsedTimeMs()
                     if (nextDeadlineMs <= nowMs) {
                         nextDeadlineMs = nowMs + interval
-                    } else {
-                        delay(nextDeadlineMs - nowMs)
                     }
+                    delay(nextDeadlineMs - nowMs)
                 }
             } finally {
                 if (job === runningJob) {
