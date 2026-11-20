@@ -5,14 +5,7 @@
 </p>
 
 <p align="center">
-  Get the latest version of Elovaire for Android
-  <br><br>
-  <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-    <img
-      alt="Download the latest Elovaire release"
-      src="https://img.shields.io/badge/Download%20the%20latest%20release-2f6f63?style=for-the-badge&logo=android&logoColor=white"
-    />
-  </a>
+  <a href="https://github.com/droidbeauty/elovaire-music/releases/latest"><strong>Download the latest release</strong></a>
 </p>
 
 <p align="center">
@@ -30,12 +23,10 @@ Move between songs, albums, artists and playlists in a library that keeps your a
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="renders/2.png" alt="Full-screen player with album artwork" width="100%"><br>
-      Artwork-led playback, with the cover given room to breathe
+      <img src="renders/2.png" alt="Full-screen player with album artwork" width="100%">
     </td>
     <td align="center" width="50%">
-      <img src="renders/3.png" alt="Light and dark themes, tag editing and audiobook settings" width="100%"><br>
-      Light or dark, with useful controls close at hand
+      <img src="renders/3.png" alt="Light and dark themes, tag editing and audiobook settings" width="100%">
     </td>
   </tr>
 </table>
@@ -51,12 +42,10 @@ The full player brings the artwork, playback controls and queue together in one 
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="renders/5.png" alt="Now playing screen with the current queue" width="100%"><br>
-      See what is playing and what comes next
+      <img src="renders/5.png" alt="Now playing screen with the current queue" width="100%">
     </td>
     <td align="center" width="50%">
-      <img src="renders/6.png" alt="Appearance and sound settings" width="100%"><br>
-      Set the look and sound to suit your listening
+      <img src="renders/6.png" alt="Appearance and sound settings" width="100%">
     </td>
   </tr>
 </table>
@@ -81,11 +70,4 @@ Choose light, dark or system appearance, adjust text size and arrange the home s
 
 Elovaire is an independent project for people who care about their music collection. It has no ads or subscriptions. If you enjoy using it, a tip helps support its continued development. Thank you for listening.
 
-<p align="center">
-  <a href="https://ko-fi.com/droidbeauty">
-    <img
-      alt="Support Elovaire on Ko-fi"
-      src="https://img.shields.io/badge/Support%20on%20Ko--fi-ff5f5f?style=for-the-badge&logo=kofi&logoColor=white"
-    />
-  </a>
-</p>
+<p align="center"><a href="https://ko-fi.com/droidbeauty"><strong>Support Elovaire on Ko-fi</strong></a></p>
