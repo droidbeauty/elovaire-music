@@ -4,11 +4,24 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.data.audio.AudioContainerFormat
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LibraryAudioFileFilterTest {
+    @Test
+    fun includedRowsCarryTheirResolvedMediaKind() {
+        val filter = LibraryAudioFileFilter(selectedRelativeRoots = setOf("Music"), libraryRootPaths = emptySet())
+        val music = candidate(absolutePath = null, relativePath = "Music/Artist/")
+        val audiobook = candidate(absolutePath = null, relativePath = "Music/AUDIOBOOKS/")
+        val explicit = music.copy(isAudiobook = true)
+
+        assertEquals(AudioMediaKind.Music, (filter.evaluate(music) as AudioFileFilterDecision.Include).mediaKind)
+        assertEquals(AudioMediaKind.Audiobook, (filter.evaluate(audiobook) as AudioFileFilterDecision.Include).mediaKind)
+        assertEquals(AudioMediaKind.Audiobook, (filter.evaluate(explicit) as AudioFileFilterDecision.Include).mediaKind)
+    }
+
     @Test
     fun evaluate_includesDefaultMusicRelativePathWhenAbsolutePathMissing() {
         val filter = LibraryAudioFileFilter(

@@ -103,6 +103,7 @@ class LibrarySnapshotSongsInstrumentedTest {
             val songs = listOf(
                 song(1L), song(2L), song(3L).copy(fileName = "3.m4b"),
                 song(4L).copy(mediaKind = AudioMediaKind.Audiobook),
+                song(5L).copy(libraryPath = "\\Storage\\AudioBooks\\chapter.mp3"),
             )
             store.save(LibrarySnapshot(songs, emptyList()), "test")
             val file = directory.resolve("library_snapshot_v7.json")
@@ -115,7 +116,8 @@ class LibrarySnapshotSongsInstrumentedTest {
 
             val loaded = checkNotNull(store.loadSongs())
             assertEquals(
-                listOf(AudioMediaKind.Music, AudioMediaKind.Music, AudioMediaKind.Audiobook, AudioMediaKind.Audiobook),
+                listOf(AudioMediaKind.Music, AudioMediaKind.Music, AudioMediaKind.Audiobook,
+                    AudioMediaKind.Audiobook, AudioMediaKind.Audiobook),
                 loaded.map(Song::mediaKind),
             )
             assertEquals(loaded, store.load()?.snapshot?.songs)

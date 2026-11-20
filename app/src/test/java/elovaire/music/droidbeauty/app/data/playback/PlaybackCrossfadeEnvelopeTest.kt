@@ -350,6 +350,31 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
+    fun pcmEnvelopeAccumulator_skipsFramesBeforeTheRequestedRegion() {
+        val buffer = ByteBuffer.allocate(2 + 30 * 2 * 2).order(ByteOrder.nativeOrder())
+        buffer.putShort(123)
+        repeat(30) { frame ->
+            val sample: Short = if (frame < 10) 32_000 else 16_384
+            buffer.putShort(sample).putShort(sample)
+        }
+        buffer.flip()
+        buffer.position(2)
+        val accumulator = PcmEnvelopeAccumulator(
+            sampleRate = 1_000, channelCount = 2, encoding = C.ENCODING_PCM_16BIT,
+            regionStartUs = 10_000L, regionEndUs = 30_000L,
+        )
+
+        accumulator.append(buffer.asReadOnlyBuffer(), 0L)
+
+        assertEquals(2, buffer.position())
+        assertEquals(20L, accumulator.decodedFrameCount)
+        val window = accumulator.finish().single()
+        assertEquals(10L, window.startMs)
+        assertEquals(30L, window.endMs)
+        assertEquals(0.5f, window.maxChannelRms, 0.001f)
+    }
+
+    @Test
     fun trailingCue_usesMinusEightyDbfsRmsFloor() {
         val belowFloor = CrossfadeLevelWindow(0L, 20L, 3f / 32_768f)
         val aboveFloor = CrossfadeLevelWindow(20L, 40L, 4f / 32_768f)

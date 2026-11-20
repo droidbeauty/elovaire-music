@@ -71,6 +71,8 @@ internal class MediaStoreAudioRowMapper(
     private val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
     private val isAudiobookIndex = cursor.getColumnIndex(MediaStore.Audio.AudioColumns.IS_AUDIOBOOK)
     private val bookmarkIndex = cursor.getColumnIndex(MediaStore.Audio.AudioColumns.BOOKMARK)
+    private var lastVolumeName: String? = null
+    private var lastCollectionUri: Uri = MediaStoreAudioQuery.collectionUri
 
     val hasRelativePathColumn: Boolean
         get() = relativePathIndex >= 0
@@ -79,13 +81,20 @@ internal class MediaStoreAudioRowMapper(
         val id = cursor.getLong(idIndex)
         val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
         val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
-        val fallbackTitle = fileName.substringBeforeLast('.').ifBlank { "Untitled Track" }
         val volumeName = volumeNameIndex.takeIf { it >= 0 }?.let(cursor::getString)
         val mimeType = mimeTypeIndex.takeIf { it >= 0 }?.let(cursor::getString)?.trim()?.ifBlank { null }
+        val title = titleIndex.readString(cursor)?.trim().orEmpty().let {
+            if (it.isBlank() || it == "<unknown>") fileName.substringBeforeLast('.').ifBlank { "Untitled Track" } else it
+        }
+        if (volumeName != lastVolumeName) {
+            lastCollectionUri = volumeName?.trim()?.takeIf { it.isNotBlank() }
+                ?.let(MediaStore.Audio.Media::getContentUri) ?: MediaStoreAudioQuery.collectionUri
+            lastVolumeName = volumeName
+        }
         return MediaStoreAudioRow(
             id = id,
             albumId = albumIdIndex.readLong(cursor, -1L),
-            title = titleIndex.readString(cursor).orUnknown(fallbackTitle),
+            title = title,
             artist = artistIndex.readString(cursor).orUnknown("Unknown Artist"),
             album = albumIndex.readString(cursor).orUnknown("Unknown Album"),
             fileName = fileName,
@@ -113,14 +122,7 @@ internal class MediaStoreAudioRowMapper(
             bookmarkMs = bookmarkIndex.takeIf { it >= 0 && !cursor.isNull(it) }
                 ?.let(cursor::getLong)
                 ?.takeIf { it >= 0L },
-            uri = ContentUris.withAppendedId(
-                volumeName
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let(MediaStore.Audio.Media::getContentUri)
-                    ?: MediaStoreAudioQuery.collectionUri,
-                id,
-            ),
+            uri = ContentUris.withAppendedId(lastCollectionUri, id),
             extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT),
         )
     }

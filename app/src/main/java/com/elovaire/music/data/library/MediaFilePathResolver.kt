@@ -166,15 +166,22 @@ internal class MediaStoreScanPathResolver(
     private val context: Context,
 ) {
     private val rootsByVolume = HashMap<String, List<File>>()
+    private var lastVolumeName: String? = null
+    private var lastRoots: List<File>? = null
 
     fun resolve(
         relativePath: String?,
         displayName: String?,
         volumeName: String?,
     ): String? {
-        val cacheKey = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
-        val roots = cachedRootsForVolume(rootsByVolume, cacheKey) {
-            MediaFilePathResolver.sharedStorageRootsForScan(context, volumeName)
+        val roots = lastRoots?.takeIf { lastVolumeName == volumeName } ?: run {
+            val cacheKey = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
+            cachedRootsForVolume(rootsByVolume, cacheKey) {
+                MediaFilePathResolver.sharedStorageRootsForScan(context, volumeName)
+            }.also { resolved ->
+                lastVolumeName = volumeName
+                lastRoots = resolved.takeIf { rootsByVolume[cacheKey] === it }
+            }
         }
         return MediaFilePathResolver.resolveMediaStoreFilePath(
             relativePath = relativePath,

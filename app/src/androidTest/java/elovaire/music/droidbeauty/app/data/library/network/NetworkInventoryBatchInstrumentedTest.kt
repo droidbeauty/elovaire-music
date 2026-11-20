@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import android.util.Log
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -20,6 +21,41 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class NetworkInventoryBatchInstrumentedTest {
+    @Test
+    fun networkInventoryPreservesPersistedAndInferredMediaKinds() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, ElovaireDatabase::class.java).build()
+        val source = NetworkLibrarySource("kinds", "Test", NetworkLibraryProtocol.WebDav,
+            "https://example.test", "Music", "user", "credential")
+        val inventory = NetworkInventoryStore(context, database.networkInventoryDao())
+        val paths = listOf("Music/1.mp3", "Music/AUDIOBOOKS/2.mp3", "Music/3.m4b", "Music/4.mp3")
+        val entries = paths.mapIndexed { index, path ->
+            val id = index + 1L
+            val song = Song(id = id, title = "Track $id", isExplicit = false, artist = "Artist", album = "Album",
+                releaseYear = null, genre = "", audioFormat = "MP3", audioQuality = null,
+                fileName = path.substringAfterLast('/'), albumId = 1L, durationMs = 1_000L,
+                trackNumber = id.toInt(), discNumber = 1, dateAddedSeconds = 0L,
+                uri = NetworkResourceUri.create(source.id, path), artUri = null,
+                mediaKind = if (id == 4L) AudioMediaKind.Audiobook else AudioMediaKind.Music)
+            NetworkInventoryEntry(NetworkFileEntry(path, false), song)
+        }
+        try {
+            inventory.replace(source, entries, NetworkAvailability.Available, 1L)
+            database.openHelper.writableDatabase.execSQL(
+                "UPDATE network_inventory SET mediaKind = 'unknown' WHERE sourceId = ? AND relativePath IN (?, ?)",
+                arrayOf(source.id, paths[0], paths[1]),
+            )
+
+            val kinds = inventory.load(source).associate { it.song.id to it.song.mediaKind }
+            assertEquals(AudioMediaKind.Music, kinds[1L])
+            assertEquals(AudioMediaKind.Audiobook, kinds[2L])
+            assertEquals(AudioMediaKind.Audiobook, kinds[3L])
+            assertEquals(AudioMediaKind.Audiobook, kinds[4L])
+        } finally {
+            database.close()
+        }
+    }
+
     @Test
     fun batchAvoidsRepeatedInventoryTransactions() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

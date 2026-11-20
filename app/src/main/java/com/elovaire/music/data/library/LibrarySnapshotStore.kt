@@ -69,13 +69,14 @@ internal class LibrarySnapshotStore(
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
                 repeat(songsArray.length()) { index ->
                     val songJson = songsArray.optJSONObject(index) ?: return@repeat
+                    val libraryPath = songJson.optString("libraryPath")
                     val mediaKind = if (
                         songJson.optString("mediaKind") == AudioMediaKind.Audiobook.name ||
                         AudioMediaKindClassifier.classify(
                             isAudiobook = null,
                             extension = songJson.optString("fileName").substringAfterLast('.', ""),
-                            relativePath = songJson.optString("libraryPath"),
-                            absolutePath = songJson.optString("libraryPath"),
+                            relativePath = libraryPath,
+                            absolutePath = null,
                         ) == AudioMediaKind.Audiobook
                     ) AudioMediaKind.Audiobook else AudioMediaKind.Music
                     add(
@@ -99,7 +100,7 @@ internal class LibrarySnapshotStore(
                             dateAddedSeconds = songJson.optLong("dateAddedSeconds"),
                             dateModifiedSeconds = songJson.optLong("dateModifiedSeconds")
                                 .takeIf { it > 0L },
-                            libraryPath = songJson.optString("libraryPath").takeIf { it.isNotBlank() },
+                            libraryPath = libraryPath.takeIf { it.isNotBlank() },
                             uri = Uri.parse(songJson.optString("uri")),
                             artUri = songJson.optString("artUri").takeIf { it.isNotBlank() }?.let(Uri::parse),
                             metadataResolved = songJson.optBoolean("metadataResolved", false),

@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.TestUri
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaStoreScanPreflightTest {
@@ -13,20 +14,20 @@ class MediaStoreScanPreflightTest {
 
     @Test
     fun rejectsExcludedMusicBeforeContainerDetection() {
-        val rejection = MediaStoreScanPreflight.rejectionBeforeContainerDetection(
+        val rejection = MediaStoreScanPreflight.evaluateBeforeContainerDetection(
             candidate = candidate(
                 relativePath = "Music/WhatsApp Audio",
                 extension = "mp3",
             ),
             filter = filter,
-        )
+        )?.decision as? AudioFileFilterDecision.Exclude
 
         assertEquals("Excluded path", rejection?.reason)
     }
 
     @Test
     fun validatesContainersBeforeApplyingPreflightRejection() {
-        val rejection = MediaStoreScanPreflight.rejectionBeforeContainerDetection(
+        val rejection = MediaStoreScanPreflight.evaluateBeforeContainerDetection(
             candidate = candidate(
                 relativePath = "Music/WhatsApp Audio",
                 extension = "mp4",
@@ -39,7 +40,7 @@ class MediaStoreScanPreflightTest {
 
     @Test
     fun extensionlessRowsReachContainerDetection() {
-        val rejection = MediaStoreScanPreflight.rejectionBeforeContainerDetection(
+        val rejection = MediaStoreScanPreflight.evaluateBeforeContainerDetection(
             candidate = candidate(
                 relativePath = "Music",
                 extension = "",
@@ -48,6 +49,21 @@ class MediaStoreScanPreflightTest {
         )
 
         assertNull(rejection)
+    }
+
+    @Test
+    fun acceptedPreflightRetainsTheExactCandidateAndMustNotHideChangedDetection() {
+        val original = candidate(relativePath = "Music/Artist", extension = "mp3")
+        val preflight = checkNotNull(MediaStoreScanPreflight.evaluateBeforeContainerDetection(original, filter))
+        assertTrue(preflight.decision is AudioFileFilterDecision.Include)
+        assertEquals(
+            original.copy(detectedFormat = AudioScanCandidateMapper.fastDetectedFormat("mp3", original.mimeType)),
+            preflight.candidate,
+        )
+        val changed = preflight.candidate.copy(
+            detectedFormat = checkNotNull(preflight.candidate.detectedFormat).copy(detectionSucceeded = true, hasVideoTrack = true),
+        )
+        assertTrue(filter.evaluate(changed) is AudioFileFilterDecision.Exclude)
     }
 
     private fun candidate(

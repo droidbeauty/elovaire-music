@@ -4,10 +4,12 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 
 /** Rejects rows that need no container inspection before opening a MediaExtractor. */
 internal object MediaStoreScanPreflight {
-    fun rejectionBeforeContainerDetection(
+    data class Result(val candidate: AudioScanCandidate, val decision: AudioFileFilterDecision)
+
+    fun evaluateBeforeContainerDetection(
         candidate: AudioScanCandidate,
         filter: LibraryAudioFileFilter,
-    ): AudioFileFilterDecision.Exclude? {
+    ): Result? {
         if (
             candidate.extension.isNullOrBlank() ||
             candidate.extension !in AudioFormatPolicy.scannerExtensions ||
@@ -19,6 +21,6 @@ internal object MediaStoreScanPreflight {
                 mimeType = candidate.mimeType,
             ),
         )
-        return filter.evaluate(fastCandidate) as? AudioFileFilterDecision.Exclude
+        return Result(fastCandidate, filter.evaluate(fastCandidate))
     }
 }

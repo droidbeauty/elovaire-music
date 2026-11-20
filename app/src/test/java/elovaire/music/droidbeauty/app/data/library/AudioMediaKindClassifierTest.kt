@@ -6,8 +6,29 @@ import android.net.TestUri
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
+import java.util.Locale
+import kotlin.random.Random
 
 class AudioMediaKindClassifierTest {
+    @Test
+    fun pathClassificationMatchesLegacyNormalizationForMixedSeparatorsAndUnicode() {
+        val parts = listOf("", "Music", "Audiobooks", "AUDIOBOOKS", "AUDİOBOOKS", "AUDIOBOOKS", "Été", "book.mp3")
+        val random = Random(1234)
+        val paths = List(2_000) {
+            List(random.nextInt(1, 7)) { parts.random(random) }
+                .joinToString(if (random.nextBoolean()) "/" else "\\")
+        }
+        paths.forEach { path ->
+            val legacy = path.replace('\\', '/').trim('/').lowercase(Locale.ROOT)
+                .split('/').any { it == "audiobooks" }
+            assertEquals(
+                path,
+                if (legacy) AudioMediaKind.Audiobook else AudioMediaKind.Music,
+                AudioMediaKindClassifier.classify(null, "mp3", path, null),
+            )
+        }
+    }
+
     @Test
     fun `explicit media store flag wins for every supported extension`() {
         listOf("mp3", "m4a", "m4b", "flac").forEach { extension ->

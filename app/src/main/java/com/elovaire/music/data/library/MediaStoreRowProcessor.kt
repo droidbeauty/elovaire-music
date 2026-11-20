@@ -19,13 +19,6 @@ internal data class MediaStoreProcessedSong(
     val identityKey: String,
 )
 
-private fun MediaStoreAudioRow.mediaKind() = AudioMediaKindClassifier.classify(
-    isAudiobook = isAudiobook,
-    extension = extension,
-    relativePath = relativePath,
-    absolutePath = filePath,
-)
-
 /** Converts an accepted MediaStore row into one library song. */
 internal class MediaStoreRowProcessor(
     private val context: Context,
@@ -47,8 +40,8 @@ internal class MediaStoreRowProcessor(
             decisionMap.recordFolderMetadataUnavailable()
         }
         decisionMap.recordMediaStoreRow(preflightCandidate, row.durationMs)
-        val preflightRejection = MediaStoreScanPreflight
-            .rejectionBeforeContainerDetection(preflightCandidate, audioFileFilter)
+        val preflight = MediaStoreScanPreflight.evaluateBeforeContainerDetection(preflightCandidate, audioFileFilter)
+        val preflightRejection = preflight?.decision as? AudioFileFilterDecision.Exclude
         if (preflightRejection != null) {
             decisionMap.recordMediaStoreExclude(preflightRejection.reason)
             return null
@@ -71,14 +64,16 @@ internal class MediaStoreRowProcessor(
                     requireEnriched = enrichMetadata,
                 )
             }
-        val detectedFormat = detectFormat(row, revisionKey, mediaStoreIdentityKey)
+        val detectedFormat = detectFormat(row, revisionKey, mediaStoreIdentityKey, preflight?.candidate?.detectedFormat)
         val candidate = AudioScanCandidateMapper
             .toCandidate(row, detectedFormat)
             .copy(durationMs = effectiveDurationMs)
-        when (val decision = audioFileFilter.evaluate(candidate)) {
-            AudioFileFilterDecision.Include -> {
+        val filterDecision = if (preflight?.candidate == candidate) preflight.decision else audioFileFilter.evaluate(candidate)
+        val mediaKind = when (val decision = filterDecision) {
+            is AudioFileFilterDecision.Include -> {
                 decisionMap.recordMediaStoreInclude()
                 ScannerDebugLogger.logPlatformDependentCandidate(candidate)
+                decision.mediaKind
             }
             is AudioFileFilterDecision.Exclude -> {
                 decisionMap.recordMediaStoreExclude(decision.reason)
@@ -165,7 +160,7 @@ internal class MediaStoreRowProcessor(
                 metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                 albumArtist = songMetadata.albumArtist,
                 volumeNormalization = songMetadata.volumeNormalization,
-                mediaKind = row.mediaKind(),
+                mediaKind = mediaKind,
                 bookmarkMs = row.bookmarkMs,
             ),
             identityKey = uriKey,
@@ -189,6 +184,7 @@ internal class MediaStoreRowProcessor(
         row: MediaStoreAudioRow,
         revisionKey: String?,
         identityKey: String?,
+        preflightFormat: DetectedAudioFormat?,
     ): DetectedAudioFormat {
         return if (
             row.extension.isBlank() ||
@@ -203,7 +199,7 @@ internal class MediaStoreRowProcessor(
                 identityKey = identityKey,
             )
         } else {
-            AudioScanCandidateMapper.fastDetectedFormat(
+            preflightFormat ?: AudioScanCandidateMapper.fastDetectedFormat(
                 extension = row.extension,
                 mimeType = row.mimeType,
             )

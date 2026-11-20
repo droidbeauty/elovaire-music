@@ -26,19 +26,18 @@ internal object AudioMediaKindClassifier {
     }
 
     private fun isAudiobooksPath(path: String?): Boolean {
-        val normalized = path
-            ?.replace('\\', '/')
-            ?.trim('/')
-            ?.lowercase(Locale.ROOT)
-            ?: return false
+        path ?: return false
+        val asciiOnly = path.all { it.code < 128 }
+        val normalized = if (asciiOnly) path else path.replace('\\', '/').lowercase(Locale.ROOT)
         var segmentStart = 0
         while (segmentStart < normalized.length) {
-            val segmentEnd = normalized.indexOf('/', segmentStart).let { separator ->
-                if (separator == -1) normalized.length else separator
+            var segmentEnd = segmentStart
+            while (segmentEnd < normalized.length && normalized[segmentEnd] != '/' && normalized[segmentEnd] != '\\') {
+                segmentEnd++
             }
             if (
                 segmentEnd - segmentStart == AUDIOBOOKS_SEGMENT_LENGTH &&
-                normalized.regionMatches(segmentStart, AUDIOBOOKS_SEGMENT, 0, AUDIOBOOKS_SEGMENT_LENGTH)
+                normalized.regionMatches(segmentStart, AUDIOBOOKS_SEGMENT, 0, AUDIOBOOKS_SEGMENT_LENGTH, ignoreCase = asciiOnly)
             ) {
                 return true
             }

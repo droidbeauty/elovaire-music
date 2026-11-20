@@ -7,17 +7,25 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.quality.deleteTestOwnedRows
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -141,6 +149,57 @@ class CrossfadeCueAnalyzerInstrumentedTest {
             assertTrue("$extension outgoing analysis failed", cue.outgoingAnalysisSucceeded)
             assertTrue("$extension incoming analysis failed", cue.incomingAnalysisSucceeded)
         }
+    }
+
+    @Test
+    fun cancelledScopeStopsCompressedDecoding() = runBlocking {
+        val job = SupervisorJob()
+        val analysisScope = CoroutineScope(job + Dispatchers.Default)
+        val clockCalls = AtomicInteger()
+        val clock = object : AppClock {
+            override fun wallTimeMs() = 0L
+            override fun elapsedTimeMs(): Long {
+                if (clockCalls.incrementAndGet() == 2) job.cancel()
+                return 0L
+            }
+        }
+        val uri = insertAssetFixture("mp3", "audio/mpeg")
+        val song = fixtureSong(uri = uri, durationMs = 500L)
+        val result = runCatching {
+            withTimeout(30_000L) { CrossfadeCueAnalyzer(context, analysisScope, clock = clock).analyzePair(song, song) }
+        }
+        withTimeout(30_000L) { job.join() }
+
+        assertTrue(result.exceptionOrNull() is CancellationException)
+        assertEquals(2, clockCalls.get())
+    }
+
+    @Test
+    fun cancellationKeepsSharedAnalysisOnlyWhileItHasWaiters() = runBlocking {
+        val queued = mutableListOf<Runnable>()
+        val dispatcher = object : CoroutineDispatcher() {
+            override fun dispatch(context: CoroutineContext, block: Runnable) {
+                queued += block
+            }
+        }
+        val analyzer = CrossfadeCueAnalyzer(context, scope, dispatcher)
+        val song = fixtureSong()
+        val first = async(start = CoroutineStart.UNDISPATCHED) { analyzer.analyzePair(song, song) }
+        val second = async(start = CoroutineStart.UNDISPATCHED) { analyzer.analyzePair(song, song) }
+        assertEquals(1, queued.size)
+
+        first.cancelAndJoin()
+        queued.removeAt(0).run()
+        assertTrue(withTimeout(30_000L) { second.await() }.outgoingAnalysisSucceeded)
+
+        analyzer.clearCache()
+        val abandoned = async(start = CoroutineStart.UNDISPATCHED) { analyzer.analyzePair(song, song) }
+        abandoned.cancelAndJoin()
+        val replacement = async(start = CoroutineStart.UNDISPATCHED) { analyzer.analyzePair(song, song) }
+        assertEquals(2, queued.size)
+        queued.removeAt(0).run()
+        queued.removeAt(0).run()
+        assertTrue(withTimeout(30_000L) { replacement.await() }.outgoingAnalysisSucceeded)
     }
 
     private fun assertWithin(expectedMs: Long, actualMs: Long) {

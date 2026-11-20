@@ -33,7 +33,10 @@ internal fun AudioScanCandidate.mediaKind(): AudioMediaKind = AudioMediaKindClas
 )
 
 internal sealed interface AudioFileFilterDecision {
-    data object Include : AudioFileFilterDecision
+    sealed class Include(val mediaKind: AudioMediaKind) : AudioFileFilterDecision {
+        data object Music : Include(AudioMediaKind.Music)
+        data object Audiobook : Include(AudioMediaKind.Audiobook)
+    }
 
     data class Exclude(
         val reason: String,
@@ -131,7 +134,11 @@ internal class LibraryAudioFileFilter(
             return AudioFileFilterDecision.Exclude("Platform-dependent non-music audio")
         }
 
-        return AudioFileFilterDecision.Include
+        return if (mediaKind == AudioMediaKind.Audiobook) {
+            AudioFileFilterDecision.Include.Audiobook
+        } else {
+            AudioFileFilterDecision.Include.Music
+        }
     }
 
     private fun folderMatch(

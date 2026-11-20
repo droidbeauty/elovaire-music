@@ -553,7 +553,6 @@ internal class NetworkLibraryScanner(
                 extension = extension,
                 relativePath = normalizedPath,
                 absolutePath = null,
-                sourcePath = normalizedPath,
             ),
         )
     }

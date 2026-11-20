@@ -184,7 +184,6 @@ internal class NetworkInventoryStore(
                         extension = normalizedPath.substringAfterLast('.', ""),
                         relativePath = normalizedPath,
                         absolutePath = null,
-                        sourcePath = normalizedPath,
                     ),
                 )
                 if (song.id != 0L) {
@@ -350,21 +349,15 @@ private fun NetworkInventoryEntity.toInventoryEntry(source: NetworkLibrarySource
             description = description,
             volumeNormalization = VolumeNormalizationMetadata(trackGainDb, albumGainDb, trackPeak, albumPeak)
                 .takeIf { it.hasUsableGain || it.trackPeak != null || it.albumPeak != null },
-            mediaKind = runCatching { AudioMediaKind.valueOf(mediaKind) }
-                .getOrNull()
-                .let { persisted ->
-                    val inferred = AudioMediaKindClassifier.classify(
-                        isAudiobook = null,
-                        extension = normalizedPath.substringAfterLast('.', ""),
-                        relativePath = normalizedPath,
-                        absolutePath = null,
-                    )
-                    if (persisted == AudioMediaKind.Audiobook || inferred == AudioMediaKind.Audiobook) {
-                        AudioMediaKind.Audiobook
-                    } else {
-                        AudioMediaKind.Music
-                    }
-                },
+            mediaKind = if (
+                mediaKind == AudioMediaKind.Audiobook.name ||
+                AudioMediaKindClassifier.classify(
+                    isAudiobook = null,
+                    extension = normalizedPath.substringAfterLast('.', ""),
+                    relativePath = normalizedPath,
+                    absolutePath = null,
+                ) == AudioMediaKind.Audiobook
+            ) AudioMediaKind.Audiobook else AudioMediaKind.Music,
         ),
     )
 }

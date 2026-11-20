@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.ContentValues
 import android.database.MatrixCursor
 import android.net.Uri
@@ -57,6 +58,52 @@ class MediaStoreScannerInstrumentedTest {
         assertTrue("MediaStore fixture was not included: $uri", songs.any { song ->
             song.fileName == fixtureName
         })
+    }
+
+    @Test
+    fun fastAndEnrichedScansPreserveTheSameMediaIdentityAndKind() {
+        val fixtureName = "elovaire-scan-enriched-${System.nanoTime()}.wav"
+        val uri = insertWav(fixtureName)
+        val scanner = MediaStoreScanner(context).apply { setLibraryFolders(testLibraryFolders()) }
+
+        val fast = runBlocking { scanner.scan(refreshMediaIndex = false, enrichMetadata = false) }
+            .single { it.fileName == fixtureName }
+        val enriched = runBlocking { scanner.scan(refreshMediaIndex = false, enrichMetadata = true) }
+            .single { it.fileName == fixtureName }
+
+        assertEquals(ContentUris.parseId(uri), fast.id)
+        assertEquals(fast.id, enriched.id)
+        assertEquals(fast.uri, enriched.uri)
+        assertEquals(fast.mediaKind, enriched.mediaKind)
+        assertEquals(fast.audioFormat, enriched.audioFormat)
+        assertTrue(enriched.metadataResolved)
+    }
+
+    @Test
+    fun rowMapperPreservesTitlesAndUrisWhenVolumesChange() {
+        val columns = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.MediaColumns.VOLUME_NAME,
+        )
+        MatrixCursor(columns).use { cursor ->
+            cursor.addRow(arrayOf<Any?>(1L, "first.mp3", " Track ", null))
+            cursor.addRow(arrayOf<Any?>(2L, "second.mp3", "<unknown>", " external_primary "))
+            cursor.addRow(arrayOf<Any?>(3L, "third.mp3", "", " external_primary "))
+            cursor.addRow(arrayOf<Any?>(4L, ".mp3", null, "other-volume"))
+            cursor.addRow(arrayOf<Any?>(5L, "last.mp3", " Last ", null))
+            val mapper = MediaStoreAudioRowMapper(context, cursor)
+            val rows = buildList { while (cursor.moveToNext()) add(mapper.row(cursor)) }
+
+            assertEquals(listOf("Track", "second", "third", "Untitled Track", "Last"), rows.map { it.title })
+            val volumes = listOf(null, "external_primary", "external_primary", "other-volume", null)
+            rows.forEachIndexed { index, row ->
+                val collection = volumes[index]?.let(MediaStore.Audio.Media::getContentUri)
+                    ?: MediaStoreAudioQuery.collectionUri
+                assertEquals(ContentUris.withAppendedId(collection, row.id), row.uri)
+            }
+        }
     }
 
     @Test

@@ -21,6 +21,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -325,7 +327,9 @@ internal class CrossfadeCueAnalyzer(
             }
         },
     )
-    private val inFlight = mutableMapOf<CacheKey, Deferred<SongCue>>()
+    private class PendingAnalysis(val deferred: Deferred<SongCue>, var waiters: Int = 0)
+
+    private val inFlight = mutableMapOf<CacheKey, PendingAnalysis>()
 
     suspend fun analyzePair(
         outgoing: Song,
@@ -374,25 +378,41 @@ internal class CrossfadeCueAnalyzer(
         cache[key]?.let { return it }
         val pending = synchronized(inFlight) {
             cache[key]?.let { return it }
-            inFlight[key] ?: scope.async(dispatcher) {
+            val shared = inFlight[key] ?: PendingAnalysis(scope.async(dispatcher) {
                 // Publish before the Deferred completes so a second request for the same key
                 // cannot start another decoder while the completion callback is being dispatched.
                 analyzeSongUncached(song, silenceLevelDb).also { result ->
+                    currentCoroutineContext().ensureActive()
                     cache[key] = result
                 }
-            }.also { deferred ->
-                inFlight[key] = deferred
-                deferred.invokeOnCompletion {
+            }).also { created ->
+                inFlight[key] = created
+                created.deferred.invokeOnCompletion {
                     synchronized(inFlight) {
-                        inFlight.remove(key)
+                        if (inFlight[key] === created) inFlight.remove(key)
                     }
                 }
             }
+            shared.waiters++
+            shared
         }
-        return pending.await()
+        try {
+            return pending.deferred.await()
+        } finally {
+            val cancel = synchronized(inFlight) {
+                pending.waiters--
+                if (pending.waiters == 0 && !pending.deferred.isCompleted) {
+                    if (inFlight[key] === pending) inFlight.remove(key)
+                    true
+                } else {
+                    false
+                }
+            }
+            if (cancel) pending.deferred.cancel()
+        }
     }
 
-    private fun analyzeSongUncached(song: Song, silenceLevelDb: Float): SongCue {
+    private suspend fun analyzeSongUncached(song: Song, silenceLevelDb: Float): SongCue {
         val fallbackDuration = song.durationMs.coerceAtLeast(0L)
         val durationMs = findDurationMs(song)?.takeIf { it > 0L } ?: fallbackDuration
         if (durationMs <= 0L) {
@@ -418,7 +438,7 @@ internal class CrossfadeCueAnalyzer(
         )
     }
 
-    private fun analyzeTrailingRegion(
+    private suspend fun analyzeTrailingRegion(
         song: Song,
         durationMs: Long,
         silenceFloor: Float,
@@ -426,6 +446,7 @@ internal class CrossfadeCueAnalyzer(
         var endMs = durationMs
         var startMs = (endMs - CrossfadeCuePolicy.TAIL_ANALYSIS_WINDOW_MS).coerceAtLeast(0L)
         while (true) {
+            currentCoroutineContext().ensureActive()
             val decoded = decodeRegion(song, startMs, endMs)
             logRegion("tail", decoded)
             if (!decoded.isUsable) {
@@ -457,7 +478,7 @@ internal class CrossfadeCueAnalyzer(
         }
     }
 
-    private fun analyzeLeadingRegion(
+    private suspend fun analyzeLeadingRegion(
         song: Song,
         durationMs: Long,
         silenceFloor: Float,
@@ -465,6 +486,7 @@ internal class CrossfadeCueAnalyzer(
         var startMs = 0L
         var endMs = min(durationMs, CrossfadeCuePolicy.HEAD_ANALYSIS_WINDOW_MS)
         while (true) {
+            currentCoroutineContext().ensureActive()
             val decoded = decodeRegion(song, startMs, endMs)
             logRegion("head", decoded)
             if (!decoded.isUsable) {
@@ -517,7 +539,7 @@ internal class CrossfadeCueAnalyzer(
         }
     }
 
-    private fun decodeRegion(
+    private suspend fun decodeRegion(
         song: Song,
         startMs: Long,
         endMs: Long,
@@ -577,7 +599,7 @@ internal class CrossfadeCueAnalyzer(
         }
     }
 
-    private fun decodeRaw(
+    private suspend fun decodeRaw(
         extractor: MediaExtractor,
         format: MediaFormat,
         startUs: Long,
@@ -597,6 +619,7 @@ internal class CrossfadeCueAnalyzer(
         var lastSampleTimeUs: Long? = null
         var endOfStreamReached = false
         while (true) {
+            currentCoroutineContext().ensureActive()
             buffer.clear()
             val size = extractor.readSampleData(buffer, 0)
             if (size < 0) {
@@ -625,7 +648,7 @@ internal class CrossfadeCueAnalyzer(
     }
 
     @Suppress("NestedBlockDepth", "TooGenericExceptionCaught", "LongMethod")
-    private fun decodeCompressed(
+    private suspend fun decodeCompressed(
         extractor: MediaExtractor,
         inputFormat: MediaFormat,
         startUs: Long,
@@ -655,6 +678,7 @@ internal class CrossfadeCueAnalyzer(
                 throw CrossfadeDecodeFailure("decoder_configure_or_start_failure", error)
             }
             while (!outputEnded) {
+                currentCoroutineContext().ensureActive()
                 if (clock.elapsedTimeMs() > deadline) {
                     throw CrossfadeDecodeFailure("decoder_timeout")
                 }
@@ -851,9 +875,7 @@ internal class PcmEnvelopeAccumulator(
             val skipFrames = ((regionStartUs - presentationTimeUs) * sampleRate / 1_000_000L)
                 .coerceAtLeast(0L)
                 .coerceAtMost((sampleBuffer.remaining() / bytesPerFrame).toLong())
-            repeat(skipFrames.toInt()) {
-                repeat(channelCount) { readSample(sampleBuffer) }
-            }
+            sampleBuffer.position(sampleBuffer.position() + skipFrames.toInt() * bytesPerFrame)
             timestampUs = regionStartUs
         }
         if (windowStartUs == Long.MIN_VALUE) windowStartUs = timestampUs

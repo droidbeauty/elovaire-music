@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistEngine
+import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
@@ -45,6 +46,112 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PerformanceImprovementInstrumentedTest {
+    @Test
+    fun matchingMediaStorePreflightAvoidsRepeatingTheFilter() {
+        val filter = LibraryAudioFileFilter(selectedRelativeRoots = setOf("Music"), libraryRootPaths = emptySet())
+        val candidates = List(2_000) { index ->
+            AudioScanCandidate(
+                id = index + 1L, uri = Uri.parse("content://media/external/audio/media/${index + 1}"),
+                displayName = "track$index.mp3", title = "Track $index", artist = "Artist", album = "Album",
+                durationMs = 180_000L, mimeType = "audio/mpeg",
+                relativePath = if (index % 50 == 0) "Music/Podcasts/" else "Music/Artist/",
+                absolutePath = null, extension = "mp3", isMusic = true,
+            )
+        }
+        fun finalCandidate(candidate: AudioScanCandidate, preflightFormat: DetectedAudioFormat? = null): AudioScanCandidate {
+            val detected = preflightFormat ?: AudioScanCandidateMapper.fastDetectedFormat("mp3", candidate.mimeType)
+            return candidate.copy(detectedFormat = if (candidate.id % 101L == 0L) {
+                detected.copy(detectionSucceeded = true, hasVideoTrack = true)
+            } else detected)
+        }
+        val baseline = {
+            candidates.map { candidate ->
+                val fast = candidate.copy(detectedFormat = AudioScanCandidateMapper.fastDetectedFormat("mp3", candidate.mimeType))
+                val preflight = filter.evaluate(fast)
+                if (preflight is AudioFileFilterDecision.Exclude) preflight else filter.evaluate(finalCandidate(candidate))
+            }
+        }
+        val optimized = {
+            candidates.map { candidate ->
+                val preflight = checkNotNull(MediaStoreScanPreflight.evaluateBeforeContainerDetection(candidate, filter))
+                if (preflight.decision is AudioFileFilterDecision.Exclude) preflight.decision else {
+                    val final = finalCandidate(candidate, preflight.candidate.detectedFormat)
+                    if (preflight.candidate == final) preflight.decision else filter.evaluate(final)
+                }
+            }
+        }
+        assertEquals(baseline(), optimized())
+        measurePair("media_store_preflight", baseline, optimized)
+    }
+
+    @Test
+    fun acceptedMediaRowsReuseTheirClassification() {
+        val filter = LibraryAudioFileFilter(selectedRelativeRoots = setOf("Music"), libraryRootPaths = emptySet())
+        val candidates = List(3_000) { index ->
+            AudioScanCandidate(
+                id = index + 1L, uri = Uri.parse("content://media/external/audio/media/${index + 1}"),
+                displayName = "track$index.mp3", title = "Track $index", artist = "Artist", album = "Album",
+                durationMs = 180_000L, mimeType = "audio/mpeg", relativePath = "Music/Artist/",
+                absolutePath = null, extension = "mp3", isMusic = true,
+            )
+        }
+        val baseline = {
+            candidates.map { candidate ->
+                if (filter.evaluate(candidate) is AudioFileFilterDecision.Include) candidate.mediaKind() else null
+            }
+        }
+        val optimized = {
+            candidates.map { candidate ->
+                (filter.evaluate(candidate) as? AudioFileFilterDecision.Include)?.mediaKind
+            }
+        }
+        assertEquals(baseline(), optimized())
+        repeat(3) { baseline(); optimized() }
+        val timings = Array(2) { mutableListOf<Double>() }
+        repeat(5) { sample ->
+            for (variant in if (sample % 2 == 0) listOf(0, 1) else listOf(1, 0)) {
+                timings[variant] += measureNanoTime { if (variant == 0) baseline() else optimized() } / 1_000_000.0
+            }
+        }
+        Log.i("PerformanceImprovement", "media_row_kind baselineMs=${timings[0]} candidateMs=${timings[1]}")
+    }
+
+    @Test
+    fun asciiMediaPathsAvoidWholePathNormalization() {
+        val paths = List(3_000) { index -> "/Storage/Emulated/0/Music/Artist $index/Track.mp3" } +
+            listOf("/Storage/AudioBooks/Chapter.mp3", "\\Storage\\AUDIOBOOKS\\Chapter.mp3", "/Été/AUDIOBOOKS/1.mp3")
+        val baseline = {
+            paths.map { path ->
+                val normalized = path.replace('\\', '/').trim('/').lowercase(Locale.ROOT)
+                var start = 0
+                var found = false
+                while (start < normalized.length) {
+                    val end = normalized.indexOf('/', start).let { if (it == -1) normalized.length else it }
+                    if (end - start == 10 && normalized.regionMatches(start, "audiobooks", 0, 10)) {
+                        found = true
+                        break
+                    }
+                    if (end == normalized.length) break
+                    start = end + 1
+                }
+                found
+            }
+        }
+        val candidate = { paths.map { AudioMediaKindClassifier.classify(null, "mp3", it, null) == AudioMediaKind.Audiobook } }
+        assertEquals(baseline(), candidate())
+        measurePair("ascii_media_paths", baseline, candidate)
+    }
+
+    @Test
+    fun snapshotMediaKindChecksAnIdenticalPathOnce() {
+        val paths = List(3_000) { index -> "/Storage/Emulated/0/Music/Artist $index/Track.mp3" } +
+            listOf("/Storage/AudioBooks/Chapter.mp3", "\\Storage\\AUDIOBOOKS\\Chapter.mp3", "")
+        val baseline = { paths.map { AudioMediaKindClassifier.classify(null, "mp3", it, it) } }
+        val candidate = { paths.map { AudioMediaKindClassifier.classify(null, "mp3", it, null) } }
+        assertEquals(baseline(), candidate())
+        measurePair("snapshot_media_kind_path", baseline, candidate, checkAllocation = false)
+    }
+
     @Test
     fun legacyMediaKindsAvoidExceptionBasedDecoding() {
         val values = List(3_000) { index -> listOf("", "unknown", "Music", "Audiobook")[index % 4] }
@@ -265,7 +372,7 @@ class PerformanceImprovementInstrumentedTest {
         measurePair("artist_album_sort", baseline, candidate)
     }
 
-    private fun <T> measurePair(label: String, baseline: () -> T, candidate: () -> T) {
+    private fun <T> measurePair(label: String, baseline: () -> T, candidate: () -> T, checkAllocation: Boolean = true) {
         repeat(3) { baseline(); candidate() }
         val times = Array(2) { mutableListOf<Double>() }
         val bytes = Array(2) { mutableListOf<Long>() }
@@ -279,7 +386,9 @@ class PerformanceImprovementInstrumentedTest {
         Log.i("PerformanceImprovement", "$label baselineMs=${times[0]} candidateMs=${times[1]} baselineBytes=${bytes[0]} candidateBytes=${bytes[1]}")
         val baselineMedian = bytes[0].sorted()[3]
         val candidateMedian = bytes[1].sorted()[3]
-        assertTrue("$label allocation did not improve: $baselineMedian vs $candidateMedian", candidateMedian < baselineMedian)
+        if (checkAllocation) {
+            assertTrue("$label allocation did not improve: $baselineMedian vs $candidateMedian", candidateMedian < baselineMedian)
+        }
     }
 
     private data class Candidate(val album: SearchableAlbum, val count: Int, val recent: Boolean, val index: Int)
