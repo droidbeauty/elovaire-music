@@ -5,7 +5,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -133,6 +142,77 @@ class HomeLayoutInteractionTest {
         rule.runOnIdle { assertTrue(speed < 0.7f) }
         rule.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.Off)).performClick()
         rule.runOnIdle { assertTrue(settings.rewindOnResume) }
+    }
+
+    @Test
+    fun sliderMarksMatchTheTrackWithoutOverlappingTransparency() {
+        rule.setContent {
+            ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                Box(Modifier.width(200.dp).background(Color.Black).testTag("slider_capture")) {
+                    SteppedSlider(selectedIndex = 0, stepCount = 5, onSelectedIndexChanged = {})
+                }
+            }
+        }
+        val pixels = rule.onNodeWithTag("slider_capture").captureToImage().toPixelMap()
+        val density = rule.density.density
+        val middle = pixels.height / 2
+        val track = pixels[(pixels.width * 0.375f).toInt(), middle]
+        val mark = pixels[pixels.width / 4, middle - (3f * density).toInt()]
+        val intersection = pixels[pixels.width / 4, middle]
+        assertTrue("Track should be visible", track.red > 0.1f)
+        assertTrue("Track and marks should have the same color", kotlin.math.abs(track.red - mark.red) < 0.04f)
+        assertTrue("Track and marks should not darken at intersections", kotlin.math.abs(track.red - intersection.red) < 0.04f)
+    }
+
+    @Test
+    fun equalizerSliderMarksMatchTheTrackWithoutOverlappingTransparency() {
+        rule.setContent {
+            ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                Box(Modifier.width(200.dp).background(Color.Black).testTag("slider_capture")) {
+                    ThinContinuousSlider(value = 0f, onValueChange = {}, valueRange = 0f..4f, visualStepSize = 1f)
+                }
+            }
+        }
+        val pixels = rule.onNodeWithTag("slider_capture").captureToImage().toPixelMap()
+        val middle = pixels.height / 2
+        val track = pixels[(pixels.width * 0.39f).toInt(), middle]
+        val markX = (pixels.width * 0.275f).toInt()
+        val mark = pixels[markX, middle - (3f * rule.density.density).toInt()]
+        val intersection = pixels[markX, middle]
+        assertTrue("Track should be visible", track.red > 0.1f)
+        assertTrue("Track and marks should have the same color", kotlin.math.abs(track.red - mark.red) < 0.04f)
+        assertTrue("Track and marks should not darken at intersections", kotlin.math.abs(track.red - intersection.red) < 0.04f)
+    }
+
+    @Test
+    fun coldStartResetsScrollWhenHomeContentAppearsAfterLoading() {
+        val album = Album(1L, "Test album", "Test artist", null, 0, 0L, emptyList())
+        var loading by mutableStateOf(true)
+        rule.runOnUiThread { lazyListPositionCache["home_screen"] = 2 to 80 }
+        try {
+            rule.setContent {
+                CompositionLocalProvider(LocalAppLanguage provides AppLanguage.English) {
+                    ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                        HomeScreen(
+                            lastPlayedAlbum = null, lastPlayedPlaylist = null, songsById = emptyMap(),
+                            recentlyAddedAlbums = emptyList(), recentSongs = emptyList(), favoriteAlbums = emptyList(),
+                            playbackState = PlaybackUiState(), isLibraryLoading = loading, isLibraryAuthoritative = false,
+                            libraryScanProgress = 0f, favoriteSongIds = emptySet(), topPadding = 0.dp, bottomPadding = 0.dp,
+                            scrollToTopRequestVersion = 0, resetScrollOnColdStart = true, playInitialReveal = false,
+                            onInitialRevealFinished = {}, onAlbumSelected = { _, _ -> }, onPlaylistSelected = {},
+                            onPlayAlbum = {}, onPlayPlaylist = { _, _ -> }, onShufflePlaylist = { _, _ -> },
+                            onOpenRecentlyAdded = {}, onSongSelected = {}, onToggleFavorite = {},
+                            albumOfDay = album, homeLayout = listOf(HomeModule.AlbumOfDay, HomeModule.RecentlyAdded,
+                                HomeModule.RecentlyPlayed, HomeModule.FavoriteAlbums),
+                        )
+                    }
+                }
+            }
+            rule.runOnIdle { loading = false }
+            rule.onNodeWithText("Album of the day").assertIsDisplayed()
+        } finally {
+            rule.runOnUiThread { lazyListPositionCache.removeIf { it == "home_screen" } }
+        }
     }
 
     @Test

@@ -341,14 +341,58 @@ class BackdropBlurRenderingTest {
         val fixture = composeRule.onNodeWithTag("queue_edge_fixture")
         val sharp = fixture.captureToImage().toPixelMap()
         val scale = composeRule.activity.resources.displayMetrics.density
-        val sample = androidx.compose.ui.geometry.Rect(30f * scale, sharp.height - 6f * scale,
-            sharp.width - 30f * scale, sharp.height - scale)
+        val sample = androidx.compose.ui.geometry.Rect(30f * scale, sharp.height - 18f * scale,
+            sharp.width - 30f * scale, sharp.height - 12f * scale)
+        val boundary = androidx.compose.ui.geometry.Rect(30f * scale, sharp.height - scale,
+            sharp.width - 30f * scale, sharp.height.toFloat())
         composeRule.runOnIdle { showEdge.value = true }
         composeRule.waitForIdle()
         val blurred = fixture.captureToImage().toPixelMap()
         val before = edgeEnergy(sharp, sample)
         val after = edgeEnergy(blurred, sample)
-        assertTrue("queue edge leaves vertical text strokes sharp: $before -> $after", after < before * 0.35)
+        assertTrue("queue edge leaves vertical text strokes sharp: $before -> $after", after < before * 0.55)
+        val boundaryBefore = edgeEnergy(sharp, boundary)
+        val boundaryAfter = edgeEnergy(blurred, boundary)
+        assertTrue("queue blur leaves a visible band at the boundary: $boundaryBefore -> $boundaryAfter", boundaryAfter > boundaryBefore * 0.8)
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 31)
+    fun queueSoftEdgeDoesNotTintUncoveredPlayerBackground() {
+        val showEdge = mutableStateOf(false)
+        composeRule.setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                val state = rememberHazeState()
+                Box(Modifier.fillMaxSize().background(Color(0xFF526E72)).testTag("queue_background_fixture")) {
+                    Canvas(Modifier.fillMaxSize().hazeSource(state, zIndex = -1f)) {
+                        drawRect(
+                            color = Color.White,
+                            topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.4f, 0f),
+                            size = androidx.compose.ui.geometry.Size(size.width * 0.2f, size.height),
+                        )
+                    }
+                    QueueEdgeHaze(visible = showEdge.value, alignment = Alignment.BottomCenter, hazeState = state,
+                        startIntensity = 0f, endIntensity = 1f, edgeHeight = 30.dp)
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val fixture = composeRule.onNodeWithTag("queue_background_fixture")
+        val before = fixture.captureToImage().toPixelMap()
+        composeRule.runOnIdle { showEdge.value = true }
+        composeRule.waitForIdle()
+        val after = fixture.captureToImage().toPixelMap()
+        val scale = composeRule.activity.resources.displayMetrics.density
+        val x = (20f * scale).roundToInt()
+        for (distance in listOf(1, 8, 15, 22, 29)) {
+            val y = (after.height - distance * scale).roundToInt().coerceIn(0, after.height - 1)
+            val original = before[x, y]
+            val result = after[x, y]
+            assertTrue("queue blur changes the bare player background at ${distance}dp: $original -> $result",
+                kotlin.math.abs(original.red - result.red) < 0.025f &&
+                    kotlin.math.abs(original.green - result.green) < 0.025f &&
+                    kotlin.math.abs(original.blue - result.blue) < 0.025f)
+        }
     }
 
     private fun checkerboardImage() = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888).apply {

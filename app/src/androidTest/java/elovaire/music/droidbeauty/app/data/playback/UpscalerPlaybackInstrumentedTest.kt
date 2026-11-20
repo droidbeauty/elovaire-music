@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -141,7 +142,10 @@ class UpscalerPlaybackInstrumentedTest {
             val playback = checkNotNull(manager)
             runBlocking { withTimeout(10_000) { playback.state.first { it.isPlaying } } }
             instrumentation.runOnMainSync { playback.togglePlayback() }
-            runBlocking { withTimeout(5_000) { playback.state.first { !it.isPlaying } } }
+            // The UI reports paused before the player's fade finishes.
+            runBlocking(Dispatchers.Main) {
+                withTimeout(5_000) { while (playback.playerInstance.playWhenReady) delay(10) }
+            }
             instrumentation.runOnMainSync { playback.seekTo(800) }
             val originalQueue = playback.state.value.queue.map { it.id }
             for (settings in listOf(UpscalerSettings(true, 2), UpscalerSettings(true, 8, true, 6), UpscalerSettings())) {

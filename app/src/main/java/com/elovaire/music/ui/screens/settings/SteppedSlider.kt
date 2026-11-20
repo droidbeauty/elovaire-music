@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,12 +27,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ClipOp
-import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -41,7 +38,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
-import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -60,7 +56,6 @@ internal fun SteppedSlider(
     val maxIndex = safeStepCount - 1
     val safeSelectedIndex = selectedIndex.coerceIn(0, maxIndex)
     val knobSize = 20.dp
-    val dotColor = MaterialTheme.colorScheme.onSurface
     val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText.copy(alpha = 0.18f)
     } else {
@@ -152,23 +147,21 @@ internal fun SteppedSlider(
                     }
                 },
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center)
-                    .height(2.dp)
-                    .background(lineColor, RoundedCornerShape(ElovaireRadii.pill)),
-            )
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val centerY = size.height / 2f
+                val lineHeight = 2.dp.toPx()
+                val width = 2.dp.toPx()
+                val height = 8.dp.toPx()
+                val shape = Path().apply {
+                    addRoundRect(RoundRect(0f, centerY - lineHeight / 2f, size.width,
+                        centerY + lineHeight / 2f, CornerRadius(lineHeight / 2f)))
+                }
                 repeat(safeStepCount) { index ->
                     val x = size.width * index / maxIndex.toFloat()
-                    val width = 2.dp.toPx()
-                    val height = 6.dp.toPx()
-                    clipRect(top = centerY - 1.dp.toPx(), bottom = centerY + 1.dp.toPx(), clipOp = ClipOp.Difference) {
-                        drawRoundRect(dotColor, Offset(x - width / 2f, centerY - height / 2f), Size(width, height), CornerRadius(width / 2f))
-                    }
+                    shape.addRoundRect(RoundRect(x - width / 2f, centerY - height / 2f,
+                        x + width / 2f, centerY + height / 2f, CornerRadius(width / 2f)))
                 }
+                drawPath(shape, lineColor)
             }
             Box(
                 modifier = Modifier

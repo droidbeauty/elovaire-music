@@ -13,10 +13,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -41,6 +43,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.screens.LyricsEditorUiState
 import elovaire.music.droidbeauty.app.ui.screens.LyricsUiState
 import elovaire.music.droidbeauty.app.ui.screens.NowPlayingScreen
+import elovaire.music.droidbeauty.app.ui.screens.NowPlayingTransitionSnapshot
 import elovaire.music.droidbeauty.app.ui.screens.PlayerUiState
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
@@ -57,6 +60,77 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlayerBackdropInstrumentedTest {
     @get:Rule val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
+
+    @Test
+    fun firstEntryAndQueueArtworkMoveContinuously() {
+        val song = Song(
+            id = 1L, title = "Motion track", isExplicit = false, artist = "Artist", album = "Album",
+            releaseYear = null, genre = "", audioFormat = "MP3", audioQuality = null,
+            fileName = "motion.mp3", albumId = 1L, durationMs = 180_000L, trackNumber = 1,
+            discNumber = 1, dateAddedSeconds = 1L, uri = Uri.parse("content://backdrop-test/motion"), artUri = null,
+        )
+        val progress = MutableStateFlow(PlaybackProgressState())
+        val playback = Proxy.newProxyInstance(NowPlayingPlayback::class.java.classLoader,
+            arrayOf(NowPlayingPlayback::class.java)) { proxy, method, args ->
+            when (method.name) {
+                "equals" -> proxy === args?.firstOrNull()
+                "hashCode" -> System.identityHashCode(proxy)
+                "toString" -> "Player motion fixture"
+                "getProgressState" -> progress
+                "setProgressConsumerActive", "cancelScrub" -> Unit
+                else -> error("Unexpected playback call: ${method.name}")
+            }
+        } as NowPlayingPlayback
+        val chapters = object : AudiobookChapterReader {
+            override suspend fun chapters(song: Song): List<AudiobookChapter> = emptyList()
+        }
+        val playerState = mutableStateOf(PlayerUiState())
+        val snapshot = NowPlayingTransitionSnapshot(song.id, Rect(20f, 600f, 400f, 680f), Rect(30f, 610f, 90f, 670f))
+        composeRule.setContent {
+            CompositionLocalProvider(LocalAppLanguage provides AppLanguage.English) {
+                ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
+                    NowPlayingScreen(
+                        playbackManager = playback, audiobookChapterReader = chapters, isPlayerVisible = true,
+                        playerUiState = playerState.value, enrichedSongsById = mapOf(song.id to song),
+                        audiobookSettings = AudiobookSettings(), isFavorite = false, playlists = emptyList(),
+                        lyricsUiState = LyricsUiState.Loading, lyricsEditorUiState = LyricsEditorUiState(),
+                        activeLyricsLineIndex = remember { mutableIntStateOf(-1) }, onLyricsVisibilityChanged = {},
+                        onSaveLyrics = {}, onClearLyricsEditorError = {}, onBack = {}, onOpenCurrentAlbum = {},
+                        onTogglePlayback = {}, onSkipPrevious = {}, onSkipNext = {}, onCycleRepeatMode = {},
+                        onToggleShuffle = {}, onToggleFavorite = {},
+                        onAddCurrentSongToPlaylist = { _, _ -> CompletableDeferred(PlaylistMutationResult.InvalidInput) },
+                        onCreatePlaylist = { CompletableDeferred(PlaylistMutationResult.InvalidInput) },
+                        onQueueItemSelected = {}, onQueueItemRemoved = {}, onOpenEqualizer = {},
+                        onToggleCrossfade = {}, onSleepTimerSelected = {}, onVolumeChanged = {}, transitionSnapshot = snapshot,
+                    )
+                }
+            }
+        }
+        composeRule.mainClock.autoAdvance = false
+        try {
+            composeRule.runOnUiThread { playerState.value = PlayerUiState(currentSong = song, queue = listOf(song), currentIndex = 0) }
+            composeRule.mainClock.advanceTimeByFrame()
+            composeRule.mainClock.advanceTimeByFrame()
+            val initial = composeRule.onNodeWithTag("player_transition_surface").getUnclippedBoundsInRoot()
+            composeRule.mainClock.advanceTimeBy(600)
+            val expanded = composeRule.onNodeWithTag("player_transition_surface").getUnclippedBoundsInRoot()
+            assertTrue("First entry should expand from the compact player", initial.right - initial.left < expanded.right - expanded.left)
+            val before = composeRule.onNodeWithTag("player_queue_artwork").getUnclippedBoundsInRoot()
+            composeRule.onNodeWithContentDescription("Queue").performClick()
+            composeRule.mainClock.advanceTimeByFrame()
+            val start = composeRule.onNodeWithTag("player_queue_artwork").getUnclippedBoundsInRoot()
+            assertTrue("Artwork should not jump at queue entry", kotlin.math.abs(start.left.value - before.left.value) < 20f)
+            composeRule.mainClock.advanceTimeBy(600)
+            val compact = composeRule.onNodeWithTag("player_queue_artwork").getUnclippedBoundsInRoot()
+            assertTrue(compact.right - compact.left < before.right - before.left)
+            composeRule.onNodeWithContentDescription("Close queue").performClick()
+            composeRule.mainClock.advanceTimeByFrame()
+            val closing = composeRule.onNodeWithTag("player_queue_artwork").getUnclippedBoundsInRoot()
+            assertTrue("Artwork should not jump at queue exit", kotlin.math.abs(closing.left.value - compact.left.value) < 20f)
+        } finally {
+            composeRule.mainClock.autoAdvance = true
+        }
+    }
 
     @Test
     fun lyricLineUpdatesRemainResponsiveInFullPlayer() {

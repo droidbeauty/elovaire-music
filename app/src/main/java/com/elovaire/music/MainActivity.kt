@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
         intentHandler = MainIntentHandler(this, container)
         val shouldShowColdStartSplash = savedInstanceState == null
         val isFirstActivityInProcess = container.consumeColdStartHomeReset()
-        val resetHomeScrollOnColdStart = shouldShowColdStartSplash && isFirstActivityInProcess
+        val resetHomeScrollOnColdStart = isFirstActivityInProcess
         intentHandler.handle(intent)
         setContent {
             ElovaireAppShell(

@@ -30,10 +30,9 @@ internal class UpscalerAudioProcessor(
     private var factor = 1
     private var pendingFactor = 1
     private var kernels = emptyArray<FloatArray>()
-    private var history = FloatArray(0)
-    private var frameSamples = FloatArray(0)
+    private var history = emptyArray<FloatArray>()
     private var inputFrames = 0L
-    private var outputFrames = 0L
+    private var nextCenter = 0L
     private var tailOutput = AudioProcessor.EMPTY_BUFFER
     private val capacity = radius * 2 + 1
 
@@ -61,9 +60,9 @@ internal class UpscalerAudioProcessor(
         tailOutput = AudioProcessor.EMPTY_BUFFER
         factor = pendingFactor
         inputFrames = 0
-        outputFrames = 0
-        frameSamples = FloatArray(inputAudioFormat.channelCount.coerceAtLeast(0))
-        history = FloatArray(capacity * frameSamples.size)
+        nextCenter = 0
+        // Mirror each channel's ring so a filter window stays contiguous across a wrap.
+        history = Array(inputAudioFormat.channelCount.coerceAtLeast(0)) { FloatArray(capacity * 2) }
         kernels = if (factor > 1) Array(factor) { phase -> kernel(phase.toDouble() / factor) } else emptyArray()
     }
 
@@ -73,9 +72,9 @@ internal class UpscalerAudioProcessor(
         if (frames == 0) return
         val output = replaceOutputBuffer(frames * factor * channels * 2)
         repeat(frames) {
-            val offset = (inputFrames % capacity).toInt() * channels
+            val slot = (inputFrames % capacity).toInt()
             repeat(channels) { channel ->
-                history[offset + channel] = when (inputAudioFormat.encoding) {
+                val sample = when (inputAudioFormat.encoding) {
                     C.ENCODING_PCM_FLOAT -> inputBuffer.float.let { if (it.isFinite()) it.coerceIn(-1f, 1f) else 0f }
                     C.ENCODING_PCM_24BIT -> {
                         val value = (inputBuffer.get().toInt() and 0xff) or
@@ -86,20 +85,22 @@ internal class UpscalerAudioProcessor(
                     C.ENCODING_PCM_32BIT -> inputBuffer.int / 2_147_483_648f
                     else -> inputBuffer.short / 32768f
                 }
+                history[channel][slot] = sample
+                history[channel][slot + capacity] = sample
             }
             inputFrames++
-            while (outputFrames / factor + radius < inputFrames) writeFrame(output)
+            if (nextCenter + radius < inputFrames) writeInterpolatedFrames(output)
         }
         output.flip()
     }
 
     override fun onQueueEndOfStream() {
         // Lookahead is zero-padded; exactly N * factor frames are emitted, without an added tail.
-        val remaining = inputFrames * factor - outputFrames
+        val remaining = (inputFrames - nextCenter) * factor
         // Keep the tail separate: the caller may still hold the previous output buffer.
         tailOutput = ByteBuffer.allocateDirect((remaining * inputAudioFormat.channelCount * 2).toInt())
             .order(ByteOrder.nativeOrder())
-        while (outputFrames < inputFrames * factor) writeFrame(tailOutput)
+        while (nextCenter < inputFrames) writeInterpolatedFrames(tailOutput)
         tailOutput.flip()
     }
 
@@ -111,28 +112,22 @@ internal class UpscalerAudioProcessor(
 
     override fun isEnded(): Boolean = super.isEnded() && !tailOutput.hasRemaining()
 
-    private fun writeFrame(output: ByteBuffer) {
-        val center = outputFrames / factor
-        val coefficients = kernels[(outputFrames % factor).toInt()]
-        val channels = inputAudioFormat.channelCount
-        frameSamples.fill(0f)
-        val firstTap = (radius - 1L - center).coerceIn(0L, coefficients.size.toLong()).toInt()
-        val lastTap = (inputFrames - center + radius - 1L).coerceIn(0L, coefficients.size.toLong()).toInt()
-        if (firstTap < lastTap) {
-            var slot = ((center + firstTap - radius + 1L) % capacity).toInt()
-            for (tap in firstTap until lastTap) {
-                val offset = slot * channels
-                val weight = coefficients[tap]
-                repeat(channels) { channel ->
-                    frameSamples[channel] += history[offset + channel] * weight
+    private fun writeInterpolatedFrames(output: ByteBuffer) {
+        val windowStart = nextCenter - radius + 1
+        val firstTap = (-windowStart).coerceAtLeast(0).toInt()
+        val lastTap = (inputFrames - windowStart).coerceAtMost(2L * radius).toInt()
+        val firstSlot = ((windowStart + firstTap) % capacity).toInt()
+        for (coefficients in kernels) {
+            for (channel in history) {
+                var sample = 0f
+                var slot = firstSlot
+                for (tap in firstTap until lastTap) {
+                    sample += channel[slot++] * coefficients[tap]
                 }
-                if (++slot == capacity) slot = 0
+                output.putShort((sample * gain * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
             }
         }
-        repeat(channels) { channel ->
-            output.putShort((frameSamples[channel] * gain * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
-        }
-        outputFrames++
+        nextCenter++
     }
 
     private fun kernel(fraction: Double): FloatArray {
@@ -147,11 +142,10 @@ internal class UpscalerAudioProcessor(
     }
 
     override fun onReset() {
-        history = FloatArray(0)
-        frameSamples = FloatArray(0)
+        history = emptyArray()
         kernels = emptyArray()
         inputFrames = 0
-        outputFrames = 0
+        nextCenter = 0
         factor = 1
         pendingFactor = 1
         tailOutput = AudioProcessor.EMPTY_BUFFER

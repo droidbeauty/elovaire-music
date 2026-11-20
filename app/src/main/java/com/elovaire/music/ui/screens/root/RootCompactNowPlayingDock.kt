@@ -536,8 +536,8 @@ private fun NowPlayingBar(
     val interactionSource = rememberElovaireInteractionSource()
     var dragOffsetX by remember(song.id) { mutableFloatStateOf(0f) }
     var isDragging by remember(song.id) { mutableStateOf(false) }
-    var barBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    var artworkBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var barBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var artworkBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val animatedDragOffsetX by animateFloatAsState(
         targetValue = if (isDragging) dragOffsetX else 0f,
         animationSpec = motionSpecs.spring(

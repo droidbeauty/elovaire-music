@@ -153,7 +153,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -375,6 +374,7 @@ import kotlin.math.pow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -425,8 +425,7 @@ internal fun HomeScreen(
     LaunchedEffect(resetScrollOnColdStart) {
         if (resetScrollOnColdStart) {
             lazyListPositionCache["home_screen"] = 0 to 0
-            listState.scrollToItem(0, 0)
-            withFrameNanos { }
+            snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
             listState.scrollToItem(0, 0)
         }
     }

@@ -453,10 +453,15 @@ internal fun NowPlayingScreen(
     val appBackground = MaterialTheme.colorScheme.background
     val gradient = rememberArtworkGradient(liveCurrentSong?.artUri).value
     val artwork = rememberArtworkBitmap(liveCurrentSong?.artUri, size = 768)
-    val transitionEntrySongId = remember { liveCurrentSong?.id }
-    var entryTransitionInvalidated by remember { mutableStateOf(false) }
+    val transitionEntrySongId = remember(transitionSnapshot) { transitionSnapshot?.songId ?: liveCurrentSong?.id }
+    var entrySongObserved by remember(transitionSnapshot) { mutableStateOf(false) }
+    var entryTransitionInvalidated by remember(transitionSnapshot) { mutableStateOf(false) }
     LaunchedEffect(liveCurrentSong?.id, transitionEntrySongId) {
-        if (liveCurrentSong?.id != transitionEntrySongId) entryTransitionInvalidated = true
+        if (liveCurrentSong?.id == transitionEntrySongId && liveCurrentSong != null) {
+            entrySongObserved = true
+        } else if (liveCurrentSong != null && entrySongObserved) {
+            entryTransitionInvalidated = true
+        }
     }
     val activeTransitionSnapshot = remember(
         transitionSnapshot,
@@ -737,6 +742,7 @@ internal fun NowPlayingScreen(
                     }
                     .width(with(density) { animatedSurfaceBounds.width.toDp() })
                     .height(with(density) { animatedSurfaceBounds.height.toDp() })
+                    .testTag("player_transition_surface")
                     .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
                     .background(baseSurface)
                     .graphicsLayer {
@@ -982,6 +988,7 @@ internal fun NowPlayingScreen(
                                 },
                             ),
                     ) {
+                        val artworkContainerWidth = maxWidth
                         val landscape = maxWidth > maxHeight * 1.15f
                         val expandedArtworkWidth = (if (landscape) {
                             minOf(maxWidth, maxHeight * 0.34f).coerceAtLeast(120.dp)
@@ -1015,7 +1022,16 @@ internal fun NowPlayingScreen(
                                         targetState = currentSong.id,
                                         transitionSpec = { motionTransitions.quickContentSwapTransform() },
                                         label = "player_artwork_content",
-                                        modifier = Modifier.align(if (showQueueSheet) Alignment.CenterStart else Alignment.Center),
+                                        modifier = Modifier
+                                            .align(Alignment.CenterStart)
+                                            .offset {
+                                                IntOffset(
+                                                    x = ((artworkContainerWidth - animatedArtworkWidth).toPx() *
+                                                        (1f - queueProgressTransition) / 2f).roundToInt(),
+                                                    y = 0,
+                                                )
+                                            }
+                                            .testTag("player_queue_artwork"),
                                     ) { songId ->
                                         val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
                                         ArtworkImage(
@@ -2471,10 +2487,16 @@ internal fun BoxScope.QueueEdgeHaze(
     edgeHeight: Dp = 20.dp,
 ) {
     if (!visible) return
-    val edgeMask = rememberSoftEdgeBlurMask(
-        startIntensity = startIntensity,
-        endIntensity = endIntensity,
-    )
+    val edgeMask = remember(startIntensity, endIntensity) {
+        val stops = 17
+        Brush.verticalGradient(colorStops = Array(stops) { index ->
+            val fraction = index / (stops - 1).toFloat()
+            val towardEdge = startIntensity + (endIntensity - startIntensity) * fraction
+            val fadeIn = (towardEdge * towardEdge * (3f - 2f * towardEdge))
+            val fadeOut = 1f - fadeIn
+            fraction to Color.Black.copy(alpha = (4f * fadeIn * fadeOut * 0.85f).coerceIn(0f, 1f))
+        })
+    }
     Box(
         modifier = Modifier
             .align(alignment)

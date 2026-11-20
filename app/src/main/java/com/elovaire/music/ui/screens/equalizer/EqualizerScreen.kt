@@ -74,7 +74,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
@@ -288,7 +287,6 @@ internal fun EqualizerScreen(
                         centerValue = 0f,
                         stepSize = EqValuePolicy.GAIN_STEP_DB,
                         visualStepSize = 1f,
-                        stepDotAlpha = 1f,
                         modifier = Modifier.testTag("eq_preamp").semantics { contentDescription = preampLabel(language) },
                     )
                     Spacer(Modifier.height(10.dp))
@@ -985,7 +983,6 @@ private fun EqMacroSliderRow(
     modifier: Modifier = Modifier,
     centerValue: Float? = null,
     visualStepSize: Float? = null,
-    stepDotAlpha: Float = 0.48f,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -1012,7 +1009,6 @@ private fun EqMacroSliderRow(
             valueRange = valueRange,
             centerValue = centerValue,
             visualStepSize = visualStepSize,
-            stepDotAlpha = stepDotAlpha,
             enabled = enabled,
             fullOpacityKnob = fullOpacityKnob,
             modifier = modifier.semantics { contentDescription = title },
@@ -2053,7 +2049,6 @@ internal fun ThinContinuousSlider(
     centerValue: Float? = null,
     stepSize: Float? = null,
     visualStepSize: Float? = null,
-    stepDotAlpha: Float = 0.48f,
     lineThickness: Dp = 2.dp,
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
@@ -2144,29 +2139,27 @@ internal fun ThinContinuousSlider(
         val y = size.height / 2f
         val x = inset + width * fraction
         val alpha = if (enabled) 1f else 0.38f
-        drawLine(knobColor.copy(alpha = 0.2f * alpha), Offset(inset, y), Offset(inset + width, y),
-            strokeWidth = lineThickness.toPx(), cap = StrokeCap.Round)
-        drawLine(knobColor.copy(alpha = alpha), Offset(inset + width * centerFraction, y), Offset(x, y),
-            strokeWidth = lineThickness.toPx(), cap = StrokeCap.Round)
+        val lineWidth = lineThickness.toPx()
+        val track = Path().apply {
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(
+                inset - lineWidth / 2f, y - lineWidth / 2f, inset + width + lineWidth / 2f,
+                y + lineWidth / 2f, androidx.compose.ui.geometry.CornerRadius(lineWidth / 2f),
+            ))
+        }
         if (visualStepCount > 0) repeat(visualStepCount + 1) { index ->
             val stepX = inset + width * index / visualStepCount
             if (abs(stepX - x) > inset) {
                 val tickWidth = 2.dp.toPx()
-                val tickHeight = 6.dp.toPx()
-                clipRect(
-                    top = y - lineThickness.toPx() / 2f,
-                    bottom = y + lineThickness.toPx() / 2f,
-                    clipOp = androidx.compose.ui.graphics.ClipOp.Difference,
-                ) {
-                    drawRoundRect(
-                        color = knobColor.copy(alpha = stepDotAlpha * alpha),
-                        topLeft = Offset(stepX - tickWidth / 2f, y - tickHeight / 2f),
-                        size = androidx.compose.ui.geometry.Size(tickWidth, tickHeight),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(tickWidth / 2f),
-                    )
-                }
+                val tickHeight = 8.dp.toPx()
+                track.addRoundRect(androidx.compose.ui.geometry.RoundRect(
+                    stepX - tickWidth / 2f, y - tickHeight / 2f, stepX + tickWidth / 2f,
+                    y + tickHeight / 2f, androidx.compose.ui.geometry.CornerRadius(tickWidth / 2f),
+                ))
             }
         }
+        drawPath(track, knobColor.copy(alpha = 0.2f * alpha))
+        drawLine(knobColor.copy(alpha = alpha), Offset(inset + width * centerFraction, y), Offset(x, y),
+            strokeWidth = lineWidth, cap = StrokeCap.Round)
         drawCircle(knobColor.copy(alpha = if (fullOpacityKnob) 1f else alpha), inset, Offset(x, y))
     }
 }
