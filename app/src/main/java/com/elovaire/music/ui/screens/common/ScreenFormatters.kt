@@ -6,9 +6,13 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
-import java.util.PriorityQueue
 import java.text.DecimalFormatSymbols
+import java.time.DateTimeException
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneId
 import java.util.Locale
+import java.util.PriorityQueue
 import kotlin.math.roundToLong
 
 internal fun recentlyAddedAlbumsFor(
@@ -173,6 +177,8 @@ internal data class AlbumCollectionSortEntry(
     val album: Album,
     val artistKey: String = album.artist.lowercase(),
     val titleKey: String = album.title.lowercase(),
+    val releaseYear: Int? = album.songs.firstNotNullOfOrNull { it.releaseYear?.takeIf { year -> year > 0 } },
+    val dateAddedSeconds: Long = album.songs.maxOfOrNull { it.dateAddedSeconds.coerceAtLeast(0L) } ?: 0L,
 )
 
 internal fun albumCollectionSortEntries(albums: List<Album>): List<AlbumCollectionSortEntry> =
@@ -193,7 +199,52 @@ internal fun sortAlbumCollection(
     AlbumSortMode.Album -> entries.sortedWith(
         compareBy<AlbumCollectionSortEntry> { it.titleKey }.thenBy { it.artistKey },
     )
+    AlbumSortMode.ReleaseYear -> entries.sortedWith(
+        compareBy<AlbumCollectionSortEntry> { it.releaseYear == null }
+            .thenByDescending { it.releaseYear }
+            .thenBy { it.titleKey }
+            .thenBy { it.artistKey }
+            .thenBy { it.album.id },
+    )
+    AlbumSortMode.DateAdded -> entries.sortedWith(
+        compareBy<AlbumCollectionSortEntry> { it.dateAddedSeconds <= 0L }
+            .thenByDescending { it.dateAddedSeconds }
+            .thenBy { it.titleKey }
+            .thenBy { it.artistKey }
+            .thenBy { it.album.id },
+    )
 }.map(AlbumCollectionSortEntry::album)
+
+internal sealed interface AlbumCollectionDisplayItem {
+    data class MonthHeader(val month: YearMonth) : AlbumCollectionDisplayItem
+    data class AlbumItem(val album: Album, val revealIndex: Int) : AlbumCollectionDisplayItem
+}
+
+internal fun albumCollectionDisplayItems(
+    albums: List<Album>,
+    sortMode: AlbumSortMode,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): List<AlbumCollectionDisplayItem> = buildList(albums.size + 12) {
+    var previousMonth: YearMonth? = null
+    albums.forEachIndexed { index, album ->
+        val month = if (sortMode == AlbumSortMode.DateAdded) {
+            album.songs.asSequence()
+                .map(Song::dateAddedSeconds)
+                .filter { it > 0L }
+                .maxOrNull()
+                ?.let { timestamp ->
+                    try {
+                        YearMonth.from(Instant.ofEpochSecond(timestamp).atZone(zoneId))
+                    } catch (_: DateTimeException) {
+                        null
+                    }
+                }
+        } else null
+        if (month != null && month != previousMonth) add(AlbumCollectionDisplayItem.MonthHeader(month))
+        add(AlbumCollectionDisplayItem.AlbumItem(album, index))
+        previousMonth = month
+    }
+}
 
 internal data class SongCollectionSortEntry(
     val song: Song,

@@ -9,6 +9,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneOffset
 
 class ScreenFormattersTest {
     @Test
@@ -51,6 +54,50 @@ class ScreenFormattersTest {
 
         assertEquals(listOf(2L, 4L, 1L, 5L), artistAlbumsFor(albums, "artist").map(Album::id))
         assertTrue(artistAlbumsFor(albums, "Missing").isEmpty())
+    }
+
+    @Test
+    fun albumReleaseYearAndDeviceAdditionSortNewestFirstWithUndatedAlbumsLast() {
+        val albums = listOf(
+            album(1L, 1_760_000_000L).copy(songs = listOf(song(1L, 1L, 1_000L).copy(releaseYear = 1998, dateAddedSeconds = 1_760_000_000L))),
+            album(2L, 1_770_000_000L).copy(songs = listOf(song(2L, 2L, 1_000L).copy(releaseYear = 2024, dateAddedSeconds = 1_770_000_000L))),
+            album(3L, 0L).copy(songs = listOf(song(3L, 3L, 1_000L).copy(releaseYear = 2010))),
+            album(4L, 1_780_000_000L),
+        )
+
+        assertEquals(
+            listOf(2L, 3L, 1L, 4L),
+            sortAlbumCollection(albumCollectionSortEntries(albums), AlbumSortMode.ReleaseYear).map(Album::id),
+        )
+        assertEquals(
+            listOf(4L, 2L, 1L, 3L),
+            sortAlbumCollection(albumCollectionSortEntries(albums), AlbumSortMode.DateAdded).map(Album::id),
+        )
+    }
+
+    @Test
+    fun deviceAdditionSectionsFollowNewestMonthAndLeaveUndatedAlbumsAtTheEnd() {
+        val february = Instant.parse("2026-02-27T12:00:00Z").epochSecond
+        val january = Instant.parse("2026-01-18T12:00:00Z").epochSecond
+        val albums = listOf(
+            album(1L, february),
+            album(2L, january),
+            album(3L, Instant.parse("2026-02-03T12:00:00Z").epochSecond),
+            album(4L, 0L),
+        )
+        val sorted = sortAlbumCollection(albumCollectionSortEntries(albums), AlbumSortMode.DateAdded)
+        val rows = albumCollectionDisplayItems(sorted, AlbumSortMode.DateAdded, ZoneOffset.UTC)
+
+        assertEquals(
+            listOf(YearMonth.of(2026, 2), YearMonth.of(2026, 1)),
+            rows.filterIsInstance<AlbumCollectionDisplayItem.MonthHeader>().map { it.month },
+        )
+        assertEquals(listOf(1L, 3L, 2L, 4L), rows.filterIsInstance<AlbumCollectionDisplayItem.AlbumItem>().map { it.album.id })
+        assertEquals(
+            emptyList<YearMonth>(),
+            albumCollectionDisplayItems(sorted.reversed(), AlbumSortMode.Artist, ZoneOffset.UTC)
+                .filterIsInstance<AlbumCollectionDisplayItem.MonthHeader>().map { it.month },
+        )
     }
 
     @Test
@@ -362,5 +409,27 @@ class ScreenFormattersTest {
     private fun albumSortModeResults(albums: List<Album>): Map<AlbumSortMode, List<Long>> = mapOf(
         AlbumSortMode.Artist to albums.sortedWith(compareBy<Album> { it.artist.lowercase() }.thenBy { it.title.lowercase() }).map(Album::id),
         AlbumSortMode.Album to albums.sortedWith(compareBy<Album> { it.title.lowercase() }.thenBy { it.artist.lowercase() }).map(Album::id),
+        AlbumSortMode.ReleaseYear to albums.sortedWith(
+            compareBy<Album> { albumReleaseYear(it) == null }
+                .thenByDescending(::albumReleaseYear)
+                .thenBy { it.title.lowercase() }
+                .thenBy { it.artist.lowercase() }
+                .thenBy { it.id },
+        ).map(Album::id),
+        AlbumSortMode.DateAdded to albums.sortedWith(
+            compareBy<Album> { albumDateAddedSeconds(it) <= 0L }
+                .thenByDescending(::albumDateAddedSeconds)
+                .thenBy { it.title.lowercase() }
+                .thenBy { it.artist.lowercase() }
+                .thenBy { it.id },
+        ).map(Album::id),
     )
+
+    private fun albumReleaseYear(album: Album): Int? = album.songs
+        .firstNotNullOfOrNull { it.releaseYear?.takeIf { year -> year > 0 } }
+
+    private fun albumDateAddedSeconds(album: Album): Long = album.songs
+        .maxOfOrNull(Song::dateAddedSeconds)
+        ?.coerceAtLeast(0L)
+        ?: 0L
 }

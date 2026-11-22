@@ -1,17 +1,19 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -20,9 +22,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -32,6 +39,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -43,6 +51,8 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 import elovaire.music.droidbeauty.app.ui.theme.InkText
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @Composable
 internal fun FirstLaunchPermissionLoadingScreen(
@@ -57,6 +67,8 @@ internal fun FirstLaunchPermissionLoadingScreen(
     }
     val motionRuntime = LocalMotionRuntime.current
     val motionSpecs = rememberMotionSpecs()
+    val density = LocalDensity.current
+    var showConfiguration by remember { mutableStateOf(false) }
     val rotationDegrees = if (showLoading && !motionRuntime.reduceMotion) {
         val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
         val animatedRotationDegrees by infiniteTransition.animateFloat(
@@ -75,17 +87,40 @@ internal fun FirstLaunchPermissionLoadingScreen(
     } else {
         0f
     }
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
+        val centeredWordmarkOffset = with(density) {
+            (maxHeight / 2f - 74.dp).coerceAtLeast(0.dp).toPx()
+        }
+        val wordmarkOffset = remember { Animatable(centeredWordmarkOffset) }
+        LaunchedEffect(wordmarkOffset) {
+            if (motionRuntime.reduceMotion) {
+                wordmarkOffset.snapTo(0f)
+            } else {
+                delay(120L)
+                wordmarkOffset.animateTo(
+                    targetValue = 0f,
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = 520,
+                        easing = MotionEasing.RefinedDecelerate,
+                    ),
+                )
+            }
+            delay(if (motionRuntime.reduceMotion) 0L else 80L)
+            showConfiguration = true
+        }
         Text(
             text = "ELOVAIRE",
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
-                .padding(top = 40.dp),
+                .padding(top = 40.dp)
+                .offset {
+                    IntOffset(0, wordmarkOffset.value.roundToInt())
+                },
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -94,7 +129,7 @@ internal fun FirstLaunchPermissionLoadingScreen(
             color = MaterialTheme.colorScheme.onBackground,
         )
         ElovaireAnimatedVisibility(
-            visible = true,
+            visible = showConfiguration,
             modifier = Modifier.align(Alignment.Center),
             enter = androidx.compose.animation.fadeIn(
                 animationSpec = motionSpecs.tween(

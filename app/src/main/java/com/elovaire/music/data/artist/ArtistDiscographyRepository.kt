@@ -122,7 +122,7 @@ internal class CachedArtistDiscographyReader(
     }
 
     private suspend fun cacheResult(artistName: String, result: ArtistDiscographyResult) {
-        val ttlMs = if (result is ArtistDiscographyResult.Found) POSITIVE_CACHE_TTL_MS else NEGATIVE_CACHE_TTL_MS
+        val ttlMs = if (result is ArtistDiscographyResult.Found && result.description != null) POSITIVE_CACHE_TTL_MS else NEGATIVE_CACHE_TTL_MS
         val entry = CacheEntry(result, clock.wallTimeMs() + ttlMs)
         synchronized(cacheLock) {
             memoryCache[artistName] = entry
@@ -150,7 +150,7 @@ internal class CachedArtistDiscographyReader(
                 "not_found" -> ArtistDiscographyResult.NotFound to NEGATIVE_CACHE_TTL_MS
                 "found" -> {
                     val albums = payload.optJSONArray("albums")?.toArtistAlbums().orEmpty()
-                    val genres = payload.optJSONArray("genres")?.toStringList().orEmpty()
+                    val genres = payload.optJSONArray("genres")?.toCachedGenres().orEmpty()
                     val description = payload.optString("description")
                         .takeIf { it.isNotBlank() && it != "null" }
                     if (albums.isEmpty() && genres.isEmpty() && description == null) return null
@@ -160,7 +160,7 @@ internal class CachedArtistDiscographyReader(
                         genres = genres,
                         descriptionSourceUrl = payload.optString("description_source_url")
                             .takeIf { it.isNotBlank() && it != "null" },
-                    ) to POSITIVE_CACHE_TTL_MS
+                    ) to if (description != null) POSITIVE_CACHE_TTL_MS else NEGATIVE_CACHE_TTL_MS
                 }
                 else -> return null
             }
@@ -250,12 +250,18 @@ internal class MusicBrainzArtistDiscographyClient(
         return try {
             val artistId = lookupArtistId(safeArtistName)
             val artistMetadata = if (artistId != null) lookupArtistMetadata(artistId) else null
-            val wikipediaSummary = if (artistMetadata?.wikipediaUrl != null) {
-                lookupWikipediaSummary(artistMetadata.wikipediaUrl)
-            } else {
+            val wikipediaSummary = artistMetadata?.wikipediaUrl?.let { lookupWikipediaSummary(it) }
+                ?: artistMetadata?.wikidataId?.let { lookupWikidataWikipediaUrl(it) }
+                    ?.let { lookupWikipediaSummary(it) }
+            val albums = try {
+                lookupAlbums(safeArtistName)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: IOException) {
+                null
+            } catch (_: JSONException) {
                 null
             }
-            val albums = lookupAlbums(safeArtistName)
             val result = ArtistDiscographyResult.Found(
                 albums = albums.orEmpty(),
                 description = wikipediaSummary?.description,
@@ -314,7 +320,30 @@ internal class MusicBrainzArtistDiscographyClient(
                 .mapNotNull { it.optJSONObject("url")?.optString("resource") }
                 .firstOrNull(::isWikipediaArticleUrl)
         }
-        return ArtistMetadata(genres, wikipediaUrl)
+        val wikidataId = relations?.let { items ->
+            (0 until items.length()).asSequence()
+                .mapNotNull { items.optJSONObject(it) }
+                .filter { it.optString("type").equals("wikidata", ignoreCase = true) }
+                .mapNotNull { it.optJSONObject("url")?.optString("resource") }
+                .mapNotNull { value ->
+                    val uri = runCatching { java.net.URI(value) }.getOrNull()
+                    if (uri?.scheme != "https" || uri.host != "www.wikidata.org") null
+                    else uri.path?.removePrefix("/wiki/")?.takeIf { WIKIDATA_ID_REGEX.matches(it) }
+                }
+                .firstOrNull()
+        }
+        return ArtistMetadata(genres, wikipediaUrl, wikidataId)
+    }
+
+    private suspend fun lookupWikidataWikipediaUrl(id: String): String? {
+        if (!WIKIDATA_ID_REGEX.matches(id)) return null
+        val payload = json(
+            "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=$id&props=sitelinks&sitefilter=enwiki&format=json",
+            headers = mapOf("Accept" to "application/json", "User-Agent" to "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)"),
+        ) ?: return null
+        val title = payload.optJSONObject("entities")?.optJSONObject(id)?.optJSONObject("sitelinks")
+            ?.optJSONObject("enwiki")?.optString("title")?.takeIf(String::isNotBlank) ?: return null
+        return "https://en.wikipedia.org/wiki/${title.replace(' ', '_').encodeQuery()}"
     }
 
     private suspend fun lookupWikipediaSummary(articleUrl: String): WikipediaSummary? {
@@ -368,12 +397,20 @@ internal class MusicBrainzArtistDiscographyClient(
                 "Accept" to "application/json",
                 "User-Agent" to "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)",
             ),
+            retryBusy = true,
         )
     }
 
-    private suspend fun json(url: String, headers: Map<String, String>): JSONObject? {
+    private suspend fun json(url: String, headers: Map<String, String>, retryBusy: Boolean = false): JSONObject? {
         return try {
-            val response = transport.get(url, headers, MAX_RESPONSE_BYTES)
+            var response = transport.get(url, headers, MAX_RESPONSE_BYTES)
+            if (retryBusy && (response.statusCode == 429 || response.statusCode == 503)) {
+                val retryDelay = response.retryAfterMs ?: 1_500L
+                if (retryDelay > 5_000L) return null
+                delay(retryDelay.coerceAtLeast(1_100L))
+                beforeMusicBrainzRequest()
+                response = transport.get(url, headers, MAX_RESPONSE_BYTES)
+            }
             if (response.statusCode !in 200..299) return null
             JSONObject(response.body.toString(StandardCharsets.UTF_8))
         } catch (cancelled: CancellationException) {
@@ -391,7 +428,7 @@ internal class MusicBrainzArtistDiscographyClient(
         }
     }
 
-    private data class ArtistMetadata(val genres: List<String>, val wikipediaUrl: String?)
+    private data class ArtistMetadata(val genres: List<String>, val wikipediaUrl: String?, val wikidataId: String?)
     private data class WikipediaSummary(val description: String, val sourceUrl: String)
 
     private companion object {
@@ -404,6 +441,13 @@ private fun JSONArray.toStringList(): List<String> = buildList {
     for (index in 0 until length()) {
         val item = optJSONObject(index) ?: continue
         item.optString("name").trim().takeIf(String::isNotBlank)?.let(::add)
+    }
+}
+
+private fun JSONArray.toCachedGenres(): List<String> = buildList {
+    for (index in 0 until length()) {
+        val value = optString(index).trim()
+        if (value.isNotEmpty() && value != "null") add(value)
     }
 }
 
@@ -497,5 +541,6 @@ private fun String.cacheFileKey(): String = MessageDigest.getInstance("SHA-256")
 
 private val RELEASE_DATE_REGEX = Regex("\\d{4}(?:-\\d{2}(?:-\\d{2})?)?")
 private val MUSICBRAINZ_ID_REGEX = Regex("[0-9a-fA-F-]{36}")
+private val WIKIDATA_ID_REGEX = Regex("Q[1-9][0-9]*")
 
 private const val MAX_ARTIST_NAME_LENGTH = 200

@@ -514,6 +514,8 @@ internal enum class AlbumSortMode(
 ) {
     Artist("Artist name"),
     Album("Album name"),
+    ReleaseYear("Release year"),
+    DateAdded("Date added"),
 }
 
 internal fun String.toAlbumSortMode(): AlbumSortMode {

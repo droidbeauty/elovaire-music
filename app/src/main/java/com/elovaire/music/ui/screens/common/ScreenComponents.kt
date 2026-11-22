@@ -501,6 +501,7 @@ internal fun SectionTitleRow(
     ) {
         Text(
             text = title,
+            color = MaterialTheme.colorScheme.onSurface,
             style = if (compact) {
                 MaterialTheme.typography.titleLarge.copy(
                     fontSize = elovaireScaledSp(16f),

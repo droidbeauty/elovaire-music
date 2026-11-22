@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
 import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 import elovaire.music.droidbeauty.app.ui.screens.common.readableCardSurfaceColor
 import elovaire.music.droidbeauty.app.ui.screens.common.toggleSelection
+import elovaire.music.droidbeauty.app.ui.i18n.albumAddedMonthLabel
 
 import android.Manifest
 import android.content.Context
@@ -1138,6 +1139,32 @@ internal fun Modifier.libraryRemovalAnimation(isRemoving: Boolean): Modifier {
 }
 
 @Composable
+private fun AlbumMonthSeparator(
+    month: java.time.YearMonth,
+    modifier: Modifier = Modifier,
+) {
+    val language = LocalAppLanguage.current
+    Row(
+        modifier = modifier.padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = albumAddedMonthLabel(month, language),
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+        )
+    }
+}
+
+@Composable
 private fun AlbumCollectionContent(
     albums: List<Album>,
     removingAlbumIds: Set<Long> = emptySet(),
@@ -1175,6 +1202,9 @@ private fun AlbumCollectionContent(
     val albumSortEntries = remember(albums) { albumCollectionSortEntries(albums) }
     val sortedAlbums = remember(albumSortEntries, sortMode) {
         sortAlbumCollection(albumSortEntries, sortMode)
+    }
+    val displayItems = remember(sortedAlbums, sortMode) {
+        albumCollectionDisplayItems(sortedAlbums, sortMode)
     }
     val selectedAlbums = remember(sortedAlbums, selectedAlbumIds) {
         sortedAlbums.filter { it.id in selectedAlbumIds }
@@ -1241,37 +1271,54 @@ private fun AlbumCollectionContent(
                     }
 
                     itemsIndexed(
-                        items = sortedAlbums,
-                        key = { _, album -> album.id },
-                        contentType = { _, _ -> "album_grid_card" },
-                    ) { index, album ->
-                        AlbumGridCard(
-                            album = album,
-                            modifier = Modifier
-                                .animateItem(
-                                    placementSpec = motionSpecs.listPlacement(),
+                        items = displayItems,
+                        key = { _, item ->
+                            when (item) {
+                                is AlbumCollectionDisplayItem.MonthHeader -> "month:${item.month}"
+                                is AlbumCollectionDisplayItem.AlbumItem -> "album:${item.album.id}"
+                            }
+                        },
+                        contentType = { _, item ->
+                            if (item is AlbumCollectionDisplayItem.MonthHeader) "album_month_header" else "album_grid_card"
+                        },
+                        span = { _, item ->
+                            if (item is AlbumCollectionDisplayItem.MonthHeader) GridItemSpan(albumGridColumns) else GridItemSpan(1)
+                        },
+                    ) { _, item ->
+                        when (item) {
+                            is AlbumCollectionDisplayItem.MonthHeader -> AlbumMonthSeparator(
+                                month = item.month,
+                                modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
+                            )
+                            is AlbumCollectionDisplayItem.AlbumItem -> {
+                                val album = item.album
+                                AlbumGridCard(
+                                    album = album,
+                                    modifier = Modifier
+                                        .animateItem(placementSpec = motionSpecs.listPlacement())
+                                        .elovaireListReveal(
+                                            itemKey = album.id,
+                                            index = item.revealIndex,
+                                            registry = revealRegistry,
+                                        )
+                                        .libraryRemovalAnimation(album.id in removingAlbumIds),
+                                    selectionMode = selectionModeActive,
+                                    selected = album.id in selectedAlbumIds,
+                                    enableSharedTransition = !selectionModeActive,
+                                    onOpen = { origin ->
+                                        if (selectionModeActive) {
+                                            selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                        } else {
+                                            onAlbumSelected(album, origin)
+                                        }
+                                    },
+                                    onLongPress = {
+                                        showSortOptions = false
+                                        selectedAlbumIds = selectedAlbumIds + album.id
+                                    },
                                 )
-                                .elovaireListReveal(
-                                    itemKey = album.id,
-                                    index = index,
-                                    registry = revealRegistry,
-                                )
-                                .libraryRemovalAnimation(album.id in removingAlbumIds),
-                            selectionMode = selectionModeActive,
-                            selected = album.id in selectedAlbumIds,
-                            enableSharedTransition = !selectionModeActive,
-                            onOpen = { origin ->
-                                if (selectionModeActive) {
-                                    selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
-                                } else {
-                                    onAlbumSelected(album, origin)
-                                }
-                            },
-                            onLongPress = {
-                                showSortOptions = false
-                                selectedAlbumIds = selectedAlbumIds + album.id
-                            },
-                        )
+                            }
+                        }
                     }
                 }
                 FastScrollbar(
@@ -1325,40 +1372,57 @@ private fun AlbumCollectionContent(
                     }
 
                     itemsIndexed(
-                        items = sortedAlbums,
-                        key = { _, album -> album.id },
-                        contentType = { _, _ -> "album_grid_card" },
-                    ) { index, album ->
-                        AlbumGridCard(
-                            album = album,
-                            modifier = Modifier
-                                .animateItem(
-                                    placementSpec = motionSpecs.listPlacement(),
+                        items = displayItems,
+                        key = { _, item ->
+                            when (item) {
+                                is AlbumCollectionDisplayItem.MonthHeader -> "month:${item.month}"
+                                is AlbumCollectionDisplayItem.AlbumItem -> "album:${item.album.id}"
+                            }
+                        },
+                        contentType = { _, item ->
+                            if (item is AlbumCollectionDisplayItem.MonthHeader) "album_month_header" else "album_grid_card"
+                        },
+                        span = { _, item ->
+                            if (item is AlbumCollectionDisplayItem.MonthHeader) GridItemSpan(denseAlbumGridColumns) else GridItemSpan(1)
+                        },
+                    ) { _, item ->
+                        when (item) {
+                            is AlbumCollectionDisplayItem.MonthHeader -> AlbumMonthSeparator(
+                                month = item.month,
+                                modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
+                            )
+                            is AlbumCollectionDisplayItem.AlbumItem -> {
+                                val album = item.album
+                                AlbumGridCard(
+                                    album = album,
+                                    modifier = Modifier
+                                        .animateItem(placementSpec = motionSpecs.listPlacement())
+                                        .elovaireListReveal(
+                                            itemKey = album.id,
+                                            index = item.revealIndex,
+                                            registry = revealRegistry,
+                                        )
+                                        .libraryRemovalAnimation(album.id in removingAlbumIds),
+                                    selectionMode = selectionModeActive,
+                                    selected = album.id in selectedAlbumIds,
+                                    showText = false,
+                                    artworkCornerRadius = 0.dp,
+                                    showArtworkGlow = false,
+                                    enableSharedTransition = !selectionModeActive,
+                                    onOpen = { origin ->
+                                        if (selectionModeActive) {
+                                            selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                        } else {
+                                            onAlbumSelected(album, origin)
+                                        }
+                                    },
+                                    onLongPress = {
+                                        showSortOptions = false
+                                        selectedAlbumIds = selectedAlbumIds + album.id
+                                    },
                                 )
-                                .elovaireListReveal(
-                                    itemKey = album.id,
-                                    index = index,
-                                    registry = revealRegistry,
-                                )
-                                .libraryRemovalAnimation(album.id in removingAlbumIds),
-                            selectionMode = selectionModeActive,
-                            selected = album.id in selectedAlbumIds,
-                            showText = false,
-                            artworkCornerRadius = 0.dp,
-                            showArtworkGlow = false,
-                            enableSharedTransition = !selectionModeActive,
-                            onOpen = { origin ->
-                                if (selectionModeActive) {
-                                    selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
-                                } else {
-                                    onAlbumSelected(album, origin)
-                                }
-                            },
-                            onLongPress = {
-                                showSortOptions = false
-                                selectedAlbumIds = selectedAlbumIds + album.id
-                            },
-                        )
+                            }
+                        }
                     }
                 }
                 FastScrollbar(
@@ -1407,61 +1471,78 @@ private fun AlbumCollectionContent(
                     }
 
                     itemsIndexed(
-                        items = sortedAlbums,
-                        key = { _, album -> album.id },
-                        contentType = { _, _ -> "album_compact_row" },
-                    ) { index, album ->
-                        Box(
-                            modifier = Modifier
-                                .animateItem(
-                                    placementSpec = motionSpecs.listPlacement(),
-                                )
-                                .elovaireListReveal(
-                                    itemKey = album.id,
-                                    index = index,
-                                    registry = revealRegistry,
-                                )
-                                .libraryRemovalAnimation(album.id in removingAlbumIds),
-                        ) {
-                            CompactAlbumRow(
-                                album = album,
-                                selectionMode = selectionModeActive,
-                                selected = album.id in selectedAlbumIds,
-                                isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
-                                showFavoriteButton = true,
-                                playlists = playlists,
-                                playlistSongsById = playlistSongsById,
-                                onOpen = { origin ->
-                                    if (selectionModeActive) {
-                                        selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
-                                    } else {
-                                        onAlbumSelected(album, origin)
-                                    }
-                                },
-                                onToggleFavorite = {
-                                    onSetAlbumFavorite(
-                                        album.songs.map(Song::id),
-                                        album.songs.any { it.id !in favoriteSongIds },
-                                    )
-                                },
-                                onAddToQueue = { onAddAlbumToQueue(album) },
-                                onAddToPlaylist = { playlistId -> onAddAlbumToPlaylist(playlistId, album) },
-                                onCreatePlaylist = onCreatePlaylist,
-                                onDeleteAlbum = { onDeleteAlbumFromDevice(album) },
-                                onLongPress = {
-                                    showSortOptions = false
-                                    selectedAlbumIds = selectedAlbumIds + album.id
-                                },
+                        items = displayItems,
+                        key = { _, item ->
+                            when (item) {
+                                is AlbumCollectionDisplayItem.MonthHeader -> "month:${item.month}"
+                                is AlbumCollectionDisplayItem.AlbumItem -> "album:${item.album.id}"
+                            }
+                        },
+                        contentType = { _, item ->
+                            if (item is AlbumCollectionDisplayItem.MonthHeader) "album_month_header" else "album_compact_row"
+                        },
+                    ) { displayIndex, item ->
+                        when (item) {
+                            is AlbumCollectionDisplayItem.MonthHeader -> AlbumMonthSeparator(
+                                month = item.month,
+                                modifier = Modifier.animateItem(placementSpec = motionSpecs.listPlacement()),
                             )
-                        }
-                        if (index != sortedAlbums.lastIndex) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                DividerLine(
-                                    modifier = Modifier.fillMaxWidth(0.9f),
-                                )
+                            is AlbumCollectionDisplayItem.AlbumItem -> {
+                                val album = item.album
+                                Box(
+                                    modifier = Modifier
+                                        .animateItem(placementSpec = motionSpecs.listPlacement())
+                                        .elovaireListReveal(
+                                            itemKey = album.id,
+                                            index = item.revealIndex,
+                                            registry = revealRegistry,
+                                        )
+                                        .libraryRemovalAnimation(album.id in removingAlbumIds),
+                                ) {
+                                    CompactAlbumRow(
+                                        album = album,
+                                        selectionMode = selectionModeActive,
+                                        selected = album.id in selectedAlbumIds,
+                                        isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
+                                        showFavoriteButton = true,
+                                        playlists = playlists,
+                                        playlistSongsById = playlistSongsById,
+                                        onOpen = { origin ->
+                                            if (selectionModeActive) {
+                                                selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                            } else {
+                                                onAlbumSelected(album, origin)
+                                            }
+                                        },
+                                        onToggleFavorite = {
+                                            onSetAlbumFavorite(
+                                                album.songs.map(Song::id),
+                                                album.songs.any { it.id !in favoriteSongIds },
+                                            )
+                                        },
+                                        onAddToQueue = { onAddAlbumToQueue(album) },
+                                        onAddToPlaylist = { playlistId -> onAddAlbumToPlaylist(playlistId, album) },
+                                        onCreatePlaylist = onCreatePlaylist,
+                                        onDeleteAlbum = { onDeleteAlbumFromDevice(album) },
+                                        onLongPress = {
+                                            showSortOptions = false
+                                            selectedAlbumIds = selectedAlbumIds + album.id
+                                        },
+                                    )
+                                }
+                                if (
+                                    item.revealIndex != sortedAlbums.lastIndex &&
+                                    displayItems.getOrNull(displayIndex + 1) !is AlbumCollectionDisplayItem.MonthHeader
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        DividerLine(
+                                            modifier = Modifier.fillMaxWidth(0.9f),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -2475,6 +2556,7 @@ internal fun ArtistDetailScreen(
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
+                .testTag("artist_detail_list")
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 top = 0.dp,
@@ -2528,22 +2610,52 @@ internal fun ArtistDetailScreen(
 
             if (artistAlbums.isNotEmpty()) {
                 item {
-                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        ModuleCard(
-                            contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                ArtistSectionTitleRow(
-                                    title = commonUiCopy(LocalAppLanguage.current).albums,
-                                    subtitle = availableReleasesLabel(artistAlbums.size, LocalAppLanguage.current),
-                                    iconResId = R.drawable.ic_lucide_disc_album,
-                                )
-                                ArtistAlbumGallery(
-                                    albums = artistAlbums,
-                                    onAlbumSelected = onAlbumSelected,
-                                )
-                            }
-                        }
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        DividerLine()
+                        ArtistSectionTitleRow(
+                            title = commonUiCopy(LocalAppLanguage.current).albums,
+                            subtitle = availableReleasesLabel(artistAlbums.size, LocalAppLanguage.current),
+                            iconResId = R.drawable.ic_lucide_disc_album,
+                        )
+                        ArtistAlbumGallery(
+                            albums = artistAlbums,
+                            onAlbumSelected = onAlbumSelected,
+                        )
+                    }
+                }
+            }
+            item(key = "artist_information") {
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    DividerLine()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .elovaireClickable(onClick = { onOpenArtistInfo(normalizedArtist) })
+                            .padding(vertical = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_info),
+                            contentDescription = null,
+                            tint = readableMutedIconColor(),
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = artistInfoCopy.buttonDescription,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                            contentDescription = null,
+                            tint = readableMutedIconColor(),
+                            modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = 180f },
+                        )
                     }
                 }
             }
@@ -2589,8 +2701,10 @@ internal fun ArtistDiscographyPopup(
     )
     LaunchedEffect(visible, artistName, reader) {
         if (!visible) return@LaunchedEffect
-        result = null
-        result = reader.discography(artistName)
+        if (result == null || result == ArtistDiscographyResult.Unavailable) {
+            result = null
+            result = reader.discography(artistName)
+        }
     }
     ElovaireAnimatedVisibility(
         visible = visible,
@@ -2693,7 +2807,10 @@ internal fun ArtistDiscographyPopup(
                                                 Text(
                                                     text = discography.description,
                                                     modifier = Modifier.padding(bottom = 18.dp),
-                                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                                        fontWeight = FontWeight.Medium,
+                                                        lineHeight = elovaireScaledSp(24f),
+                                                    ),
                                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
                                                 )
                                             }
@@ -2901,7 +3018,7 @@ private fun ArtistHeroHeader(
     val gradient = rememberArtworkGradient(sourceUri).value
     val paletteAccent = rememberAnimatedArtistPaletteAccent(sourceUri)
     val heroHazeState = rememberHazeState()
-    var displayedBackdropImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var displayedBackdropImage by remember(artistName) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(artistName, backdropImage, sourceUri) {
         when {
             backdropImage != null -> displayedBackdropImage = backdropImage
@@ -4044,6 +4161,7 @@ private fun AlbumGridCard(
                 Text(
                     text = localizedAlbumTitle(album.title, LocalAppLanguage.current),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

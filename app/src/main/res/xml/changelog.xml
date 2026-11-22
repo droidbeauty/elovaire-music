@@ -6,8 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.2.1">
-        <item>Improved performance and reduced CPU load when using audio upscaler</item>
+    <release version="3.2.2">
+        <item>Redesigned splash screen and initial configuration UI</item>
+        <item>UI tweaks in artist preview screen</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -18,6 +19,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class FirstLaunchPermissionScreenTest {
@@ -27,6 +29,7 @@ class FirstLaunchPermissionScreenTest {
     fun permissionScreenShowsBrandAndPreservesPermissionAction() {
         var requested = false
         val copy = rootUiCopy(AppLanguage.English)
+        rule.mainClock.autoAdvance = false
         rule.setContent {
             CompositionLocalProvider(LocalAppLanguage provides AppLanguage.English) {
                 ElovaireTheme(ThemeMode.Dark, TextSizePreset.Default) {
@@ -35,6 +38,14 @@ class FirstLaunchPermissionScreenTest {
             }
         }
         val brand = rule.onNodeWithText("ELOVAIRE").assertIsDisplayed()
+        val centeredBrand = brand.getUnclippedBoundsInRoot()
+        val root = rule.onRoot().getUnclippedBoundsInRoot()
+        val brandCenterY = (centeredBrand.top.value + centeredBrand.bottom.value) / 2f
+        val rootCenterY = (root.top.value + root.bottom.value) / 2f
+        assertTrue(abs(brandCenterY - rootCenterY) < 50f)
+        rule.onNodeWithText(copy.firstLaunchPermissionMessage).assertDoesNotExist()
+        rule.mainClock.advanceTimeBy(1_000L)
+        rule.waitForIdle()
         val message = rule.onNodeWithText(copy.firstLaunchPermissionMessage).assertIsDisplayed()
         assertTrue(brand.getUnclippedBoundsInRoot().top.value >= 40f)
         assertTrue(brand.getUnclippedBoundsInRoot().bottom < message.getUnclippedBoundsInRoot().top)
