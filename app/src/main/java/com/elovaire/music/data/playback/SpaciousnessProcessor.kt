@@ -460,7 +460,8 @@ internal class SpaciousnessProcessor {
         if (leftDelay.isEmpty() || rightDelay.isEmpty()) return
         leftDelay[delayWriteIndex] = left
         rightDelay[delayWriteIndex] = right
-        delayWriteIndex = (delayWriteIndex + 1) % leftDelay.size
+        delayWriteIndex++
+        if (delayWriteIndex == leftDelay.size) delayWriteIndex = 0
     }
 
     private fun smooth(

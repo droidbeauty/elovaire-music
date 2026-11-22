@@ -405,6 +405,7 @@ internal class EqualizerAudioProcessor(
     private val config: EqualizerDspConfig = EqualizerDspConfig(),
 ) : BaseAudioProcessor() {
     private val safeConfig = config.sanitized()
+    private val safeBassConfig = safeConfig.bassConfig.sanitized()
     @Volatile
     private var currentSettings: EqSettings = EqSettings()
     private var settingsHaveSignalAlteringEffects = false
@@ -469,6 +470,7 @@ internal class EqualizerAudioProcessor(
     private var limiterGain = 1f
     private var limiterGainReductionDb = 0f
     private var currentInputGainLinear = 1f
+    private var currentInputGainDb = Float.NaN
     private var bassEnvelopeAttackAlpha = 0f
     private var bassEnvelopeReleaseAlpha = 0f
     private var limiterReleaseAlpha = 0f
@@ -781,16 +783,20 @@ internal class EqualizerAudioProcessor(
         } else {
             0f
         }
-        val targetDynamicReductionDb = HighQualityBassProcessorModel.dynamicReductionDb(
+        val targetDynamicReductionDb = HighQualityBassProcessorModel.dynamicReductionDbForSanitizedConfig(
             lowBandEnvelope = averageBassEnvelope,
             amountNormalized = currentBassAmount,
-            config = safeConfig.bassConfig,
+            safeConfig = safeBassConfig,
         )
         currentBassDynamicReductionDb = smooth(currentBassDynamicReductionDb, targetDynamicReductionDb, smoothingAlpha * 0.55f)
         currentMidrangeDb = smooth(currentMidrangeDb, targetMidrangeDb, smoothingAlpha)
         currentTrebleDb = smooth(currentTrebleDb, targetTrebleDb, smoothingAlpha)
         currentAutoHeadroomDb = smooth(currentAutoHeadroomDb, targetAutoHeadroomDb, smoothingAlpha)
-        currentInputGainLinear = dbToLinear(manualPreampDb + currentBassPregainDb + currentAutoHeadroomDb)
+        val inputGainDb = manualPreampDb + currentBassPregainDb + currentAutoHeadroomDb
+        if (inputGainDb != currentInputGainDb) {
+            currentInputGainDb = inputGainDb
+            currentInputGainLinear = dbToLinear(inputGainDb)
+        }
         var hasActiveCurrentBand = false
         currentBandGainsDb.indices.forEach { index ->
             currentBandGainsDb[index] = smooth(currentBandGainsDb[index], targetBandGainsDb[index], smoothingAlpha)
@@ -1005,9 +1011,9 @@ internal class EqualizerAudioProcessor(
         val targetGain = if (sampleAbs <= threshold) {
             1f
         } else {
-            val overshoot = (sampleAbs - threshold).coerceAtLeast(0f)
-            val shapedAbs = threshold + (1f - exp(-(overshoot / knee).coerceAtLeast(0f).toDouble())).toFloat() * knee
-            shapedAbs.coerceAtMost(threshold) / sampleAbs.coerceAtLeast(1e-9f)
+            // The previous knee curve was capped at the threshold before calculating gain.
+            val cappedThreshold = if (knee.isNaN()) Float.NaN else threshold
+            cappedThreshold / sampleAbs.coerceAtLeast(1e-9f)
         }
         val attack = 0.42f
         limiterGain = if (targetGain < limiterGain) {
@@ -1091,13 +1097,15 @@ private data class BiquadCoefficients(
     val a2: Float,
 ) {
     companion object {
-        fun identity(): BiquadCoefficients = BiquadCoefficients(
+        private val IDENTITY = BiquadCoefficients(
             b0 = 1f,
             b1 = 0f,
             b2 = 0f,
             a1 = 0f,
             a2 = 0f,
         )
+
+        fun identity(): BiquadCoefficients = IDENTITY
 
         fun peaking(
             sampleRateHz: Float,

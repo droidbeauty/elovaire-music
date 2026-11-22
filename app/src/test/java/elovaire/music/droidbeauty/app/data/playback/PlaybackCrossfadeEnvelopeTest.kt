@@ -408,4 +408,26 @@ class PlaybackCrossfadeEnvelopeTest {
         assertEquals(frameCount.toLong(), accumulator.decodedFrameCount)
         assertEquals(20_000L, accumulator.finish().last().endMs)
     }
+
+    @Test
+    fun pcmEnvelopeAccumulator_respectsFrameBoundariesAtDifferentRates() {
+        val random = java.util.Random(3917L)
+        repeat(1_000) {
+            val sampleRate = listOf(1_000, 44_100, 48_000, 96_000, 192_000)[random.nextInt(5)]
+            val startUs = random.nextInt(5_000).toLong()
+            val endUs = startUs + 1L + random.nextInt(5_000)
+            val presentationUs = random.nextInt((startUs + 1).toInt()).toLong()
+            val frames = random.nextInt(500)
+            val skipped = ((startUs - presentationUs) * sampleRate / 1_000_000L)
+                .coerceAtMost(frames.toLong())
+            var expected = 0L
+            while (expected < frames - skipped && startUs + expected * 1_000_000L / sampleRate < endUs) {
+                expected++
+            }
+            val accumulator = PcmEnvelopeAccumulator(sampleRate, 1, C.ENCODING_PCM_16BIT, startUs, endUs)
+            accumulator.append(ByteBuffer.allocate(frames * 2), presentationUs)
+
+            assertEquals(expected, accumulator.decodedFrameCount)
+        }
+    }
 }

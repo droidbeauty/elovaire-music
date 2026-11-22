@@ -564,6 +564,7 @@ internal fun mediaStoreGenreVolumes(preferredVolumeName: String?): List<String> 
 }
 
 internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
+    if (albumSongs.size < 2) return albumSongs
     val songsByFileName = albumSongs.map { song ->
         song to song.fileName.lowercase(Locale.ROOT)
     }

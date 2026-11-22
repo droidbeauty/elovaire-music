@@ -23,4 +23,20 @@ class SpaciousnessProcessorTest {
             assertTrue(SpaciousnessProcessorModel.headroomGain(mode, 0.5f).isFinite())
         }
     }
+
+    @Test
+    fun stereoModesRemainFiniteAcrossRepeatedDelayWraps() {
+        SpaciousnessMode.entries.filter { it != SpaciousnessMode.Off }.forEach { mode ->
+            val processor = SpaciousnessProcessor()
+            processor.configure(sampleRateHz = 8_000, channelCount = 2)
+            processor.setConfig(SpaciousnessConfig(enabled = true, mode = mode, amountNormalized = 0.8f))
+            val frame = FloatArray(2)
+            repeat(10_000) { index ->
+                frame[0] = if (index % 2 == 0) 0.7f else -0.7f
+                frame[1] = if (index % 3 == 0) -0.5f else 0.5f
+                processor.processFrame(frame, 2)
+                assertTrue("mode=$mode frame=$index", frame[0].isFinite() && frame[1].isFinite())
+            }
+        }
+    }
 }

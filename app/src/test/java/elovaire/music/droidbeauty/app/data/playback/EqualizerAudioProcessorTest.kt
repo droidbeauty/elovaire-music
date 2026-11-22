@@ -118,6 +118,44 @@ class EqualizerAudioProcessorTest {
         assertEquals(1, processor.debugSnapshot().activeFilterCount)
     }
 
+    @Test
+    fun flushRestoresTheSameGainAndOutputAsAFreshProcessor() {
+        val settings = EqSettings(preampDb = 3f, bass = 0.7f)
+        fun processor() = EqualizerAudioProcessor().apply {
+            configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+            updateSettings(settings)
+            flush(AudioProcessor.StreamMetadata.DEFAULT)
+        }
+        fun output(processor: EqualizerAudioProcessor): ByteArray {
+            processor.queueInput(pcmBuffer())
+            val buffer = processor.getOutput()
+            return ByteArray(buffer.remaining()).also(buffer::get)
+        }
+        val reused = processor()
+        repeat(100) { output(reused) }
+        reused.flush(AudioProcessor.StreamMetadata.DEFAULT)
+
+        assertArrayEquals(output(processor()), output(reused))
+    }
+
+    @Test
+    fun limiterBoundsBoostedSamples() {
+        val processor = EqualizerAudioProcessor()
+        processor.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+        processor.updateSettings(EqSettings(preampDb = 6f))
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        val input = ByteBuffer.allocateDirect(2_048 * 2).order(ByteOrder.nativeOrder())
+        repeat(2_048) { input.putShort(if (it % 2 == 0) 32_000 else -32_000) }
+        input.flip()
+
+        processor.queueInput(input)
+
+        val output = processor.getOutput().order(ByteOrder.nativeOrder())
+        assertEquals(2_048 * 2, output.remaining())
+        while (output.hasRemaining()) assertTrue(kotlin.math.abs(output.short.toInt()) <= 29_197)
+        assertTrue(processor.debugSnapshot().limiterEvents > 0)
+    }
+
     private fun pcmBuffer(): ByteBuffer = ByteBuffer.allocateDirect(16)
         .order(ByteOrder.nativeOrder())
         .putShort(8_000.toShort())

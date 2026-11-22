@@ -6,12 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.2">
-        <item>UI tweaks in equalizer, lyrics and tag editing screen</item>
-        <item>Added basic tablet layout support in horizontal orientation</item>
-        <item>Added support for the app to work on Huawei devices with Kirin CPUs</item>
-        <item>Improved reliability of automatic bit-perfect playback and separate volume controls on external DACs</item>
-        <item>Fixed some visual bugs in animation within now playing UI interactions</item>
-        <item>Further refined performance during fast navigation through the UI</item>
+    <release version="3.2.1">
+        <item>Improved performance and reduced CPU load when using audio upscaler</item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

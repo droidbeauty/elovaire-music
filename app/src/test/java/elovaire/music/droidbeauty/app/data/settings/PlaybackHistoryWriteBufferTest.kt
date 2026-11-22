@@ -142,4 +142,13 @@ class PlaybackHistoryWriteBufferTest {
         assertEquals(replacements.keys.toList(), result.keys.toList())
         assertEquals(setOf(10_001L), result.values.toSet())
     }
+
+    @Test
+    fun independentRelocationsAndChainsRetainTheirOrder() {
+        val replacements = linkedMapOf(1L to 2L, 3L to 4L, 2L to 5L, -1L to -2L)
+        val result = elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations(replacements)!!
+        assertEquals(listOf(1L, 3L, 2L, -1L), result.keys.toList())
+        assertEquals(listOf(5L, 4L, 5L, -2L), result.values.toList())
+        assertEquals(null, elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations(mapOf(1L to 1L)))
+    }
 }

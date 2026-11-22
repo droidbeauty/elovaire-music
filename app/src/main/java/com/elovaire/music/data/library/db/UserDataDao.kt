@@ -334,8 +334,12 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     suspend fun removeSongReferences(songIds: Set<Long>) {
         if (songIds.isEmpty()) return
         removeFavorites(songIds)
-        val affectedPlaylists = playlistIdsContaining(songIds).toSet()
-        deleteSongReferencesFromPlaylists(songIds)
+        val affectedPlaylists = linkedSetOf<Long>()
+        songIds.chunked(500).forEach { ids ->
+            val batch = ids.toSet()
+            affectedPlaylists.addAll(playlistIdsContaining(batch))
+            deleteSongReferencesFromPlaylists(batch)
+        }
         affectedPlaylists.forEach { playlistId ->
             replacePlaylistEntries(playlistId, songIdsForPlaylist(playlistId))
         }
@@ -344,7 +348,7 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     @Transaction
     suspend fun removeFavorites(songIds: Set<Long>) {
         if (songIds.isEmpty()) return
-        deleteFavorites(songIds)
+        songIds.chunked(500).forEach { deleteFavorites(it.toSet()) }
     }
 
     @Query("SELECT playlistId FROM user_playlist_entries WHERE songId IN (:songIds)")
@@ -368,9 +372,12 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
 
         fun resolve(id: Long): Long = normalized[id] ?: id
 
-        playlistEntries()
-            .groupBy(UserPlaylistEntryEntity::playlistId)
-            .forEach { (playlistId, entries) ->
+        val affectedPlaylistIds = linkedSetOf<Long>()
+        normalized.keys.chunked(500).forEach { ids ->
+            affectedPlaylistIds.addAll(playlistIdsContaining(ids.toSet()))
+        }
+        affectedPlaylistIds.chunked(500).forEach { playlistIds ->
+            playlistEntriesByIds(playlistIds).groupBy(UserPlaylistEntryEntity::playlistId).forEach { (playlistId, entries) ->
                 val currentIds = entries.map(UserPlaylistEntryEntity::songId)
                 val relocatedIds = currentIds
                     .map(::resolve)
@@ -379,6 +386,7 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
                     replacePlaylistEntries(playlistId, relocatedIds)
                 }
             }
+        }
 
         val currentFavorites = favorites()
         val currentFavoriteIds = currentFavorites.map(FavoriteSongEntity::songId)

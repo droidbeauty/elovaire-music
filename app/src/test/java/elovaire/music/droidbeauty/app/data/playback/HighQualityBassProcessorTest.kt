@@ -52,4 +52,19 @@ class HighQualityBassProcessorTest {
             0.0001f,
         )
     }
+
+    @Test
+    fun bassDynamicReductionMatchesPreSanitizedConfiguration() {
+        val config = HighQualityBassConfig(dynamicControlThreshold = 2f, maxDynamicReductionDb = 5f)
+        val sanitized = config.sanitized()
+        for (envelope in listOf(0f, 0.4f, 0.7f, 1f, 1.5f)) {
+            for (amount in listOf(0f, 0.3f, 1f)) {
+                assertEquals(
+                    HighQualityBassProcessorModel.dynamicReductionDb(envelope, amount, config),
+                    HighQualityBassProcessorModel.dynamicReductionDbForSanitizedConfig(envelope, amount, sanitized),
+                    0f,
+                )
+            }
+        }
+    }
 }

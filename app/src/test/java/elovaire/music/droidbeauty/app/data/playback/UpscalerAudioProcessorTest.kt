@@ -150,6 +150,22 @@ class UpscalerAudioProcessorTest {
     }
 
     @Test
+    fun repeatedFlushesAndRateChangesPreserveInterpolation() {
+        val processor = UpscalerAudioProcessor(UpscalerSettings(true, 8, true, 0)) { _, _ -> true }
+        val samples = ShortArray(73) { ((it * 7919 % 60001) - 30000).toShort() }
+        for ((rate, factor) in listOf(48_000 to 8, 48_000 to 8, 96_000 to 4, 48_000 to 8)) {
+            processor.configure(format(rate = rate))
+            processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            processor.queueInput(pcm(samples))
+            val first = read(processor)
+            processor.queueEndOfStream()
+            val output = first + read(processor)
+            assertArrayEquals(referenceInterpolation(samples, 1, factor, 32), output)
+            assertTrue(processor.isEnded)
+        }
+    }
+
+    @Test
     fun floatInputAndOvershootRemainFiniteAndSaturateSafely() {
         val processor = UpscalerAudioProcessor(UpscalerSettings(true, 4, false, 0)) { _, _ -> true }
         processor.configure(format(encoding = C.ENCODING_PCM_FLOAT))

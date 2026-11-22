@@ -13,8 +13,8 @@ object AppBuildConfig {
 
     object Application {
         const val packageName = "elovaire.music.droidbeauty.app"
-        const val versionCode = 261001185
-        const val versionName = "3.2"
+        const val versionCode = 261001186
+        const val versionName = "3.2.1"
         const val macrobenchmarkNamespace = "elovaire.music.droidbeauty.app.macrobenchmark"
     }
 

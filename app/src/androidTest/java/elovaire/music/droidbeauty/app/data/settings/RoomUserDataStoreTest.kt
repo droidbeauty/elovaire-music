@@ -163,6 +163,63 @@ class RoomUserDataStoreTest {
     }
 
     @Test
+    fun relocationUpdatesOnlyAffectedPlaylistsAcrossLargeIdBatches() = runBlocking {
+        val dao = database.userDataDao()
+        listOf(41L, 42L, 43L).forEach { id -> dao.insertPlaylist(UserPlaylistEntity(id, "Playlist $id", false)) }
+        dao.insertPlaylistEntries(listOf(
+            UserPlaylistEntryEntity(41L, 11L, 0),
+            UserPlaylistEntryEntity(41L, 22L, 1),
+            UserPlaylistEntryEntity(41L, 33L, 2),
+            UserPlaylistEntryEntity(42L, 11L, 0),
+            UserPlaylistEntryEntity(42L, 44L, 1),
+            UserPlaylistEntryEntity(43L, 55L, 0),
+        ))
+        val replacements = (1_000L..1_600L).associateWith { it + 10_000L } + mapOf(11L to 22L, 33L to 44L)
+
+        dao.relocateSongReferences(replacements)
+
+        assertEquals(listOf(22L, 44L), dao.songIdsForPlaylist(41L))
+        assertEquals(listOf(22L, 44L), dao.songIdsForPlaylist(42L))
+        assertEquals(listOf(55L), dao.songIdsForPlaylist(43L))
+        assertEquals(listOf(0, 1), dao.playlistEntries(41L).map(UserPlaylistEntryEntity::position))
+    }
+
+    @Test
+    fun relocationUpdatesMoreThanOneBatchOfPlaylists() = runBlocking {
+        val dao = database.userDataDao()
+        val ids = (1L..501L).toList()
+        ids.forEach { id -> dao.insertPlaylist(UserPlaylistEntity(id, "Playlist $id", false)) }
+        dao.insertPlaylistEntries(ids.map { id -> UserPlaylistEntryEntity(id, 11L, 0) })
+
+        dao.relocateSongReferences(mapOf(11L to 22L))
+
+        val entries = dao.playlistEntries()
+        assertEquals(ids, entries.map(UserPlaylistEntryEntity::playlistId))
+        assertTrue(entries.all { it.songId == 22L && it.position == 0 })
+    }
+
+    @Test
+    fun removingLargeSongBatchesKeepsRemainingReferencesOrdered() = runBlocking {
+        val dao = database.userDataDao()
+        listOf(41L, 42L).forEach { id -> dao.insertPlaylist(UserPlaylistEntity(id, "Playlist $id", false)) }
+        dao.insertPlaylistEntries(listOf(
+            UserPlaylistEntryEntity(41L, 1L, 0),
+            UserPlaylistEntryEntity(41L, 700L, 1),
+            UserPlaylistEntryEntity(41L, 1_300L, 2),
+            UserPlaylistEntryEntity(42L, 1_001L, 0),
+            UserPlaylistEntryEntity(42L, 1_301L, 1),
+        ))
+        listOf(1L, 1_001L, 1_300L).forEachIndexed { index, id -> dao.insertFavorite(FavoriteSongEntity(id, index)) }
+
+        dao.removeSongReferences((1L..1_200L).toSet())
+
+        assertEquals(listOf(1_300L), dao.songIdsForPlaylist(41L))
+        assertEquals(listOf(1_301L), dao.songIdsForPlaylist(42L))
+        assertEquals(listOf(0), dao.playlistEntries(41L).map(UserPlaylistEntryEntity::position))
+        assertEquals(listOf(1_300L), dao.favorites().map(FavoriteSongEntity::songId))
+    }
+
+    @Test
     fun audiobookProgressIsCoalescedDrainedAndRelocatedWithUserReferences() = runBlocking {
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
         withTimeout(10_000L) {

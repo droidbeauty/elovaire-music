@@ -51,6 +51,9 @@ class RoomQueryPlanQualificationTest {
         assertIndexed(
             "SELECT playlistId FROM user_playlist_entries WHERE songId IN (42, 99)",
         )
+        assertIndexed(
+            "SELECT * FROM user_playlist_entries WHERE playlistId IN (1, 2) ORDER BY playlistId, position",
+        )
     }
 
     @Test

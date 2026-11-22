@@ -63,7 +63,11 @@ internal class UpscalerAudioProcessor(
         nextCenter = 0
         // Mirror each channel's ring so a filter window stays contiguous across a wrap.
         history = Array(inputAudioFormat.channelCount.coerceAtLeast(0)) { FloatArray(capacity * 2) }
-        kernels = if (factor > 1) Array(factor) { phase -> kernel(phase.toDouble() / factor) } else emptyArray()
+        kernels = when {
+            factor <= 1 -> emptyArray()
+            kernels.size == factor -> kernels
+            else -> Array(factor) { phase -> kernel(phase.toDouble() / factor) }
+        }
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
@@ -71,8 +75,8 @@ internal class UpscalerAudioProcessor(
         val frames = (inputBuffer.remaining() / inputAudioFormat.bytesPerFrame).coerceAtMost(BLOCK_FRAMES)
         if (frames == 0) return
         val output = replaceOutputBuffer(frames * factor * channels * 2)
+        var slot = (inputFrames % capacity).toInt()
         repeat(frames) {
-            val slot = (inputFrames % capacity).toInt()
             repeat(channels) { channel ->
                 val sample = when (inputAudioFormat.encoding) {
                     C.ENCODING_PCM_FLOAT -> inputBuffer.float.let { if (it.isFinite()) it.coerceIn(-1f, 1f) else 0f }
@@ -89,6 +93,7 @@ internal class UpscalerAudioProcessor(
                 history[channel][slot + capacity] = sample
             }
             inputFrames++
+            if (++slot == capacity) slot = 0
             if (nextCenter + radius < inputFrames) writeInterpolatedFrames(output)
         }
         output.flip()
@@ -121,9 +126,14 @@ internal class UpscalerAudioProcessor(
             for (channel in history) {
                 var sample = 0f
                 var slot = firstSlot
-                for (tap in firstTap until lastTap) {
-                    sample += channel[slot++] * coefficients[tap]
+                var tap = firstTap
+                while (tap + 3 < lastTap) {
+                    sample += channel[slot++] * coefficients[tap++]
+                    sample += channel[slot++] * coefficients[tap++]
+                    sample += channel[slot++] * coefficients[tap++]
+                    sample += channel[slot++] * coefficients[tap++]
                 }
+                while (tap < lastTap) sample += channel[slot++] * coefficients[tap++]
                 output.putShort((sample * gain * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
             }
         }

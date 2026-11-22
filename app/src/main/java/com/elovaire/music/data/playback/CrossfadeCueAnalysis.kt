@@ -883,7 +883,6 @@ internal class PcmEnvelopeAccumulator(
         while (sampleBuffer.remaining() >= bytesPerFrame &&
             timestampUs + (framesProcessed * 1_000_000L / sampleRate) < regionEndUs
         ) {
-            val frameEndUs = timestampUs + ((framesProcessed + 1L) * 1_000_000L / sampleRate)
             var channel = 0
             while (channel < channelCount) {
                 val sample = readSample(sampleBuffer)
@@ -893,7 +892,9 @@ internal class PcmEnvelopeAccumulator(
             frameCount += 1
             totalFrameCount += 1L
             framesProcessed += 1L
-            if (frameCount >= windowFrames) flushWindow(frameEndUs)
+            if (frameCount >= windowFrames) {
+                flushWindow(timestampUs + (framesProcessed * 1_000_000L / sampleRate))
+            }
         }
         nextTimeUs = max(nextTimeUs, timestampUs + (framesProcessed * 1_000_000L / sampleRate))
     }

@@ -151,8 +151,13 @@ internal object HighQualityBassProcessorModel {
         lowBandEnvelope: Float,
         amountNormalized: Float,
         config: HighQualityBassConfig = HighQualityBassConfig(),
+    ): Float = dynamicReductionDbForSanitizedConfig(lowBandEnvelope, amountNormalized, config.sanitized())
+
+    internal fun dynamicReductionDbForSanitizedConfig(
+        lowBandEnvelope: Float,
+        amountNormalized: Float,
+        safeConfig: HighQualityBassConfig,
     ): Float {
-        val safeConfig = config.sanitized()
         val amount = amountNormalized.coerceIn(0f, 1f)
         if (amount <= 0.0005f || lowBandEnvelope <= safeConfig.dynamicControlThreshold) return 0f
         val excess = ((lowBandEnvelope - safeConfig.dynamicControlThreshold) / (1f - safeConfig.dynamicControlThreshold))
