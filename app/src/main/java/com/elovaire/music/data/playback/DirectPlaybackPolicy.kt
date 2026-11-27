@@ -14,7 +14,7 @@ internal enum class DirectPlaybackMode {
 
 internal enum class DirectPlaybackSupportKind {
     Offload,
-    BitstreamPassThrough,
+    DirectPlayback,
 }
 
 internal enum class BitPerfectConfidence {
@@ -27,7 +27,7 @@ internal enum class BitPerfectConfidence {
 }
 
 internal data class DirectPlaybackCapability(
-    val platformSupported: Boolean,
+    val attributeRouteKnown: Boolean,
     val routeEligible: Boolean,
     val formatSupported: Boolean,
     val directSupportFlags: Int,
@@ -36,10 +36,8 @@ internal data class DirectPlaybackCapability(
 
 internal data class DirectPlaybackConfiguration(
     val directModeRequested: Boolean,
-    val preferredDeviceApplied: Boolean,
-    val signalProcessingDisabled: Boolean,
-    val offloadActive: Boolean,
-    val tunnelingActive: Boolean,
+    val usbRouteReportedForAttributes: Boolean,
+    val signalProcessingBypassRequested: Boolean,
     val currentTrackConfigKnown: Boolean,
 )
 
@@ -68,8 +66,8 @@ internal data class DirectPlaybackSupportClassification(
     val supportsOffload: Boolean
         get() = DirectPlaybackSupportKind.Offload in kinds
 
-    val supportsBitstreamPassThrough: Boolean
-        get() = DirectPlaybackSupportKind.BitstreamPassThrough in kinds
+    val supportsDirectPlayback: Boolean
+        get() = DirectPlaybackSupportKind.DirectPlayback in kinds
 
     val isSupported: Boolean
         get() = kinds.isNotEmpty()
@@ -77,8 +75,8 @@ internal data class DirectPlaybackSupportClassification(
     val summary: String
         get() = when {
             !isSupported -> "none"
-            supportsBitstreamPassThrough && supportsOffload -> "offload+bitstream"
-            supportsBitstreamPassThrough -> "bitstream"
+            supportsDirectPlayback && supportsOffload -> "offload+direct"
+            supportsDirectPlayback -> "direct"
             supportsOffload -> "offload"
             else -> "unknown"
         }
@@ -100,11 +98,8 @@ internal object DirectPlaybackSupportClassifier {
         if ((rawFlags and AudioManager.DIRECT_PLAYBACK_OFFLOAD_SUPPORTED) != 0) {
             kinds += DirectPlaybackSupportKind.Offload
         }
-        if ((rawFlags and AudioManager.DIRECT_PLAYBACK_OFFLOAD_GAPLESS_SUPPORTED) != 0) {
-            kinds += DirectPlaybackSupportKind.Offload
-        }
         if ((rawFlags and AudioManager.DIRECT_PLAYBACK_BITSTREAM_SUPPORTED) != 0) {
-            kinds += DirectPlaybackSupportKind.BitstreamPassThrough
+            kinds += DirectPlaybackSupportKind.DirectPlayback
         }
         return DirectPlaybackSupportClassification(
             rawFlags = rawFlags,
@@ -115,12 +110,12 @@ internal object DirectPlaybackSupportClassifier {
 
 internal data class DirectPlaybackRouteContext(
     val hasEligibleUsbRoute: Boolean,
-    val hasVerifiedRoutedUsbRoute: Boolean,
-    val hasVerifiedBluetoothRoute: Boolean,
-    val activeRouteDeviceId: Int? = null,
-    val activeRouteType: Int? = null,
-    val activeRouteSignature: Int? = null,
-    val platformRoutingSupported: Boolean = hasVerifiedRoutedUsbRoute || hasVerifiedBluetoothRoute,
+    val hasUsbRouteForAttributes: Boolean,
+    val hasBluetoothRouteForAttributes: Boolean,
+    val attributesRouteDeviceId: Int? = null,
+    val attributesRouteType: Int? = null,
+    val attributesRouteSignature: Int? = null,
+    val attributeRouteKnown: Boolean = hasUsbRouteForAttributes || hasBluetoothRouteForAttributes,
 )
 
 internal object BitPerfectEligibilityPolicy {
@@ -132,7 +127,7 @@ internal object BitPerfectEligibilityPolicy {
      *   playback cannot be verified through the public framework API. Those routes stay on the
      *   regular player path and are marked as legacy/unverified.
      * - On Android 13+, Elovaire classifies the direct-playback bitfield for diagnostics. Only
-     *   bitstream-capable support moves to the no-DSP direct path. Offload-only support stays on
+     *   non-offload direct support moves to the no-DSP direct path. Offload-only support stays on
      *   Media3's normal player path, where offload can be enabled as a separate power-saving path
      *   without being presented as bit-perfect/direct USB playback.
      */
@@ -145,7 +140,7 @@ internal object BitPerfectEligibilityPolicy {
         supportClassification: DirectPlaybackSupportClassification = DirectPlaybackSupportClassification.notSupported,
         directPlaybackSupport: Int = AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED,
     ): BitPerfectPlaybackStatus {
-        if (routeContext.hasVerifiedBluetoothRoute && !routeContext.hasEligibleUsbRoute) {
+        if (routeContext.hasBluetoothRouteForAttributes && !routeContext.hasEligibleUsbRoute) {
             return buildStatus(
                 state = BitPerfectPlaybackState.BluetoothRoute,
                 directive = BitPerfectPlaybackDirective.PreferRegular,
@@ -172,6 +167,17 @@ internal object BitPerfectEligibilityPolicy {
                 state = BitPerfectPlaybackState.LegacyUnverifiedUsbRoute,
                 directive = BitPerfectPlaybackDirective.PreferRegular,
                 mode = DirectPlaybackMode.LegacyUnverifiedUsbRoute,
+                routeContext = routeContext,
+                supportClassification = supportClassification,
+                directPlaybackSupport = directPlaybackSupport,
+            )
+        }
+
+        if (!routeContext.hasUsbRouteForAttributes) {
+            return buildStatus(
+                state = BitPerfectPlaybackState.UsbRouteDetectedButDirectSupportUnavailable,
+                directive = BitPerfectPlaybackDirective.PreferRegular,
+                mode = DirectPlaybackMode.RegularPlaybackRequired,
                 routeContext = routeContext,
                 supportClassification = supportClassification,
                 directPlaybackSupport = directPlaybackSupport,
@@ -234,7 +240,7 @@ internal object BitPerfectEligibilityPolicy {
             )
         }
 
-        if (supportClassification.supportsOffload && !supportClassification.supportsBitstreamPassThrough) {
+        if (supportClassification.supportsOffload && !supportClassification.supportsDirectPlayback) {
             return buildStatus(
                 state = supportClassification.toPlaybackState(),
                 directive = BitPerfectPlaybackDirective.PreferRegular,
@@ -261,10 +267,10 @@ internal object BitPerfectEligibilityPolicy {
 
     private fun DirectPlaybackSupportClassification.toPlaybackState(): BitPerfectPlaybackState {
         return when {
-            supportsBitstreamPassThrough && !supportsOffload ->
-                BitPerfectPlaybackState.BitstreamDirectPlaybackSupported
+            supportsDirectPlayback && !supportsOffload ->
+                BitPerfectPlaybackState.DirectPlaybackSupported
 
-            supportsOffload && !supportsBitstreamPassThrough ->
+            supportsOffload && !supportsDirectPlayback ->
                 BitPerfectPlaybackState.OffloadOnlyDirectPlaybackSupported
 
             else -> BitPerfectPlaybackState.Eligible
@@ -291,25 +297,23 @@ internal object BitPerfectEligibilityPolicy {
             directive = directive,
             mode = mode,
             shouldUseDirectPlayback = shouldUseDirectPlayback,
-            activeRouteDeviceId = routeContext.activeRouteDeviceId,
-            activeRouteType = routeContext.activeRouteType,
+            attributesRouteDeviceId = routeContext.attributesRouteDeviceId,
+            attributesRouteType = routeContext.attributesRouteType,
             directPlaybackSupport = directPlaybackSupport,
             supportClassification = supportClassification,
             evaluationKey = evaluationKey,
             confidence = confidence,
             capability = DirectPlaybackCapability(
-                platformSupported = routeContext.platformRoutingSupported,
-                routeEligible = routeContext.hasVerifiedRoutedUsbRoute,
+                attributeRouteKnown = routeContext.attributeRouteKnown,
+                routeEligible = routeContext.hasUsbRouteForAttributes,
                 formatSupported = evaluationKey != null,
                 directSupportFlags = directPlaybackSupport,
                 supportKinds = supportClassification.kinds,
             ),
             configuration = DirectPlaybackConfiguration(
                 directModeRequested = shouldUseDirectPlayback,
-                preferredDeviceApplied = routeContext.hasVerifiedRoutedUsbRoute,
-                signalProcessingDisabled = shouldUseDirectPlayback,
-                offloadActive = false,
-                tunnelingActive = false,
+                usbRouteReportedForAttributes = routeContext.hasUsbRouteForAttributes,
+                signalProcessingBypassRequested = shouldUseDirectPlayback,
                 currentTrackConfigKnown = evaluationKey != null,
             ),
         )

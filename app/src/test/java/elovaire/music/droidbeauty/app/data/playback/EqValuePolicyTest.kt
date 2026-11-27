@@ -37,6 +37,7 @@ class EqValuePolicyTest {
     @Test
     fun signalAlteringEffects_neutralStateIsEligibleForDirectPlayback() {
         assertFalse(EqValuePolicy.hasSignalAlteringEffects(EqSettings()))
+        assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(preampDb = 0.005f)))
     }
 
     @Test

@@ -31,7 +31,12 @@ internal class PlaybackPlayerFactory(
                 createConfiguredPlayer(enableSignalProcessing)
             } catch (failure: Exception) {
                 if (!enableSignalProcessing) throw failure
-                createFallbackPlayer()
+                try {
+                    createFallbackPlayer()
+                } catch (fallbackFailure: Exception) {
+                    if (fallbackFailure !== failure) fallbackFailure.addSuppressed(failure)
+                    throw fallbackFailure
+                }
             }
         }
     }
@@ -57,17 +62,26 @@ internal class PlaybackPlayerFactory(
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .setHandleAudioBecomingNoisy(false)
             .build()
-            .apply {
-                repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
-                applyAudioOffloadPreferences(offloadPreferences)
+        try {
+            configuredPlayer.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+            configuredPlayer.applyAudioOffloadPreferences(offloadPreferences)
+            applyPreferredOutputDevice(configuredPlayer)
+            return configuredPlayer
+        } catch (failure: Exception) {
+            runCatching { configuredPlayer.release() }.onFailure { cleanupFailure ->
+                if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+            }
+            throw failure
         }
-        applyPreferredOutputDevice(configuredPlayer)
-        return configuredPlayer
     }
 
     private fun createFallbackPlayer(): ExoPlayer {
         val fallbackPlayer = ExoPlayer.Builder(context)
-            .setRenderersFactory(DefaultRenderersFactory(context).setEnableDecoderFallback(true))
+            .setRenderersFactory(
+                ElovaireRenderersFactory(context, audioProcessorsProvider())
+                    .setEnableAudioFloatOutput(false)
+                    .setEnableDecoderFallback(true),
+            )
             .setMediaSourceFactory(
                 DefaultMediaSourceFactory(context, extractorsFactory)
                     .setDataSourceFactory(dataSourceFactory),
@@ -76,11 +90,16 @@ internal class PlaybackPlayerFactory(
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .setHandleAudioBecomingNoisy(false)
             .build()
-            .apply {
-                repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+        try {
+            fallbackPlayer.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+            applyPreferredOutputDevice(fallbackPlayer)
+            return fallbackPlayer
+        } catch (failure: Exception) {
+            runCatching { fallbackPlayer.release() }.onFailure { cleanupFailure ->
+                if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
             }
-        applyPreferredOutputDevice(fallbackPlayer)
-        return fallbackPlayer
+            throw failure
+        }
     }
 
     private fun resolveOffloadPreferences(
@@ -95,19 +114,19 @@ internal class PlaybackPlayerFactory(
         }.getOrDefault(PlaybackOffloadPolicy.Disabled.toAudioOffloadPreferences())
     }
 
-    private fun ExoPlayer.applyAudioOffloadPreferences(
-        offloadPreferences: TrackSelectionParameters.AudioOffloadPreferences,
-    ) {
-        runCatching {
-            setTrackSelectionParameters(
-                trackSelectionParameters.withAudioOffloadPreferences(offloadPreferences),
-            )
-        }
-    }
-
     private fun applyPreferredOutputDevice(player: ExoPlayer) {
         val preferredDevice = runCatching { preferredOutputDevice() }.getOrNull()
         runCatching { preferredDevice?.let(player::setPreferredAudioDevice) }
+    }
+}
+
+@UnstableApi
+internal fun ExoPlayer.applyAudioOffloadPreferences(
+    offloadPreferences: TrackSelectionParameters.AudioOffloadPreferences,
+) {
+    val current = trackSelectionParameters
+    if (current.audioOffloadPreferences != offloadPreferences) {
+        setTrackSelectionParameters(current.withAudioOffloadPreferences(offloadPreferences))
     }
 }
 

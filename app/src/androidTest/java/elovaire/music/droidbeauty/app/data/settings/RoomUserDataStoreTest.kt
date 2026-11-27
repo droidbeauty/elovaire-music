@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
+import elovaire.music.droidbeauty.app.data.library.db.UserSmartPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
 import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
@@ -217,6 +218,20 @@ class RoomUserDataStoreTest {
         assertEquals(listOf(1_301L), dao.songIdsForPlaylist(42L))
         assertEquals(listOf(0), dao.playlistEntries(41L).map(UserPlaylistEntryEntity::position))
         assertEquals(listOf(1_300L), dao.favorites().map(FavoriteSongEntity::songId))
+    }
+
+    @Test
+    fun deletingLargePlaylistBatchesPreservesUnselectedRows() = runBlocking {
+        val dao = database.userDataDao()
+        val ids = (1L..1_001L).toSet()
+        (1L..1_002L).forEach { id -> dao.insertPlaylist(UserPlaylistEntity(id, "Playlist $id", false)) }
+        dao.insertSmartPlaylists((1L..1_002L).map { id -> UserSmartPlaylistEntity(id, "{}") })
+
+        dao.deletePlaylistsAndVerify(ids)
+        dao.deleteSmartPlaylistsAndVerify(ids)
+
+        assertEquals(listOf(1_002L), dao.playlists().map(UserPlaylistEntity::playlistId))
+        assertEquals(listOf(1_002L), dao.smartPlaylists().map(UserSmartPlaylistEntity::playlistId))
     }
 
     @Test

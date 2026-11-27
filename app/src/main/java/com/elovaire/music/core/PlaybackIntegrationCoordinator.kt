@@ -123,7 +123,7 @@ internal class PlaybackIntegrationCoordinator(
                 .distinctUntilChanged()
                 .collect { settings ->
                     effects.applyEffectSettings(settings)
-                    if (playback.hasActiveQueue()) playback.reevaluateAudioOutputPath()
+                    playback.reevaluateAudioOutputPath()
                 }
         }
         scope.launch {

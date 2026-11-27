@@ -16,8 +16,8 @@ internal data class PlaybackOffloadPolicy(
                     TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
                 },
             )
-            .setIsGaplessSupportRequired(false)
-            .setIsSpeedChangeSupportRequired(false)
+            .setIsGaplessSupportRequired(enabled)
+            .setIsSpeedChangeSupportRequired(enabled)
             .build()
     }
 

@@ -10,6 +10,31 @@ import org.junit.Test
 
 class BitPerfectPlaybackInternalsTest {
     @Test
+    fun failedOrEmptyActiveRouteDoesNotFallBackToAvailableDevices() {
+        var availableReads = 0
+        val devices = selectDirectPlaybackRouteDevices(
+            routedDevices = null,
+            routeQuerySupported = true,
+            readActiveDevices = { emptyList() },
+            readAvailableDevices = { availableReads++; emptyList() },
+        )
+        assertTrue(devices.isEmpty())
+        assertEquals(0, availableReads)
+    }
+
+    @Test
+    fun legacyRouteDiscoveryStillReadsAvailableDevices() {
+        var availableReads = 0
+        selectDirectPlaybackRouteDevices(
+            routedDevices = null,
+            routeQuerySupported = false,
+            readActiveDevices = { error("Legacy devices have no active route query") },
+            readAvailableDevices = { availableReads++; emptyList() },
+        )
+        assertEquals(1, availableReads)
+    }
+
+    @Test
     fun directPlaybackEvaluationKeyPreservesRouteAndPcmDetails() {
         val key = DirectPlaybackTrackConfig(
             encoding = C.ENCODING_PCM_24BIT,

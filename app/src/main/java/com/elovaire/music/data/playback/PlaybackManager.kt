@@ -541,6 +541,11 @@ internal class PlaybackManager internal constructor(
 
         override fun onEvents(player: Player, events: Player.Events) {
             if (released.get()) return
+            if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
+                bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+                updateOffloadPreferences()
+                scheduleAudioPathReevaluation("playback-parameters-changed")
+            }
             scheduleStatePublish()
         }
     }
@@ -732,7 +737,7 @@ internal class PlaybackManager internal constructor(
             _playerInstanceVersion.value += 1L
         },
         applyPreferredAudioDevice = ::applyPreferredAudioDeviceIfNeeded,
-        targetPlayerOutputGain = ::targetPlayerOutputGain,
+        targetPlayerOutputGain = { direct -> targetPlayerOutputGain(direct) },
         language = { appLanguage.value },
     )
     private val queueController = PlaybackQueueController(
@@ -797,9 +802,13 @@ internal class PlaybackManager internal constructor(
 
     override fun reevaluateAudioOutputPath() {
         if (released.get()) return
-        if (!hasActiveQueue() && !shouldReconfigureUpscaler()) return
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+        if (!hasActiveQueue() && !shouldReconfigureUpscaler()) {
+            updateOffloadPreferences()
+            return
+        }
         refreshUsbAudioOutputState()
+        updateOffloadPreferences()
         scheduleAudioPathReevaluation("effects-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
         updateState()
@@ -1440,6 +1449,8 @@ internal class PlaybackManager internal constructor(
         if (released.get()) return
         if (crossfadeEnabled == enabled) return
         crossfadeEnabled = enabled
+        bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+        updateOffloadPreferences()
         if (!enabled) crossfadeController.cancel()
         if (enabled) prepareCrossfadeIfPossible()
         scheduleAudioPathReevaluation("crossfade-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
@@ -1480,6 +1491,7 @@ internal class PlaybackManager internal constructor(
         if (volumeNormalizationEnabled == enabled) return
         volumeNormalizationEnabled = enabled
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+        updateOffloadPreferences()
         scheduleAudioPathReevaluation("volume-normalization-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
     }
@@ -1582,6 +1594,7 @@ internal class PlaybackManager internal constructor(
 
     private fun maybeRebuildPlayerForAudioPath(reason: String) {
         if (runtimeTransition !is PlaybackRuntimeTransition.Idle) return
+        updateOffloadPreferences()
         if (_state.value.queue.isEmpty() && player.mediaItemCount == 0 && !shouldReconfigureUpscaler()) {
             lastAppliedAudioPathDecisionKey = null
             player.volume = targetPlayerOutputGain()
@@ -1597,8 +1610,8 @@ internal class PlaybackManager internal constructor(
             useDirectPlayback = desiredUseDirectPlayback,
             directive = status.directive,
             evaluationKey = status.evaluationKey,
-            routeDeviceId = status.activeRouteDeviceId,
-            routeType = status.activeRouteType,
+            routeDeviceId = status.attributesRouteDeviceId,
+            routeType = status.attributesRouteType,
             preferredDeviceKey = bitPerfectUsbManager.preferredOutputDevice()
                 ?.let { PreferredAudioDeviceKey(it.id, it.type) },
             outputCapabilitySignature = outputCapabilities.routeSignature,
@@ -1643,6 +1656,11 @@ internal class PlaybackManager internal constructor(
                 }
             }
         }
+    }
+
+    private fun updateOffloadPreferences() {
+        val policy = if (isDirectPlaybackActive) PlaybackOffloadPolicy.Disabled else currentOffloadPolicy()
+        player.applyAudioOffloadPreferences(policy.toAudioOffloadPreferences())
     }
 
     private fun switchPlayerAudioPath(
@@ -1699,8 +1717,8 @@ internal class PlaybackManager internal constructor(
                 useDirectPlayback = false,
                 directive = BitPerfectPlaybackDirective.PreferRegular,
                 evaluationKey = null,
-                routeDeviceId = status.activeRouteDeviceId,
-                routeType = status.activeRouteType,
+                routeDeviceId = status.attributesRouteDeviceId,
+                routeType = status.attributesRouteType,
                 preferredDeviceKey = null,
                 outputCapabilitySignature = outputCapabilities.routeSignature,
             ),
@@ -2444,9 +2462,12 @@ internal class PlaybackManager internal constructor(
         _manualPlaybackStartVersion.value = _manualPlaybackStartVersion.value + 1L
     }
 
-    private fun effectivePlayerGain(song: Song? = currentSong()): Float {
+    private fun effectivePlayerGain(
+        song: Song? = currentSong(),
+        directPlaybackActive: Boolean = isDirectPlaybackActive,
+    ): Float {
         val baseGain = if (shouldBypassSystemStreamVolume()) userVolume else volumeFineGain
-        val gain = effectiveDspState(baseGain, song).fineGain
+        val gain = effectiveDspState(baseGain, song, directPlaybackActive).fineGain
         return if (duckedForAudioFocus) gain * DUCK_GAIN else gain
     }
 
@@ -2456,18 +2477,20 @@ internal class PlaybackManager internal constructor(
             normalizationRequested = volumeNormalizationEnabled,
             normalizationMetadata = currentSong()?.volumeNormalization,
             softwareGainActive = shouldBypassSystemStreamVolume() && userVolume < 1f,
+            playbackParametersActive = player.playbackParameters != PlaybackParameters.DEFAULT,
         )
     }
 
     private fun effectiveDspState(
         baseGain: Float,
         song: Song? = currentSong(),
+        directPlaybackActive: Boolean = isDirectPlaybackActive,
     ): EffectiveDspState {
         return resolveEffectiveDspState(
             effectsRequested = hasSignalAlteringEffects(),
             normalizationRequested = volumeNormalizationEnabled,
             normalizationMetadata = song?.volumeNormalization,
-            directPlaybackActive = isDirectPlaybackActive,
+            directPlaybackActive = directPlaybackActive,
             softwareGainAllowed = true,
             baseGain = baseGain,
         )
@@ -2523,14 +2546,14 @@ internal class PlaybackManager internal constructor(
         updateState()
     }
 
-    private fun targetPlayerOutputGain(): Float {
+    private fun targetPlayerOutputGain(directPlaybackActive: Boolean = isDirectPlaybackActive): Float {
         if (pauseFadeJob?.isActive == true) {
             return player.volume.coerceIn(0f, 1f)
         }
         val target = if (isPauseTransitioningToStopped && !player.isPlaying) {
             0f
         } else {
-            effectivePlayerGain()
+            effectivePlayerGain(directPlaybackActive = directPlaybackActive)
         }
         crossfadeController.refresh(player, target)
         return target

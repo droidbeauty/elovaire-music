@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,6 +37,20 @@ import kotlin.coroutines.CoroutineContext
 class PlaybackIntegrationCoordinatorTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
+
+    @Test
+    fun equalizerChangesReevaluateTheAudioPathWithoutAnActiveQueue() = runTest(mainDispatcherRule.dispatcher) {
+        val library = FakeLibraryReader(LibraryContentState(), LibraryScanState(isAuthoritative = true))
+        val playback = SuspendingPlayback(activeQueue = false, suspendFirst = false)
+        val coordinator = coordinator(backgroundScope, library, playback, SessionStore())
+        coordinator.start()
+        runCurrent()
+        advanceTimeBy(41)
+        runCurrent()
+        assertEquals(1, playback.audioPathReevaluations)
+        coordinator.release()
+        runCurrent()
+    }
 
     @Test
     fun newerLibrarySnapshotCancelsAnObsoleteQueueRefresh() = runTest(mainDispatcherRule.dispatcher) {
@@ -229,9 +244,10 @@ private class SuspendingPlayback(
     var restoredSongs: List<Song>? = null
     var restoredIndex = -1
     var rejectRestore = false
+    var audioPathReevaluations = 0
 
     override fun hasActiveQueue() = activeQueue
-    override fun reevaluateAudioOutputPath() = Unit
+    override fun reevaluateAudioOutputPath() { audioPathReevaluations++ }
     override fun setCrossfadeEnabled(enabled: Boolean) = Unit
     override fun setCrossfadeDurationMs(value: Long) = Unit
     override fun setCrossfadeSilenceThresholdDb(value: Float) = Unit

@@ -195,6 +195,7 @@ internal object EqualizerDspModel {
 
     fun isFlat(settings: EqSettings): Boolean {
         return settings.bands.none { abs(it) > FLAT_EPSILON } &&
+            settings.preampDb == 0f &&
             abs(settings.midrange) <= FLAT_EPSILON &&
             abs(settings.treble) <= FLAT_EPSILON &&
             settings.bass.coerceAtLeast(0f) <= FLAT_EPSILON &&

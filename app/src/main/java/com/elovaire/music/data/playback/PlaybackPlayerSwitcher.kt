@@ -11,7 +11,7 @@ internal class PlaybackPlayerSwitcher(
     private val detachPlayerObservers: (ExoPlayer) -> Unit,
     private val onPlayerReplaced: (ExoPlayer) -> Unit,
     private val applyPreferredAudioDevice: (Boolean) -> Unit,
-    private val targetPlayerOutputGain: () -> Float,
+    private val targetPlayerOutputGain: (Boolean) -> Float,
     private val language: () -> AppLanguage = { AppLanguage.English },
 ) {
     fun switchPlayerAudioPath(
@@ -27,6 +27,7 @@ internal class PlaybackPlayerSwitcher(
         val result = try {
             val replacement = createPlayer(!useDirectPlayback)
             replacementPlayer = replacement
+            replacement.volume = targetPlayerOutputGain(useDirectPlayback)
             attachPlayerObservers(replacement)
             replacementObserversAttached = true
             replacement.repeatMode = currentPlayer.repeatMode
@@ -44,7 +45,6 @@ internal class PlaybackPlayerSwitcher(
                     replacement.play()
                 }
             }
-            replacement.volume = targetPlayerOutputGain()
             detachPlayerObservers(currentPlayer)
             currentObserversDetached = true
             publicationAttempted = true

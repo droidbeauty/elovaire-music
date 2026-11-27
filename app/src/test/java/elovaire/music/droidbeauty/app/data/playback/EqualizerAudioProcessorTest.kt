@@ -12,6 +12,57 @@ import org.junit.Test
 
 class EqualizerAudioProcessorTest {
     @Test
+    fun preampChangesGainWhenAllOtherControlsAreFlat() {
+        for (gainDb in listOf(-6f, 6f)) {
+            val processor = EqualizerAudioProcessor()
+            processor.updateSettings(EqSettings(preampDb = gainDb))
+            processor.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+            processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            val input = ByteBuffer.allocateDirect(48_000 * 4).order(ByteOrder.nativeOrder())
+            repeat(48_000 * 2) { input.putShort(2_000) }
+            input.flip()
+            processor.queueInput(input)
+            val output = processor.output.order(ByteOrder.nativeOrder())
+            output.position(output.limit() - 4)
+            val expected = 2_000 * Math.pow(10.0, gainDb / 20.0)
+            assertEquals(expected, output.short.toDouble(), 3.0)
+            assertEquals(expected, output.short.toDouble(), 3.0)
+            processor.reset()
+        }
+    }
+
+    @Test
+    fun neutralProcessingPreservesEveryInputByteAcrossFormatsAndChunks() {
+        val random = java.util.Random(0x454c4fL)
+        for ((encoding, bytesPerSample) in listOf(
+            C.ENCODING_PCM_16BIT to 2,
+            C.ENCODING_PCM_24BIT to 3,
+            C.ENCODING_PCM_32BIT to 4,
+            C.ENCODING_PCM_FLOAT to 4,
+        )) {
+            for (channels in listOf(1, 2, 6)) {
+                val processor = EqualizerAudioProcessor()
+                val format = AudioProcessor.AudioFormat(48_000, channels, encoding)
+                processor.configure(format)
+                processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+                for (frames in listOf(1, 17, 257)) {
+                    val expected = ByteArray(frames * channels * bytesPerSample).also(random::nextBytes)
+                    val input = ByteBuffer.allocateDirect(expected.size).order(ByteOrder.nativeOrder())
+                    input.put(expected).flip()
+                    processor.queueInput(input)
+                    val output = processor.output
+                    val actual = ByteArray(output.remaining()).also(output::get)
+                    assertArrayEquals("encoding=$encoding channels=$channels frames=$frames", expected, actual)
+                    assertEquals(input.limit(), input.position())
+                }
+                processor.queueEndOfStream()
+                assertTrue(processor.isEnded)
+                processor.reset()
+            }
+        }
+    }
+
+    @Test
     fun queueInput_copiesPcmThroughWhenEffectsAreOff() {
         val processor = EqualizerAudioProcessor()
         val input = ByteBuffer.allocateDirect(8)

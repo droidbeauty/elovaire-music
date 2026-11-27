@@ -16,7 +16,8 @@ class PlaybackOffloadPolicyTest {
         )
 
         assertTrue(policy.enabled)
-        assertFalse(policy.toAudioOffloadPreferences().isGaplessSupportRequired)
+        assertTrue(policy.toAudioOffloadPreferences().isGaplessSupportRequired)
+        assertTrue(policy.toAudioOffloadPreferences().isSpeedChangeSupportRequired)
         assertEquals(
             TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
             policy.toAudioOffloadPreferences().audioOffloadMode,

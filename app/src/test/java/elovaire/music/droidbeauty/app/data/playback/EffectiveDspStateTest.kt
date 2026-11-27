@@ -13,6 +13,7 @@ class EffectiveDspStateTest {
         assertTrue(hasRequestedSignalChanges(false, true, metadata))
         assertTrue(hasRequestedSignalChanges(true, false, null))
         assertTrue(hasRequestedSignalChanges(false, false, null, softwareGainActive = true))
+        assertTrue(hasRequestedSignalChanges(false, false, null, playbackParametersActive = true))
         assertFalse(hasRequestedSignalChanges(false, false, null))
     }
 

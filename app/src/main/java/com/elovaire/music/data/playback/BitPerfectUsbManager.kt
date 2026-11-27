@@ -32,7 +32,7 @@ internal enum class BitPerfectPlaybackState {
     OffloadOrTunneling,
     UsbRouteDetectedButDirectSupportUnavailable,
     OffloadOnlyDirectPlaybackSupported,
-    BitstreamDirectPlaybackSupported,
+    DirectPlaybackSupported,
     Eligible,
 }
 
@@ -58,14 +58,14 @@ internal data class BitPerfectPlaybackStatus(
     val directive: BitPerfectPlaybackDirective = BitPerfectPlaybackDirective.PreferRegular,
     val mode: DirectPlaybackMode = DirectPlaybackMode.RegularPlaybackRequired,
     val shouldUseDirectPlayback: Boolean = false,
-    val activeRouteDeviceId: Int? = null,
-    val activeRouteType: Int? = null,
+    val attributesRouteDeviceId: Int? = null,
+    val attributesRouteType: Int? = null,
     val directPlaybackSupport: Int = AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED,
     val supportClassification: DirectPlaybackSupportClassification = DirectPlaybackSupportClassification.notSupported,
     val evaluationKey: DirectPlaybackEvaluationKey? = null,
     val confidence: BitPerfectConfidence = BitPerfectConfidence.Unsupported,
     val capability: DirectPlaybackCapability = DirectPlaybackCapability(
-        platformSupported = false,
+        attributeRouteKnown = false,
         routeEligible = false,
         formatSupported = false,
         directSupportFlags = AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED,
@@ -73,10 +73,8 @@ internal data class BitPerfectPlaybackStatus(
     ),
     val configuration: DirectPlaybackConfiguration = DirectPlaybackConfiguration(
         directModeRequested = false,
-        preferredDeviceApplied = false,
-        signalProcessingDisabled = false,
-        offloadActive = false,
-        tunnelingActive = false,
+        usbRouteReportedForAttributes = false,
+        signalProcessingBypassRequested = false,
         currentTrackConfigKnown = false,
     ),
 ) {
@@ -245,7 +243,7 @@ internal class BitPerfectUsbManager(
         _status.value = nextStatus
         logDebug(
             "status=${nextStatus.state} mode=${nextStatus.mode} directive=${nextStatus.directive} " +
-                "route=${nextStatus.activeRouteType}:${nextStatus.activeRouteDeviceId} " +
+                "route=${nextStatus.attributesRouteType}:${nextStatus.attributesRouteDeviceId} " +
                 "support=${nextStatus.directPlaybackSupport} class=${nextStatus.supportClassification.summary} " +
                 "confidence=${nextStatus.confidence} key=${nextStatus.evaluationKey}",
         )
@@ -260,7 +258,7 @@ internal class BitPerfectUsbManager(
         const val TAG = "BitPerfectUsb"
         val QUERY_ALLOWED_SUPPORT = DirectPlaybackSupportClassification(
             rawFlags = AudioManager.DIRECT_PLAYBACK_BITSTREAM_SUPPORTED,
-            kinds = setOf(DirectPlaybackSupportKind.BitstreamPassThrough),
+            kinds = setOf(DirectPlaybackSupportKind.DirectPlayback),
         )
     }
 }
@@ -277,19 +275,19 @@ private data class DirectPlaybackRouteSnapshot(
     val primaryRoutedDevice: AudioDeviceInfo?,
     val primaryRouteFingerprint: RouteFingerprint?,
     val hasBluetoothRoute: Boolean,
-    val isRouteVerified: Boolean,
+    val isAttributeRouteQuery: Boolean,
 ) {
     fun toRouteContext(): DirectPlaybackRouteContext {
         val reportedDevice = preferredUsbDevice ?: primaryRoutedDevice
         val reportedFingerprint = preferredUsbFingerprint ?: primaryRouteFingerprint
         return DirectPlaybackRouteContext(
             hasEligibleUsbRoute = preferredUsbDevice != null,
-            hasVerifiedRoutedUsbRoute = isRouteVerified && preferredUsbDevice != null,
-            hasVerifiedBluetoothRoute = isRouteVerified && hasBluetoothRoute,
-            activeRouteDeviceId = if (isRouteVerified) reportedDevice?.safeId() else null,
-            activeRouteType = if (isRouteVerified) reportedDevice?.safeType() else null,
-            activeRouteSignature = if (isRouteVerified) reportedFingerprint?.hashCode() else null,
-            platformRoutingSupported = isRouteVerified,
+            hasUsbRouteForAttributes = isAttributeRouteQuery && preferredUsbDevice != null,
+            hasBluetoothRouteForAttributes = isAttributeRouteQuery && hasBluetoothRoute,
+            attributesRouteDeviceId = if (isAttributeRouteQuery) reportedDevice?.safeId() else null,
+            attributesRouteType = if (isAttributeRouteQuery) reportedDevice?.safeType() else null,
+            attributesRouteSignature = if (isAttributeRouteQuery) reportedFingerprint?.hashCode() else null,
+            attributeRouteKnown = isAttributeRouteQuery,
         )
     }
 }
@@ -309,13 +307,12 @@ private fun resolveRouteSnapshot(
     routedDevices: List<AudioDeviceInfo>? = null,
 ): DirectPlaybackRouteSnapshot {
     val routeQuerySupported = AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
-    val resolvedRoutedDevices = routedDevices ?: if (routeQuerySupported) {
-        audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes).ifEmpty {
-            audioManager.safeOutputDevices()
-        }
-    } else {
-        audioManager.safeOutputDevices()
-    }
+    val resolvedRoutedDevices = selectDirectPlaybackRouteDevices(
+        routedDevices = routedDevices,
+        routeQuerySupported = routeQuerySupported,
+        readActiveDevices = { audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes) },
+        readAvailableDevices = { audioManager.safeOutputDevices() },
+    )
     val fingerprintsByDevice = IdentityHashMap<AudioDeviceInfo, RouteFingerprint>(resolvedRoutedDevices.size)
     resolvedRoutedDevices.forEach { device ->
         runCatching { device.toRouteFingerprint() }
@@ -335,8 +332,19 @@ private fun resolveRouteSnapshot(
         hasBluetoothRoute = resolvedRoutedDevices.any { device ->
             runCatching { device.type.isBluetoothOutputType() }.getOrDefault(false)
         },
-        isRouteVerified = routeQuerySupported,
+        isAttributeRouteQuery = routeQuerySupported && resolvedRoutedDevices.isNotEmpty(),
     )
+}
+
+internal fun selectDirectPlaybackRouteDevices(
+    routedDevices: List<AudioDeviceInfo>?,
+    routeQuerySupported: Boolean,
+    readActiveDevices: () -> List<AudioDeviceInfo>,
+    readAvailableDevices: () -> List<AudioDeviceInfo>,
+): List<AudioDeviceInfo> = routedDevices ?: if (routeQuerySupported) {
+    readActiveDevices()
+} else {
+    readAvailableDevices()
 }
 
 @UnstableApi

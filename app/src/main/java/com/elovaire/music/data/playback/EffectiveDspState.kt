@@ -16,6 +16,7 @@ internal fun hasRequestedSignalChanges(
     normalizationRequested: Boolean,
     normalizationMetadata: VolumeNormalizationMetadata?,
     softwareGainActive: Boolean = false,
+    playbackParametersActive: Boolean = false,
 ): Boolean = resolveEffectiveDspState(
     effectsRequested = effectsRequested,
     normalizationRequested = normalizationRequested,
@@ -23,7 +24,7 @@ internal fun hasRequestedSignalChanges(
     directPlaybackActive = false,
     softwareGainAllowed = true,
     baseGain = 1f,
-).altersSignal || softwareGainActive
+).altersSignal || softwareGainActive || playbackParametersActive
 
 internal fun resolveEffectiveDspState(
     effectsRequested: Boolean,

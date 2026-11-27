@@ -153,9 +153,11 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
 
     @Transaction
     suspend fun deletePlaylistsAndVerify(playlistIds: Set<Long>) {
-        deletePlaylists(playlistIds)
-        check(playlistIds.all { this.playlist(it) == null }) {
-            "Playlist delete readback failed."
+        playlistIds.chunked(500).forEach { ids ->
+            deletePlaylists(ids.toSet())
+            check(playlistsByIds(ids).isEmpty()) {
+                "Playlist delete readback failed."
+            }
         }
     }
 
@@ -181,7 +183,7 @@ internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
 
     @Transaction
     suspend fun deleteSmartPlaylistsAndVerify(playlistIds: Set<Long>) {
-        deleteSmartPlaylists(playlistIds)
+        playlistIds.chunked(500).forEach { deleteSmartPlaylists(it.toSet()) }
         check(playlistIds.all { this.smartPlaylist(it) == null }) {
             "Smart playlist delete readback failed."
         }
