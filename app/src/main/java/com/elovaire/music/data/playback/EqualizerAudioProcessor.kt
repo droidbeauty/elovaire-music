@@ -478,6 +478,8 @@ internal class EqualizerAudioProcessor(
     private var bassEnergyEnvelope = FloatArray(0)
     private var scratchDryFrame = FloatArray(2)
     private var scratchWetFrame = FloatArray(2)
+    private var partialFrame = AudioProcessor.EMPTY_BUFFER
+    private var controlFramesRemaining = 0
     // Smooth targets every audio block, but rebuild trigonometric filter coefficients at a bounded cadence.
     private var framesSinceCoefficientUpdate = COEFFICIENT_UPDATE_STRIDE_FRAMES
     private var coefficientUpdatePending = true
@@ -513,36 +515,63 @@ internal class EqualizerAudioProcessor(
     override fun queueInput(inputBuffer: java.nio.ByteBuffer) {
         if (!inputBuffer.hasRemaining()) return
         val inputSize = inputBuffer.remaining()
-        val outputBuffer = replaceOutputBuffer(inputSize)
         val encoding = inputAudioFormat.encoding
         if (!configInitialized) {
             resetProcessingState()
         }
         updateTargets()
-        if (canBypassProcessing()) {
-            outputBuffer.put(inputBuffer)
-            outputBuffer.flip()
-            return
-        }
         val frameSize = inputAudioFormat.bytesPerFrame
         if (frameSize <= 0) {
+            val outputBuffer = replaceOutputBuffer(inputSize)
             outputBuffer.put(inputBuffer)
             outputBuffer.flip()
             return
         }
-        val totalFrames = inputSize / frameSize
+        val completeBytes = ((partialFrame.position().toLong() + inputSize) / frameSize) * frameSize
+        check(completeBytes <= Int.MAX_VALUE) { "PCM input buffer is too large" }
+        val outputBuffer = replaceOutputBuffer(completeBytes.toInt())
+        val bypass = canBypassProcessing()
+        if (bypass) controlFramesRemaining = 0
+
+        if (partialFrame.position() > 0) {
+            transferBytes(inputBuffer, partialFrame, min(inputBuffer.remaining(), partialFrame.remaining()))
+            if (!partialFrame.hasRemaining()) {
+                partialFrame.flip()
+                if (bypass) outputBuffer.put(partialFrame) else processFrames(partialFrame, outputBuffer, 1, encoding)
+                partialFrame.clear()
+            }
+        }
+
+        val completeInputBytes = (inputBuffer.remaining() / frameSize) * frameSize
+        if (completeInputBytes > 0) {
+            if (bypass) {
+                transferBytes(inputBuffer, outputBuffer, completeInputBytes)
+            } else {
+                processFrames(inputBuffer, outputBuffer, completeInputBytes / frameSize, encoding)
+            }
+        }
+        if (inputBuffer.hasRemaining()) partialFrame.put(inputBuffer)
+        outputBuffer.flip()
+    }
+
+    private fun processFrames(
+        inputBuffer: java.nio.ByteBuffer,
+        outputBuffer: java.nio.ByteBuffer,
+        totalFrames: Int,
+        encoding: Int,
+    ) {
         var processedFrames = 0
         while (processedFrames < totalFrames) {
-            stepTowardsTargets()
-            if (coefficientUpdatePending || framesSinceCoefficientUpdate >= COEFFICIENT_UPDATE_STRIDE_FRAMES) {
-                rebuildCoefficients()
-                framesSinceCoefficientUpdate = 0
-                coefficientUpdatePending = false
+            if (controlFramesRemaining == 0) {
+                stepTowardsTargets()
+                if (coefficientUpdatePending || framesSinceCoefficientUpdate >= COEFFICIENT_UPDATE_STRIDE_FRAMES) {
+                    rebuildCoefficients()
+                    framesSinceCoefficientUpdate = 0
+                    coefficientUpdatePending = false
+                }
+                controlFramesRemaining = safeConfig.updateStrideFrames
             }
-            val blockFrames = min(
-                safeConfig.updateStrideFrames,
-                totalFrames - processedFrames,
-            )
+            val blockFrames = min(controlFramesRemaining, totalFrames - processedFrames)
             repeat(blockFrames) {
                 for (channelIndex in 0 until channelCount) {
                     val drySample = readSample(inputBuffer, encoding)
@@ -560,8 +589,22 @@ internal class EqualizerAudioProcessor(
             }
             processedFrames += blockFrames
             framesSinceCoefficientUpdate += blockFrames
+            controlFramesRemaining -= blockFrames
         }
-        outputBuffer.flip()
+    }
+
+    private fun transferBytes(source: java.nio.ByteBuffer, target: java.nio.ByteBuffer, count: Int) {
+        val previousLimit = source.limit()
+        source.limit(source.position() + count)
+        try {
+            target.put(source)
+        } finally {
+            source.limit(previousLimit)
+        }
+    }
+
+    override fun onQueueEndOfStream() {
+        check(partialFrame.position() == 0) { "PCM input ended with an incomplete frame" }
     }
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
@@ -581,9 +624,18 @@ internal class EqualizerAudioProcessor(
         activeBandCount = 0
         coefficientPlanBuilds = 0L
         coefficientApplications = 0L
+        partialFrame = AudioProcessor.EMPTY_BUFFER
+        controlFramesRemaining = 0
     }
 
     private fun resetProcessingState() {
+        val frameSize = inputAudioFormat.bytesPerFrame.coerceAtLeast(0)
+        if (partialFrame.capacity() != frameSize) {
+            partialFrame = java.nio.ByteBuffer.allocateDirect(frameSize).order(java.nio.ByteOrder.nativeOrder())
+        } else {
+            partialFrame.clear()
+        }
+        controlFramesRemaining = 0
         channelCount = inputAudioFormat.channelCount.coerceAtLeast(1)
         sampleRateHz = inputAudioFormat.sampleRate.coerceAtLeast(8_000)
         activeBandFrequenciesHz = EqualizerDspModel.activeBandFrequencies(sampleRateHz)
@@ -964,7 +1016,9 @@ internal class EqualizerAudioProcessor(
                 (value / 8_388_608f).coerceIn(-1f, 1f)
             }
             C.ENCODING_PCM_32BIT -> (inputBuffer.int / 2_147_483_648f).coerceIn(-1f, 1f)
-            C.ENCODING_PCM_FLOAT -> inputBuffer.float.coerceIn(-1f, 1f)
+            C.ENCODING_PCM_FLOAT -> inputBuffer.float.let { sample ->
+                if (sample.isFinite()) sample.coerceIn(-1f, 1f) else 0f
+            }
             else -> 0f
         }
     }
@@ -977,10 +1031,10 @@ internal class EqualizerAudioProcessor(
         val clamped = sample.coerceIn(-1f, 1f)
         when (encoding) {
             C.ENCODING_PCM_16BIT -> {
-                outputBuffer.putShort((clamped * Short.MAX_VALUE).roundToInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort())
+                outputBuffer.putShort((clamped * 32_768f).roundToInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort())
             }
             C.ENCODING_PCM_24BIT -> {
-                val value = (clamped * 8_388_607f).roundToInt().coerceIn(-8_388_608, 8_388_607)
+                val value = (clamped * 8_388_608f).roundToInt().coerceIn(-8_388_608, 8_388_607)
                 outputBuffer.put((value and 0xFF).toByte())
                 outputBuffer.put(((value shr 8) and 0xFF).toByte())
                 outputBuffer.put(((value shr 16) and 0xFF).toByte())

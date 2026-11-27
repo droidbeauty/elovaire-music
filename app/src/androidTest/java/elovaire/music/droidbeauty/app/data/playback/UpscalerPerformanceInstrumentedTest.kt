@@ -17,6 +17,47 @@ import org.junit.runner.RunWith
 @UnstableApi
 class UpscalerPerformanceInstrumentedTest {
     @Test
+    fun reportsPerBufferProcessingTimesForStereoAndMultichannel() {
+        val bufferFrames = 256
+        val iterations = 1_000
+        for ((channels, factor) in listOf(2 to 4, 8 to 8)) {
+            val processor = UpscalerAudioProcessor(UpscalerSettings(true, factor, highPrecision = true)) { _, _ -> true }
+            processor.configure(AudioProcessor.AudioFormat(48_000, channels, C.ENCODING_PCM_16BIT))
+            val buffer = ByteBuffer.allocateDirect(bufferFrames * channels * 2).order(ByteOrder.nativeOrder())
+            repeat(bufferFrames * channels) { buffer.putShort(((it * 23) % 16_000 - 8_000).toShort()) }
+
+            fun runBuffers(count: Int, timings: LongArray?) {
+                processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+                var outputBytes = 0L
+                repeat(count) { index ->
+                    buffer.position(0)
+                    val started = SystemClock.elapsedRealtimeNanos()
+                    processor.queueInput(buffer)
+                    outputBytes += processor.getOutput().remaining()
+                    timings?.set(index, SystemClock.elapsedRealtimeNanos() - started)
+                }
+                processor.queueEndOfStream()
+                outputBytes += processor.getOutput().remaining()
+                assertEquals(count.toLong() * bufferFrames * factor * channels * 2, outputBytes)
+            }
+
+            runBuffers(188, null)
+            val timings = LongArray(iterations)
+            runBuffers(iterations, timings)
+            timings.sort()
+            val deadlineNs = bufferFrames * 1_000_000_000L / 48_000
+            fun percentile(value: Int): Long = timings[(timings.lastIndex * value) / 100]
+            Log.i(
+                "UpscalerPerformance",
+                "channels=$channels factor=$factor rate=48000 frames=$bufferFrames iterations=$iterations " +
+                    "deadlineNs=$deadlineNs p50Ns=${percentile(50)} p95Ns=${percentile(95)} " +
+                    "p99Ns=${percentile(99)} maxNs=${timings.last()}",
+            )
+            processor.reset()
+        }
+    }
+
+    @Test
     fun processingCostAndDurationForStereoAndMultichannel() {
         for ((channels, factor) in listOf(2 to 4, 8 to 8)) {
             fun process(): Long {

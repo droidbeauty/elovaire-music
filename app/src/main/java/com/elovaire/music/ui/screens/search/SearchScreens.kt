@@ -487,6 +487,10 @@ private fun SearchScreen(
         dismissSearchInput()
         onPlaylistSelected(playlist)
     }
+    val selectAudiobook: (Audiobook) -> Unit = { audiobook ->
+        dismissSearchInput()
+        onAudiobookSelected(audiobook)
+    }
     if (state.showAllSongResults && trimmedQuery.isNotBlank()) {
         RegisterSharedTopBar(
             SharedTopBarSpec.Back(
@@ -577,13 +581,13 @@ private fun SearchScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .elovaireClickable(
-                            enabled = trimmedQuery.isNotBlank(),
+                            enabled = state.query.isNotEmpty(),
                             interactionSource = remember { MutableInteractionSource() },
                             onClick = onClearQuery,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (trimmedQuery.isNotBlank()) {
+                    if (state.query.isNotEmpty()) {
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
@@ -835,7 +839,7 @@ private fun SearchScreen(
                                 key = "search_artists",
                                 contentType = "search_history",
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                     SearchResultsCategoryHeader(
                                         title = commonUiCopy(language).artists,
                                         subtitle = searchCopy(language).matchingArtists(matchingArtists.size, language),
@@ -885,7 +889,7 @@ private fun SearchScreen(
                                 contentType = "search_song_results",
                             ) {
                                 val previewSongs = state.matchingSongs.take(10)
-                                Column {
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                     SearchSongsPreviewHeader(
                                         resultCount = state.totalSongMatchCount,
                                         showSeeAll = state.totalSongMatchCount > 10,
@@ -894,23 +898,25 @@ private fun SearchScreen(
                                             onShowAllSongResultsChange(true)
                                         },
                                     )
-                                    previewSongs.forEachIndexed { index, song ->
-                                        Box(
-                                            modifier = Modifier.elovaireListReveal(
-                                                itemKey = song.id,
-                                                index = index,
-                                                registry = revealRegistry,
-                                            ),
-                                        ) {
-                                            HomeRecentSongRow(
-                                                song = song,
-                                                isFavorite = song.id in favoriteSongIds,
-                                                onClick = {
-                                                    selectSong(song, state.matchingSongs)
-                                                },
-                                                onToggleFavorite = { onToggleFavorite(song.id) },
-                                                showDivider = index != previewSongs.lastIndex,
-                                            )
+                                    Column {
+                                        previewSongs.forEachIndexed { index, song ->
+                                            Box(
+                                                modifier = Modifier.elovaireListReveal(
+                                                    itemKey = song.id,
+                                                    index = index,
+                                                    registry = revealRegistry,
+                                                ),
+                                            ) {
+                                                HomeRecentSongRow(
+                                                    song = song,
+                                                    isFavorite = song.id in favoriteSongIds,
+                                                    onClick = {
+                                                        selectSong(song, state.matchingSongs)
+                                                    },
+                                                    onToggleFavorite = { onToggleFavorite(song.id) },
+                                                    showDivider = index != previewSongs.lastIndex,
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -924,7 +930,7 @@ private fun SearchScreen(
                             ) {
                                 SearchAudiobooksResults(
                                     books = state.matchingAudiobooks,
-                                    onBookSelected = onAudiobookSelected,
+                                    onBookSelected = selectAudiobook,
                                 )
                             }
                         }
@@ -934,7 +940,7 @@ private fun SearchScreen(
                                 key = "search_playlists",
                                 contentType = "search_playlist_results",
                             ) {
-                                Column {
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                     SearchResultsCategoryHeader(
                                         title = commonUiCopy(language).playlists,
                                         subtitle = localizedCountLabel(
@@ -1211,12 +1217,10 @@ private fun SearchSongsPreviewHeader(
             surfaceId = "search.category_grids",
         ) {
             Surface(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.size(48.dp),
                 onClick = onShowAll,
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
                 Box(
@@ -1228,7 +1232,9 @@ private fun SearchSongsPreviewHeader(
                         contentDescription = showAllSongResultsLabel(language),
                         tint = readableMutedIconColor().copy(alpha = 0.82f),
                         modifier = Modifier
-                            .size(16.dp)
+                            .size(34.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), CircleShape)
+                            .padding(9.dp)
                             .rotate(180f),
                     )
                 }
