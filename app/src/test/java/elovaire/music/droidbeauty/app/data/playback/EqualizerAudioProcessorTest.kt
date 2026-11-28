@@ -8,11 +8,40 @@ import java.nio.ByteOrder
 import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class EqualizerAudioProcessorTest {
+    @Test
+    fun bypassReadinessWaitsForTheEffectTransitionToSettle() {
+        val processor = EqualizerAudioProcessor()
+        processor.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        assertTrue(processor.isSettledForBypass)
+        processor.updateSettings(EqSettings(preampDb = -6f))
+        assertFalse(processor.isSettledForBypass)
+        val input = ByteBuffer.allocateDirect(4_096 * 4).order(ByteOrder.nativeOrder())
+        repeat(4_096 * 2) { input.putShort(2_000) }
+        repeat(12) {
+            input.flip()
+            processor.queueInput(input)
+            processor.getOutput()
+        }
+        processor.updateSettings(EqSettings())
+        assertFalse(processor.isSettledForBypass)
+        repeat(12) {
+            input.flip()
+            processor.queueInput(input)
+            processor.getOutput()
+        }
+        input.flip()
+        processor.queueInput(input)
+        processor.getOutput()
+        assertTrue(processor.isSettledForBypass)
+        processor.reset()
+    }
     @Test
     fun fragmentedPcmFramesProduceTheSameProcessedStreamAsContiguousInput() {
         val samples = ByteBuffer.allocate(1_028).order(ByteOrder.nativeOrder())

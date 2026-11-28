@@ -34,6 +34,7 @@ internal class UpscalerAudioProcessor(
     private var inputFrames = 0L
     private var nextCenter = 0L
     private var tailOutput = AudioProcessor.EMPTY_BUFFER
+    private var partialFrame = AudioProcessor.EMPTY_BUFFER
     private val capacity = radius * 2 + 1
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -61,6 +62,12 @@ internal class UpscalerAudioProcessor(
         factor = pendingFactor
         inputFrames = 0
         nextCenter = 0
+        val frameSize = inputAudioFormat.bytesPerFrame.coerceAtLeast(0)
+        if (partialFrame.capacity() != frameSize) {
+            partialFrame = ByteBuffer.allocateDirect(frameSize).order(ByteOrder.nativeOrder())
+        } else {
+            partialFrame.clear()
+        }
         // Mirror each channel's ring so a filter window stays contiguous across a wrap.
         history = Array(inputAudioFormat.channelCount.coerceAtLeast(0)) { FloatArray(capacity * 2) }
         kernels = when {
@@ -72,7 +79,51 @@ internal class UpscalerAudioProcessor(
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         val channels = inputAudioFormat.channelCount
-        val frames = (inputBuffer.remaining() / inputAudioFormat.bytesPerFrame).coerceAtMost(BLOCK_FRAMES)
+        val frameSize = inputAudioFormat.bytesPerFrame
+        check(frameSize > 0) { "Upscaler requires a configured PCM format" }
+        if (partialFrame.position() == 0 && inputBuffer.remaining() % frameSize == 0) {
+            queueAlignedInput(inputBuffer, channels, frameSize)
+            return
+        }
+        val frames = ((partialFrame.position().toLong() + inputBuffer.remaining()) / frameSize)
+            .coerceAtMost(BLOCK_FRAMES.toLong()).toInt()
+        val output = replaceOutputBuffer(frames * factor * channels * 2)
+        if (frames == 0) {
+            partialFrame.put(inputBuffer)
+            output.flip()
+            return
+        }
+        var slot = (inputFrames % capacity).toInt()
+        var processedFrames = 0
+        if (partialFrame.position() > 0) {
+            val previousLimit = inputBuffer.limit()
+            inputBuffer.limit(inputBuffer.position() + partialFrame.remaining())
+            try {
+                partialFrame.put(inputBuffer)
+            } finally {
+                inputBuffer.limit(previousLimit)
+            }
+            partialFrame.flip()
+            readFrame(partialFrame, slot)
+            partialFrame.clear()
+            inputFrames++
+            if (++slot == capacity) slot = 0
+            if (nextCenter + radius < inputFrames) writeInterpolatedFrames(output)
+            processedFrames++
+        }
+        repeat(frames - processedFrames) {
+            readFrame(inputBuffer, slot)
+            inputFrames++
+            if (++slot == capacity) slot = 0
+            if (nextCenter + radius < inputFrames) writeInterpolatedFrames(output)
+        }
+        if (inputBuffer.remaining() < frameSize) partialFrame.put(inputBuffer)
+        output.flip()
+    }
+
+    // Keep the common aligned loop inline to avoid per-frame dispatch.
+    private fun queueAlignedInput(inputBuffer: ByteBuffer, channels: Int, frameSize: Int) {
+        val frames = (inputBuffer.remaining() / frameSize).coerceAtMost(BLOCK_FRAMES)
         if (frames == 0) return
         val output = replaceOutputBuffer(frames * factor * channels * 2)
         var slot = (inputFrames % capacity).toInt()
@@ -99,7 +150,26 @@ internal class UpscalerAudioProcessor(
         output.flip()
     }
 
+    private fun readFrame(inputBuffer: ByteBuffer, slot: Int) {
+        for (channel in history.indices) {
+            val sample = when (inputAudioFormat.encoding) {
+                C.ENCODING_PCM_FLOAT -> inputBuffer.float.let { if (it.isFinite()) it.coerceIn(-1f, 1f) else 0f }
+                C.ENCODING_PCM_24BIT -> {
+                    val value = (inputBuffer.get().toInt() and 0xff) or
+                        ((inputBuffer.get().toInt() and 0xff) shl 8) or
+                        (inputBuffer.get().toInt() shl 16)
+                    value / 8_388_608f
+                }
+                C.ENCODING_PCM_32BIT -> inputBuffer.int / 2_147_483_648f
+                else -> inputBuffer.short / 32768f
+            }
+            history[channel][slot] = sample
+            history[channel][slot + capacity] = sample
+        }
+    }
+
     override fun onQueueEndOfStream() {
+        check(partialFrame.position() == 0) { "PCM input ended with an incomplete frame" }
         // Lookahead is zero-padded; exactly N * factor frames are emitted, without an added tail.
         val remaining = (inputFrames - nextCenter) * factor
         // Keep the tail separate: the caller may still hold the previous output buffer.
@@ -159,6 +229,7 @@ internal class UpscalerAudioProcessor(
         factor = 1
         pendingFactor = 1
         tailOutput = AudioProcessor.EMPTY_BUFFER
+        partialFrame = AudioProcessor.EMPTY_BUFFER
     }
 
     private companion object {

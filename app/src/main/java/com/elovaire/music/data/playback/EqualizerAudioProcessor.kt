@@ -409,6 +409,9 @@ internal class EqualizerAudioProcessor(
     private val safeBassConfig = safeConfig.bassConfig.sanitized()
     @Volatile
     private var currentSettings: EqSettings = EqSettings()
+    @Volatile
+    var isSettledForBypass: Boolean = true
+        private set
     private var settingsHaveSignalAlteringEffects = false
 
     private var manualPreampDb = 0f
@@ -487,7 +490,7 @@ internal class EqualizerAudioProcessor(
     private var coefficientApplications = 0L
 
     fun updateSettings(settings: EqSettings) {
-        currentSettings = settings.copy(
+        val normalized = settings.copy(
             bands = List(EqualizerDspModel.BAND_COUNT) { index ->
                 settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
             },
@@ -499,6 +502,10 @@ internal class EqualizerAudioProcessor(
             reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
             reverbProfile = settings.reverbProfile,
         )
+        if (normalized != currentSettings) {
+            isSettledForBypass = false
+            currentSettings = normalized
+        }
     }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -531,6 +538,7 @@ internal class EqualizerAudioProcessor(
         check(completeBytes <= Int.MAX_VALUE) { "PCM input buffer is too large" }
         val outputBuffer = replaceOutputBuffer(completeBytes.toInt())
         val bypass = canBypassProcessing()
+        isSettledForBypass = bypass
         if (bypass) controlFramesRemaining = 0
 
         if (partialFrame.position() > 0) {
@@ -609,10 +617,12 @@ internal class EqualizerAudioProcessor(
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
         resetProcessingState()
+        isSettledForBypass = !EqValuePolicy.hasSignalAlteringEffects(currentSettings)
     }
 
     override fun onReset() {
         resetRuntimeStates()
+        isSettledForBypass = !EqValuePolicy.hasSignalAlteringEffects(currentSettings)
         configInitialized = false
         channelCount = 0
         sampleRateHz = 48_000

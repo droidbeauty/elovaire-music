@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 internal class ElovaireRenderersFactory(
     context: Context,
     private val audioProcessors: Array<AudioProcessor>,
+    private val processingRequired: () -> Boolean = { true },
 ) : DefaultRenderersFactory(context) {
     override fun buildAudioSink(
         context: Context,
@@ -24,6 +25,14 @@ internal class ElovaireRenderersFactory(
                 enableAudioOutputPlaybackParameters && audioProcessors.isNotEmpty(),
             )
             .build()
-        return sink
+        return if (enableFloatOutput) {
+            PrecisionSwitchingAudioSink(
+                sink = sink,
+                processingRequired = processingRequired,
+                processorsSettled = {
+                    audioProcessors.all { it is EqualizerAudioProcessor && it.isSettledForBypass }
+                },
+            )
+        } else sink
     }
 }

@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="3.2.2">
-        <item>Redesigned splash screen and initial configuration UI</item>
-        <item>UI tweaks in artist preview screen</item>
-        <item>Improved Media3 implementation for more reliable playback and DSP architecture</item>
+    <release version="3.2.3">
+        <item>UI tweaks in search screen</item>
+        <item>UI tweaks in about artist card module</item>
+        <item>Improved technical EQ quality for better efficiency while its active</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

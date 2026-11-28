@@ -24,6 +24,8 @@ internal class PlaybackPlayerFactory(
     private val audioProcessorsProvider: () -> Array<AudioProcessor>,
     private val preferredOutputDevice: () -> AudioDeviceInfo?,
     private val offloadPolicyProvider: () -> PlaybackOffloadPolicy = { PlaybackOffloadPolicy.Disabled },
+    private val processingRequired: () -> Boolean = { true },
+    private val allowHighResolutionOutput: () -> Boolean = { true },
 ) {
     fun create(enableSignalProcessing: Boolean): ExoPlayer {
         return ElovaireTrace.section("playback_player_create") {
@@ -49,8 +51,9 @@ internal class PlaybackPlayerFactory(
                 ElovaireRenderersFactory(
                     context,
                     audioProcessors,
+                    processingRequired,
                 )
-                    .setEnableAudioFloatOutput(false)
+                    .setEnableAudioFloatOutput(allowHighResolutionOutput())
                     .setEnableDecoderFallback(true)
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
             )
@@ -78,8 +81,8 @@ internal class PlaybackPlayerFactory(
     private fun createFallbackPlayer(): ExoPlayer {
         val fallbackPlayer = ExoPlayer.Builder(context)
             .setRenderersFactory(
-                ElovaireRenderersFactory(context, audioProcessorsProvider())
-                    .setEnableAudioFloatOutput(false)
+                ElovaireRenderersFactory(context, audioProcessorsProvider(), processingRequired)
+                    .setEnableAudioFloatOutput(allowHighResolutionOutput())
                     .setEnableDecoderFallback(true),
             )
             .setMediaSourceFactory(

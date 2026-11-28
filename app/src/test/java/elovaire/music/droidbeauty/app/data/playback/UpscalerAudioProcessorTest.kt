@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.playback
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import elovaire.music.droidbeauty.app.domain.model.UpscalerSettings
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
@@ -14,10 +15,75 @@ import kotlin.math.sqrt
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpscalerAudioProcessorTest {
+    @Test
+    fun partialFrameAfterAFullProcessingBlockIsCompletedByTheNextBuffer() {
+        val channels = 2
+        val samples = ShortArray(257 * channels) { ((it * 73) % 20_001 - 10_000).toShort() }
+        val expected = process(samples, channels, UpscalerSettings(true, 2, headroomDb = 0), 257)
+        val bytes = ByteBuffer.allocate(samples.size * 2).order(ByteOrder.nativeOrder())
+        samples.forEach(bytes::putShort)
+        val source = bytes.array()
+        val processor = activeProcessor(channels, UpscalerSettings(true, 2, headroomDb = 0))
+        val output = mutableListOf<Short>()
+        for (range in listOf(0 until 1_025, 1_025 until source.size)) {
+            val input = ByteBuffer.allocateDirect(range.count()).order(ByteOrder.nativeOrder())
+            input.put(source, range.first, range.count()).flip()
+            while (input.hasRemaining()) {
+                val before = input.position()
+                processor.queueInput(input)
+                assertTrue(input.position() > before)
+                output += read(processor).toList()
+            }
+        }
+        processor.queueEndOfStream()
+        output += read(processor).toList()
+        assertTrue(processor.isEnded)
+        assertArrayEquals(expected, output.toShortArray())
+        processor.reset()
+    }
+
+    @Test
+    fun fragmentedFramesMatchContiguousInputForAllPcmFormats() {
+        for ((encoding, bytesPerSample) in listOf(
+            C.ENCODING_PCM_16BIT to 2,
+            C.ENCODING_PCM_24BIT to 3,
+            C.ENCODING_PCM_32BIT to 4,
+            C.ENCODING_PCM_FLOAT to 4,
+        )) for (channels in listOf(1, 2, 6, 7, 8)) for (factor in listOf(2, 4, 8)) for (precision in listOf(false, true)) {
+            val data = ByteArray(129 * channels * bytesPerSample)
+            java.util.Random(encoding * 137L + channels * 11L + factor).nextBytes(data)
+
+            val expected = processBytes(data, encoding, channels, factor, precision, fragmented = false)
+            assertEquals(129 * channels * factor * 2, expected.size)
+            val actual = processBytes(data, encoding, channels, factor, precision, fragmented = true)
+            assertArrayEquals("encoding=$encoding channels=$channels factor=$factor precision=$precision", expected, actual)
+        }
+    }
+
+    @Test
+    fun incompleteFinalFrameIsReportedAndFlushDropsTheFragment() {
+        val processor = UpscalerAudioProcessor(UpscalerSettings(true, 2, headroomDb = 0)) { _, _ -> true }
+        processor.configure(format(channels = 2))
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        val incomplete = ByteBuffer.allocateDirect(3).order(ByteOrder.nativeOrder())
+        incomplete.put(byteArrayOf(1, 2, 3)).flip()
+        processor.queueInput(incomplete)
+        assertEquals(3, incomplete.position())
+        assertThrows(IllegalStateException::class.java) { processor.queueEndOfStream() }
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        processor.queueInput(pcm(shortArrayOf(1000, -1000)))
+        processor.getOutput()
+        processor.queueEndOfStream()
+        assertArrayEquals(shortArrayOf(1000, -1000), read(processor).copyOfRange(0, 2))
+        assertTrue(processor.isEnded)
+        processor.reset()
+    }
+
     @Test
     fun interpolationMatchesReferenceAcrossRingWrapAndStreamEdges() {
         for (factor in listOf(2, 4, 8)) for (channels in listOf(1, 2, 6, 8)) {
@@ -238,6 +304,35 @@ class UpscalerAudioProcessorTest {
         assertFalse(processor.isActive)
     }
 
+    @Test
+    fun pendingFormatDoesNotChangeAnIncompleteFrameInTheActiveStream() {
+        val processor = activeProcessor(2, UpscalerSettings(true, 8, headroomDb = 0))
+        val samples = shortArrayOf(1000, -1000)
+        val bytes = ByteBuffer.allocate(4).order(ByteOrder.nativeOrder()).apply {
+            samples.forEach(::putShort)
+        }.array()
+        val first = ByteBuffer.allocateDirect(3).order(ByteOrder.nativeOrder()).apply {
+            put(bytes, 0, 3).flip()
+        }
+        processor.queueInput(first)
+        assertFalse(first.hasRemaining())
+        processor.configure(format(rate = 384_000, channels = 1))
+        val last = ByteBuffer.allocateDirect(1).order(ByteOrder.nativeOrder()).apply {
+            put(bytes[3]).flip()
+        }
+        processor.queueInput(last)
+        assertFalse(last.hasRemaining())
+        processor.getOutput()
+        processor.queueEndOfStream()
+        val output = read(processor)
+        assertEquals(16, output.size)
+        assertArrayEquals(samples, output.copyOfRange(0, 2))
+        assertTrue(processor.isEnded)
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        assertFalse(processor.isActive)
+        processor.reset()
+    }
+
     private fun process(samples: ShortArray, channels: Int, settings: UpscalerSettings, chunkFrames: Int): ShortArray {
         val processor = activeProcessor(channels, settings)
         val output = mutableListOf<Short>()
@@ -255,6 +350,45 @@ class UpscalerAudioProcessorTest {
         output += read(processor).toList()
         assertTrue(processor.isEnded)
         return output.toShortArray()
+    }
+
+    private fun processBytes(
+        data: ByteArray,
+        encoding: Int,
+        channels: Int,
+        factor: Int,
+        precision: Boolean,
+        fragmented: Boolean,
+    ): ByteArray {
+        val settings = UpscalerSettings(true, factor, highPrecision = precision, headroomDb = 0)
+        val processor = UpscalerAudioProcessor(settings) { _, _ -> true }
+        processor.configure(format(channels = channels, encoding = encoding))
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        val result = ByteArrayOutputStream()
+        var offset = 0
+        while (offset < data.size) {
+            val count = if (fragmented) minOf((offset % 13) + 1, data.size - offset) else data.size
+            val buffer = ByteBuffer.allocateDirect(count).order(ByteOrder.nativeOrder())
+            buffer.put(data, offset, count).flip()
+            while (buffer.hasRemaining()) {
+                val before = buffer.position()
+                processor.queueInput(buffer)
+                assertTrue("input must make progress", buffer.position() > before)
+                val output = processor.getOutput()
+                val bytes = ByteArray(output.remaining())
+                output.get(bytes)
+                result.write(bytes)
+            }
+            offset += count
+        }
+        processor.queueEndOfStream()
+        val tail = processor.getOutput()
+        val tailBytes = ByteArray(tail.remaining())
+        tail.get(tailBytes)
+        result.write(tailBytes)
+        assertTrue(processor.isEnded)
+        processor.reset()
+        return result.toByteArray()
     }
 
     private fun activeProcessor(channels: Int, settings: UpscalerSettings) =

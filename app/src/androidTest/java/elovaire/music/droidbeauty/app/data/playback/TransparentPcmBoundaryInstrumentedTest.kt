@@ -42,6 +42,22 @@ class TransparentPcmBoundaryInstrumentedTest {
     }
 
     @Test
+    fun productionSinkTruncatesPcm24BeforeTheNeutralAppProcessor() {
+        val pcm = ByteArray(2_400 * 2 * 3)
+        val expected = ByteBuffer.allocate(2_400 * 2 * 2).order(ByteOrder.LITTLE_ENDIAN)
+        repeat(2_400 * 2) { index ->
+            val sample = (index % 255) - 127
+            pcm[index * 3] = sample.toByte()
+            pcm[index * 3 + 1] = (sample shr 8).toByte()
+            pcm[index * 3 + 2] = (sample shr 16).toByte()
+            expected.putShort((sample shr 8).toShort())
+        }
+        val (format, output) = playAndCapture(pcm, EqSettings(), bitsPerSample = 24)
+        assertEquals(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT), format)
+        assertArrayEquals(expected.array(), output)
+    }
+
+    @Test
     fun preampGainIsAppliedInTheMedia3ProcessorChain() {
         val pcm = ByteBuffer.allocate(48_000 * 4).order(ByteOrder.LITTLE_ENDIAN)
         repeat(48_000 * 2) { pcm.putShort(2_000) }
@@ -101,13 +117,16 @@ class TransparentPcmBoundaryInstrumentedTest {
         pcm: ByteArray,
         settings: EqSettings,
         failFirstProcessorCreation: Boolean = false,
+        bitsPerSample: Int = 16,
     ): Pair<AudioProcessor.AudioFormat?, ByteArray> {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val wav = ByteBuffer.allocate(44 + pcm.size).order(ByteOrder.LITTLE_ENDIAN)
         wav.put("RIFF".toByteArray(Charsets.US_ASCII)).putInt(36 + pcm.size)
         wav.put("WAVEfmt ".toByteArray(Charsets.US_ASCII)).putInt(16)
-        wav.putShort(1).putShort(2).putInt(48_000).putInt(48_000 * 4).putShort(4).putShort(16)
+        val frameSize = 2 * (bitsPerSample / 8)
+        wav.putShort(1).putShort(2).putInt(48_000).putInt(48_000 * frameSize)
+            .putShort(frameSize.toShort()).putShort(bitsPerSample.toShort())
         wav.put("data".toByteArray(Charsets.US_ASCII)).putInt(pcm.size).put(pcm)
         val file = File.createTempFile("pcm-boundary-", ".wav", context.cacheDir)
         file.writeBytes(wav.array())

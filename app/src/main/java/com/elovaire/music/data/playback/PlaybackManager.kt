@@ -269,6 +269,10 @@ internal class PlaybackManager internal constructor(
         },
         preferredOutputDevice = bitPerfectUsbManager::preferredOutputDevice,
         offloadPolicyProvider = ::currentOffloadPolicy,
+        processingRequired = hasSignalAlteringEffects,
+        allowHighResolutionOutput = {
+            !audioSinkRecoveryGuard.isSoftwareFallbackActive(currentAudioRouteSnapshot.generation)
+        },
     )
     private val playbackHandler = Handler(Looper.getMainLooper())
     private val audiobookPlaybackSpeedSyncJob = scope.launch {

@@ -30,6 +30,8 @@ class PlaybackEffectsController : PlaybackEffects {
     }
 
     private var currentSettings: EqSettings = EqSettings()
+    @Volatile
+    private var equalizerEffectsActive = false
 
     @Synchronized
     fun audioProcessors(): Array<AudioProcessor> {
@@ -44,7 +46,8 @@ class PlaybackEffectsController : PlaybackEffects {
         if (sanitized == currentSettings) return
         currentSettings = sanitized
         equalizerProcessors.toList().forEach { it.updateSettings(currentSettings) }
+        equalizerEffectsActive = EqValuePolicy.hasSignalAlteringEffects(sanitized)
     }
 
-    override fun hasSignalAlteringEffects(): Boolean = upscalerSettings.enabled || EqValuePolicy.hasSignalAlteringEffects(currentSettings)
+    override fun hasSignalAlteringEffects(): Boolean = upscalerSettings.enabled || equalizerEffectsActive
 }
